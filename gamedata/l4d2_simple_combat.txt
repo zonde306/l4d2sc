@@ -1,0 +1,23 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			// bool CDirectorChallengeMode::ScriptAllowDamage(CDirectorChallengeMode *this, CBaseEntity *victim, CTakeDamageInfo *dmgInfo)
+			// 获取方法：Failed to call AllowTakeDamage though we think we have one!\n
+			"CDirectorChallengeMode::ScriptAllowDamage"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\xF1\x8B\x86"
+				// 55 8B EC 83 EC 30 53 56 8B F1 8B 86
+				
+				"mac"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
+				"macos"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
+				
+				// Linux 版的又没有符号，谁知道对不对
+				"linux"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
+			}
+		}
+	}
+}

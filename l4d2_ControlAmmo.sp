@@ -3,6 +3,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <l4d_stocks>
 #include <l4d2_simple_combat>
 
 #define CVAR_FLAGS FCVAR_NONE
@@ -14,34 +15,53 @@
 
 new const String:WeaponNames[][] =
 {
+	// AMMOTYPE_ASSAULTRIFLE = 3
 	"weapon_rifle",										/*clip: 50*/
 	"weapon_rifle_ak47",								/*clip: 40*/
 	"weapon_rifle_desert",								/*clip: 60*/
 	"weapon_rifle_sg552",			//0~3 offset: +12		/*clip: 50*/
+	
+	// AMMOTYPE_SMG = 5
 	"weapon_smg",										/*clip: 50*/
 	"weapon_smg_silenced",								/*clip: 50*/
 	"weapon_smg_mp5",				//4~6 offset: +20		/*clip: 50*/
+	
+	// AMMOTYPE_SHOTGUN = 7
 	"weapon_pumpshotgun",								/*clip: 8*/
 	"weapon_shotgun_chrome",		//7~8 offset: +28		/*clip: 8*/
+	
+	// AMMOTYPE_AUTOSHOTGUN = 8
 	"weapon_autoshotgun",								/*clip: 10*/
 	"weapon_shotgun_spas",			//9~10 offset: +32		/*clip: 10*/
+	
+	// AMMOTYPE_HUNTINGRIFLE = 9
 	"weapon_hunting_rifle",			//11 offset: +36		/*clip: 15*/
+	
+	// AMMOTYPE_SNIPERRIFLE = 10
 	"weapon_sniper_military",							/*clip: 30*/
 	"weapon_sniper_awp",								/*clip: 20*/
 	"weapon_sniper_scout",			//12~14 offset: +40		/*clip: 15*/
+	
+	// AMMOTYPE_GRENADELAUNCHER = 17
 	"weapon_grenade_launcher",		//15 offset: +68		/*clip: 1*/
 	
+	// AMMOTYPE_M60 = 6
 	"weapon_rifle_m60",				//16 NoOffSet		/*clip: 150*/
+	
+	// AMMOTYPE_PISTOL = 1
 	"weapon_pistol",									/*clip: 15*/
+	
+	// AMMOTYPE_MAGNUM = 2
 	"weapon_pistol_magnum"								/*clip: 8*/
 
 };
 
 static 	Handle:Plugin_Enabled,
-		Handle:Gun_ExtraPrimaryAmmo[16],
+		Handle:Gun_ExtraPrimaryAmmo[17],
 		Handle:ControlAmmo_Enable[19],
 		Handle:Gun_ClipAmmo[19],
 		Handle:M60_AmmoPickup_Enabled,
+		Handle:GL_AmmoPickup_Enabled,
 		iAmmoOffset,
 		bool:IsReload[33],
 		Handle:Upgrade_Ammo_Explosive,
@@ -71,82 +91,86 @@ public OnPluginStart()
 	HookEvent("ammo_pickup", Event_AmmoPickup, EventHookMode_Post);
 	HookEvent("upgrade_pack_added", Event_SpecialAmmo, EventHookMode_Post);
 	HookEvent("player_spawn", Event_Player_Spawn,EventHookMode_Post);
+	HookEvent("weapon_fire", Event_WeaponFire,EventHookMode_Post);
+	HookEvent("weapon_reload", Event_WeaponReload,EventHookMode_Post);
 	
 	Plugin_Enabled =			CreateConVar("controlammo_enabled","1","插件開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
 	
 	ControlAmmo_Enable[0]	=	CreateConVar("ControlAmmo_rifle_enable","1","M16彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[0] =	CreateConVar("ControlAmmo_rifle_ammo","360","M16储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[0] =			CreateConVar("ControlAmmo_rifle_clip","50","M16弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[0] =	CreateConVar("ControlAmmo_rifle_ammo","410","M16储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[0] =			CreateConVar("ControlAmmo_rifle_clip","50","M16弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 
 	ControlAmmo_Enable[1]	=	CreateConVar("ControlAmmo_rifle_ak47_enable","1","AK47彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[1] =	CreateConVar("ControlAmmo_rifle_ak47_Ammo","360","AK47储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[1] =			CreateConVar("ControlAmmo_rifle_ak47_Clip","40","AK47弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[1] =	CreateConVar("ControlAmmo_rifle_ak47_Ammo","400","AK47储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[1] =			CreateConVar("ControlAmmo_rifle_ak47_Clip","40","AK47弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[2]	=	CreateConVar("ControlAmmo_rifle_desert_enable","1","SCAR步槍彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[2] =	CreateConVar("ControlAmmo_rifle_desert_Ammo","360","SCAR步槍储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[2] =			CreateConVar("ControlAmmo_rifle_desert_Clip","60","SCAR步槍弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[2] =	CreateConVar("ControlAmmo_rifle_desert_Ammo","420","SCAR步槍储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[2] =			CreateConVar("ControlAmmo_rifle_desert_Clip","60","SCAR步槍弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[3]	=	CreateConVar("ControlAmmo_rifle_sg552_enable","1","sg552彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[3] =	CreateConVar("ControlAmmo_rifle_sg552_Ammo","360","SG552储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[3] =			CreateConVar("ControlAmmo_rifle_sg552_Clip","50","SG552弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[3] =	CreateConVar("ControlAmmo_rifle_sg552_Ammo","410","SG552储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[3] =			CreateConVar("ControlAmmo_rifle_sg552_Clip","50","SG552弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[4]	=	CreateConVar("ControlAmmo_smg_enable","1","衝鋒槍彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[4] =	CreateConVar("ControlAmmo_smg_Ammo","650","冲锋枪储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[4] =			CreateConVar("ControlAmmo_smg_Clip","50","冲锋枪弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[4] =	CreateConVar("ControlAmmo_smg_Ammo","700","冲锋枪储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[4] =			CreateConVar("ControlAmmo_smg_Clip","50","冲锋枪弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[5]	=	CreateConVar("ControlAmmo_smg_silenced_enable","1","消声冲锋枪彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[5] =	CreateConVar("ControlAmmo_smg_silenced_Ammo","650","消声冲锋枪储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[5] =			CreateConVar("ControlAmmo_smg_silenced_Clip","50","消声冲锋枪弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[5] =	CreateConVar("ControlAmmo_smg_silenced_Ammo","700","消声冲锋枪储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[5] =			CreateConVar("ControlAmmo_smg_silenced_Clip","50","消声冲锋枪弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[6]	=	CreateConVar("ControlAmmo_smg_mp5_enable","1","MP5彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[6] =	CreateConVar("ControlAmmo_smg_mp5_Ammo","650","MP5储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[6] =			CreateConVar("ControlAmmo_smg_mp5_Clip","50","MP5弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[6] =	CreateConVar("ControlAmmo_smg_mp5_Ammo","700","MP5储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[6] =			CreateConVar("ControlAmmo_smg_mp5_Clip","50","MP5弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[7]	=	CreateConVar("ControlAmmo_pumpshotgun_enable","1","泵动霰弹彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[7] =	CreateConVar("ControlAmmo_pumpshotgun_Ammo","56","泵动霰弹储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[7] =			CreateConVar("ControlAmmo_pumpshotgun_Clip","8","泵动霰弹弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[7] =	CreateConVar("ControlAmmo_pumpshotgun_Ammo","64","泵动霰弹储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[7] =			CreateConVar("ControlAmmo_pumpshotgun_Clip","8","泵动霰弹弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[8]	=	CreateConVar("ControlAmmo_shotgun_chrome_enable","1","合金霰弹彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[8] =	CreateConVar("ControlAmmo_shotgun_chrome_Ammo","56","合金霰弹储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[8] =			CreateConVar("ControlAmmo_shotgun_chrome_Clip","8","合金霰弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[8] =	CreateConVar("ControlAmmo_shotgun_chrome_Ammo","64","合金霰弹储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[8] =			CreateConVar("ControlAmmo_shotgun_chrome_Clip","8","合金霰弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[9]	=	CreateConVar("ControlAmmo_autoshotgun_enable","1","M4连霰彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[9] =	CreateConVar("ControlAmmo_autoshotgun_Ammo","90","M4连霰储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[9] =			CreateConVar("ControlAmmo_autoshotgun_Clip","10","M4连霰弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[9] =	CreateConVar("ControlAmmo_autoshotgun_Ammo","100","M4连霰储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[9] =			CreateConVar("ControlAmmo_autoshotgun_Clip","10","M4连霰弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[10]	=	CreateConVar("ControlAmmo_shotgun_spas_enable","1","SPA12连霰彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[10] =	CreateConVar("ControlAmmo_shotgun_spas_Ammo","90","SPA12连霰储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[10] =			CreateConVar("ControlAmmo_shotgun_spas_Clip","10","SPA12连霰弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[10] =	CreateConVar("ControlAmmo_shotgun_spas_Ammo","100","SPA12连霰储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[10] =			CreateConVar("ControlAmmo_shotgun_spas_Clip","10","SPA12连霰弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[11]	 =	CreateConVar("ControlAmmo_hunting_rifle_enable","1","猎狙彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[11] =	CreateConVar("ControlAmmo_hunting_rifle_Ammo","150","猎狙储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[11] =			CreateConVar("ControlAmmo_hunting_rifle_Clip","15","猎狙弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[11] =	CreateConVar("ControlAmmo_hunting_rifle_Ammo","165","猎狙储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[11] =			CreateConVar("ControlAmmo_hunting_rifle_Clip","15","猎狙弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[12]	 =	CreateConVar("ControlAmmo_sniper_military_enable","1","军用狙彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[12] =	CreateConVar("ControlAmmo_sniper_military_Ammo","180","军用狙储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[12] =			CreateConVar("ControlAmmo_sniper_military_Clip","30","军用狙弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[12] =	CreateConVar("ControlAmmo_sniper_military_Ammo","210","军用狙储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[12] =			CreateConVar("ControlAmmo_sniper_military_Clip","30","军用狙弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[13]	 =	CreateConVar("ControlAmmo_sniper_awp_enable","1","AWP彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[13] =	CreateConVar("ControlAmmo_sniper_awp_Ammo","180","AWP储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[13] =			CreateConVar("ControlAmmo_sniper_awp_Clip","20","AWP弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[13] =	CreateConVar("ControlAmmo_sniper_awp_Ammo","200","AWP储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[13] =			CreateConVar("ControlAmmo_sniper_awp_Clip","20","AWP弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[14]	 =	CreateConVar("ControlAmmo_sniper_scout_enable","1","輕狙彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[14] =	CreateConVar("ControlAmmo_sniper_scout_Ammo","180","輕狙储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[14] =			CreateConVar("ControlAmmo_sniper_scout_Clip","15","輕狙弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[14] =	CreateConVar("ControlAmmo_sniper_scout_Ammo","195","輕狙储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[14] =			CreateConVar("ControlAmmo_sniper_scout_Clip","15","輕狙弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[15]	 =	CreateConVar("ControlAmmo_grenade_launcher_enable","1","榴弹彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ExtraPrimaryAmmo[15] =	CreateConVar("ControlAmmo_grenade_launcher_Ammo","30","榴弹储备弹药数量",CVAR_FLAGS,true,1.0,true,999.0);
-	Gun_ClipAmmo[15] =			CreateConVar("ControlAmmo_grenade_launcher_Clip","1","榴弹弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[15] =	CreateConVar("ControlAmmo_grenade_launcher_Ammo","31","榴弹储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[15] =			CreateConVar("ControlAmmo_grenade_launcher_Clip","1","榴弹弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
+	GL_AmmoPickup_Enabled =		CreateConVar("ControlAmmo_grenade_launcher_ammopickup_Enabled","1","開啟榴弹補彈 1/0",CVAR_FLAGS,true,0.0,true,1.0);
 	
 	ControlAmmo_Enable[16]	 =	CreateConVar("ControlAmmo_m60_enable","1","M60彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	M60_AmmoPickup_Enabled =	CreateConVar("ControlAmmo_m60_ammopickup_Enabled","0","開啟M60補彈 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ClipAmmo[16] =			CreateConVar("ControlAmmo_rifle_m60_Clip","150","M60弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ExtraPrimaryAmmo[16] =	CreateConVar("ControlAmmo_m60_Ammo","300","M60储备弹药数量",CVAR_FLAGS,true,1.0,true,1023.0);
+	Gun_ClipAmmo[16] =			CreateConVar("ControlAmmo_rifle_m60_Clip","150","M60弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
+	M60_AmmoPickup_Enabled =	CreateConVar("ControlAmmo_m60_ammopickup_Enabled","1","開啟M60補彈 1/0",CVAR_FLAGS,true,0.0,true,1.0);
 	
 	ControlAmmo_Enable[17]	 =	CreateConVar("ControlAmmo_pistol_enable","1","格洛克彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ClipAmmo[17] =			CreateConVar("ControlAmmo_pistol_Clip","15","格洛克弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ClipAmmo[17] =			CreateConVar("ControlAmmo_pistol_Clip","15","格洛克弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	ControlAmmo_Enable[18]	 =	CreateConVar("ControlAmmo_pistol_magnum_enable","1","麥格南彈藥控制開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
-	Gun_ClipAmmo[18] =			CreateConVar("ControlAmmo_pistol_magnum_Clip","8","麥格南弹夹弹药数量",CVAR_FLAGS,true,1.0,true,255.0);
+	Gun_ClipAmmo[18] =			CreateConVar("ControlAmmo_pistol_magnum_Clip","8","麥格南弹夹弹药数量",CVAR_FLAGS,true,1.0,true,254.0);
 	
 	Upgrade_Ammo_Explosive	=	CreateConVar("ammo_explosive_Clip","1","高爆彈弹药数量_倍數",CVAR_FLAGS,true,1.0,true,10.0);
 	
@@ -174,7 +198,7 @@ public Action SC_OnSkillGetInfo(int client, const char[] classname,
 	else if(StrEqual(classname, "ca_maxclip", false))
 		FormatEx(description, descriptionMaxLength, "武器弹夹 ＋%.2f％", (SKILLCLIP_SIZE - 1.0) * 100);
 	else if(StrEqual(classname, "upf_moreupgrade", false))
-		FormatEx(description, descriptionMaxLength, "弹药升级 ＋%.2f％\n弹药升级同类型可以叠加", (SKILLUPGRADE_SIZE - 1.0) * 100);
+		FormatEx(description, descriptionMaxLength, "弹药升级 ＋%.2f％\n弹药升级同类型可以叠加\n换弹夹保留子弹", (SKILLUPGRADE_SIZE - 1.0) * 100);
 	else
 		return Plugin_Continue;
 	
@@ -267,20 +291,21 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 						new clip 			= GetEntProp(weapon_index, Prop_Send, "m_iClip1");
 						new customclip 		= GetCustomClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames),client);
 						new offset 			= FindWeaponOffSet(weapon_name,WeaponNames,sizeof(WeaponNames));
-						new defclip			= GetDefaultClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames));
+						// new defclip			= GetDefaultClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames));
 						if(!IsShotGun(weapon_name,WeaponNames))
 						{
 							if(offset<=68 && offset>-1)
 							{
 								if(clip<customclip)
 								{
-									new ExtraPrimaryAmmo 		= GetEntData(client,iAmmoOffset+offset);
+									// new ExtraPrimaryAmmo 		= GetEntData(client,iAmmoOffset+offset);
+									new ExtraPrimaryAmmo 		= GetPlayerAmmo(client,offset);
+									ShotGunData[client][0]		= clip;
+									ShotGunData[client][1]		= ExtraPrimaryAmmo;
 									SetEntProp(weapon_index, Prop_Send, "m_iClip1",0);
 									// SetEntData(client,iAmmoOffset+offset,ExtraPrimaryAmmo+clip);
 									SetPlayerAmmo(client,offset,ExtraPrimaryAmmo+clip);
 									
-									SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
-									SDKHook(client, SDKHook_PreThink, GunPreThinkPostHook);
 									IsReload[client] = true;
 								}
 								else if(buttons&IN_RELOAD)
@@ -289,7 +314,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 							else if(IsPistolGun(weapon_name,WeaponNames) && clip<customclip)
 							{
 								SetEntProp(weapon_index, Prop_Send, "m_iClip1",0);
-								SDKHook(client, SDKHook_PreThink, GunPreThinkPostHook);
+								ShotGunData[client][0] = clip;
 								IsReload[client] = true;
 							}
 							else if(buttons&IN_RELOAD)
@@ -297,19 +322,17 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 						}
 						else
 						{
-							SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 							if(clip<customclip&&GetEntProp(weapon_index, Prop_Send, "m_bInReload")==0)
 							{
-								SDKHook(client, SDKHook_PreThink, GunPreThinkPostHook);
 								ShotGunData[client][0] = GetEntProp(weapon_index, Prop_Send, "m_iClip1");
 								ShotGunData[client][1] = customclip-ShotGunData[client][0];
-								new reload_clip_num = ShotGunData[client][0]<defclip ? ShotGunData[client][0] : defclip-1;
-								SetEntProp(weapon_index, Prop_Send, "m_iClip1", reload_clip_num);
+								// new reload_clip_num = ShotGunData[client][0]<defclip ? ShotGunData[client][0] : defclip-1;
+								SetEntProp(weapon_index, Prop_Send, "m_iClip1", 0);		// 强制进入换弹夹状态
 								IsReload[client] = true;
 							}
 							else if(GetEntProp(weapon_index, Prop_Send, "m_bInReload")==1&&GetEntProp(weapon_index, Prop_Send, "m_reloadFromEmpty")==1)
 							{
-								SDKHook(client, SDKHook_PreThink, GunPreThinkPostHook);
+								
 								ShotGunData[client][0] = 0;
 								ShotGunData[client][1] = customclip;
 								IsReload[client] = true;
@@ -323,6 +346,12 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			else
 			{
 				IsReload[client] = false;
+			}
+			
+			if(IsReload[client])
+			{
+				SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
+				SDKHook(client, SDKHook_PreThink, GunPreThinkPostHook);
 			}
 		}
 		
@@ -339,10 +368,13 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 				new String:WeaponName[32];
 				GetEdictClassname(weapon_index0,WeaponName,sizeof(WeaponName));		
 				new offset = FindWeaponOffSet(WeaponName,WeaponNames,sizeof(WeaponNames));
-				if(offset<=68 && offset>-1 && StrEqual(pile_name,"weapon_ammo_spawn"))
+				if(offset>-1 && StrEqual(pile_name,"weapon_ammo_spawn") && ((offset < 68 && offset != 24) ||
+					(offset==24 && GetConVarBool(M60_AmmoPickup_Enabled)) ||
+					(offset==68 && GetConVarBool(GL_AmmoPickup_Enabled))))
 				{
 					new CustomExtraPrimaryAmmo 	= GetCustomExtraPrimaryAmmo(WeaponName,WeaponNames,sizeof(WeaponNames),client);
-					new ExtraPrimaryAmmo = GetEntData(client, iAmmoOffset+offset);
+					// new ExtraPrimaryAmmo = GetEntData(client, iAmmoOffset+offset);
+					new ExtraPrimaryAmmo = GetPlayerAmmo(client,offset);
 					new clip = GetEntProp(weapon_index0, Prop_Send, "m_iClip1");
 					if(clip+ExtraPrimaryAmmo<CustomExtraPrimaryAmmo)
 					{
@@ -351,7 +383,10 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 						SetPlayerAmmo(client,offset,ExtraPrimaryAmmo+d_value);
 					}
 				}
-				else if(offset>68 && StrEqual(pile_name,"weapon_ammo_spawn") && GetConVarBool(M60_AmmoPickup_Enabled))
+				/*
+				else if(((offset==24 && GetConVarBool(M60_AmmoPickup_Enabled)) ||
+					(offset==68 && GetConVarBool(GL_AmmoPickup_Enabled))) &&
+					StrEqual(pile_name,"weapon_ammo_spawn"))
 				{
 					new clip = GetEntProp(weapon_index0, Prop_Send, "m_iClip1");
 					new customclip = GetCustomClipAmmo(WeaponName,WeaponNames,sizeof(WeaponNames),client);
@@ -360,6 +395,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 						SetEntProp(weapon_index0, Prop_Send, "m_iClip1", customclip);
 					}
 				}
+				*/
 				else if(StrContains(pile_name, "upgrade_ammo_", false) == 0)
 				{
 					new upgrade = GetEntProp(weapon_index0, Prop_Send, "m_upgradeBitVec");
@@ -373,6 +409,22 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 					{
 						g_iLastUpgradeType[client] = 0;
 						g_iLastUpgradeCount[client] = 0;
+					}
+				}
+				else if(StrContains(pile_name, "weapon_", false) == 0 &&
+					StrContains(pile_name, "_spawn", false) > 0 &&
+					StrContains(pile_name, WeaponName, false) == 0)
+				{
+					new customClip = GetCustomClipAmmo(WeaponName,WeaponNames,sizeof(WeaponNames),client);
+					new customAmmo = GetCustomExtraPrimaryAmmo(WeaponName,WeaponNames,sizeof(WeaponNames),client);
+					if(GetEntProp(weapon_index0, Prop_Send, "m_iClip1") < customClip ||
+						GetPlayerAmmo(client, offset) < customAmmo)
+					{
+						// 丢掉武器来捡新的武器
+						// SDKHooks_DropWeapon(client, weapon_index0);
+						// AcceptEntityInput(AmmoPile, "Use", client, AmmoPile);
+						SetEntProp(weapon_index0, Prop_Send, "m_iClip1", customClip);
+						SetPlayerAmmo(client, offset, customAmmo);
 					}
 				}
 			}
@@ -471,6 +523,59 @@ public Action:Event_Player_Spawn(Handle:event, const String:name[], bool:dontBro
 	}
 }
 
+public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	if(!GetConVarBool(M60_AmmoPickup_Enabled))
+		return;
+	
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(!IsValidPlayer(client,TEAM_SURVIVORS))
+		return;
+	
+	new weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	if(!IsValidEntity(weapon))
+		return;
+	
+	new String:classname[64];
+	GetEntityClassname(weapon, classname, 64);
+	if(!StrEqual(classname, "weapon_rifle_m60", false))
+		return;
+	
+	new clip = GetEntProp(weapon, Prop_Data, "m_iClip1");
+	if(clip > 1 || GetEntProp(weapon, Prop_Data, "m_bInReload", 1) == 1)
+		return;
+	
+	new ammo = GetPlayerAmmo(client, 24);
+	new upgrade = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
+	
+	AcceptEntityInput(weapon, "Kill");
+	weapon = GivePlayerItem(client, "weapon_rifle_m60");
+	SetEntProp(weapon, Prop_Data, "m_iClip1", 0);
+	SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", upgrade);
+	SetPlayerAmmo(client, 24, ammo);
+}
+
+public Event_WeaponReload(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(!IsValidPlayer(client,TEAM_SURVIVORS))
+		return;
+	
+	new weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	if(!IsValidEntity(weapon))
+		return;
+	
+	new String:classname[64];
+	GetEntityClassname(weapon, classname, 64);
+	// new bool:fromEmpty = GetEventBool(event, "manual");
+	if(IsControlAmmoEnabled(classname,WeaponNames,ControlAmmo_Enable,19))
+	{
+		IsReload[client] = true;
+		SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
+		SDKHook(client, SDKHook_PreThink, GunPreThinkPostHook);
+	}
+}
+
 public Action:ResetPistolData(Handle:timer,Handle:data)
 {
 	ResetPack(data);
@@ -554,6 +659,23 @@ public Action:SetWeaponData(Handle:timer,Handle:data)
 	}
 }
 
+stock bool:HasReloadFailure(client)
+{
+	if(L4D2_GetPlayerUseAction(client) == L4D2UseAction_Button ||			// 按按钮
+		GetEntityMoveType(client) == MOVETYPE_LADDER ||						// 爬梯子
+		GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) > 0 ||		// 挂边
+		GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) > 0 ||		// 倒地
+		GetEntPropEnt(client, Prop_Send, "m_reviveTarget") > 0 ||			// 救倒地队友
+		GetEntPropEnt(client, Prop_Send, "m_tongueOwner") > 0 ||			// 被舌头拉
+		GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker") > 0 ||			// 被猴骑
+		GetEntPropEnt(client, Prop_Send, "m_carryAttacker") > 0 ||			// 被牛带走
+		GetEntPropEnt(client, Prop_Send, "m_pummelAttacker") > 0 ||			// 被牛锤
+		GetEntPropEnt(client, Prop_Send, "m_pounceAttacker") > 0)			// 被猎人扑
+		return true;
+	
+	return false;
+}
+
 public Action:GunPreThinkPostHook(client)
 {
 	if(IsValidPlayer(client,TEAM_SURVIVORS)&&!IsFakeClient(client)&&IsReload[client])
@@ -565,80 +687,88 @@ public Action:GunPreThinkPostHook(client)
 			GetEdictClassname(weapon_index,weapon_name,sizeof(weapon_name));
 			if(IsValidWeapon(weapon_name,WeaponNames,sizeof(WeaponNames)))
 			{
-				new customclip 		= GetCustomClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames),client);
-				new defclip			= GetDefaultClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames));
-				new clip			= GetEntProp(weapon_index, Prop_Send, "m_iClip1");
+				new customclip 			= GetCustomClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames),client);
+				new defclip				= GetDefaultClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames));
+				new clip				= GetEntProp(weapon_index, Prop_Send, "m_iClip1");
+				new bool:inReloading	= (GetEntProp(weapon_index, Prop_Send, "m_bInReload", 1) == 1);
 				if(!IsShotGun(weapon_name,WeaponNames))
 				{
-					if(!IsPistolGun(weapon_name,WeaponNames)&&clip==defclip)
+					new offset 				= FindWeaponOffSet(weapon_name,WeaponNames,sizeof(WeaponNames));
+					// new ExtraPrimaryAmmo = GetEntData(client,iAmmoOffset+offset);
+					new ExtraPrimaryAmmo 	= GetPlayerAmmo(client,offset);
+					// new bool:haveFakeClip= (ShotGunData[client][0] == clip && clip != defclip);
+					// new bool:hasFakeClip	= (ShotGunData[client][0] == clip);
+					
+					if(!IsPistolGun(weapon_name,WeaponNames) && ExtraPrimaryAmmo > 0 &&
+						!inReloading && (clip == defclip || ((GetClientButtons(client) & IN_ATTACK) && clip - 1 == defclip)))
 					{
-						new offset 			= FindWeaponOffSet(weapon_name,WeaponNames,sizeof(WeaponNames));
-						new ExtraPrimaryAmmo 		= GetEntData(client,iAmmoOffset+offset);
+						// 修复弹药丢失 bug
+						if(ShotGunData[client][0] > 0 && SC_IsClientHaveSkill(client, "upf_moreupgrade"))
+							ExtraPrimaryAmmo += ShotGunData[client][0] - clip;
 						
-						if(ExtraPrimaryAmmo>=0)
+						if(customclip>clip)
 						{
-							if(customclip>defclip)
-							{
-								if(ExtraPrimaryAmmo>=customclip-defclip)
-								{
-									SetEntProp(weapon_index, Prop_Send, "m_iClip1",customclip);
-									// SetEntData(client,iAmmoOffset+offset,ExtraPrimaryAmmo-(customclip-defclip));
-									SetPlayerAmmo(client,offset,ExtraPrimaryAmmo-(customclip-defclip));
-								}
-								else
-								{
-									SetEntProp(weapon_index, Prop_Send, "m_iClip1",clip+ExtraPrimaryAmmo);
-									// SetEntData(client,iAmmoOffset+offset,0);
-									SetPlayerAmmo(client,offset,0);
-								}
-							}
-							else if(customclip==defclip)
-							{}
-							else
+							if(ExtraPrimaryAmmo>=customclip-clip)
 							{
 								SetEntProp(weapon_index, Prop_Send, "m_iClip1",customclip);
-								// SetEntData(client,iAmmoOffset+offset,ExtraPrimaryAmmo+(defclip-customclip));
-								SetPlayerAmmo(client,offset,ExtraPrimaryAmmo+(defclip-customclip));
+								// SetEntData(client,iAmmoOffset+offset,ExtraPrimaryAmmo-(customclip-clip));
+								SetPlayerAmmo(client,offset,ExtraPrimaryAmmo-(customclip-clip));
 							}
+							else
+							{
+								SetEntProp(weapon_index, Prop_Send, "m_iClip1",clip+ExtraPrimaryAmmo);
+								// SetEntData(client,iAmmoOffset+offset,0);
+								SetPlayerAmmo(client,offset,0);
+							}
+						}
+						else if(clip != defclip)
+						{
+							SetEntProp(weapon_index, Prop_Send, "m_iClip1",customclip);
+							// SetEntData(client,iAmmoOffset+offset,ExtraPrimaryAmmo+(clip-customclip));
+							SetPlayerAmmo(client,offset,ExtraPrimaryAmmo+(clip-customclip));
 						}
 						
 						IsReload[client] = false;
-						SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 					}
-					else if(IsPistolGun(weapon_name,WeaponNames))
+					else if(IsPistolGun(weapon_name,WeaponNames) && !inReloading)
 					{
-						if(clip==defclip)
+						if(GetEntProp(weapon_index, Prop_Send, "m_isDualWielding")==0 && clip == defclip)
 						{
 							SetEntProp(weapon_index, Prop_Send, "m_iClip1",customclip);
-							SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 							IsReload[client] = false;
 						}
-						else if(clip==defclip*2&&GetEntProp(weapon_index, Prop_Send, "m_isDualWielding")==1)
+						else if(clip == defclip * 2)
 						{
 							SetEntProp(weapon_index, Prop_Send, "m_iClip1",customclip*2);
-							SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 							IsReload[client] = false;
 						}
+					}
+					
+					// 换子弹保留弹夹内弹药
+					if(ShotGunData[client][0] > 0 && ExtraPrimaryAmmo > ShotGunData[client][1] &&
+						clip == 0 && inReloading && SC_IsClientHaveSkill(client, "upf_moreupgrade"))
+					{
+						SetEntProp(weapon_index, Prop_Send, "m_iClip1",ShotGunData[client][0]);
+						SetPlayerAmmo(client, offset, ShotGunData[client][1]);
 					}
 				}
 				else
 				{
 					new offset 	= FindWeaponOffSet(weapon_name,WeaponNames,sizeof(WeaponNames));
-					new ExtraPrimaryAmmo = GetEntData(client,iAmmoOffset+offset);
-					if(GetEntProp(weapon_index, Prop_Send, "m_bInReload")==1&&GetEntProp(weapon_index, Prop_Send, "m_reloadFromEmpty")==0)
+					// new ExtraPrimaryAmmo = GetEntData(client,iAmmoOffset+offset);
+					new ExtraPrimaryAmmo = GetPlayerAmmo(client,offset);
+					if(inReloading&&GetEntProp(weapon_index, Prop_Send, "m_reloadFromEmpty")==0)
 					{
 						SetEntProp(weapon_index, Prop_Send, "m_iClip1",ShotGunData[client][0]);
 						ShotGunData[client][1] = ExtraPrimaryAmmo>ShotGunData[client][1] ? ShotGunData[client][1] : ExtraPrimaryAmmo;
 						SetEntProp(weapon_index, Prop_Send, "m_reloadNumShells",ShotGunData[client][1]);
-						SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 						IsReload[client] = false;
 					}
-					else if(GetEntProp(weapon_index, Prop_Send, "m_bInReload")==1&&GetEntProp(weapon_index, Prop_Send, "m_reloadFromEmpty")==1)
+					else if(inReloading&&GetEntProp(weapon_index, Prop_Send, "m_reloadFromEmpty")==1)
 					{
 						SetEntProp(weapon_index, Prop_Send, "m_reloadFromEmpty",0);
 						ShotGunData[client][1] = ExtraPrimaryAmmo>ShotGunData[client][1] ? ShotGunData[client][1] : ExtraPrimaryAmmo;
 						SetEntProp(weapon_index, Prop_Send, "m_reloadNumShells",ShotGunData[client][1]);
-						SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 						IsReload[client] = false;
 					}
 				}
@@ -646,14 +776,19 @@ public Action:GunPreThinkPostHook(client)
 			else
 			{
 				IsReload[client] = false;
-				SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 			}
 		}
 		else
 		{
 			IsReload[client] = false;
-			SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 		}
+	}
+	
+	if(!IsReload[client])
+	{
+		ShotGunData[client][0] = 0;
+		ShotGunData[client][1] = 0;
+		SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 	}
 }
 
@@ -696,16 +831,50 @@ FindWeaponOffSet(String:weapon_name[],const String:sequence[][],maxlen)
 	{
 		if(StrEqual(weapon_name,sequence[i]))
 		{
-			if(i>-1 && i<4)			{ return 12; }
-			else if(i>3 && i<7)		{ return 20; }
-			else if(i>6 && i<9)		{ return 28; }
-			else if(i>8 && i<11)	{ return 32; }
-			else if(i==11)			{ return 36; }
-			else if(i>11 && i<15)	{ return 40; }
-			else if(i==15)			{ return 68; }
+			switch(i)
+			{
+				case 0, 1, 2, 3:
+					return 12;	// AMMOTYPE_ASSAULTRIFLE * 4
+				case 4, 5, 6:
+					return 20;	// AMMOTYPE_SMG * 4
+				case 7, 8:
+					return 28;	// AMMOTYPE_SHOTGUN * 4
+				case 9, 10:
+					return 32;	// AMMOTYPE_AUTOSHOTGUN * 4
+				case 11:
+					return 36;	// AMMOTYPE_HUNTINGRIFLE * 4
+				case 12, 13, 14:
+					return 40;	// AMMOTYPE_SNIPERRIFLE * 4
+				case 15:
+					return 68;	// AMMOTYPE_GRENADELAUNCHER * 4
+				case 16:
+					return 24;	// AMMOTYPE_M60 * 4;
+				
+				/*
+				case 17:
+					return 4;	// AMMOTYPE_PISTOL * 4
+				case 18:
+					return 8;	// AMMOTYPE_MAGNUM * 4
+				*/
+				
+				// 手枪不需要弹药
+				case 17, 18:
+					return 124;
+			}
 			
-			else if(i==16)			{ return 76; }//this is custom offset
+			/*
+			if(i>-1 && i<4)			{ return 12; }	// AMMOTYPE_ASSAULTRIFLE
+			else if(i>3 && i<7)		{ return 20; }	// AMMOTYPE_SMG
+			else if(i>6 && i<9)		{ return 28; }	// AMMOTYPE_SHOTGUN
+			else if(i>8 && i<11)	{ return 32; }	// AMMOTYPE_AUTOSHOTGUN
+			else if(i==11)			{ return 36; }	// AMMOTYPE_HUNTINGRIFLE
+			else if(i>11 && i<15)	{ return 40; }	// AMMOTYPE_SNIPERRIFLE
+			else if(i==15)			{ return 68; }	// AMMOTYPE_GRENADELAUNCHER
+			
+			
+			else if(i==16)			{ return 72; }//this is custom offset
 			else if(i>16)			{ return 84; }// this is custom offset
+			*/
 		}
 	}
 	return -1;
@@ -713,7 +882,9 @@ FindWeaponOffSet(String:weapon_name[],const String:sequence[][],maxlen)
 
 GetCustomExtraPrimaryAmmo(String:weapon_name[],const String:sequence[][],maxlen,client=-1)
 {
-	maxlen = maxlen<=16 ? maxlen : 16;
+	// maxlen = maxlen<=16 ? maxlen : 16;
+	if(maxlen > sizeof(Gun_ExtraPrimaryAmmo))
+		maxlen = sizeof(Gun_ExtraPrimaryAmmo);
 	
 	for(new i=0;i<maxlen;i++)
 	{
@@ -722,6 +893,8 @@ GetCustomExtraPrimaryAmmo(String:weapon_name[],const String:sequence[][],maxlen,
 			int ammo = GetConVarInt(Gun_ExtraPrimaryAmmo[i]);
 			if(SC_IsClientHaveSkill(client, "ca_maxammo"))
 				ammo = RoundToZero(ammo * SKILLAMMO_SIZE);
+			
+			// 备弹超过 1023 会变成 0
 			if(ammo > 1023)
 				ammo = 1023;
 			
@@ -740,8 +913,10 @@ GetCustomClipAmmo(String:weapon_name[],const String:sequence[][],maxlen,client=-
 			int ammo = GetConVarInt(Gun_ClipAmmo[i]);
 			if(SC_IsClientHaveSkill(client, "ca_maxclip"))
 				ammo = RoundToZero(ammo * SKILLCLIP_SIZE);
-			if(ammo > 255)
-				ammo = 255;
+			
+			// 弹夹超过 254 会变成 0
+			if(ammo > 254)
+				ammo = 254;
 			
 			return ammo;
 		}
@@ -754,7 +929,36 @@ SetPlayerAmmo(client,offset,ammo)
 	if(ammo > 1023)
 		ammo = 1023;
 	
-	SetEntData(client,iAmmoOffset+offset,ammo);
+	// SetEntData(client,iAmmoOffset+offset,ammo);
+	new weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon <= MaxClients || !IsValidEntity(weapon))
+	{
+		SetEntData(client,iAmmoOffset+offset,ammo);
+		return;
+	}
+	
+	new ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+	if(ammoType < 1 || ammoType > 19)
+	{
+		SetEntData(client,iAmmoOffset+offset,ammo);
+		return;
+	}
+	
+	SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammoType);
+}
+
+GetPlayerAmmo(client,offset)
+{
+	// return GetEntData(client,iAmmoOffset+offset);
+	new weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon <= MaxClients || !IsValidEntity(weapon))
+		return GetEntData(client,iAmmoOffset+offset);
+	
+	new ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+	if(ammoType < 1 || ammoType > 19)
+		return GetEntData(client,iAmmoOffset+offset);
+	
+	return GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
 }
 
 bool:IsValidClient(client)

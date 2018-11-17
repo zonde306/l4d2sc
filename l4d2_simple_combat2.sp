@@ -3442,8 +3442,16 @@ public MRESReturn Hooked_AllowTakeDamage(Address pThis, Handle hReturn, Handle h
 		!IsValidEdict(attacker) || (damageType & INVALID_DAMAGE_TYPE))
 		return MRES_Ignored;
 	
-	float plusDamage = 0.0, minusDamage = 0.0;
 	bool isSameTeam = (GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetEntProp(victim, Prop_Send, "m_iTeamNum"));
+	
+	// 修复 BOT 攻击队友造成伤害
+	if(isSameTeam && IsValidClient(attacker) && IsValidClient(victim) && IsFakeClient(attacker))
+	{
+		DHookSetReturn(hReturn, false);
+		return MRES_Override;
+	}
+	
+	float plusDamage = 0.0, minusDamage = 0.0;
 	if(IsValidClient(attacker) && damage >= g_iDamageMin && (g_bDamageFriendly || !isSameTeam))
 	{
 		SetRandomSeed(GetSysTickCount() + attacker);

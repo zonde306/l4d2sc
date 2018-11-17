@@ -55,6 +55,8 @@ forward Action SC_OnCombatStartPre(int client);
 forward void SC_OnCombatStartPost(int client);
 forward Action SC_OnCombatEndPre(int client);
 forward void SC_OnCombatEndPost(int client);
+forward Action SC_OnDamagePre(int attacker, int victim, float& damage, int& damageType, float& plusDamage, float& minusDamage);
+forward void SC_OnDamagePost(int attacker, int victim, float damage, int damageType, float plusDamage, float minusDamage);
 
 // 保存读取回调
 forward Action SC_OnSavePre(int client, int userId, bool mysql);

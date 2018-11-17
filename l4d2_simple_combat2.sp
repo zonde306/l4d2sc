@@ -560,7 +560,7 @@ Handle g_fwStaminaIncreasePre, g_fwStaminaDecreasePre, g_fwMagicIncreasePre, g_f
 	g_fwStaminaIncreasePost, g_fwStaminaDecreasePost, g_fwMagicIncreasePost, g_fwMagicDecreasePost,
 	g_fwOnLevelUpPre, g_fwOnLevelUpPost, g_fwOnGainExperiencePre, g_fwOnGainExperiencePost,
 	g_fwOnGainCashPre, g_fwOnGainCashPost, g_fwWillpowerIncreasePre, g_fwWillpowerIncreasePost,
-	g_fwWillpowerDecreasePre, g_fwWillpowerDecreasePost;
+	g_fwWillpowerDecreasePre, g_fwWillpowerDecreasePost, g_fwOnDamagePre, g_fwOnDamagePost;
 
 // 战斗相关的 forward
 Handle g_fwOnStartCombatPre, g_fwOnStartCombatPost, g_fwOnLeaveCombatPre, g_fwOnLeaveCombatPost;
@@ -2838,15 +2838,13 @@ public int OnBoomerVomitLanded(int boomer, int amount)
 }
 #endif	// _USE_SKILL_DETECT_
 
+/*
 public void OnEntityCreated(int entity, const char[] classname)
 {
-	// 2048 是 edic_t 上限
-	if(entity <= MaxClients || entity > 2048)
-		return;
-	
 	if(StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 }
+*/
 
 int g_iGameFramePerSecond = 0;
 
@@ -3440,7 +3438,97 @@ public MRESReturn Hooked_AllowTakeDamage(Address pThis, Handle hReturn, Handle h
 	int damageType = DHookGetParamObjectPtrVar(hParams, 2, 72, ObjectValueType_Int);
 	// int weapon = DHookGetParamObjectPtrVar(hParams, 2, 56, ObjectValueType_Ehandle);
 	
-	if(!IsValidClient(victim) || attacker <= 0 || !IsValidEdict(attacker) || damage < g_iDefenseMin || (damageType & INVALID_DAMAGE_TYPE))
+	if(victim < 1 || attacker < 1 || victim == attacker || !IsValidEdict(victim) ||
+		!IsValidEdict(attacker) || (damageType & INVALID_DAMAGE_TYPE))
+		return MRES_Ignored;
+	
+	float plusDamage = 0.0, minusDamage = 0.0;
+	bool isSameTeam = (GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetEntProp(victim, Prop_Send, "m_iTeamNum"));
+	if(IsValidClient(attacker) && damage >= g_iDamageMin && (g_bDamageFriendly || !isSameTeam))
+	{
+		SetRandomSeed(GetSysTickCount() + attacker);
+		if(g_fWillpower[attacker] >= g_iDamageLimit &&
+			GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) <= g_fDamageChance[attacker])
+		{
+			plusDamage = damage * g_fDamageFactor[attacker];
+			if(plusDamage > g_fWillpower[attacker])
+				plusDamage = g_fWillpower[attacker];
+		}
+	}
+	
+	if(IsValidClient(victim) && damage >= g_iDefenseMin && (g_bDefenseFriendly || !isSameTeam))
+	{
+		SetRandomSeed(GetSysTickCount() + victim);
+		if(g_fStamina[victim] >= g_iDefenseLimit &&
+			GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) <= g_fDefenseChance[victim])
+		{
+			minusDamage = damage * g_fDefenseFactor[victim];
+			if(minusDamage > g_fStamina[victim])
+				minusDamage = g_fStamina[victim];
+		}
+	}
+	
+	float refDamage = damage;
+	int refDamageType = damageType;
+	float refPlusDmg = plusDamage;
+	float refMinusDmg = minusDamage;
+	Action result = Plugin_Continue;
+	Call_StartForward(g_fwOnDamagePre);
+	Call_PushCell(attacker);
+	Call_PushCell(victim);
+	Call_PushFloatRef(refDamage);
+	Call_PushCellRef(refDamageType);
+	Call_PushFloatRef(refPlusDmg);
+	Call_PushFloatRef(refMinusDmg);
+	Call_Finish(result);
+	
+	if(result >= Plugin_Handled)
+		return MRES_Ignored;
+	
+	if(result == Plugin_Changed)
+	{
+		damage = refDamage;
+		damageType = refDamageType;
+		plusDamage = refPlusDmg;
+		minusDamage = refMinusDmg;
+	}
+	
+	float fakeDamage = (GetEntProp(victim, Prop_Data, "m_iHealth") - damage - plusDamage + minusDamage);
+	if(fakeDamage < 0.0)
+	{
+		// 去除溢出伤害，减少不必要的精力消耗
+		plusDamage += fakeDamage;
+	}
+	
+	if(plusDamage >= 1.0)
+	{
+		// PrintCenterText(attacker, "＋%.0f dmg of %.0f dmg", plusDamage, damage);
+		
+		damage += plusDamage;
+		damageType |= DMG_CRIT;
+		WillpowerDecrease(attacker, plusDamage);
+	}
+	
+	if(minusDamage >= 1.0)
+	{
+		// PrintCenterText(victim, "－%.0f dmg of %.0f dmg", minusDamage, damage);
+		
+		damage -= minusDamage;
+		StaminaDecrease(victim, minusDamage);
+	}
+	
+	Call_StartForward(g_fwOnDamagePost);
+	Call_PushCell(attacker);
+	Call_PushCell(victim);
+	Call_PushFloat(damage);
+	Call_PushCell(damageType);
+	Call_PushFloat(plusDamage);
+	Call_PushFloat(minusDamage);
+	Call_Finish();
+	
+	/*
+	if(!IsValidClient(victim) || attacker <= 0 || !IsValidEdict(attacker) || damage < g_iDefenseMin ||
+		(damageType & INVALID_DAMAGE_TYPE))
 		return MRES_Ignored;
 	
 	if(!g_bDefenseFriendly && GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetClientTeam(victim))
@@ -3469,9 +3557,13 @@ public MRESReturn Hooked_AllowTakeDamage(Address pThis, Handle hReturn, Handle h
 	damage -= minusDamage;
 	StaminaDecrease(victim, minusDamage);
 	// PrintToChat(victim, "dmg %.0f", damage);
+	*/
+	
+	if(damage < 1.0)
+		damage = 1.0;
 	
 	DHookSetParamObjectPtrVar(hParams, 2, 60, ObjectValueType_Float, damage);
-	// DHookSetParamObjectPtrVar(hParams, 2, 72, ObjectValueType_Int, damageType);
+	DHookSetParamObjectPtrVar(hParams, 2, 72, ObjectValueType_Int, damageType);
 	return MRES_ChangedHandled;
 }
 
@@ -3632,7 +3724,6 @@ public void SetupPlayerHook(any client)
 	if(g_iMaxHealth[client] > 0)
 		RequestFrame(UpdateMaxHealth, client);
 	
-	SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKHook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTankPropDamage);
 	SDKHook(client, SDKHook_GetMaxHealth, PlayerHook_OnMaxHealth);
@@ -3640,6 +3731,7 @@ public void SetupPlayerHook(any client)
 	{
 		// SDKHook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 		SDKHook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
+		SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	}
 	
 	// PrintToServer("player %N (%d) Hooked (%d).", client, client, g_iMaxHealth[client]);
@@ -5298,6 +5390,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_fwOnStartCombatPost = CreateGlobalForward("SC_OnCombatStartPost", ET_Ignore, Param_Cell);
 	g_fwOnLeaveCombatPre = CreateGlobalForward("SC_OnCombatEndPre", ET_Event, Param_Cell);
 	g_fwOnLeaveCombatPost = CreateGlobalForward("SC_OnCombatEndPost", ET_Ignore, Param_Cell);
+	g_fwOnDamagePre = CreateGlobalForward("SC_OnDamagePre", ET_Hook, Param_Cell, Param_Cell, Param_FloatByRef, Param_CellByRef, Param_FloatByRef, Param_FloatByRef);
+	g_fwOnDamagePost = CreateGlobalForward("SC_OnDamagePost", ET_Ignore, Param_Cell, Param_Cell, Param_Float, Param_Cell, Param_Float, Param_Float);
 	
 	// 菜单
 	g_fwOnMenuItemClickPre = CreateGlobalForward("SC_OnMenuItemClickPre", ET_Hook, Param_Cell, Param_String, Param_String);

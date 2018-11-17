@@ -288,18 +288,19 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 					GetEdictClassname(weapon_index,weapon_name,sizeof(weapon_name));
 					if(IsValidWeapon(weapon_name,WeaponNames,sizeof(WeaponNames)) && IsControlAmmoEnabled(weapon_name,WeaponNames,ControlAmmo_Enable,19))
 					{
-						new clip 			= GetEntProp(weapon_index, Prop_Send, "m_iClip1");
-						new customclip 		= GetCustomClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames),client);
-						new offset 			= FindWeaponOffSet(weapon_name,WeaponNames,sizeof(WeaponNames));
+						new clip 				= GetEntProp(weapon_index, Prop_Send, "m_iClip1");
+						new customclip 			= GetCustomClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames),client);
+						new offset 				= FindWeaponOffSet(weapon_name,WeaponNames,sizeof(WeaponNames));
 						// new defclip			= GetDefaultClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames));
+						new ExtraPrimaryAmmo	= GetPlayerAmmo(client, offset);
 						if(!IsShotGun(weapon_name,WeaponNames))
 						{
 							if(offset<=68 && offset>-1)
 							{
-								if(clip<customclip)
+								if(clip<customclip && ExtraPrimaryAmmo > 0)
 								{
 									// new ExtraPrimaryAmmo 		= GetEntData(client,iAmmoOffset+offset);
-									new ExtraPrimaryAmmo 		= GetPlayerAmmo(client,offset);
+									// new ExtraPrimaryAmmo 		= GetPlayerAmmo(client,offset);
 									ShotGunData[client][0]		= clip;
 									ShotGunData[client][1]		= ExtraPrimaryAmmo;
 									SetEntProp(weapon_index, Prop_Send, "m_iClip1",0);
@@ -322,7 +323,7 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 						}
 						else
 						{
-							if(clip<customclip&&GetEntProp(weapon_index, Prop_Send, "m_bInReload")==0)
+							if(clip<customclip&&ExtraPrimaryAmmo>0&&GetEntProp(weapon_index, Prop_Send, "m_bInReload")==0)
 							{
 								ShotGunData[client][0] = GetEntProp(weapon_index, Prop_Send, "m_iClip1");
 								ShotGunData[client][1] = customclip-ShotGunData[client][0];
@@ -332,7 +333,6 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 							}
 							else if(GetEntProp(weapon_index, Prop_Send, "m_bInReload")==1&&GetEntProp(weapon_index, Prop_Send, "m_reloadFromEmpty")==1)
 							{
-								
 								ShotGunData[client][0] = 0;
 								ShotGunData[client][1] = customclip;
 								IsReload[client] = true;
@@ -699,8 +699,7 @@ public Action:GunPreThinkPostHook(client)
 					// new bool:haveFakeClip= (ShotGunData[client][0] == clip && clip != defclip);
 					// new bool:hasFakeClip	= (ShotGunData[client][0] == clip);
 					
-					if(!IsPistolGun(weapon_name,WeaponNames) && ExtraPrimaryAmmo > 0 &&
-						!inReloading && (clip == defclip || ((GetClientButtons(client) & IN_ATTACK) && clip - 1 == defclip)))
+					if(!IsPistolGun(weapon_name,WeaponNames) && ExtraPrimaryAmmo > 0 && !inReloading && clip == defclip)
 					{
 						// 修复弹药丢失 bug
 						if(ShotGunData[client][0] > 0 && SC_IsClientHaveSkill(client, "upf_moreupgrade"))
@@ -749,7 +748,9 @@ public Action:GunPreThinkPostHook(client)
 						clip == 0 && inReloading && SC_IsClientHaveSkill(client, "upf_moreupgrade"))
 					{
 						SetEntProp(weapon_index, Prop_Send, "m_iClip1",ShotGunData[client][0]);
-						SetPlayerAmmo(client, offset, ShotGunData[client][1]);
+						
+						if(!IsPistolGun(weapon_name,WeaponNames))
+							SetPlayerAmmo(client, offset, ShotGunData[client][1]);
 					}
 				}
 				else

@@ -7,7 +7,11 @@
 #define PLUGIN_VERSION		"0.1"
 #include "modules/l4d2ps.sp"
 
-#define SKILL_FASTFIRE_EFFECT		(1.0 - (SC_GetClientLevel(client) / 10 * 0.05))
+const float g_fMinCycleTime = 0.01;
+const float g_fMinCycleRifle = 0.05;
+const float g_fMinReloadTime = 0.1;
+#define SKILL_FASTFIRE_SLOW_EFFECT	(1.0 - (SC_GetClientLevel(client) / 10 * 0.05))
+#define SKILL_FASTFIRE_FAST_EFFECT	(1.0 - (SC_GetClientLevel(client) / 10 * 0.01))
 #define SKILL_FASTRELOAD_EFFECT		(1.0 - (SC_GetClientLevel(client) / 10 * 0.1))
 
 public Plugin myinfo =
@@ -32,7 +36,7 @@ public Action Timer_SetupSkill(Handle timer, any unused)
 {
 	SC_CreateSkill("ws_fastfire", "开枪加速", 0, "武器射速加快");
 	SC_CreateSkill("abh_fastinsert", "换弹加速", 0, "更换弹夹/填装弹药加快");
-	SC_CreateSkill("abh_autofire", "手枪连射", 0, "手枪和单发武器改为连发");
+	// SC_CreateSkill("abh_autofire", "手枪连射", 0, "手枪和单发武器改为连发");
 	return Plugin_Continue;
 }
 
@@ -40,7 +44,7 @@ public Action SC_OnSkillGetInfo(int client, const char[] classname,
 	char[] display, int displayMaxLength, char[] description, int descriptionMaxLength)
 {
 	if(StrEqual(classname, "ws_fastfire", false))
-		FormatEx(description, descriptionMaxLength, "武器射速 ＋%.2f％", (1 - SKILL_FASTFIRE_EFFECT) * 100);
+		FormatEx(description, descriptionMaxLength, "慢武器射速 ＋%.2f％丨快武器射速 ＋%.2f％", (1 - SKILL_FASTFIRE_SLOW_EFFECT) * 100, (1 - SKILL_FASTFIRE_FAST_EFFECT) * 100);
 	else if(StrEqual(classname, "abh_fastinsert", false))
 		FormatEx(description, descriptionMaxLength, "换弹速度 ＋%.2f％", (1 - SKILL_FASTRELOAD_EFFECT) * 100);
 	else
@@ -69,11 +73,12 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool unknown
 		SetWeaponReloadSpeed(client);
 }
 
+/*
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3],
 	int& weapons, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
-	if(!(buttons & IN_ATTACK) || !IsPlayerAlive(client) || GetEntProp(client, Prop_Send, "m_isGhost", 1) ||
-		GetEntityMoveType(client) == MOVETYPE_LADDER || !SC_IsClientHaveSkill(client, "abh_autofire"))
+	if(!SC_IsClientHaveSkill(client, "abh_autofire") || !(buttons & IN_ATTACK) || !IsPlayerAlive(client) ||
+		GetEntProp(client, Prop_Send, "m_isGhost", 1) || GetEntityMoveType(client) == MOVETYPE_LADDER)
 		return Plugin_Continue;
 	
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
@@ -104,6 +109,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 	
 	return Plugin_Continue;
 }
+*/
 
 bool IsSingleWeapon(const char[] classname)
 {
@@ -130,10 +136,27 @@ bool IsInfectedCarry(int client)
 		GetEntPropEnt(client, Prop_Send, "m_carryVictim") > 0);
 }
 
+bool IsGunWeapon(int entity)
+{
+	char classname[64];
+	GetEntityClassname(entity, classname, 64);
+	return (StrContains(classname, "sniper", false) > -1 || StrContains(classname, "shotgun", false) > -1 ||
+		StrContains(classname, "hunting", false) > -1 || StrContains(classname, "pistol", false) > -1 ||
+		StrContains(classname, "launcher", false) > -1 || StrContains(classname, "smg", false) > -1 ||
+		StrContains(classname, "rifle", false) > -1);
+}
+
+bool IsFastShotWeapon(int entity)
+{
+	char classname[64];
+	GetEntityClassname(entity, classname, 64);
+	return (StrContains(classname, "rifle", false) > -1 || StrContains(classname, "smg", false) > -1);
+}
+
 public void SetPlayerFireSpeed(any client)
 {
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	if(weapon <= MaxClients || !IsValidEdict(weapon))
+	if(weapon <= MaxClients || !IsValidEdict(weapon) || !IsGunWeapon(weapon))
 		return;
 	
 	float time = GetGameTime();
@@ -141,22 +164,31 @@ public void SetPlayerFireSpeed(any client)
 	if(nextAttack <= time)
 		return;
 	
-	float rate = SKILL_FASTFIRE_EFFECT;
-	if(rate < 0.01)
-		rate = 0.01;
+	bool fast = IsFastShotWeapon(weapon);
+	float rate = (fast ? SKILL_FASTFIRE_FAST_EFFECT : SKILL_FASTFIRE_SLOW_EFFECT);
+	float minRate = (fast ? g_fMinCycleRifle : g_fMinCycleTime);
+	if(rate < minRate)
+		rate = minRate;
 	
+	// 动作速度
 	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", 1.0 / rate);
 	
 	// 开枪间隔
 	float primary = (nextAttack - time) * rate;
+	if(primary < minRate)
+		primary = minRate;
 	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time + primary);
 	
 	// 推间隔
 	float secondary = (GetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack") - time) * rate;
+	if(secondary < minRate)
+		secondary = minRate;
 	SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", time + secondary);
 	
 	// 掏出武器时间
 	float drawing = (GetEntPropFloat(client, Prop_Send, "m_flNextAttack") - time) * rate;
+	if(drawing < minRate)
+		drawing = minRate;
 	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time + drawing);
 	
 	CreateTimer(primary, Timer_ResetWeaponPlayback, weapon, TIMER_FLAG_NO_MAPCHANGE);
@@ -165,12 +197,12 @@ public void SetPlayerFireSpeed(any client)
 public void SetWeaponReloadSpeed(any client)
 {
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	if(weapon <= MaxClients || !IsValidEdict(weapon))
+	if(weapon <= MaxClients || !IsValidEdict(weapon) || !IsGunWeapon(weapon))
 		return;
 	
 	float rate = SKILL_FASTRELOAD_EFFECT;
-	if(rate < 0.1)
-		rate = 0.1;
+	if(rate < g_fMinReloadTime)
+		rate = g_fMinReloadTime;
 	
 	if(HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
 	{
@@ -185,6 +217,8 @@ public void SetWeaponReloadSpeed(any client)
 	float time = GetGameTime();
 	float nextAttack = GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack");
 	float calc = (nextAttack - time) * rate;
+	if(calc < g_fMinReloadTime)
+		calc = g_fMinReloadTime;
 	
 	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", 1.0 / rate);
 	CreateTimer(calc, Timer_ResetWeaponPlayback, weapon, TIMER_FLAG_NO_MAPCHANGE);
@@ -237,6 +271,8 @@ public Action Timer_HandleShotgunReloadSpeed(Handle timer, any pack)
 	int weapon = data.ReadCell();
 	float rate = data.ReadFloat();
 	// delete data;
+	if(rate < g_fMinReloadTime)
+		rate = g_fMinReloadTime;
 	
 	char classname[64];
 	GetEntityClassname(weapon, classname, 64);

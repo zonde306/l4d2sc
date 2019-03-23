@@ -3,7 +3,6 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <colors>
-#include <dhooks>
 #include <adminmenu>
 
 #define _USE_SKILL_DETECT_			// 使用 l4d2_skill_detect.smx 插件提供的 forward
@@ -11,10 +10,15 @@
 #define _USE_CONSOLE_MESSAGE_		// 当玩家获得奖励时打印控制台信息
 #define _USE_DATABASE_SQLITE_		// 使用 SQLite 储存数据
 // #define _USE_DATABASE_MYSQL_		// 使用 MySQL 储存数据
+// #define _USE_DETOUR_FUNC_		// 使用 hook 伤害
 
 #if defined _USE_SKILL_DETECT_
 #include <l4d2_skill_detect>
 #endif	// _USE_SKILL_DETECT_
+
+#if defined _USE_DETOUR_FUNC_
+#include <dhooks>
+#endif	// _USE_DETOUR_FUNC_
 
 #if defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_MYSQL_
 #include <geoip>
@@ -489,8 +493,10 @@ public void OnPluginStart()
 	CreateTimer(1.0, Timer_ConnectDatabase);
 #endif
 	
+#if defined _USE_DETOUR_FUNC_
 	// 一些有用的 Hook
 	InitHook();
+#endif
 	
 	// sm_admin 菜单
 	TopMenu tm = GetAdminTopMenu();
@@ -503,6 +509,7 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases.txt");
 }
 
+#if defined _USE_DETOUR_FUNC_
 void InitHook()
 {
 	Handle file = LoadGameConfigFile("l4d2_simple_combat");
@@ -539,6 +546,7 @@ void InitHook()
 	
 	// PrintToServer("加载 CDirectorChallengeMode::ScriptAllowDamage 完毕");
 }
+#endif	// _USE_DETOUR_FUNC_
 
 // 回血声音
 #define SOUND_STANDING_HEAL		"ui/beep07.wav"
@@ -2417,8 +2425,8 @@ stock float GetHunterPounceDamage(int client)
 	// new eventDistance = GetEventInt(event, "distance");
 	
 	//get hunter-related pounce cvars
-	float max = cvMaxRange.FloatValue;
-	float min = cvMinRange.FloatValue;
+	float max = (cvMaxRange ? cvMaxRange.FloatValue : 1024.0);
+	float min = (cvMinRange ? cvMinRange.FloatValue : 300.0);
 	float maxDmg = cvDamage.FloatValue;
 	
 	float position[3];
@@ -2563,7 +2571,7 @@ void RoundEndSurvivorReward(int client, int total)
 	
 	// GiveExperience(client, experience);
 	// GiveCash(client, cash);
-	GiveBonus(client, experience, cash, "进入安全室过关");
+	GiveBonus(client, experience, cash, "进入 安全室/救援载具 过关");
 	
 #if defined _USE_CONSOLE_MESSAGE_
 	PrintToConsole(client, "[SC] exp +%d, cash +%d with mission complete, alive %d.", experience, cash, total);
@@ -2838,13 +2846,19 @@ public int OnBoomerVomitLanded(int boomer, int amount)
 }
 #endif	// _USE_SKILL_DETECT_
 
-/*
+#if !defined _USE_DETOUR_FUNC_
 public void OnEntityCreated(int entity, const char[] classname)
 {
 	if(StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 }
-*/
+
+public void OnEntityDestroyed(int entity)
+{
+	UninstallPlayerHook(entity);
+}
+
+#endif
 
 int g_iGameFramePerSecond = 0;
 
@@ -3360,10 +3374,131 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 // 不是有效的攻击伤害
 const int INVALID_DAMAGE_TYPE = (DMG_FALL|DMG_BURN|DMG_BLAST);
 
+Action HandleTakeDamage(int victim, int attacker, float& damage, int& damageType, int inflictor = 0, int weapon = -1,
+	const float damageForce[3] = NULL_VECTOR, const float damagePosition[3] = NULL_VECTOR)
+{
+	if(victim < 1 || attacker < 1 || victim == attacker || !IsValidEdict(victim) || !IsValidEdict(attacker) ||
+		(damageType & INVALID_DAMAGE_TYPE) || !HasEntProp(victim, Prop_Send, "m_iTeamNum") ||
+		!HasEntProp(attacker, Prop_Send, "m_iTeamNum"))
+		return Plugin_Continue;
+	
+	bool isSameTeam = (GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetEntProp(victim, Prop_Send, "m_iTeamNum"));
+	
+	// 修复 BOT 攻击队友造成伤害
+	if(isSameTeam && IsValidClient(attacker) && IsValidClient(victim) && IsFakeClient(attacker))
+		return Plugin_Handled;
+	
+	int grabber = GetCurrentAttacker(victim);
+	
+	// 修复攻击被控队友
+	if(isSameTeam && grabber > 0 && IsValidClient(attacker) && IsValidClient(victim))
+	{
+		SDKHooks_TakeDamage(grabber, inflictor, attacker, damage, damageType, weapon, damageForce, damagePosition);
+		return Plugin_Handled;
+	}
+	
+	float plusDamage = 0.0, minusDamage = 0.0;
+	
+	// 精力增加伤害
+	if(IsValidClient(attacker) && damage >= g_iDamageMin && (g_bDamageFriendly || !isSameTeam))
+	{
+		SetRandomSeed(GetSysTickCount() + attacker);
+		if(g_fWillpower[attacker] >= g_iDamageLimit &&
+			GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) <= g_fDamageChance[attacker])
+		{
+			plusDamage = damage * g_fDamageFactor[attacker];
+			if(plusDamage > g_fWillpower[attacker])
+				plusDamage = g_fWillpower[attacker];
+		}
+	}
+	
+	// 耐力减少伤害
+	if(IsValidClient(victim) && damage >= g_iDefenseMin && (g_bDefenseFriendly || !isSameTeam))
+	{
+		SetRandomSeed(GetSysTickCount() + victim);
+		if(g_fStamina[victim] >= g_iDefenseLimit &&
+			GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) <= g_fDefenseChance[victim])
+		{
+			minusDamage = damage * g_fDefenseFactor[victim];
+			if(minusDamage > g_fStamina[victim])
+				minusDamage = g_fStamina[victim];
+		}
+	}
+	
+	float refDamage = damage;
+	int refDamageType = damageType;
+	float refPlusDmg = plusDamage;
+	float refMinusDmg = minusDamage;
+	Action result = Plugin_Continue;
+	Call_StartForward(g_fwOnDamagePre);
+	Call_PushCell(attacker);
+	Call_PushCell(victim);
+	Call_PushFloatRef(refDamage);
+	Call_PushCellRef(refDamageType);
+	Call_PushFloatRef(refPlusDmg);
+	Call_PushFloatRef(refMinusDmg);
+	Call_Finish(result);
+	
+	if(result >= Plugin_Handled)
+		return Plugin_Handled;
+	
+	if(result == Plugin_Changed)
+	{
+		damage = refDamage;
+		damageType = refDamageType;
+		plusDamage = refPlusDmg;
+		minusDamage = refMinusDmg;
+	}
+	
+	int health = GetEntProp(victim, Prop_Data, "m_iHealth");
+	if(GetEntProp(victim, Prop_Send, "m_iTeamNum") == 2)
+		health += GetPlayerTempHealth(victim);
+	
+	float fakeDamage = (health - damage - plusDamage + minusDamage);
+	if(fakeDamage < 0.0)
+	{
+		// 去除溢出伤害，减少不必要的精力消耗
+		// 加一个负数，相当于减少伤害
+		plusDamage += fakeDamage;
+	}
+	
+	if(plusDamage >= 1.0)
+	{
+		// PrintCenterText(attacker, "＋%.0f dmg of %.0f dmg", plusDamage, damage);
+		
+		damage += plusDamage;
+		damageType |= DMG_CRIT;
+		WillpowerDecrease(attacker, plusDamage);
+	}
+	
+	if(minusDamage >= 1.0)
+	{
+		// PrintCenterText(victim, "－%.0f dmg of %.0f dmg", minusDamage, damage);
+		
+		damage -= minusDamage;
+		StaminaDecrease(victim, minusDamage);
+	}
+	
+	Call_StartForward(g_fwOnDamagePost);
+	Call_PushCell(attacker);
+	Call_PushCell(victim);
+	Call_PushFloat(damage);
+	Call_PushCell(damageType);
+	Call_PushFloat(plusDamage);
+	Call_PushFloat(minusDamage);
+	Call_Finish();
+	
+	if(damage < 1.0)
+		damage = 1.0;
+	
+	return Plugin_Changed;
+}
+
 // 这里是初始伤害，最终伤害将会根据难度调整
 public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
+	/*
 	if(!IsValidClient(attacker) || !IsValidEdict(victim) || damage < g_iDamageMin || (damagetype & INVALID_DAMAGE_TYPE))
 		return Plugin_Continue;
 	
@@ -3390,6 +3525,9 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	damagetype |= DMG_CRIT;
 	WillpowerDecrease(attacker, plusDamage);
 	return Plugin_Changed;
+	*/
+	
+	return HandleTakeDamage(victim, attacker, damage, damagetype);
 }
 
 // 这里是最终受到的伤害
@@ -3399,6 +3537,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
+	/*
 	if(!IsValidClient(victim) || attacker <= 0 || !IsValidEdict(attacker) || damage < g_iDefenseMin || (damagetype & INVALID_DAMAGE_TYPE))
 		return Plugin_Continue;
 	
@@ -3427,19 +3566,26 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	damage -= minusDamage;
 	StaminaDecrease(victim, minusDamage);
 	return Plugin_Changed;
+	*/
+	
+	return HandleTakeDamage(victim, attacker, damage, damagetype, inflictor, weapon, damageForce, damagePosition);
 }
 
+#if defined _USE_DETOUR_FUNC_
 // 最终受到的伤害，这里已经不会被其他东西修改了，可以放心设置
 public MRESReturn Hooked_AllowTakeDamage(Address pThis, Handle hReturn, Handle hParams)
 {
+	
 	int victim = DHookGetParam(hParams, 1);
 	int attacker = DHookGetParamObjectPtrVar(hParams, 2, 52, ObjectValueType_Ehandle);
 	float damage = DHookGetParamObjectPtrVar(hParams, 2, 60, ObjectValueType_Float);
 	int damageType = DHookGetParamObjectPtrVar(hParams, 2, 72, ObjectValueType_Int);
 	// int weapon = DHookGetParamObjectPtrVar(hParams, 2, 56, ObjectValueType_Ehandle);
 	
-	if(victim < 1 || attacker < 1 || victim == attacker || !IsValidEdict(victim) ||
-		!IsValidEdict(attacker) || (damageType & INVALID_DAMAGE_TYPE))
+	/*
+	if(victim < 1 || attacker < 1 || victim == attacker || !IsValidEdict(victim) || !IsValidEdict(attacker) ||
+		(damageType & INVALID_DAMAGE_TYPE) || !HasEntProp(victim, Prop_Send, "m_iTeamNum") ||
+		!HasEntProp(attacker, Prop_Send, "m_iTeamNum"))
 		return MRES_Ignored;
 	
 	bool isSameTeam = (GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetEntProp(victim, Prop_Send, "m_iTeamNum"));
@@ -3533,6 +3679,7 @@ public MRESReturn Hooked_AllowTakeDamage(Address pThis, Handle hReturn, Handle h
 	Call_PushFloat(plusDamage);
 	Call_PushFloat(minusDamage);
 	Call_Finish();
+	*/
 	
 	/*
 	if(!IsValidClient(victim) || attacker <= 0 || !IsValidEdict(attacker) || damage < g_iDefenseMin ||
@@ -3567,13 +3714,26 @@ public MRESReturn Hooked_AllowTakeDamage(Address pThis, Handle hReturn, Handle h
 	// PrintToChat(victim, "dmg %.0f", damage);
 	*/
 	
+	/*
 	if(damage < 1.0)
 		damage = 1.0;
+	*/
+	
+	Action result = HandleTakeDamage(victim, attacker, damage, damageType);
+	if(result == Plugin_Continue)
+		return MRES_Ignored;
+	
+	if(result >= Plugin_Handled)
+	{
+		DHookSetReturn(hReturn, false);
+		return MRES_Override;
+	}
 	
 	DHookSetParamObjectPtrVar(hParams, 2, 60, ObjectValueType_Float, damage);
 	DHookSetParamObjectPtrVar(hParams, 2, 72, ObjectValueType_Int, damageType);
 	return MRES_ChangedHandled;
 }
+#endif	// _USE_DETOUR_FUNC_
 
 public void PlayerHook_OnTankPropDamage(int victim, int attacker, int inflictor, float damage, int damagetype,
 	int weapon, float damageForce[3], float damagePosition[3], int damagecustom)
@@ -3595,7 +3755,8 @@ public void PlayerHook_OnTankPropDamage(int victim, int attacker, int inflictor,
 public void ZombieHook_OnSpawned(int entity)
 {
 	SDKUnhook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
-	SDKHook(entity, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
+	// SDKHook(entity, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
+	SDKHook(entity, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	
 	// PrintToServer("Zombie %d Spawned.", entity);
 }
@@ -3739,7 +3900,7 @@ public void SetupPlayerHook(any client)
 	{
 		// SDKHook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 		SDKHook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
-		SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
+		// SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	}
 	
 	// PrintToServer("player %N (%d) Hooked (%d).", client, client, g_iMaxHealth[client]);
@@ -4846,13 +5007,18 @@ stock int FindValueIndexByClassName(const char[] classname, ArrayList array)
 {
 	char temp[64];
 	int length = array.Length;
+	int hash = GetStringHash(classname), cmp = 0;
+	
 	for(int i = 0; i < length; ++i)
 	{
 		StringMap spl = array.Get(i);
-		if(spl == null || !spl.GetString("classname", temp, 64))
+		if(spl == null)
 			continue;
 		
-		if(StrEqual(classname, temp, false))
+		if(spl.GetValue("hash", cmp) && cmp == hash)
+			return i;
+		
+		if(spl.GetString("classname", temp, 64) && StrEqual(classname, temp, false))
 			return i;
 	}
 	
@@ -5359,6 +5525,18 @@ public void SQLTran_SavePlayerFailure(Database db, any client, int numQueries, c
 
 #endif	// defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_
 
+stock int GetStringHash(const char[] text)
+{
+	const int seed = 131;
+	
+	int hash = 0;
+	// int length = strlen(text);
+	for(int i = 0; text[i] != EOS; ++i)
+		hash = hash * seed + text[i];
+	
+	return (hash & 0x7FFFFFFF);
+}
+
 #define DECL_MENU_PRE(%1)			CreateGlobalForward(%1, ET_Event, Param_Cell, Param_CellByRef)
 #define DECL_MENU_POST(%1)			CreateGlobalForward(%1, ET_Ignore, Param_Cell, Param_Cell)
 #define DECL_MENU_SELECT_PRE(%1)	CreateGlobalForward(%1, ET_Event, Param_Cell, Param_CellByRef, Param_CellByRef)
@@ -5433,6 +5611,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("SC_SetClientMaxHealth", Native_SetClientMaxHealth);
 	CreateNative("SC_GetClientMaxWillpower", Native_GetClientMaxWillpower);
 	CreateNative("SC_SetClientMaxWillpower", Native_SetClientMaxWillpower);
+	CreateNative("SC_IsClientSprint", Native_GetClientSprint);
+	CreateNative("SC_IsClientCombat", Native_GetClientCombat);
 	
 	// 等级
 	CreateNative("SC_GetClientExperience", Native_GetClientExperience);
@@ -5680,6 +5860,16 @@ public int Native_SetClientSkillSlot(Handle plugin, int argc)
 	DECL_NATIVE_SET(g_iSkillSlot);
 }
 
+public int Native_GetClientSprint(Handle plugin, int argc)
+{
+	DECL_NATIVE_GET(g_bInSprint);
+}
+
+public int Native_GetClientCombat(Handle plugin, int argc)
+{
+	DECL_NATIVE_GET(g_bInBattle);
+}
+
 public int Native_GiveClientExperience(Handle plugin, int argc)
 {
 	if(argc < 2)
@@ -5754,6 +5944,7 @@ public int Native_CreateSpell(Handle plugin, int argc)
 	spl.SetString("display", display, true);
 	spl.SetValue("consume", GetNativeCell(3), true);
 	spl.SetValue("cost", GetNativeCell(4), true);
+	spl.SetValue("hash", GetStringHash(classname), true);
 	
 	// 10/24/2018
 	if(argc >= 5)
@@ -5784,6 +5975,7 @@ public int Native_CreateSkill(Handle plugin, int argc)
 	skill.SetString("classname", classname, true);
 	skill.SetString("display", display, true);
 	skill.SetValue("zombie", GetNativeCell(3), true);
+	skill.SetValue("hash", GetStringHash(classname), true);
 	
 	if(argc >= 4)
 	{

@@ -72,6 +72,7 @@ static 	Handle:Plugin_Enabled,
 
 Handle g_hFindUseEntity = null;
 int g_iLastUpgradeType[MAXPLAYERS+1], g_iLastUpgradeCount[MAXPLAYERS+1];
+float g_fLastFired[MAXPLAYERS+1];
 
 public Plugin:myinfo = 
 {
@@ -92,7 +93,7 @@ public OnPluginStart()
 	HookEvent("upgrade_pack_added", Event_SpecialAmmo, EventHookMode_Post);
 	HookEvent("player_spawn", Event_Player_Spawn,EventHookMode_Post);
 	HookEvent("weapon_fire", Event_WeaponFire,EventHookMode_Post);
-	HookEvent("weapon_reload", Event_WeaponReload,EventHookMode_Post);
+	// HookEvent("weapon_reload", Event_WeaponReload,EventHookMode_Post);
 	
 	Plugin_Enabled =			CreateConVar("controlammo_enabled","1","插件開關 1/0",CVAR_FLAGS,true,0.0,true,1.0);
 	
@@ -282,13 +283,13 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 			new weapon_index 	= GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 			if(IsValidEdict(weapon_index))
 			{
+				new String:weapon_name[64];
+				GetEdictClassname(weapon_index,weapon_name,sizeof(weapon_name));
+				new clip 				= GetEntProp(weapon_index, Prop_Send, "m_iClip1");
 				if(GetEntProp(weapon_index, Prop_Send, "m_bInReload")==1 || buttons&IN_RELOAD)
 				{
-					new String:weapon_name[64];
-					GetEdictClassname(weapon_index,weapon_name,sizeof(weapon_name));
 					if(IsValidWeapon(weapon_name,WeaponNames,sizeof(WeaponNames)) && IsControlAmmoEnabled(weapon_name,WeaponNames,ControlAmmo_Enable,19))
 					{
-						new clip 				= GetEntProp(weapon_index, Prop_Send, "m_iClip1");
 						new customclip 			= GetCustomClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames),client);
 						new offset 				= FindWeaponOffSet(weapon_name,WeaponNames,sizeof(WeaponNames));
 						// new defclip			= GetDefaultClipAmmo(weapon_name,WeaponNames,sizeof(WeaponNames));
@@ -340,8 +341,21 @@ public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:ang
 							else if(buttons&IN_RELOAD)
 								buttons &= ~IN_RELOAD;
 						}
+						
+						if(IsReload[client])
+						{
+							SDKUnhook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
+							SDKHook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
+						}
 					}
 				}
+				/*
+				else if((buttons & IN_ATTACK) && IsShotGun(weapon_name,WeaponNames) && clip > 0 && GetEngineTime() - g_fLastFired[client] > 3.0)
+				{
+					// 修复霰弹枪无法开枪 bug
+					SetEntPropFloat(weapon_index, Prop_Send, "m_flNextPrimaryAttack", GetGameTime());
+				}
+				*/
 			}
 			else
 			{
@@ -444,6 +458,14 @@ public Action:Event_ItemPickup(Handle:event, const String:strName[], bool:DontBr
 		WritePackCell(data,client);
 		WritePackString(data,weapon_name);
 		CreateTimer(0.0,SetWeaponData,data);
+		
+		IsReload[client] = false;
+		ShotGunData[client][0] = 0;
+		ShotGunData[client][1] = 0;
+		g_iLastUpgradeType[client] = 0;
+		g_iLastUpgradeCount[client] = 0;
+		SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
+		SDKUnhook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
 	}
 }
 
@@ -525,11 +547,12 @@ public Action:Event_Player_Spawn(Handle:event, const String:name[], bool:dontBro
 
 public Event_WeaponFire(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if(!GetConVarBool(M60_AmmoPickup_Enabled))
-		return;
-	
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(!IsValidPlayer(client,TEAM_SURVIVORS))
+		return;
+	
+	g_fLastFired[client] = GetEngineTime();
+	if(!GetConVarBool(M60_AmmoPickup_Enabled))
 		return;
 	
 	new weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
@@ -573,6 +596,8 @@ public Event_WeaponReload(Handle:event, const String:name[], bool:dontBroadcast)
 		IsReload[client] = true;
 		SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
 		SDKHook(client, SDKHook_PreThink, GunPreThinkPostHook);
+		SDKUnhook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
+		SDKHook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
 	}
 }
 
@@ -676,6 +701,47 @@ stock bool:HasReloadFailure(client)
 	return false;
 }
 
+public Action:OnPlayerSwitchWeapon(client, weapon)
+{
+	if(!IsReload[client])
+	{
+		SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
+		SDKUnhook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
+		return Plugin_Continue;
+	}
+	
+	new weapon_index = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	if(!IsValidEdict(weapon_index))
+	{
+		SDKUnhook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
+		return Plugin_Continue;
+	}
+	
+	new String:weapon_name[64];
+	GetEdictClassname(weapon_index,weapon_name,sizeof(weapon_name));
+	if(!IsValidWeapon(weapon_name,WeaponNames,sizeof(WeaponNames)))
+	{
+		SDKUnhook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
+		return Plugin_Continue;
+	}
+	
+	// 恢复换子弹瞬间切枪导致子弹数不正确
+	if(GetEntProp(weapon_index, Prop_Send, "m_iClip1") == 0 && ShotGunData[client][0] > 0)
+	{
+		// 手枪和霰弹枪在填装时都不会丢弃弹夹的
+		if(IsShotGun(weapon_name,WeaponNames) || IsPistolGun(weapon_name,WeaponNames) || SC_IsClientHaveSkill(client, "upf_moreupgrade"))
+			SetEntProp(weapon_index, Prop_Send, "m_iClip1", ShotGunData[client][0]);
+	}
+	
+	IsReload[client] = false;
+	ShotGunData[client][0] = 0;
+	ShotGunData[client][1] = 0;
+	SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
+	SDKUnhook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
+	
+	return Plugin_Continue;
+}
+
 public Action:GunPreThinkPostHook(client)
 {
 	if(IsValidPlayer(client,TEAM_SURVIVORS)&&!IsFakeClient(client)&&IsReload[client])
@@ -772,6 +838,11 @@ public Action:GunPreThinkPostHook(client)
 						SetEntProp(weapon_index, Prop_Send, "m_reloadNumShells",ShotGunData[client][1]);
 						IsReload[client] = false;
 					}
+					
+					/*
+					if(!IsReload[client])
+						SetEntPropFloat(weapon_index, Prop_Send, "m_flNextPrimaryAttack", GetGameTime());
+					*/
 				}
 			}
 			else
@@ -790,7 +861,10 @@ public Action:GunPreThinkPostHook(client)
 		ShotGunData[client][0] = 0;
 		ShotGunData[client][1] = 0;
 		SDKUnhook(client, SDKHook_PreThink, GunPreThinkPostHook);
+		SDKUnhook(client, SDKHook_WeaponSwitch, OnPlayerSwitchWeapon);
 	}
+	
+	return Plugin_Continue;
 }
 
 GetDefaultClipAmmo(String:weapon_name[],const String:sequence[][],maxlen)

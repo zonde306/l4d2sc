@@ -23,6 +23,7 @@ enum MissileInfo_t
 	Float:MissileStartTime,
 	Float:MissileTime,
 	MissileType,
+	MissileFlags,
 };
 
 // 拖尾颜色
@@ -31,11 +32,11 @@ enum MissileInfo_t
 #define COLOR_VOMITJAR			{0, 255, 0, 255}
 #define COLOR_GRENADE			{255, 0, 255, 255}
 
-bool g_bRoundStarted = false;
+bool g_bRoundStarted = false, g_bIsQE2 = false;
 float g_fMissileFlySpeed, g_fMissileScanRadius;
 ArrayList g_hArrayEnemyList, g_hArrayMissileList;
-int g_iOffsetVelocity, g_iSpriteLaser, g_iSpriteBream;
-bool g_bMissileScanSpecial, g_bMissileScanCommon, g_bMissileFollowCrosshair;
+int g_iOffsetVelocity, g_iSpriteLaser, g_iSpriteBream, g_iMissileScanSpecial, g_iMissileScanCommon,
+	g_iMissileFollowCrosshair, g_iShotFlags[MAXPLAYERS+1];
 Handle g_pfnMolotovDetonate, g_pfnPipeBombDetonate, g_pfnVomitjarDetonate, g_pfnGrenadeTouch;
 ConVar g_pCvarAllowMolotov, g_pCvarAllowPipeBomb, g_pCvarAllowBile, g_pCvarAllowGrenade,
 	g_pCvarDetonateMolotov, g_pCvarDetonatePipeBomb, g_pCvarDetonateBile, g_pCvarDetonateGrenade,
@@ -59,9 +60,9 @@ public void OnPluginStart()
 	g_pCvarTrailGrenade = CreateConVar("l4d2_gm_glp_trails", "1", "是否允许跟踪榴弹显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarFlySpeed = CreateConVar("l4d2_gm_fly_speed", "800.0", "跟踪导弹飞行速度", CVAR_FLAGS, true, 100.0, true, 3000.0);
 	g_pCvarSearchRadius = CreateConVar("l4d2_gm_radius", "1000.0", "跟踪导弹搜索敌人范围", CVAR_FLAGS, true, 100.0, true, 8192.0);
-	g_pCvarScanSpecial = CreateConVar("l4d2_gm_special", "1", "跟踪导弹搜索特感", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarScanCommon = CreateConVar("l4d2_gm_common", "1", "跟踪导弹搜索普感", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarFollow = CreateConVar("l4d2_gm_follow", "1", "跟踪导弹跟随准星", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarScanSpecial = CreateConVar("l4d2_gm_special", "1", "跟踪导弹搜索特感.0=禁用.1=需要激光.2=需要弹药升级.4=需要蹲下.8=需要按住E", CVAR_FLAGS, true, 0.0, true, 15.0);
+	g_pCvarScanCommon = CreateConVar("l4d2_gm_common", "1", "跟踪导弹搜索普感.0=禁用.1=需要激光.2=需要弹药升级.4=需要蹲下.8=需要按住E", CVAR_FLAGS, true, 0.0, true, 15.0);
+	g_pCvarFollow = CreateConVar("l4d2_gm_follow", "1", "跟踪导弹跟随准星.0=禁用.1=需要激光.2=需要弹药升级.4=需要蹲下.8=需要按住E", CVAR_FLAGS, true, 0.0, true, 15.0);
 	AutoExecConfig(true, "l4d2_grenade_missile");
 	
 	HookEvent("player_death", Event_PlayerDeath);
@@ -71,6 +72,7 @@ public void OnPluginStart()
 	HookEvent("finale_win", Event_RoundEnd);
 	HookEvent("mission_lost", Event_RoundEnd);
 	HookEvent("map_transition", Event_RoundEnd);
+	HookEvent("weapon_fire", Event_WeaponFire);
 	
 	ConVarHooked_OnSettingUpdated(null, "", "");
 	g_pCvarFlySpeed.AddChangeHook(ConVarHooked_OnSettingUpdated);
@@ -123,21 +125,25 @@ public void ConVarHooked_OnSettingUpdated(ConVar cvar, const char[] oldValue, co
 {
 	g_fMissileFlySpeed = g_pCvarFlySpeed.FloatValue;
 	g_fMissileScanRadius = g_pCvarSearchRadius.FloatValue;
-	g_bMissileScanSpecial = g_pCvarScanSpecial.BoolValue;
-	g_bMissileScanCommon = g_pCvarScanCommon.BoolValue;
-	g_bMissileFollowCrosshair = g_pCvarFollow.BoolValue;
+	g_iMissileScanSpecial = g_pCvarScanSpecial.IntValue;
+	g_iMissileScanCommon = g_pCvarScanCommon.IntValue;
+	g_iMissileFollowCrosshair = g_pCvarFollow.IntValue;
 }
 
 public void Event_RoundStart(Event event, const char[] eventName, bool dontBroadcast)
 {
 	g_bRoundStarted = true;
+	
+	char map[64];
+	GetCurrentMap(map, 64);
+	g_bIsQE2 = (StrContains(map, "qe2_", false) == 0);
 }
 
 public void Event_RoundEnd(Event event, const char[] eventName, bool dontBroadcast)
 {
 	g_bRoundStarted = false;
 	
-	int entity = -1;
+	// int entity = -1;
 	new data[MissileInfo_t];
 	int maxLength = g_hArrayMissileList.Length;
 	for(int i = 0; i < maxLength; ++i)
@@ -166,6 +172,28 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 	int index = g_hArrayEnemyList.FindValue(victim);
 	if(index > -1)
 		g_hArrayEnemyList.Erase(index);
+}
+
+public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(client) || GetClientTeam(client) != 2)
+		return;
+	
+	g_iShotFlags[client] = 0;
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		return;
+	
+	char classname[64];
+	GetEntityClassname(weapon, classname, 64);
+	if(!StrEqual(classname, "weapon_grenade_launcher", false))
+		return;
+	
+	if(GetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", 1) > 0)
+		g_iShotFlags[client] = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
+	else
+		g_iShotFlags[client] = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec") & 4;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -273,6 +301,7 @@ public void SDKHooked_ProjectileSpawned(int entity)
 	data[MissileEnemy] = -1;
 	data[MissileStartTime] = GetGameTime() + 0.1;
 	data[MissileTime] = GetGameTime();
+	data[MissileFlags] = g_iShotFlags[client];
 	
 	if(StrEqual("molotov_projectile", classname, false))
 		data[MissileType] = 1;
@@ -407,12 +436,12 @@ void TrackMissile(int index)
 	float moveToPos[3], moveToDir[3];
 	int owner = data[MissileOwner];
 	int enemy = GetBestTarget(index, pos, ang);
-	if(enemy > -1)
+	if(enemy > -1 && CanTrackEnemy(owner, enemy, data[MissileFlags]))
 	{
 		// 跟随敌人
 		GetEnemyPostion(enemy, moveToPos);
 	}
-	else if(g_bMissileFollowCrosshair)
+	else if(CanTrackCrosshair(owner, data[MissileFlags]) && (!g_bIsQE2 || data[MissileType] != 4))
 	{
 		// 跟随准星
 		GetClientEyePosition(owner, moveToPos);
@@ -449,11 +478,13 @@ void TrackMissile(int index)
 	
 	NormalizeVector(moveToDir, vel);
 	
-	if(data[MissileType] == 4)
+	/*
+	if(hasGrenade)
 	{
 		// 修复榴弹发射器不受控制的问题
 		GetVectorAngles(vel, ang);
 	}
+	*/
 	
 	ScaleVector(vel, g_fMissileFlySpeed);
 	TeleportEntity(entity, NULL_VECTOR, ang, vel);
@@ -596,9 +627,48 @@ void UpdateEnemyList()
 	}
 }
 
+stock bool CanTrackEnemy(int client, int enemy, int glFlags)
+{
+	int buttons = GetClientButtons(client);
+	int flags = (enemy <= MaxClients ? g_iMissileScanSpecial : g_iMissileScanCommon);
+	
+	if((flags & 1) && !(glFlags & 4))
+		return false;
+	
+	if((flags & 2) && !(glFlags & 3))
+		return false;
+	
+	if((flags & 4) && !(buttons & IN_DUCK))
+		return false;
+	
+	if((flags & 8) && !(buttons & IN_USE))
+		return false;
+	
+	return true;
+}
+
+stock bool CanTrackCrosshair(int client, int glFlags)
+{
+	int buttons = GetClientButtons(client);
+	
+	if((g_iMissileFollowCrosshair & 1) && !(glFlags & 4))
+		return false;
+	
+	if((g_iMissileFollowCrosshair & 2) && !(glFlags & 3))
+		return false;
+	
+	if((g_iMissileFollowCrosshair & 4) && !(buttons & IN_DUCK))
+		return false;
+	
+	if((g_iMissileFollowCrosshair & 8) && !(buttons & IN_USE))
+		return false;
+	
+	return true;
+}
+
 stock bool IsValidEnemy(int entity)
 {
-	if(g_bMissileScanSpecial)
+	if(g_iMissileScanSpecial > 0)
 	{
 		if(IsValidAliveClient(entity) && GetClientTeam(entity) == 3 && !GetEntProp(entity, Prop_Send, "m_isGhost", 1))
 		{
@@ -609,7 +679,7 @@ stock bool IsValidEnemy(int entity)
 		}
 	}
 	
-	if(g_bMissileScanCommon)
+	if(g_iMissileScanCommon > 0)
 	{
 		if(entity > MaxClients && IsValidEdict(entity) && GetEntProp(entity, Prop_Data, "m_iHealth") > 0)
 		{

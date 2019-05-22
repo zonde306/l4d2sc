@@ -108,6 +108,15 @@ public OnPluginStart()
 	g_pCvarAwpAmmo.AddChangeHook(OnCvarUpdate_UpdateAmmo);
 	
 	InitFindEntity();
+	CreateTimer(1.0, Timer_SkillRegister);
+}
+
+public Action Timer_SkillRegister(Handle timer, any unused)
+{
+	SC_CreateSkill("ca_maxammo", "更多弹药", 0, "备用弹药更多");
+	SC_CreateSkill("ca_maxclip", "更大弹夹", 0, "弹夹大小更大");
+	SC_CreateSkill("upf_moreupgrade", "更多升级弹药", 0, "弹药升级包加量");
+	return Plugin_Continue;
 }
 
 public void OnCvarUpdate_UpdateAmmo(ConVar cvar, const char[] oldValue, const char[] newValue)

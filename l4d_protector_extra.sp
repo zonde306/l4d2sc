@@ -125,7 +125,7 @@ new Float:g_fDamage[MAXPLAYERS+1], Float:g_fRadius[MAXPLAYERS+1];
 
 public Action:Timer_SetupSpell(Handle:timer, any:unused)
 {
-	SC_CreateSpell("pxh_protector2", "固定小机枪炮台 - 无限版", 150, 6000);
+	SC_CreateSpell("pxh_protector2", "固定小机枪炮台", 150, 6000);
 }
 
 public void SC_OnUseSpellPost(int client, const char[] classname)

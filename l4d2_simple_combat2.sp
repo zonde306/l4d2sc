@@ -189,7 +189,7 @@ public void OnPluginStart()
 	// g_pCvarCombatRadius = CreateConVar("sc2_combat_raduis", "300.0", "在多大范围内有敌人视为战斗状态", CVAR_FLAGS, true, 10.0);
 	g_pCvarCombatDelay = CreateConVar("sc2_combat_leave_delay", "3.0", "离开战斗状态的延迟", CVAR_FLAGS, true, 0.1);
 	g_pCvarHurtBonus = CreateConVar("sc2_hurt_bonus", "1", "是否开启杀死特感根据伤害来奖励.0=只有杀死者有奖励.1=助攻者也有奖励", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarShowBonus = CreateConVar("sc2_show_bonus", "7", "是否显示奖励.0=关闭.1=显示经验.2=显示金钱.3=经验/金钱.4=显示累计", CVAR_FLAGS, true, 0.0, true, 7.0);
+	g_pCvarShowBonus = CreateConVar("sc2_show_bonus", "0", "是否显示奖励.0=关闭.1=显示经验.2=显示金钱.3=经验/金钱.4=显示累计", CVAR_FLAGS, true, 0.0, true, 7.0);
 	
 	g_pCvarStaminaRate = CreateConVar("sc2_stamina_combat_rate", "0.025", "战斗时每秒恢复耐力百分比", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarStaminaIdleRate = CreateConVar("sc2_stamina_safe_rate", "0.1", "非战斗时每秒恢复耐力百分比", CVAR_FLAGS, true, 0.0, true, 1.0);

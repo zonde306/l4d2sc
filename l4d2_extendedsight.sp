@@ -36,7 +36,7 @@ public OnPluginStart()
 	CreateConVar("l4d2_extendedsight_version", PLUGIN_VERSION, "Extended Survivor Sight Version", FCVAR_PLUGIN|FCVAR_NOTIFY|FCVAR_SPONLY|FCVAR_REPLICATED|FCVAR_DONTRECORD);
 	
 	PluginCvarMode = CreateConVar("l4d2_extendedsight_mode", "0", "开启插件.0=不开启.1=坦克死亡.2=女巫死亡.3=克或妹死亡.4=一直开启", FCVAR_PLUGIN|FCVAR_NOTIFY, true, 0.0, true, 4.0);
-	PluginCvarNotify = CreateConVar("l4d2_extendedsight_notify", "2", "显示提示.0=关闭.1=黑框.2=聊天框", FCVAR_PLUGIN|FCVAR_NOTIFY, true, 0.0, true, 2.0);
+	PluginCvarNotify = CreateConVar("l4d2_extendedsight_notify", "0", "显示提示.0=关闭.1=黑框.2=聊天框", FCVAR_PLUGIN|FCVAR_NOTIFY, true, 0.0, true, 2.0);
 	PluginCvarDuration = CreateConVar("l4d2_extendedsight_duration", "30", "启动后持续时间", FCVAR_PLUGIN|FCVAR_NOTIFY, true, 10.0);
 	PluginCvarGlow = CreateConVar("l4d2_extendedsight_glowcolor", "255 75 75", "光圈颜色", FCVAR_PLUGIN|FCVAR_NOTIFY);
 	PluginCvarGlowMode = CreateConVar("l4d2_extendedsight_glowmode", "1", "光圈模式.0=普通.1=褪色", FCVAR_PLUGIN|FCVAR_NOTIFY, true, 0.0, true, 1.0);

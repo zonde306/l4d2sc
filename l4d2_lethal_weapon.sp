@@ -88,7 +88,7 @@ public Plugin:myinfo =
 public OnPluginStart()
 {
 	// ConVars
-	l4d2_lw_lethalweapon	= CreateConVar("l4d2_lw_lethalweapon","1", "是否开启狙击炮.0=关闭.1=开启.2=开启精简版", CVAR_FLAGS);
+	l4d2_lw_lethalweapon	= CreateConVar("l4d2_lw_lethalweapon","0", "是否开启狙击炮.0=关闭.1=开启.2=开启精简版", CVAR_FLAGS);
 	l4d2_lw_lethaldamage	= CreateConVar("l4d2_lw_lethaldamage","3000.0", "狙击炮伤害", CVAR_FLAGS);
 	l4d2_lw_lethalforce		= CreateConVar("l4d2_lw_lethalforce","500.0", "狙击炮推力", CVAR_FLAGS);
 	l4d2_lw_chargetime		= CreateConVar("l4d2_lw_chargetime","7", "狙击炮充能时间", CVAR_FLAGS);
@@ -394,8 +394,8 @@ public Action:ChargeTimer(Handle:timer, any:client)
 	}
 
 	StopSound(client, SNDCHAN_AUTO, CHARGESOUND);
-	if (!GetConVarInt(l4d2_lw_lethalweapon) || ChargeLock[client] > maxCount ||
-		!SC_IsClientHaveSkill(client, "lw_lethalweapon"))
+	if ((!GetConVarInt(l4d2_lw_lethalweapon) && !SC_IsClientHaveSkill(client, "lw_lethalweapon")) ||
+		ChargeLock[client] > maxCount)
 		return Plugin_Continue;
 
 	if (!IsClientInGame(client) || !IsValidEntity(client) || !IsClientInGame(client))

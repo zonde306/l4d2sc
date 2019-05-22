@@ -74,17 +74,17 @@ public void OnPluginStart()
 
 public Action Timer_SetupSpell(Handle timer, any data)
 {
-	SC_CreateSpell("ss_healall", "全体治疗", 250, 6500);
-	SC_CreateSpell("ss_reviveall", "全体自救", 150, 3500);
-	SC_CreateSpell("ss_respawnall", "全体复活", 300, 10000);
-	SC_CreateSpell("ss_adrenalineall", "全体兴奋", 75, 1000);
-	SC_CreateSpell("ss_vomitall", "敌人沾上胆汁", 100, 2000);
-	SC_CreateSpell("ss_staggerall", "震退敌人", 25, 750);
-	SC_CreateSpell("ss_killall", "处死敌人", 500, 20000);
-	SC_CreateSpell("ss_killinfected", "处死普感", 350, 13500);
-	SC_CreateSpell("ss_godmode", "无敌人类", 255, 10000);
-	SC_CreateSpell("ss_revivefaster", "疾速救援", 164, 2000);
-	SC_CreateSpell("ss_unlimitammo", "无限子弹", 235, 6000);
+	SC_CreateSpell("ss_healall", "全体治疗", 250, 6500, "治疗全部队友\ngive health");
+	SC_CreateSpell("ss_reviveall", "全体自救", 150, 3500, "救起全部队友\nCTerrorPlayer.ReviveFromIncap");
+	SC_CreateSpell("ss_respawnall", "全体复活", 300, 10000, "复活全部死亡的队友\nCTerrorPlayer.ReviveByDefib");
+	SC_CreateSpell("ss_adrenalineall", "全体兴奋", 75, 1000, "全部队友进入兴奋状态\nCTerrorPlayer.UseAdrenaline");
+	SC_CreateSpell("ss_vomitall", "敌人沾上胆汁", 100, 2000, "全部敌人进入胆汁状态\nCTerrorPlayer.HitWithVomit");
+	SC_CreateSpell("ss_staggerall", "震退敌人", 25, 750, "附近敌人进入僵直状态\nCTerrorPlayer.Stagger");
+	SC_CreateSpell("ss_killall", "处死敌人", 500, 20000, "对全部敌人造成极高的伤害\nCTerrorPlayer.TakeDamage");
+	SC_CreateSpell("ss_killinfected", "处死普感", 350, 13500, "干掉全部普通感染者\nCTerrorPlayer.TakeDamage");
+	SC_CreateSpell("ss_godmode", "无敌人类", 255, 10000, "生还者进入无敌状态（不会掉血）\ngod 1");
+	SC_CreateSpell("ss_revivefaster", "疾速救援", 164, 2000, "救人瞬间完成");
+	SC_CreateSpell("ss_unlimitammo", "无限子弹", 235, 6000, "无限主武器子弹\nsv_infinite_primary_ammo 1");
 	SC_CreateSpell("ss_gravity", "重力变异 (重力降低)", 50, 4000);
 	SC_CreateSpell("ss_meleeshove", "剑气神托 (近战和推距离加大)", 175, 7000);
 	SC_CreateSpell("ss_duckfaster", "蹲坑神速 (蹲下移动加速)", 108, 4500);

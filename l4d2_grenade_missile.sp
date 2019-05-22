@@ -46,18 +46,18 @@ ConVar g_pCvarAllowMolotov, g_pCvarAllowPipeBomb, g_pCvarAllowBile, g_pCvarAllow
 public void OnPluginStart()
 {
 	InitPlugin("gm");
-	g_pCvarAllowMolotov = CreateConVar("l4d2_gm_molotov_allow", "1", "是否允许跟踪火瓶", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarAllowMolotov = CreateConVar("l4d2_gm_molotov_allow", "0", "是否允许跟踪火瓶", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarDetonateMolotov = CreateConVar("l4d2_gm_molotov_explode", "1", "是否允许跟踪火瓶自动爆炸", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarTrailMolotov = CreateConVar("l4d2_gm_molotov_trails", "1", "是否允许跟踪火瓶显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarAllowPipeBomb = CreateConVar("l4d2_gm_pipebomb_allow", "1", "是否允许跟踪土雷", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarTrailMolotov = CreateConVar("l4d2_gm_molotov_trails", "0", "是否允许跟踪火瓶显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarAllowPipeBomb = CreateConVar("l4d2_gm_pipebomb_allow", "0", "是否允许跟踪土雷", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarDetonatePipeBomb = CreateConVar("l4d2_gm_pipebomb_explode", "1", "是否允许跟踪土雷自动爆炸", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarTrailPipeBomb = CreateConVar("l4d2_gm_pipebomb_trails", "1", "是否允许跟踪土雷显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarAllowBile = CreateConVar("l4d2_gm_vomitjar_allow", "1", "是否允许跟踪胆汁", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarTrailPipeBomb = CreateConVar("l4d2_gm_pipebomb_trails", "0", "是否允许跟踪土雷显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarAllowBile = CreateConVar("l4d2_gm_vomitjar_allow", "0", "是否允许跟踪胆汁", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarDetonateBile = CreateConVar("l4d2_gm_vomitjar_explode", "1", "是否允许跟踪胆汁自动爆炸", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarTrailBile = CreateConVar("l4d2_gm_vomitjar_trails", "1", "是否允许跟踪胆汁显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarTrailBile = CreateConVar("l4d2_gm_vomitjar_trails", "0", "是否允许跟踪胆汁显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarAllowGrenade = CreateConVar("l4d2_gm_glp_allow", "1", "是否允许跟踪榴弹", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarDetonateGrenade = CreateConVar("l4d2_gm_glp_explode", "1", "是否允许跟踪榴弹自动爆炸", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarTrailGrenade = CreateConVar("l4d2_gm_glp_trails", "1", "是否允许跟踪榴弹显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarTrailGrenade = CreateConVar("l4d2_gm_glp_trails", "0", "是否允许跟踪榴弹显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarFlySpeed = CreateConVar("l4d2_gm_fly_speed", "800.0", "跟踪导弹飞行速度", CVAR_FLAGS, true, 100.0, true, 3000.0);
 	g_pCvarSearchRadius = CreateConVar("l4d2_gm_radius", "1000.0", "跟踪导弹搜索敌人范围", CVAR_FLAGS, true, 100.0, true, 8192.0);
 	g_pCvarScanSpecial = CreateConVar("l4d2_gm_special", "1", "跟踪导弹搜索特感.0=禁用.1=需要激光.2=需要弹药升级.4=需要蹲下.8=需要按住E", CVAR_FLAGS, true, 0.0, true, 15.0);

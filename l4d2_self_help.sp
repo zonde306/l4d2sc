@@ -363,11 +363,6 @@ public void OnMapStart()
 
 public void OnRoundEvents(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-	
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (IsClientInGame(i))
@@ -379,11 +374,6 @@ public void OnRoundEvents(Event event, const char[] name, bool dontBroadcast)
 
 public void OnInfectedGrab(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-	
 	int grabber = GetClientOfUserId(event.GetInt("userid")),
 		grabbed = GetClientOfUserId(event.GetInt("victim"));
 	
@@ -396,11 +386,6 @@ public void OnInfectedGrab(Event event, const char[] name, bool dontBroadcast)
 
 public void OnInfectedRelease(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-	
 	int released = GetClientOfUserId(event.GetInt("victim"));
 	if (IsSurvivor(released))
 	{
@@ -426,11 +411,6 @@ public void OnInfectedRelease(Event event, const char[] name, bool dontBroadcast
 
 public void OnPlayerDown(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-	
 	int wounded = GetClientOfUserId(event.GetInt("userid"));
 	if (IsSurvivor(wounded) && GetEntProp(wounded, Prop_Send, "m_zombieClass") == iSurvivorClass)
 	{
@@ -464,11 +444,6 @@ public void OnPlayerDown(Event event, const char[] name, bool dontBroadcast)
 
 public void OnCountReset(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-	
 	int client, iOther = 0;
 	if (StrEqual(name, "heal_success"))
 	{
@@ -523,11 +498,6 @@ public void OnCountReset(Event event, const char[] name, bool dontBroadcast)
 
 public void OnReviveBegin(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-	
 	int revived = GetClientOfUserId(event.GetInt("subject"));
 	if (!IsSurvivor(revived) || hSHTime[revived] == null)
 	{
@@ -543,11 +513,6 @@ public void OnReviveBegin(Event event, const char[] name, bool dontBroadcast)
 
 public void OnReviveEnd(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-	
 	int revived = GetClientOfUserId(event.GetInt("subject"));
 	if (!IsSurvivor(revived) || !IsPlayerAlive(revived) || !GetEntProp(revived, Prop_Send, "m_isIncapacitated", 1))
 	{
@@ -559,11 +524,6 @@ public void OnReviveEnd(Event event, const char[] name, bool dontBroadcast)
 
 public void OnReviveSuccess(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!bEnabled)
-	{
-		return;
-	}
-	
 	int reviver = GetClientOfUserId(event.GetInt("userid")),
 		revived = GetClientOfUserId(event.GetInt("subject"));
 	
@@ -623,7 +583,7 @@ public void OnReviveSuccess(Event event, const char[] name, bool dontBroadcast)
 
 public Action DelayMechanism(Handle timer, any client)
 {
-	if (!IsClientInGame(client) || GetClientTeam(client) != 2 || !IsPlayerAlive(client))
+	if (!bEnabled || !IsClientInGame(client) || GetClientTeam(client) != 2 || !IsPlayerAlive(client))
 	{
 		return Plugin_Stop;
 	}
@@ -698,7 +658,7 @@ public Action CheckPlayerState(Handle timer, any client)
 	int iButtons = GetClientButtons(client);
 	char sSHMessage[128];
 	
-	if (IsSelfHelpAble(client))
+	if (bEnabled && IsSelfHelpAble(client))
 	{
 		if (iButtons & IN_DUCK)
 		{
@@ -747,7 +707,7 @@ public Action CheckPlayerState(Handle timer, any client)
 		}
 	}
 	
-	if (iButtons & IN_RELOAD)
+	if (bEnabled && (iButtons & IN_RELOAD))
 	{
 		float fPos[3], fOtherPos[3];
 		

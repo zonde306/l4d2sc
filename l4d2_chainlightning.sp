@@ -47,7 +47,7 @@ public void SC_OnUseSpellPost(int client, const char[] classname)
 	ChainLightningInterval[client] = 1.0;
 	ChainLightningDamage[client] = 20.0 + ((SC_GetClientLevel(client) + 1) * 5);
 	ChainLightningRadius[client] = 100.0 + ((SC_GetClientLevel(client) + 1) * 3);
-	ChainLightningLaunchRadius[client] = 150.0 + ((SC_GetClientLevel(client) + 1) * 5);
+	ChainLightningLaunchRadius[client] = 200.0 + ((SC_GetClientLevel(client) + 1) * 5);
 	ChainLightningFunction(client);
 	PrintToChat(client, "\x03[提示]\x01 你启动了 \x04连锁闪电\x01 范围 \x05%.0f\x01。", ChainLightningLaunchRadius[client]);
 }

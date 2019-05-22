@@ -107,7 +107,7 @@ public OnPluginStart()
 	
 	sm_satellite_enable			= CreateConVar("sm_satellite_enable","1","是否开启插件", FCVAR_NOTIFY);
 	sm_satellite_damage_01		= CreateConVar("sm_satellite_damage_01","600.0", "扫描模式伤害", FCVAR_NOTIFY);
-	sm_satellite_freeze_02		= CreateConVar("sm_satellite_freeze_02","5.0", "冰冻模式伤害", FCVAR_NOTIFY);
+	sm_satellite_freeze_02		= CreateConVar("sm_satellite_freeze_02","1.0", "冰冻模式伤害", FCVAR_NOTIFY);
 	sm_satellite_damage_03		= CreateConVar("sm_satellite_damage_03","200.0", "地狱模式伤害", FCVAR_NOTIFY);
 	sm_satellite_burst_delay	= CreateConVar("sm_satellite_burst_delay","1.0", "启动延迟", FCVAR_NOTIFY);
 	sm_satellite_force			= CreateConVar("sm_satellite_force","600.0", "推力", FCVAR_NOTIFY);

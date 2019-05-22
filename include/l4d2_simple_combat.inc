@@ -168,7 +168,7 @@ forward void SC_OnGainSpellPost(int client, const char[] classname);
 // 参数 3 = 使用(释放)消耗多少魔力
 // 参数 4 = 购买价格
 // 参数 5 = 介绍
-native int SC_CreateSpell(const char[] classname, const char[] display, int consume, int cost, const char[] description);
+native int SC_CreateSpell(const char[] classname, const char[] display, int consume, int cost, const char[] description="");
 
 // 搜索法术，索引不保证长期有效
 native int SC_FindSpell(const char[] classname);

@@ -22,6 +22,7 @@ public Plugin:myinfo =
 };
 
 Handle g_hFindUseEntity = null;
+int g_iLastShotGunClip[MAXPLAYERS+1] = {0, ...};
 
 int g_iAmmoSmg, g_iAmmoSilenced, g_iAmmoMP5, g_iAmmoPump, g_iAmmoChrome, g_iAmmoSG552, g_iAmmoRifle, g_iAmmoAk47,
 	g_iAmmoDesert, g_iAmmoAuto, g_iAmmoSpas, g_iAmmoHunting, g_iAmmoMilitary, g_iAmmoScout, g_iAmmoAwp;
@@ -201,6 +202,22 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 			buttons &= ~IN_RELOAD;
 			return Plugin_Changed;
 		}
+		
+		if(HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
+		{
+			g_iLastShotGunClip[client] = currentClip;
+			SetEntProp(weapon, Prop_Send, "m_iClip1", 0);
+		}
+		else
+		{
+			int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", ammoType);
+			if((ammo += currentClip) > 1023)
+				ammo = 1023;
+			
+			SetEntProp(weapon, Prop_Send, "m_iClip1", 0);
+			SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammoType);
+		}
 	}
 	
 	return Plugin_Continue;
@@ -301,6 +318,11 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool unknown
 	{
 		int currentClip = GetEntProp(weapon, Prop_Send, "m_iClip1");
 		int currentAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+		if(currentAmmo == 0 && g_iLastShotGunClip[client] > 0)
+		{
+			currentAmmo = g_iLastShotGunClip[client];
+			SetEntProp(weapon, Prop_Send, "m_iClip1", currentAmmo);
+		}
 		
 		clip -= currentClip;
 		if(clip > currentAmmo)
@@ -313,10 +335,24 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool unknown
 		SDKHook(client, SDKHook_PreThink, OnThink_UpdateWeapon);
 		SDKHook(client, SDKHook_WeaponSwitchPost, OnSwitch_ChangeWeapon);
 	}
+	
+	g_iLastShotGunClip[client] = 0;
 }
 
 public void OnSwitch_ChangeWeapon(int client, int weapon)
 {
+	if(IsValidClient(client) && g_iLastShotGunClip[client] > 0)
+	{
+		int primaryWeapon = GetPlayerWeaponSlot(client, 0);
+		if(primaryWeapon > MaxClients && IsValidEntity(primaryWeapon) &&
+			HasEntProp(primaryWeapon, Prop_Send, "m_reloadNumShells") &&
+			GetEntProp(primaryWeapon, Prop_Send, "m_iClip1") == 0)
+		{
+			SetEntProp(primaryWeapon, Prop_Send, "m_iClip1", g_iLastShotGunClip[client]);
+			g_iLastShotGunClip[client] = 0;
+		}
+	}
+	
 	SDKUnhook(client, SDKHook_PreThinkPost, OnThink_UpdateWeapon);
 	SDKUnhook(client, SDKHook_WeaponSwitchPost, OnSwitch_ChangeWeapon);
 }

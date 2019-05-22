@@ -28,7 +28,7 @@ new bool:FinaleHasStarted;
 
 public Plugin:myinfo =
 {
-	name = "»úÆ÷ÈË×Ô¶¯¿ª»ú¹Ø",
+	name = "æœºå™¨äººè‡ªåŠ¨å¼€æœºå…³",
 	author = "Xanaguy",
 	description = "An improved version of ijj's variant of the L4D2 Survivor AI Auto Trigger",
 	version = PLUGIN_VERSION,
@@ -580,7 +580,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		pos1[2] = 302.0;
 		if (CheckforBots(pos1, 100.0) && !MapTriggerTwo)
 		{
-			PrintToServer("[AutoTrigger] 15Ãëºó»Ö¸´¡£");
+			PrintToServer("[AutoTrigger] 15ç§’åæ¢å¤ã€‚");
 			CreateTimer(5.0, ResumeBotsActions);
 			MapTriggerTwo = true;
 		}

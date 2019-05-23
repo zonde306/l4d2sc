@@ -86,6 +86,7 @@ public void OnPluginStart()
 	g_pCvarCharger = CreateConVar("ps_cost_zombie_charger", "2000", "牛 价格.-1=禁用", CVAR_FLAGS, true, -1.0);
 	g_pCvarWitch = CreateConVar("ps_cost_zombie_witch", "2500", "萌妹 价格.-1=禁用", CVAR_FLAGS, true, -1.0);
 	g_pCvarTank = CreateConVar("ps_cost_zombie_tank", "3250", "坦克 价格.-1=禁用", CVAR_FLAGS, true, -1.0);
+	AutoExecConfig(true, "l4d2_point_shop");
 	
 	RegConsoleCmd("sm_buy", Cmd_BuyMenu);
 	RegConsoleCmd("sm_shop", Cmd_BuyMenu);

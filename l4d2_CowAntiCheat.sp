@@ -214,7 +214,7 @@ public void OnPluginStart()
 	g_ConVar_BlockVomitIdle = CreateConVar("cac_block_vomit_idle", "1", "是否开启沾到胆汁禁止闲置", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_ConVar_BlockGrenadeIdle = CreateConVar("cac_block_grenade_idle", "1", "是否开启丢雷禁止闲置", FCVAR_NONE, true, 0.0, true, 1.0);
 
-	AutoExecConfig(true, "l4d2_cac");
+	AutoExecConfig(true, "l4d2_CowAntiCheat");
 
 	HookEventEx("bomb_begindefuse", Event_BombBeginDefuse);
 	HookEventEx("bomb_defused", Event_BombDefused);

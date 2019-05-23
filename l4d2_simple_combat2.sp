@@ -7,7 +7,7 @@
 
 #define _USE_SKILL_DETECT_			// 使用 l4d2_skill_detect.smx 插件提供的 forward
 // #define _USE_PLUGIN_MAX_HEALTH_		// 使用当前插件定义的血量上限代替 m_iMaxHealth 作为标准
-#define _USE_CONSOLE_MESSAGE_		// 当玩家获得奖励时打印控制台信息
+// #define _USE_CONSOLE_MESSAGE_		// 当玩家获得奖励时打印控制台信息
 #define _USE_DATABASE_SQLITE_		// 使用 SQLite 储存数据
 // #define _USE_DATABASE_MYSQL_		// 使用 MySQL 储存数据
 // #define _USE_DETOUR_FUNC_		// 使用 hook 伤害

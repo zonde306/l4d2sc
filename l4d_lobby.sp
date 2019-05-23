@@ -39,7 +39,7 @@ public OnPluginStart()
 	cvarUnreserve = CreateConVar("l4d_lobby_full", "1", "满人时移除大厅预定", FCVAR_NONE, true, 0.0, true, 1.0);
 	cvarFixEmpty = CreateConVar("l4d_lobby_empty", "120", "修复空服务器被预定时间", FCVAR_NONE, true, 10.0, true, 300.0);
 	cvarPutinLobby = CreateConVar("l4d_lobby_putin", "0", "加入时移除大厅预定", FCVAR_NONE, true, 0.0, true, 1.0);
-	AutoExecConfig(true, "l4d_lobby_unreserve");
+	AutoExecConfig(true, "l4d_lobby");
 	
 	cvarGameMode = FindConVar("mp_gamemode");
 }

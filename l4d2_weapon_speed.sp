@@ -310,6 +310,8 @@ public Action Timer_ResetShotgunTime(Handle timer, any pack)
 	
 	int client = data.ReadCell();
 	int weapon = data.ReadCell();
+	if(!IsValidEntity(weapon))
+		return Plugin_Stop;
 	
 	if(GetEntProp(weapon, Prop_Send, "m_reloadState") != 0)
 		return Plugin_Continue;

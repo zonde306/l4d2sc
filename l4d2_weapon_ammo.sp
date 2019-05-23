@@ -8,6 +8,9 @@
 #define PLUGIN_VERSION	"0.1"
 #include "modules/l4d2ps.sp"
 
+const int g_iMaxClip = 254;		// 游戏所允许的最大弹夹数量 8bit，但是 255 会被显示为 0，超过会溢出
+const int g_iMaxAmmo = 1023;	// 游戏所允许的最大子弹数量 10bit，超过会溢出
+
 #define SKILLCLIP_SIZE			(1.0 + ((SC_GetClientLevel(client) / 10) * 0.25))
 #define SKILLAMMO_SIZE			(1.0 + ((SC_GetClientLevel(client) / 10) * 0.5))
 #define SKILLUPGRADE_SIZE		(1.0 + ((SC_GetClientLevel(client) / 10) * 0.25))
@@ -22,7 +25,10 @@ public Plugin:myinfo =
 };
 
 Handle g_hFindUseEntity = null;
-int g_iLastShotGunClip[MAXPLAYERS+1] = {0, ...};
+
+bool g_bHasShotGunChanged[MAXPLAYERS+1] = {false, ...};
+int g_iLastShotGunClip[MAXPLAYERS+1] = {0, ...}, g_iLastUpgradeClip[MAXPLAYERS+1] = {0, ...},
+	g_iLastUpgradeAmmo[MAXPLAYERS+1] = {0, ...};
 
 int g_iAmmoSmg, g_iAmmoSilenced, g_iAmmoMP5, g_iAmmoPump, g_iAmmoChrome, g_iAmmoSG552, g_iAmmoRifle, g_iAmmoAk47,
 	g_iAmmoDesert, g_iAmmoAuto, g_iAmmoSpas, g_iAmmoHunting, g_iAmmoMilitary, g_iAmmoScout, g_iAmmoAwp;
@@ -39,36 +45,36 @@ ConVar g_pCvarSmgClip, g_pCvarSmgAmmo, g_pCvarSilencedClip, g_pCvarSilencedAmmo,
 public OnPluginStart()
 {
 	InitPlugin("wa");
-	g_pCvarSmgClip = CreateConVar("l4d2_wa_smg_clip", "50", "普通冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarSmgAmmo = CreateConVar("l4d2_wa_smg_ammo", "650", "普通冲锋枪弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarSilencedClip = CreateConVar("l4d2_wa_smg_silenced_clip", "50", "消音冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarSilencedAmmo = CreateConVar("l4d2_wa_smg_silenced_ammo", "650", "消音冲锋枪弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarMP5Clip = CreateConVar("l4d2_wa_smg_mp5_clip", "50", "MP5 冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarMP5Ammo = CreateConVar("l4d2_wa_smg_mp5_ammo", "650", "MP5 冲锋枪弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarPumpClip = CreateConVar("l4d2_wa_pumpshotgun_clip", "8", "木单喷弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarPumpAmmo = CreateConVar("l4d2_wa_pumpshotgun_ammo", "56", "木单喷弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarChromeClip = CreateConVar("l4d2_wa_shotgun_chrome_clip", "8", "铁单喷弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarChromeAmmo = CreateConVar("l4d2_wa_shotgun_chrome_ammo", "56", "铁单喷弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarRifleClip = CreateConVar("l4d2_wa_rifle_clip", "50", "M16 步枪弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarRifleAmmo = CreateConVar("l4d2_wa_rifle_ammo", "360", "M16 步枪弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarAk47Clip = CreateConVar("l4d2_wa_rifle_ak47_clip", "40", "AK47 步枪弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarAk47Ammo = CreateConVar("l4d2_wa_rifle_ak47_ammo", "360", "AK47 步枪弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarDesertClip = CreateConVar("l4d2_wa_rifle_desert_clip", "60", "三连发步枪弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarDesertAmmo = CreateConVar("l4d2_wa_rifle_desert_ammo", "360", "三连发步枪弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarSG552Clip = CreateConVar("l4d2_wa_rifle_sg552_clip", "50", "SG552 发步枪弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarSG552Ammo = CreateConVar("l4d2_wa_rifle_sg552_ammo", "360", "SG552 步枪弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarAutoClip = CreateConVar("l4d2_wa_autoshotgun_clip", "10", "一代连喷弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarAutoAmmo = CreateConVar("l4d2_wa_autoshotugn_ammo", "90", "一代连喷弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarSpasClip = CreateConVar("l4d2_wa_shotgun_spas_clip", "10", "二代连喷弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarSpasAmmo = CreateConVar("l4d2_wa_shotgun_spas_ammo", "90", "二代连喷弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarHuntingClip = CreateConVar("l4d2_wa_hunging_rifle_clip", "15", "猎枪弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarHuntingAmmo = CreateConVar("l4d2_wa_hunting_rifle_ammo", "150", "猎枪弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarMilitaryClip = CreateConVar("l4d2_wa_sniper_military_clip", "30", "连狙弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarMilitaryAmmo = CreateConVar("l4d2_wa_sniper_military_ammo", "180", "连狙弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarScoutClip = CreateConVar("l4d2_wa_sniper_scout_clip", "15", "鸟狙弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarScoutAmmo = CreateConVar("l4d2_wa_sniper_scout_ammo", "180", "鸟狙弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
-	g_pCvarAwpClip = CreateConVar("l4d2_wa_sniper_awp_clip", "20", "大鸟弹夹", FCVAR_NONE, true, 0.0, true, 254.0);
-	g_pCvarAwpAmmo = CreateConVar("l4d2_wa_sniper_awp_ammo", "180", "大鸟弹药", FCVAR_NONE, true, 0.0, true, 1023.0);
+	g_pCvarSmgClip = CreateConVar("l4d2_wa_smg_clip", "50", "普通冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarSmgAmmo = CreateConVar("l4d2_wa_smg_ammo", "650", "普通冲锋枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarSilencedClip = CreateConVar("l4d2_wa_smg_silenced_clip", "50", "消音冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarSilencedAmmo = CreateConVar("l4d2_wa_smg_silenced_ammo", "650", "消音冲锋枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarMP5Clip = CreateConVar("l4d2_wa_smg_mp5_clip", "50", "MP5 冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarMP5Ammo = CreateConVar("l4d2_wa_smg_mp5_ammo", "650", "MP5 冲锋枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarPumpClip = CreateConVar("l4d2_wa_pumpshotgun_clip", "8", "木单喷弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarPumpAmmo = CreateConVar("l4d2_wa_pumpshotgun_ammo", "56", "木单喷弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarChromeClip = CreateConVar("l4d2_wa_shotgun_chrome_clip", "8", "铁单喷弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarChromeAmmo = CreateConVar("l4d2_wa_shotgun_chrome_ammo", "56", "铁单喷弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarRifleClip = CreateConVar("l4d2_wa_rifle_clip", "50", "M16 步枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarRifleAmmo = CreateConVar("l4d2_wa_rifle_ammo", "360", "M16 步枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarAk47Clip = CreateConVar("l4d2_wa_rifle_ak47_clip", "40", "AK47 步枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarAk47Ammo = CreateConVar("l4d2_wa_rifle_ak47_ammo", "360", "AK47 步枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarDesertClip = CreateConVar("l4d2_wa_rifle_desert_clip", "60", "三连发步枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarDesertAmmo = CreateConVar("l4d2_wa_rifle_desert_ammo", "360", "三连发步枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarSG552Clip = CreateConVar("l4d2_wa_rifle_sg552_clip", "50", "SG552 发步枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarSG552Ammo = CreateConVar("l4d2_wa_rifle_sg552_ammo", "360", "SG552 步枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarAutoClip = CreateConVar("l4d2_wa_autoshotgun_clip", "10", "一代连喷弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarAutoAmmo = CreateConVar("l4d2_wa_autoshotugn_ammo", "90", "一代连喷弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarSpasClip = CreateConVar("l4d2_wa_shotgun_spas_clip", "10", "二代连喷弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarSpasAmmo = CreateConVar("l4d2_wa_shotgun_spas_ammo", "90", "二代连喷弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarHuntingClip = CreateConVar("l4d2_wa_hunging_rifle_clip", "15", "猎枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarHuntingAmmo = CreateConVar("l4d2_wa_hunting_rifle_ammo", "150", "猎枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarMilitaryClip = CreateConVar("l4d2_wa_sniper_military_clip", "30", "连狙弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarMilitaryAmmo = CreateConVar("l4d2_wa_sniper_military_ammo", "180", "连狙弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarScoutClip = CreateConVar("l4d2_wa_sniper_scout_clip", "15", "鸟狙弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarScoutAmmo = CreateConVar("l4d2_wa_sniper_scout_ammo", "180", "鸟狙弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarAwpClip = CreateConVar("l4d2_wa_sniper_awp_clip", "20", "大鸟弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarAwpAmmo = CreateConVar("l4d2_wa_sniper_awp_ammo", "180", "大鸟弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
 	AutoExecConfig(true, "l4d2_weapon_ammo");
 	
 	HookEvent("item_pickup", Event_ItemPickup);
@@ -157,6 +163,9 @@ public void OnCvarUpdate_UpdateAmmo(ConVar cvar, const char[] oldValue, const ch
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3],
 	int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
+	if(!(buttons & IN_USE) && !(buttons & IN_RELOAD))
+		return Plugin_Continue;
+	
 	if(!IsValidClient(client) || GetClientTeam(client) != 2)
 		return Plugin_Continue;
 	
@@ -173,23 +182,38 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 	if(buttons & IN_USE)
 	{
 		int entity = FindUseEntity(client);
-		if(entity > MaxClients && IsValidEntity(entity))
+		
+		char primaryWeaponName[64];
+		int primaryWeapon = GetPlayerWeaponSlot(client, 0);
+		if(primaryWeapon > MaxClients)
+			GetEntityClassname(primaryWeapon, primaryWeaponName, 64);
+		
+		if(entity > MaxClients && primaryWeapon > MaxClients && IsValidEntity(entity))
 		{
 			char useEntityName[64];
 			GetEntityClassname(entity, useEntityName, 64);
+			// PrintToChat(client, "pickup");
+			
 			if(StrEqual(useEntityName, "weapon_ammo_spawn", false))
 			{
 				Event event = CreateEvent("ammo_pickup");
 				event.SetInt("userid", GetClientUserId(client));
-				event.Fire();
+				// event.Fire();
+				Event_AmmoPickup(event, "ammo_pickup", true);
 			}
 			else if(StrContains(useEntityName, "_spawn", false) > -1 &&
-				StrContains(useEntityName, classname, false) == 0)
+				StrContains(useEntityName, primaryWeaponName, false) == 0)
 			{
 				DataPack data = CreateDataPack();
 				data.WriteCell(client);
-				data.WriteString(classname);
+				data.WriteString(primaryWeaponName);
 				OnPickupWeapon(data);
+			}
+			else if(StrContains(useEntityName, "upgrade_ammo_", false) == 0)
+			{
+				// 修复捡起弹药升级导致子弹溢出
+				g_iLastUpgradeClip[client] = GetEntProp(primaryWeapon, Prop_Send, "m_iClip1");
+				g_iLastUpgradeAmmo[client] = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(primaryWeapon, Prop_Send, "m_iPrimaryAmmoType"));
 			}
 		}
 	}
@@ -203,21 +227,35 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 			return Plugin_Changed;
 		}
 		
-		if(HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
+		int ammoType = GetEntProp(currentWeapon, Prop_Send, "m_iPrimaryAmmoType");
+		int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
+		// PrintToChat(client, "ammoType %d, ammo %d, clip %d", ammoType, ammo, currentClip);
+		
+		if(currentClip > 0 && ammo > 0 && (GetEntProp(currentWeapon, Prop_Send, "m_bInReload", 1) == 0))
 		{
-			g_iLastShotGunClip[client] = currentClip;
-			SetEntProp(weapon, Prop_Send, "m_iClip1", 0);
+			// PrintToChat(client, "reload");
+			if(HasEntProp(currentWeapon, Prop_Send, "m_reloadNumShells"))
+			{
+				g_iLastShotGunClip[client] = currentClip;
+				SetEntProp(currentWeapon, Prop_Send, "m_iClip1", 0);
+			}
+			else
+			{
+				ammo += currentClip;
+				if(ammo > g_iMaxAmmo)
+					ammo = g_iMaxAmmo;
+				
+				SetEntProp(currentWeapon, Prop_Send, "m_iClip1", 0);
+				SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammoType);
+				// PrintToChat(client, "ammo to %d", ammo);
+			}
 		}
-		else
-		{
-			int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
-			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", ammoType);
-			if((ammo += currentClip) > 1023)
-				ammo = 1023;
-			
-			SetEntProp(weapon, Prop_Send, "m_iClip1", 0);
-			SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammoType);
-		}
+		
+		// Event event = CreateEvent("weapon_reload");
+		// event.SetInt("userid", GetClientUserId(client));
+		// event.SetBool("manual", false);
+		// event.Fire();
+		// Event_WeaponReload(event, "weapon_reload", true);
 	}
 	
 	return Plugin_Continue;
@@ -237,6 +275,8 @@ public void Event_ItemPickup(Event event, const char[] eventName, bool unknown)
 	RequestFrame(OnPickupWeapon, data);
 	data.WriteCell(client);
 	data.WriteString(classname);
+	
+	// PrintToChat(client, "item_pickup");
 }
 
 public void Event_AmmoPickup(Event event, const char[] eventName, bool unknown)
@@ -264,7 +304,12 @@ public void Event_AmmoPickup(Event event, const char[] eventName, bool unknown)
 	if(maxClip <= 0 || maxAmmo <= 0)
 		return;
 	
-	SetEntProp(client, Prop_Send, "m_iAmmo", maxAmmo + maxClip - GetEntProp(weapon, Prop_Send, "m_iClip1"), _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+	int ammo = maxAmmo + maxClip - GetEntProp(weapon, Prop_Send, "m_iClip1");
+	if(ammo > g_iMaxAmmo)
+		ammo = g_iMaxAmmo;
+	
+	SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+	// PrintToChat(client, "ammo_pickup");
 }
 
 public void Event_UpgradePickup(Event event, const char[] eventName, bool unknown)
@@ -277,6 +322,14 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool unknow
 	int weapon = GetPlayerWeaponSlot(client, 0);
 	if(weapon < MaxClients)
 		return;
+	
+	// 修复捡起弹药升级导致子弹溢出
+	if(g_iLastUpgradeClip[client] > 0)
+		SetEntProp(weapon, Prop_Send, "m_iClip1", g_iLastUpgradeClip[client]);
+	if(g_iLastUpgradeAmmo[client] > 0)
+		SetEntProp(client, Prop_Send, "m_iAmmo", g_iLastUpgradeAmmo[client], _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+	g_iLastUpgradeClip[client] = 0;
+	g_iLastUpgradeAmmo[client] = 0;
 	
 	char classname[64];
 	GetEntityClassname(weapon, classname, 64);
@@ -292,10 +345,11 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool unknow
 	
 	if(SC_IsClientHaveSkill(client, "upf_moreupgrade"))
 		clip = RoundToZero(clip * SKILLUPGRADE_SIZE);
-	if(clip > 254)
-		clip = 254;
+	if(clip > g_iMaxClip)
+		clip = g_iMaxClip;
 	
 	SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", clip);
+	// PrintToChat(client, "upgrade_pack_added");
 }
 
 public void Event_WeaponReload(Event event, const char[] eventName, bool unknown)
@@ -314,29 +368,14 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool unknown
 	if(clip <= 0)
 		return;
 	
-	if(HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
-	{
-		int currentClip = GetEntProp(weapon, Prop_Send, "m_iClip1");
-		int currentAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
-		if(currentAmmo == 0 && g_iLastShotGunClip[client] > 0)
-		{
-			currentAmmo = g_iLastShotGunClip[client];
-			SetEntProp(weapon, Prop_Send, "m_iClip1", currentAmmo);
-		}
-		
-		clip -= currentClip;
-		if(clip > currentAmmo)
-			clip = currentAmmo;
-		if(clip > 0)
-			SetEntProp(weapon, Prop_Send, "m_reloadNumShells", clip);
-	}
-	else
-	{
-		SDKHook(client, SDKHook_PreThink, OnThink_UpdateWeapon);
-		SDKHook(client, SDKHook_WeaponSwitchPost, OnSwitch_ChangeWeapon);
-	}
+	SDKUnhook(client, SDKHook_PreThink, OnThink_UpdateWeapon);
+	SDKUnhook(client, SDKHook_WeaponSwitchPost, OnSwitch_ChangeWeapon);
+	g_bHasShotGunChanged[client] = false;
 	
-	g_iLastShotGunClip[client] = 0;
+	SDKHook(client, SDKHook_PreThink, OnThink_UpdateWeapon);
+	SDKHook(client, SDKHook_WeaponSwitchPost, OnSwitch_ChangeWeapon);
+	
+	// PrintToChat(client, "weapon_reload");
 }
 
 public void OnSwitch_ChangeWeapon(int client, int weapon)
@@ -353,12 +392,20 @@ public void OnSwitch_ChangeWeapon(int client, int weapon)
 		}
 	}
 	
-	SDKUnhook(client, SDKHook_PreThinkPost, OnThink_UpdateWeapon);
+	g_iLastShotGunClip[client] = 0;
+	SDKUnhook(client, SDKHook_PreThink, OnThink_UpdateWeapon);
 	SDKUnhook(client, SDKHook_WeaponSwitchPost, OnSwitch_ChangeWeapon);
+	// PrintToChat(client, "weapon_switch");
 }
 
 public void OnThink_UpdateWeapon(int client)
 {
+	if(!IsValidClient(client))
+	{
+		OnSwitch_ChangeWeapon(client, -1);
+		return;
+	}
+	
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	if(weapon < MaxClients)
 	{
@@ -369,10 +416,33 @@ public void OnThink_UpdateWeapon(int client)
 	int currentClip = GetEntProp(weapon, Prop_Send, "m_iClip1");
 	bool finished = (GetEntProp(weapon, Prop_Send, "m_bInReload", 1) == 0);
 	if(!finished)
+	{
+		if(!g_bHasShotGunChanged[client] && HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
+		{
+			if(g_iLastShotGunClip[client] > 0 && currentClip == 0)
+			{
+				currentClip = g_iLastShotGunClip[client];
+				SetEntProp(weapon, Prop_Send, "m_iClip1", currentClip);
+				g_iLastShotGunClip[client] = 0;
+			}
+			
+			char classname[64];
+			GetEntityClassname(weapon, classname, 64);
+			int maxClip = GetClientWeaponClip(client, classname);
+			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+			int shell = maxClip - currentClip;
+			if(shell > ammo)
+				shell = ammo;
+			
+			SetEntProp(weapon, Prop_Send, "m_reloadNumShells", shell);
+			g_bHasShotGunChanged[client] = true;
+		}
+		
 		return;
+	}
 	
 	// 取消换弹夹，但是没有换武器（爬梯/开机关/按按钮/挂边）
-	if(currentClip == 0)
+	if(currentClip == 0 || HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
 	{
 		OnSwitch_ChangeWeapon(client, weapon);
 		return;
@@ -387,10 +457,30 @@ public void OnThink_UpdateWeapon(int client)
 		int change = clip - currentClip;
 		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 		SetEntProp(weapon, Prop_Send, "m_iClip1", clip);
-		SetEntProp(client, Prop_Send, "m_iAmmo", GetEntProp(client, Prop_Send, "m_iAmmo", ammoType) - change, _, ammoType);
+		SetEntProp(client, Prop_Send, "m_iAmmo", GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) - change, _, ammoType);
 	}
 	
 	OnSwitch_ChangeWeapon(client, weapon);
+	// PrintToChat(client, "weapon_reload_post");
+}
+
+public void SetWeaponClip(any dataPack)
+{
+	DataPack data = view_as<DataPack>(dataPack);
+	data.Reset();
+	
+	int client = data.ReadCell();
+	int weapon = data.ReadCell();
+	int clip = data.ReadCell();
+	int shell = data.ReadCell();
+	
+	if(!IsValidClient(client) || GetClientTeam(client) != 2 || weapon < MaxClients)
+		return;
+	
+	if(clip > 0)
+		SetEntProp(weapon, Prop_Send, "m_iClip1", clip);
+	if(shell > 0)
+		SetEntProp(weapon, Prop_Send, "m_reloadNumShells", shell);
 }
 
 public void OnPickupWeapon(any dataPack)
@@ -415,130 +505,84 @@ public void OnPickupWeapon(any dataPack)
 		SetEntProp(weapon, Prop_Send, "m_iClip1", clip);
 	if(ammo > 0)
 		SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+	
+	// PrintToChat(client, "weapon_pickup");
 }
 
 int GetWeaponClip(const char[] classname)
 {
-	if(!StrContains(classname, "weapon_"))
+	if(StrContains(classname, "weapon_") != 0)
 		return -1;
 	
-	switch(classname[9])
-	{
-		case 'f':
-		{
-			if(StrEqual(classname, "weapon_rifle", false))
-				return g_iClipRifle;
-			if(StrEqual(classname, "weapon_rifle_ak47", false))
-				return g_iClipAk47;
-			if(StrEqual(classname, "weapon_rifle_desert", false))
-				return g_iClipDesert;
-			if(StrEqual(classname, "weapon_rifle_sg552", false))
-				return g_iClipSG552;
-		}
-		case 'g':
-		{
-			if(StrEqual(classname, "weapon_smg", false))
-				return g_iClipSmg;
-			if(StrEqual(classname, "weapon_smg_silenced", false))
-				return g_iClipSilenced;
-			if(StrEqual(classname, "weapon_smg_mp5", false))
-				return g_iClipMP5;
-		}
-		case 'i':
-		{
-			if(StrEqual(classname, "weapon_sniper_military", false))
-				return g_iClipMilitary;
-			if(StrEqual(classname, "weapon_sniper_scout", false))
-				return g_iClipScout;
-			if(StrEqual(classname, "weapon_sniper_awp", false))
-				return g_iClipAwp;
-		}
-		case 'n':
-		{
-			if(StrEqual(classname, "weapon_hunting_rifle", false))
-				return g_iClipHunting;
-		}
-		case 'm':
-		{
-			if(StrEqual(classname, "weapon_pumpshotgun", false))
-				return g_iClipPump;
-		}
-		case 'o':
-		{
-			if(StrEqual(classname, "weapon_shotgun_spas", false))
-				return g_iClipSpas;
-			if(StrEqual(classname, "weapon_shotgun_chrome", false))
-				return g_iClipChrome;
-		}
-		case 't':
-		{
-			if(StrEqual(classname, "weapon_autoshotgun", false))
-				return g_iClipAuto;
-		}
-	}
+	if(StrEqual(classname, "weapon_rifle", false))
+		return g_iClipRifle;
+	if(StrEqual(classname, "weapon_rifle_ak47", false))
+		return g_iClipAk47;
+	if(StrEqual(classname, "weapon_rifle_desert", false))
+		return g_iClipDesert;
+	if(StrEqual(classname, "weapon_rifle_sg552", false))
+		return g_iClipSG552;
+	if(StrEqual(classname, "weapon_smg", false))
+		return g_iClipSmg;
+	if(StrEqual(classname, "weapon_smg_silenced", false))
+		return g_iClipSilenced;
+	if(StrEqual(classname, "weapon_smg_mp5", false))
+		return g_iClipMP5;
+	if(StrEqual(classname, "weapon_sniper_military", false))
+		return g_iClipMilitary;
+	if(StrEqual(classname, "weapon_sniper_scout", false))
+		return g_iClipScout;
+	if(StrEqual(classname, "weapon_sniper_awp", false))
+		return g_iClipAwp;
+	if(StrEqual(classname, "weapon_hunting_rifle", false))
+		return g_iClipHunting;
+	if(StrEqual(classname, "weapon_pumpshotgun", false))
+		return g_iClipPump;
+	if(StrEqual(classname, "weapon_shotgun_spas", false))
+		return g_iClipSpas;
+	if(StrEqual(classname, "weapon_shotgun_chrome", false))
+		return g_iClipChrome;
+	if(StrEqual(classname, "weapon_autoshotgun", false))
+		return g_iClipAuto;
 	
 	return -1;
 }
 
 int GetWeaponAmmo(const char[] classname)
 {
-	if(!StrContains(classname, "weapon_"))
+	if(StrContains(classname, "weapon_") != 0)
 		return -1;
 	
-	switch(classname[9])
-	{
-		case 'f':
-		{
-			if(StrEqual(classname, "weapon_rifle", false))
-				return g_iAmmoRifle;
-			if(StrEqual(classname, "weapon_rifle_ak47", false))
-				return g_iAmmoAk47;
-			if(StrEqual(classname, "weapon_rifle_desert", false))
-				return g_iAmmoDesert;
-			if(StrEqual(classname, "weapon_rifle_sg552", false))
-				return g_iAmmoSG552;
-		}
-		case 'g':
-		{
-			if(StrEqual(classname, "weapon_smg", false))
-				return g_iAmmoSmg;
-			if(StrEqual(classname, "weapon_smg_silenced", false))
-				return g_iAmmoSilenced;
-			if(StrEqual(classname, "weapon_smg_mp5", false))
-				return g_iAmmoMP5;
-		}
-		case 'i':
-		{
-			if(StrEqual(classname, "weapon_sniper_military", false))
-				return g_iAmmoMilitary;
-			if(StrEqual(classname, "weapon_sniper_scout", false))
-				return g_iAmmoScout;
-			if(StrEqual(classname, "weapon_sniper_awp", false))
-				return g_iAmmoAwp;
-		}
-		case 'n':
-		{
-			if(StrEqual(classname, "weapon_hunting_rifle", false))
-				return g_iAmmoHunting;
-		}
-		case 'm':
-		{
-			if(StrEqual(classname, "weapon_pumpshotgun", false))
-				return g_iAmmoPump;
-		}
-		case 'o':
-		{
-			if(StrEqual(classname, "weapon_shotgun_spas", false))
-				return g_iAmmoSpas;
-			if(StrEqual(classname, "weapon_shotgun_chrome", false))
-				return g_iAmmoChrome;
-		}
-		case 't':
-		{
-			if(StrEqual(classname, "weapon_autoshotgun", false))
-				return g_iAmmoAuto;
-		}
-	}
+	if(StrEqual(classname, "weapon_rifle", false))
+		return g_iAmmoRifle;
+	if(StrEqual(classname, "weapon_rifle_ak47", false))
+		return g_iAmmoAk47;
+	if(StrEqual(classname, "weapon_rifle_desert", false))
+		return g_iAmmoDesert;
+	if(StrEqual(classname, "weapon_rifle_sg552", false))
+		return g_iAmmoSG552;
+	if(StrEqual(classname, "weapon_smg", false))
+		return g_iAmmoSmg;
+	if(StrEqual(classname, "weapon_smg_silenced", false))
+		return g_iAmmoSilenced;
+	if(StrEqual(classname, "weapon_smg_mp5", false))
+		return g_iAmmoMP5;
+	if(StrEqual(classname, "weapon_sniper_military", false))
+		return g_iAmmoMilitary;
+	if(StrEqual(classname, "weapon_sniper_scout", false))
+		return g_iAmmoScout;
+	if(StrEqual(classname, "weapon_sniper_awp", false))
+		return g_iAmmoAwp;
+	if(StrEqual(classname, "weapon_hunting_rifle", false))
+		return g_iAmmoHunting;
+	if(StrEqual(classname, "weapon_pumpshotgun", false))
+		return g_iAmmoPump;
+	if(StrEqual(classname, "weapon_shotgun_spas", false))
+		return g_iAmmoSpas;
+	if(StrEqual(classname, "weapon_shotgun_chrome", false))
+		return g_iAmmoChrome;
+	if(StrEqual(classname, "weapon_autoshotgun", false))
+		return g_iAmmoAuto;
 	
 	return -1;
 }
@@ -547,14 +591,17 @@ int GetClientWeaponClip(int client, const char[] classname)
 {
 	int clip = GetWeaponClip(classname);
 	if(clip < 0)
+	{
+		// PrintToChat(client, "no match %s clip", classname);
 		return -1;
+	}
 	
 	if(!SC_IsClientHaveSkill(client, "ca_maxclip"))
 		return clip;
 	
 	clip = RoundToZero(clip * SKILLCLIP_SIZE);
-	if(clip > 254)
-		clip = 254;
+	if(clip > g_iMaxClip)
+		clip = g_iMaxClip;
 	
 	return clip;
 }
@@ -563,14 +610,17 @@ int GetClientWeaponAmmo(int client, const char[] classname)
 {
 	int ammo = GetWeaponAmmo(classname);
 	if(ammo < 0)
+	{
+		// PrintToChat(client, "no match %s ammo", classname);
 		return -1;
+	}
 	
 	if(!SC_IsClientHaveSkill(client, "ca_maxammo"))
 		return ammo;
 	
 	ammo = RoundToZero(ammo * SKILLAMMO_SIZE);
-	if(ammo > 1023)
-		ammo = 1023;
+	if(ammo > g_iMaxAmmo)
+		ammo = g_iMaxAmmo;
 	
 	return ammo;
 }

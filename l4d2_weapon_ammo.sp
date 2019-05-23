@@ -413,6 +413,10 @@ public void OnThink_UpdateWeapon(int client)
 		return;
 	}
 	
+	char classname[64];
+	GetEntityClassname(weapon, classname, 64);
+	int maxClip = GetClientWeaponClip(client, classname);
+	
 	int currentClip = GetEntProp(weapon, Prop_Send, "m_iClip1");
 	bool finished = (GetEntProp(weapon, Prop_Send, "m_bInReload", 1) == 0);
 	if(!finished)
@@ -426,9 +430,6 @@ public void OnThink_UpdateWeapon(int client)
 				g_iLastShotGunClip[client] = 0;
 			}
 			
-			char classname[64];
-			GetEntityClassname(weapon, classname, 64);
-			int maxClip = GetClientWeaponClip(client, classname);
 			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
 			int shell = maxClip - currentClip;
 			if(shell > ammo)
@@ -436,27 +437,71 @@ public void OnThink_UpdateWeapon(int client)
 			
 			SetEntProp(weapon, Prop_Send, "m_reloadNumShells", shell);
 			g_bHasShotGunChanged[client] = true;
+			
+			/*
+			PrintToChat(client, "m_reloadState = %d", GetEntProp(weapon, Prop_Send, "m_reloadState"));
+			PrintToChat(client, "m_reloadAnimState = %d", GetEntProp(weapon, Prop_Send, "m_reloadAnimState"));
+			PrintToChat(client, "m_reloadNumShells = %d", GetEntProp(weapon, Prop_Send, "m_reloadNumShells"));
+			PrintToChat(client, "m_reloadStartTime = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadStartTime"));
+			PrintToChat(client, "m_reloadInsertDuration = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadInsertDuration"));
+			PrintToChat(client, "m_reloadEndDuration = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadEndDuration"));
+			PrintToChat(client, "m_shellsInserted = %d", GetEntProp(weapon, Prop_Send, "m_shellsInserted"));
+			*/
 		}
 		
 		return;
+	}
+	
+	if(HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
+	{
+		/*
+		PrintToChat(client, "m_reloadState = %d", GetEntProp(weapon, Prop_Send, "m_reloadState"));
+		PrintToChat(client, "m_reloadAnimState = %d", GetEntProp(weapon, Prop_Send, "m_reloadAnimState"));
+		PrintToChat(client, "m_reloadNumShells = %d", GetEntProp(weapon, Prop_Send, "m_reloadNumShells"));
+		PrintToChat(client, "m_reloadStartTime = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadStartTime"));
+		PrintToChat(client, "m_reloadInsertDuration = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadInsertDuration"));
+		PrintToChat(client, "m_reloadEndDuration = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadEndDuration"));
+		PrintToChat(client, "m_shellsInserted = %d", GetEntProp(weapon, Prop_Send, "m_shellsInserted"));
+		*/
+		
+		if(StrEqual(classname, "weapon_autoshotgun", false))
+		{
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadStartTime", 0.666666);
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadInsertDuration", 0.4);
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadEndDuration", 0.675);
+		}
+		else if(StrEqual(classname, "weapon_shotgun_spas", false))
+		{
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadStartDuration", 0.5);
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadInsertDuration", 0.375);
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadEndDuration", 0.699999);
+		}
+		else
+		{
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadStartDuration", 0.5);
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadInsertDuration", 0.5);
+			SetEntPropFloat(weapon, Prop_Send, "m_reloadEndDuration", 0.6);
+		}
 	}
 	
 	// 取消换弹夹，但是没有换武器（爬梯/开机关/按按钮/挂边）
 	if(currentClip == 0 || HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
 	{
 		OnSwitch_ChangeWeapon(client, weapon);
+		
+		float time = GetGameTime() + 0.3;
+		SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
+		SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
+		SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time);
 		return;
 	}
 	
-	char classname[64];
-	GetEntityClassname(weapon, classname, 64);
-	int clip = GetClientWeaponClip(client, classname);
-	if(clip > 0)
+	if(maxClip > 0)
 	{
 		// 如果设置的子弹多则减备用自动，少则增加
-		int change = clip - currentClip;
+		int change = maxClip - currentClip;
 		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
-		SetEntProp(weapon, Prop_Send, "m_iClip1", clip);
+		SetEntProp(weapon, Prop_Send, "m_iClip1", maxClip);
 		SetEntProp(client, Prop_Send, "m_iAmmo", GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) - change, _, ammoType);
 	}
 	

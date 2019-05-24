@@ -11,7 +11,7 @@
 
 public Plugin myinfo = 
 {
-	name = "Tank Anti-Stuck",
+	name = "Tank 卡住传送",
 	author = "Dragokas",
 	description = "Teleport tank if he was stuck within collision and can't move",
 	version = PLUGIN_VERSION,
@@ -97,20 +97,20 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnPluginStart()
 {
 	CreateConVar(							"l4d_TankAntiStuck_version",				PLUGIN_VERSION,	"Plugin version", FCVAR_DONTRECORD );
-	g_hCvarEnable = CreateConVar(			"l4d_TankAntiStuck_enable",					"1",		"Enable plugin (1 - On / 0 - Off)", CVAR_FLAGS );
-	g_hCvarNonAngryTime = CreateConVar(		"l4d_TankAntiStuck_non_angry_time",			"45",		"Automatic tank teleport if he is not angry within specified time (in sec.) after spawn (0 - to disable)", CVAR_FLAGS );
-	g_hCvarTankDistanceMax = CreateConVar(	"l4d_TankAntiStuck_tank_distance_max",		"1000",		"Maximum distance allowed between tank and the nearest player (after been angered). Otherwise, it will be teleported (0 - to disable)", CVAR_FLAGS );
-	g_hCvarHeadHeightMax = CreateConVar(	"l4d_TankAntiStuck_head_height_max",		"150",		"Distance under the head of player, tank will be instantly teleported to, by default, when tank failed to unstuck wasting all attempts to free using smooth teleport", CVAR_FLAGS );
-	g_hCvarHeadHeightMin = CreateConVar(	"l4d_TankAntiStuck_head_height_min",		"80",		"Distance under the head of player, tank will be instantly teleported to, if plugin failed to find more appropriate location", CVAR_FLAGS );
-	g_hCvarStuckInterval = CreateConVar(	"l4d_TankAntiStuck_check_interval",			"3",		"Time intervals (in sec.) tank stuck should be checked", CVAR_FLAGS );
-	g_hCvarNonStuckRadius = CreateConVar(	"l4d_TankAntiStuck_non_stuck_radius",		"15",		"Maximum radius where tank is cosidered non-stucked when not moved during X sec. (see l4d_TankAntiStuck_check_interval ConVar)", CVAR_FLAGS );
-	g_hCvarInstTeleDist = CreateConVar(		"l4d_TankAntiStuck_inst_tele_dist",			"50",		"Distance for instant type of teleport", CVAR_FLAGS );
-	g_hCvarSmoothTeleDist = CreateConVar(	"l4d_TankAntiStuck_smooth_tele_dist",		"150",		"Distance for smooth type of teleport", CVAR_FLAGS );
-	g_hCvarSmoothTelePower = CreateConVar(	"l4d_TankAntiStuck_smooth_tele_power",		"300",		"Power (velocity) for smooth type of teleport", CVAR_FLAGS, true, 251.0, true, 500.0 );
-	g_hCvarAllIntellect = CreateConVar(		"l4d_TankAntiStuck_all_intellect",			"1",		"1 - Apply anti-stuck to both: when bots or real player control tank, 0 - apply to tank bot (fake) only", CVAR_FLAGS );
-	g_hCvarApplyConVar = CreateConVar(		"l4d_TankAntiStuck_apply_convar",			"1",		"1 - Apply special ConVar in attempt to fix problem when tank losing its control after stuck (just in case). 0 - do not apply", CVAR_FLAGS );
+	g_hCvarEnable = CreateConVar(			"l4d_TankAntiStuck_enable",					"1",		"是否开启插件", CVAR_FLAGS );
+	g_hCvarNonAngryTime = CreateConVar(		"l4d_TankAntiStuck_non_angry_time",			"45",		"在 Tank 刷出后多少秒内没有生气就进行传送", CVAR_FLAGS );
+	g_hCvarTankDistanceMax = CreateConVar(	"l4d_TankAntiStuck_tank_distance_max",		"1000",		"在 Tank 离生还者多远后进行传送", CVAR_FLAGS );
+	g_hCvarHeadHeightMax = CreateConVar(	"l4d_TankAntiStuck_head_height_max",		"150",		"Tank 传送最大高度", CVAR_FLAGS );
+	g_hCvarHeadHeightMin = CreateConVar(	"l4d_TankAntiStuck_head_height_min",		"80",		"Tank 传送最小高度", CVAR_FLAGS );
+	g_hCvarStuckInterval = CreateConVar(	"l4d_TankAntiStuck_check_interval",			"3",		"检查 Tank 卡住间隔(秒)", CVAR_FLAGS );
+	g_hCvarNonStuckRadius = CreateConVar(	"l4d_TankAntiStuck_non_stuck_radius",		"15",		"在检查两次后仍然呆在范围内视为卡住的范围", CVAR_FLAGS );
+	g_hCvarInstTeleDist = CreateConVar(		"l4d_TankAntiStuck_inst_tele_dist",			"50",		"立即传送的距离", CVAR_FLAGS );
+	g_hCvarSmoothTeleDist = CreateConVar(	"l4d_TankAntiStuck_smooth_tele_dist",		"150",		"平滑传送距离", CVAR_FLAGS );
+	g_hCvarSmoothTelePower = CreateConVar(	"l4d_TankAntiStuck_smooth_tele_power",		"300",		"平滑传送速度", CVAR_FLAGS, true, 251.0, true, 500.0 );
+	g_hCvarAllIntellect = CreateConVar(		"l4d_TankAntiStuck_all_intellect",			"1",		"是否允许对玩家控制的 Tank 进行传送", CVAR_FLAGS );
+	g_hCvarApplyConVar = CreateConVar(		"l4d_TankAntiStuck_apply_convar",			"1",		"防止 Tank 卡住自杀", CVAR_FLAGS );
 	
-	AutoExecConfig(true,			"l4d_tank_antistuck");
+	AutoExecConfig(true,			"l4d_TankStuckTeleport");
 	
 	g_hCvarStuckFailsafe = FindConVar("tank_stuck_failsafe");
 	

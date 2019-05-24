@@ -39,7 +39,7 @@ Handle g_hEndRev;
 //					PLUGIN INFO / START / END
 // ====================================================================================================
 public Plugin myinfo = {
-	name = "[L4D2] Heal Revive Exploit Bug Fix",
+	name = "打包救人修复",
 	author = "SilverShot",
 	description = "Prevents survivors self healing and reviving players at the same time.",
 	version = PLUGIN_VERSION,

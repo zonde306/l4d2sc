@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION		"1.6.0"
+#define PLUGIN_VERSION		"1.6.1.1"
 
 /*=======================================================================================
 	Plugin Info:
@@ -11,6 +11,12 @@
 
 ========================================================================================
 	Change Log:
+
+1.6.1.1 (09-May-2019) (Dragokas)
+	- Added detection of sex additionally by character (for custom models).
+
+1.6.1 (14-Aug-2018)
+	- Removed LogError "Tracer Bug".
 
 1.6.0 (05-May-2018)
 	- Converted plugin source to the latest syntax utilizing methodmaps. Requires SourceMod 1.8 or newer.
@@ -235,7 +241,7 @@ ConVar g_hCvarMPGameMode;
 Handle g_hTmrAutoGiveGrab, g_hTmrBlockVocalize, g_hTmrGetItemSpawn, g_hTmrGiveBlocked;
 
 // Variables
-bool g_bBlockVocalize, g_bGiveBlocked, g_bModeOffAuto, g_bRoundOver, g_bTranslation;
+bool g_bBlockVocalize, g_bGiveBlocked, g_bModeOffAuto, g_bRoundOver, g_bTranslation, g_bLeft4Dead2;
 
 // Item variables
 int g_iItemCount, g_iItemSpawnID[MAX_ITEMS];
@@ -299,7 +305,7 @@ static const char g_Zoey[10][] =
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "机器人捡东西",
+	name = "物品传递",
 	author = "SilverShot",
 	description = "Survivor bots can automatically pickup and give items. Players can switch, grab or give items.",
 	version = PLUGIN_VERSION,
@@ -309,7 +315,9 @@ public Plugin myinfo =
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	EngineVersion test = GetEngineVersion();
-	if( test != Engine_Left4Dead && test != Engine_Left4Dead2 )
+	if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
+	else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
+	else
 	{
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
@@ -331,39 +339,39 @@ public void OnPluginStart()
 		g_bTranslation = false;
 	}
 
-	g_hCvarAllowAdr =		CreateConVar(	"l4d_gear_transfer_allow_adr",		"1",			"是否允许给别人 肾上腺素", CVAR_FLAGS);
-	g_hCvarAllowDef =		CreateConVar(	"l4d_gear_transfer_allow_def",		"1",			"是否允许给别人 电击器", CVAR_FLAGS);
-	g_hCvarAllowExp =		CreateConVar(	"l4d_gear_transfer_allow_exp",		"1",			"是否允许给别人 爆炸子弹", CVAR_FLAGS);
-	g_hCvarAllowFir =		CreateConVar(	"l4d_gear_transfer_allow_fir",		"1",			"是否允许给别人 医疗包", CVAR_FLAGS);
-	g_hCvarAllowInc =		CreateConVar(	"l4d_gear_transfer_allow_inc",		"1",			"是否允许给别人 燃烧子弹", CVAR_FLAGS);
-	g_hCvarAllowMol =		CreateConVar(	"l4d_gear_transfer_allow_mol",		"1",			"是否允许给别人 燃烧瓶", CVAR_FLAGS);
-	g_hCvarAllowPil =		CreateConVar(	"l4d_gear_transfer_allow_pil",		"1",			"是否允许给别人 止痛药", CVAR_FLAGS);
-	g_hCvarAllowPip =		CreateConVar(	"l4d_gear_transfer_allow_pip",		"1",			"是否允许给别人 土制炸弹", CVAR_FLAGS);
-	g_hCvarAllowVom =		CreateConVar(	"l4d_gear_transfer_allow_vom",		"1",			"是否允许给别人 胆汁瓶", CVAR_FLAGS);
-	g_hCvarAutoGive =		CreateConVar(	"l4d_gear_transfer_auto_give",		"1",			"机器人自动给玩家东西", CVAR_FLAGS);
-	g_hCvarAutoGrab =		CreateConVar(	"l4d_gear_transfer_auto_grab",		"1",			"机器人自动捡东西", CVAR_FLAGS);
-	g_hCvarBotAdr =			CreateConVar(	"l4d_gear_transfer_bot_adr",		"3",			"机器人对于 肾上腺素 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarBotDef =			CreateConVar(	"l4d_gear_transfer_bot_def",		"1",			"机器人对于 电击器 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarBotExp =			CreateConVar(	"l4d_gear_transfer_bot_exp",		"1",			"机器人对于 爆炸子弹 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarBotFir =			CreateConVar(	"l4d_gear_transfer_bot_fir",		"3",			"机器人对于 医疗包 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarBotInc =			CreateConVar(	"l4d_gear_transfer_bot_inc",		"1",			"机器人对于 燃烧子弹 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarBotMol =			CreateConVar(	"l4d_gear_transfer_bot_mol",		"1",			"机器人对于 燃烧瓶 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarBotPil =			CreateConVar(	"l4d_gear_transfer_bot_pil",		"3",			"机器人对于 止痛药 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarBotPip =			CreateConVar(	"l4d_gear_transfer_bot_pip",		"1",			"机器人对于 土制炸弹 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarBotVom =			CreateConVar(	"l4d_gear_transfer_bot_vom",		"1",			"机器人对于 胆汁瓶 的操作.2=只能给玩家.3=只能捡起来.1=都行", CVAR_FLAGS);
-	g_hCvarDistGive =		CreateConVar(	"l4d_gear_transfer_dist_give",		"150.0",		"机器人递东西范围", CVAR_FLAGS);
-	g_hCvarDistGrab =		CreateConVar(	"l4d_gear_transfer_dist_grab",		"150.0",		"机器人捡东西范围", CVAR_FLAGS);
-	g_hCvarAllow =			CreateConVar(	"l4d_gear_transfer_enabled",		"1",			"是否开启插件", CVAR_FLAGS);
-	g_hCvarMethod =			CreateConVar(	"l4d_gear_transfer_method",			"0",			"递东西/要求东西按键.0=只限推.1=只限R.2=都行", CVAR_FLAGS);
-	g_hCvarModes =			CreateConVar(	"l4d_gear_transfer_modes",			"",		"禁用插件的模式", CVAR_FLAGS);
+	g_hCvarAllowAdr =		CreateConVar(	"l4d_gear_transfer_allow_adr",		"1",			"是否开启 adrenaline.", CVAR_FLAGS);
+	g_hCvarAllowDef =		CreateConVar(	"l4d_gear_transfer_allow_def",		"1",			"是否开启 defibrillators.", CVAR_FLAGS);
+	g_hCvarAllowExp =		CreateConVar(	"l4d_gear_transfer_allow_exp",		"1",			"是否开启 explosive rounds.", CVAR_FLAGS);
+	g_hCvarAllowFir =		CreateConVar(	"l4d_gear_transfer_allow_fir",		"1",			"是否开启 first aid kits.", CVAR_FLAGS);
+	g_hCvarAllowInc =		CreateConVar(	"l4d_gear_transfer_allow_inc",		"1",			"是否开启 incendiary ammo.", CVAR_FLAGS);
+	g_hCvarAllowMol =		CreateConVar(	"l4d_gear_transfer_allow_mol",		"1",			"是否开启 molotovs.", CVAR_FLAGS);
+	g_hCvarAllowPil =		CreateConVar(	"l4d_gear_transfer_allow_pil",		"1",			"是否开启 pain pills.", CVAR_FLAGS);
+	g_hCvarAllowPip =		CreateConVar(	"l4d_gear_transfer_allow_pip",		"1",			"是否开启 pipe bombs.", CVAR_FLAGS);
+	g_hCvarAllowVom =		CreateConVar(	"l4d_gear_transfer_allow_vom",		"1",			"是否开启 vomit jars.", CVAR_FLAGS);
+	g_hCvarAutoGive =		CreateConVar(	"l4d_gear_transfer_auto_give",		"1",			"是否允许给东西.", CVAR_FLAGS);
+	g_hCvarAutoGrab =		CreateConVar(	"l4d_gear_transfer_auto_grab",		"1",			"是否允许捡起东西", CVAR_FLAGS);
+	g_hCvarBotAdr =			CreateConVar(	"l4d_gear_transfer_bot_adr",		"3",			"0.=关闭.1=全部.2=可以给.3=只能捡 adrenaline.", CVAR_FLAGS);
+	g_hCvarBotDef =			CreateConVar(	"l4d_gear_transfer_bot_def",		"3",			"0.=关闭.1=全部.2=可以给.3=只能捡 defibrillators.", CVAR_FLAGS);
+	g_hCvarBotExp =			CreateConVar(	"l4d_gear_transfer_bot_exp",		"1",			"0.=关闭.1=全部.2=可以给.3=只能捡 explosive rounds.", CVAR_FLAGS);
+	g_hCvarBotFir =			CreateConVar(	"l4d_gear_transfer_bot_fir",		"3",			"0.=关闭.1=全部.2=可以给.3=只能捡 first aid kits.", CVAR_FLAGS);
+	g_hCvarBotInc =			CreateConVar(	"l4d_gear_transfer_bot_inc",		"1",			"0.=关闭.1=全部.2=可以给.3=只能捡 incendiary ammo.", CVAR_FLAGS);
+	g_hCvarBotMol =			CreateConVar(	"l4d_gear_transfer_bot_mol",		"1",			"0.=关闭.1=全部.2=可以给.3=只能捡 molotovs.", CVAR_FLAGS);
+	g_hCvarBotPil =			CreateConVar(	"l4d_gear_transfer_bot_pil",		"3",			"0.=关闭.1=全部.2=可以给.3=只能捡 pain pills.", CVAR_FLAGS);
+	g_hCvarBotPip =			CreateConVar(	"l4d_gear_transfer_bot_pip",		"1",			"0.=关闭.1=全部.2=可以给.3=只能捡 pipe bombs.", CVAR_FLAGS);
+	g_hCvarBotVom =			CreateConVar(	"l4d_gear_transfer_bot_vom",		"1",			"0.=关闭.1=全部.2=可以给.3=只能捡 vomit jars.", CVAR_FLAGS);
+	g_hCvarDistGive =		CreateConVar(	"l4d_gear_transfer_dist_give",		"150.0",		"给东西距离", CVAR_FLAGS);
+	g_hCvarDistGrab =		CreateConVar(	"l4d_gear_transfer_dist_grab",		"150.0",		"捡起东西距离", CVAR_FLAGS);
+	g_hCvarAllow =			CreateConVar(	"l4d_gear_transfer_enabled",		"1",			"是否开启插件.", CVAR_FLAGS);
+	g_hCvarMethod =			CreateConVar(	"l4d_gear_transfer_method",			"2",			"给东西按键.0=推.1=R.2=全部", CVAR_FLAGS);
+	g_hCvarModes =			CreateConVar(	"l4d_gear_transfer_modes",			"",				"关闭自动捡起/给予的模式.", CVAR_FLAGS);
 	g_hCvarModesOff =		CreateConVar(	"l4d_gear_transfer_modes_off",		"",				"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
 	g_hCvarModesOn =		CreateConVar(	"l4d_gear_transfer_modes_on",		"",				"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
 	g_hCvarModesTog =		CreateConVar(	"l4d_gear_transfer_modes_tog",		"0",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
-	g_hCvarNotify =			CreateConVar(	"l4d_gear_transfer_notify",			"0",			"是否显示递东西提示", CVAR_FLAGS);
-	g_hCvarSounds =			CreateConVar(	"l4d_gear_transfer_sounds",			"1",			"是否播放递东西声音", CVAR_FLAGS);
-	g_hCvarTimerAuto =		CreateConVar(	"l4d_gear_transfer_timer",			"1.0",			"机器人捡东西/递东西间隔", CVAR_FLAGS, true, 0.5, true, 10.0);
-	g_hCvarTimerItem =		CreateConVar(	"l4d_gear_transfer_timer_item",		"5.0",			"机器人找东西间隔", CVAR_FLAGS, true, 5.0, true, 30.0);
-	g_hCvarVocalize =		CreateConVar(	"l4d_gear_transfer_vocalize",		"1",			"给东西语音", CVAR_FLAGS);
+	g_hCvarNotify =			CreateConVar(	"l4d_gear_transfer_notify",			"0",			"是否显示给东西提示.", CVAR_FLAGS);
+	g_hCvarSounds =			CreateConVar(	"l4d_gear_transfer_sounds",			"1",			"是否播放给东西声音.", CVAR_FLAGS);
+	g_hCvarTimerAuto =		CreateConVar(	"l4d_gear_transfer_timer",			"1.0",			"给东西/捡起东西间隔.", CVAR_FLAGS, true, 0.5, true, 10.0);
+	g_hCvarTimerItem =		CreateConVar(	"l4d_gear_transfer_timer_item",		"5.0",			"搜索物品间隔.", CVAR_FLAGS, true, 5.0, true, 30.0);
+	g_hCvarVocalize =		CreateConVar(	"l4d_gear_transfer_vocalize",		"1",			"给东西说话.", CVAR_FLAGS);
 	CreateConVar(							"l4d_gear_transfer_version",		PLUGIN_VERSION, "Gear Transfer plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
 	AutoExecConfig(true,					"l4d_gear_transfer");
 
@@ -1191,7 +1199,7 @@ void Vocalize(int i_Client, char s_Class[40])
 	else if( strcmp(s_Class,"weapon_vomitjar") == 0 ) return;
 
 	// Declare variables
-	int i_Type, i_Rand, i_Min, i_Max;
+	int i_Type, i_Rand, i_Min, i_Max, i_Character;
 	char s_Model[64];
 
 	// Get survivor model
@@ -1205,7 +1213,29 @@ void Vocalize(int i_Client, char s_Class[40])
 	else if( strcmp(s_Model, "models/survivors/survivor_biker.mdl") == 0 ) { Format(s_Model,9,"Biker"); i_Type = 6; }
 	else if( strcmp(s_Model, "models/survivors/survivor_manager.mdl") == 0 ) { Format(s_Model,9,"Manager"); i_Type = 7; }
 	else if( strcmp(s_Model, "models/survivors/survivor_teenangst.mdl") == 0 ) { Format(s_Model,9,"TeenGirl"); i_Type = 8; }
-	else { LogError("failed to vocalize %s for %s", s_Class, s_Model); return; }
+	else {
+		i_Character = GetEntProp(i_Client, Prop_Send, "m_survivorCharacter");
+		if( g_bLeft4Dead2 ) {
+			switch (i_Character) {
+				case 0:	{ Format(s_Model,9,"gambler"); i_Type = 2; }	// Nick
+				case 1:	{ Format(s_Model,9,"producer"); i_Type = 4; }	// Rochelle
+				case 2:	{ Format(s_Model,9,"coach"); i_Type = 1; }		// Coach
+				case 3:	{ Format(s_Model,9,"mechanic"); i_Type = 3; } 	// Ellis
+				case 4:	{ Format(s_Model,9,"NamVet"); i_Type = 5; } 	// Bill
+				case 5:	{ Format(s_Model,9,"TeenGirl"); i_Type = 8; } 	// Zoey
+				case 6:	{ Format(s_Model,9,"Biker"); i_Type = 6; } 	// Francis
+				case 7:	{ Format(s_Model,9,"Manager"); i_Type = 7; } 	// Louis
+			}
+		} else {
+			switch (i_Character) {
+				case 0:	{ Format(s_Model,9,"TeenGirl"); i_Type = 8; }	// Zoey
+				case 1:	{ Format(s_Model,9,"NamVet"); i_Type = 5; }		// Bill
+				case 2:	{ Format(s_Model,9,"Biker"); i_Type = 6; }		// Francis
+				case 3:	{ Format(s_Model,9,"Manager"); i_Type = 7; } 	// Louis
+			}
+		}
+		//LogError("failed to vocalize %s for %s", s_Class, s_Model); return;
+	}
 
 	// Pipe Bomb
 	if( strcmp(s_Class,"weapon_pipe_bomb") == 0 )
@@ -1695,11 +1725,6 @@ bool IsVisibleTo(float position[3], float targetposition[3])
 		{
 			isVisible = true; // if trace ray length plus tolerance equal or bigger absolute distance, you hit the target
 		}
-	}
-	else
-	{
-		LogError("Tracer Bug: Player-Zombie Trace did not hit anything, WTF");
-		isVisible = true;
 	}
 	delete trace;
 

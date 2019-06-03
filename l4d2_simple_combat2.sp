@@ -8,8 +8,8 @@
 #define _USE_SKILL_DETECT_			// 使用 l4d2_skill_detect.smx 插件提供的 forward
 // #define _USE_PLUGIN_MAX_HEALTH_		// 使用当前插件定义的血量上限代替 m_iMaxHealth 作为标准
 // #define _USE_CONSOLE_MESSAGE_		// 当玩家获得奖励时打印控制台信息
-#define _USE_DATABASE_SQLITE_		// 使用 SQLite 储存数据
-// #define _USE_DATABASE_MYSQL_		// 使用 MySQL 储存数据
+// #define _USE_DATABASE_SQLITE_		// 使用 SQLite 储存数据
+#define _USE_DATABASE_MYSQL_		// 使用 MySQL 储存数据
 // #define _USE_DETOUR_FUNC_		// 使用 hook 伤害
 
 #if defined _USE_SKILL_DETECT_
@@ -24,11 +24,11 @@
 #include <geoip>
 #include <geoipcity>
 
-#define _SQL_CONNECT_HOST_		"localhost"
+#define _SQL_CONNECT_HOST_		"zonde306.site"
 #define _SQL_CONNECT_PORT_		"3306"
 #define _SQL_CONNECT_DATABASE_	"source_game"
-#define _SQL_CONNECT_USER_		"root"
-#define _SQL_CONNECT_PASSWORD_	""
+#define _SQL_CONNECT_USER_		"srcgame"
+#define _SQL_CONNECT_PASSWORD_	"abby6382"
 #endif	// defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_MYSQL_
 
 #define PLUGIN_VERSION	"0.2"
@@ -92,7 +92,7 @@ ConVar g_pCvarAllow, g_pCvarDefenseFactor, g_pCvarDefenseChance, g_pCvarDefenseL
 	g_pCvarTankPropExperience, g_pCvarTankPropCash, g_pCvarMenuFlush, g_pCvarWillpowerIdleRate,
 	g_pCvarWillpowerRate, g_pCvarSprintAttack, g_pCvarSprintShove, g_pCvarSprintJump,
 	g_pCvarHurtBonus, g_pCvarMaxFakeDamage, g_pCvarSlotLevel, g_pCvarSlotCost, g_pCvarSlotMax,
-	g_pCvarSkillChooseInterval, g_pCvarShowBonus;
+	g_pCvarSkillChooseInterval, g_pCvarShowBonus, g_pCvarSqlConfig;
 
 // 玩家属性
 float g_fStamina[MAXPLAYERS+1], g_fMagic[MAXPLAYERS+1], g_fWillpower[MAXPLAYERS+1];
@@ -185,6 +185,7 @@ public void OnPluginStart()
 	CreateConVar("sc2_version", PLUGIN_VERSION, "插件版本", CVAR_FLAGS);
 	g_pCvarAllow = CreateConVar("sc2_allow", "0", "是否开启插件", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarMenuFlush = CreateConVar("sc2_menu_flush", "1", "是否菜单自动刷新", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarSqlConfig = CreateConVar("sc2_sql_config", "playerstats", "数据库配置", CVAR_FLAGS);
 	
 	// g_pCvarCombatRadius = CreateConVar("sc2_combat_raduis", "300.0", "在多大范围内有敌人视为战斗状态", CVAR_FLAGS, true, 10.0);
 	g_pCvarCombatDelay = CreateConVar("sc2_combat_leave_delay", "3.0", "离开战斗状态的延迟", CVAR_FLAGS, true, 0.1);
@@ -490,7 +491,7 @@ public void OnPluginStart()
 	HookEvent("finale_vehicle_leaving", Event_FinaleComplete);
 	
 #if defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_SQLITE_
-	CreateTimer(1.0, Timer_ConnectDatabase);
+	Timer_ConnectDatabase(null, 0);
 #endif
 	
 #if defined _USE_DETOUR_FUNC_
@@ -1696,6 +1697,9 @@ public void Event_RoundStart(Event event, const char[] eventName, bool dontBroad
 		SetupPlayerHook(i);
 	}
 	*/
+	
+	if(g_hDatabase == null)
+		Timer_ConnectDatabase(null, 0);
 	
 	int length = (g_pCvarShopCount.IntValue > g_hAllSpellList.Length ? g_hAllSpellList.Length : g_pCvarShopCount.IntValue);
 	
@@ -4937,6 +4941,9 @@ stock char tr(const char[] text, any ...)
 #if defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_
 public Action Timer_ConnectDatabase(Handle timer, any unused)
 {
+	if(g_hDatabase != null)
+		return Plugin_Stop;
+	
 	static KeyValues kv;
 	if(kv == null)
 	{
@@ -4955,8 +4962,14 @@ public Action Timer_ConnectDatabase(Handle timer, any unused)
 		kv.SetString("port", _SQL_CONNECT_PORT_);
 	}
 	
-	char error[255];
-	g_hDatabase = SQL_ConnectCustom(kv, error, 255, true);
+	char error[255], config[64];
+	g_pCvarSqlConfig.GetString(config, 64);
+	if(config[0] != EOS && SQL_CheckConfig(config))
+		g_hDatabase = SQL_Connect(config, true, error, 255);
+	
+	if(g_hDatabase == null)
+		g_hDatabase = SQL_ConnectCustom(kv, error, 255, true);
+	
 	if(g_hDatabase == null)
 	{
 		LogError("数据库连接失败：%s", error);

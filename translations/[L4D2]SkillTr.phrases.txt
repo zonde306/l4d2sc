@@ -1,0 +1,436 @@
+"Phrases"
+{
+	"UltraPipeBombCooldownFinish"
+	{
+		"ru"			"{O}Ваш {G}перк {R}Ультра пайпа {BLA}откулдаунился"
+	}
+	"WitchKilled"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{BLA}Вы {R}получили {OG}{1} {R}за убийство {OG}бабы"
+	}
+	"WhoWitchKilled"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"		"{BLA}{1} {R}получил {OG}{2} {R}за убийство {OG}бабы"
+	}
+	"AdvertisementHowManyCommonsKilled"
+	{
+		"#format"	"{1:i},{2:i}"
+		"ru"			"{BLA}Вы {R}получили {OG}{1} {R}за убийство {OG}{2} {R}обычных заражённых"
+	}
+	"KilledSmoker"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{R}Вы {B}получили {O}{1} {B}за убийство {OG}куры"
+	}
+	"KilledBoomer"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{R}Вы {B}получили {O}{1} {B}за убийство {OG}толстого"
+	}
+	"KilledHunter"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{R}Вы {B}получили {O}{1} {B}за убийство {OG}кузнечика"
+	}
+	"KilledSpitter"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{R}Вы {B}получили {O}{1} {B}за убийство {OG}какой-то дичи"
+	}
+	"KilledJockey"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{R}Вы {B}получили {O}{1} {B}за убийство {BLA}урода"
+	}
+	"KilledCharger"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{R}Вы {B}получили {O}{1} {B}за убийство {OG}родственника"
+	}
+	"KilledTank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{R}Вы {B}получили {O}{1} {B}за убийство {OG}тупого качка"
+	}
+	"MainMenuTitle"
+	{
+		"ru"			"Выберите категорию:"
+	}
+	"Stats"
+	{
+		"ru"			"Статистика"
+	}
+	"Passive Perks"
+	{
+		"ru"			"Пассивные перки"
+	}
+	"Perks"
+	{
+		"ru"			"Перки"
+	}
+	"MyPurchase"
+	{
+		"ru"			"Мои покупки"
+	}
+	"TrasferOfMoney"
+	{
+		"ru"			"Передать деньги"
+	}
+	"TransferToTeamBank"
+	{
+		"ru"			"Перевести в банк команды"
+	}
+	"TeamImprovements"
+	{
+		"ru"			"Командные улучшения"
+	}
+	"TitleMenuPassivePerks"
+	{
+		"ru"			"Выберите перк:"
+	}
+	"PerkHelpingHand"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Ускоренное поднятие тимейтов ({1})"
+	}
+	"FastRealodPerk"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Ускорение перезарядки на 40 § ({1})"
+	}
+	"PerkSpeedUp"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Увеличение скорости на 20 § ({1})"
+	}
+	"PerkDoubleJump"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Двойной прыжок ({1})"
+	}
+	"PerkNameOfUpgradePipeBomb"
+	{
+		"ru"			"Перк: Ультра пайпа"
+	}
+	"TitleOfUpgradePipeBomb"
+	{
+		"ru"			"Улучшение пайпы:"
+	}
+	"PerkPipeBomblvl"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Уровень перка: {1}"
+	}
+	"CostOfUpgradePipeBomb"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Стоимость улучшения {1}"
+	}
+	"CountOfPipesOfPerkPipeBomb"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Кол-во вылетаемых пайп: {1}"
+	}
+	"YouHasBeenUpgradedPipeBomb"
+	{
+		"ru"			"{R}Вы {L}прокачали перк: Ультра пайпа"
+	}
+	"CountOfPipesPerk"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{R}Кол-во пайп: {1}"
+	}
+	"TitleNameOfMenuPerks"
+	{
+		"ru"			"Выберите перк:"
+	}
+	"PerkPipeBombUpgrade++"
+	{
+		"ru"			"Прокачка пайпы"
+	}
+	"PerkAntiDamage"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Снижение урона на 50 § ({1})"
+	}
+	"MeleeDamage"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Увеличение урона от рукопашки на 25 § ({1})"
+	}
+	"PerkPipeBomb"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Ультра пайпа ({1})"
+	}
+	"StickyPipeBomb"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Пайпы липучки ({1})"
+	}
+	"ShoveDamage"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Нанесение урона с приклада ({1})"
+	}
+	"TitleOfMenuStatistic"
+	{
+		"ru"			"Статистика:"
+	}
+	"YourMoney"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Ваш кошелёк: {1}"
+	}
+	"TeamCash"
+	{
+		"#format"	"{1:i}"
+		"ru"			"Кошелёк команды: {1}"
+	}
+	"10ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (10 §)"
+	}
+	"20ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (20 §)"
+	}
+	"30ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (30 §)"
+	}
+	"40ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (40 §)"
+	}
+	"50ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (50 §)"
+	}
+	"60ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (60 §)"
+	}
+	"70ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (70 §)"
+	}
+	"80ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (80 §)"
+	}
+	"90ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (90 §)"
+	}
+	"100ProcentsInBank"
+	{
+		"#format"	"{1:i}"
+		"ru"			"{B}Вы положили в банк {BLA}{1} (100 §)"
+	}
+	"TeamUpgradesTitle"
+	{
+		"ru"			"Улучшения для команды:"
+	}
+	"TeamUpgradeRegeneration"
+	{
+		"ru"			"Регенерация хп"
+	}
+	"TeamUpgradeKillAllCommons"
+	{
+		"ru"			"Убийство всех бомжей"
+	}
+	"TeamUpgradePoisonForSpecialInfected"
+	{
+		"ru"			"Отравить заразу"
+	}
+	"TeamUpgradeIgniteAssForAllSpecials"
+	{
+		"ru"			"Поджечь пукан заражённых"
+	}
+	"TeamUpgradeHealAllSurvivorFor50Hp"
+	{
+		"ru"			"Вылечить выживших"
+	}
+	"TeamUpgradeBuyAmmoForAllSurvivors"
+	{
+		"ru"			"Купить всем патроны"
+	}
+	"ChatWhoBoughtRegeneration"
+	{
+		"#format"	"{1:N}"
+		"ru"			"{B}{1} {R}купил регенерацию хп для выживших"
+	}
+	"YouBuyRegeneration"
+	{
+		"ru"			"{B}Вы {R}купили регенерацию хп"
+	}
+	"WhoKilledAllCommonForTeamCash"
+	{
+		"#format"	"{1:N}"
+		"ru"			"{B}{1} {R}убил всех мобов за командные очки"
+	}
+	"YouKilledAllCommonsForTeamCash"
+	{
+		"ru"			"{B}Вы {R}убили всех живых бомжей"
+	}
+	"WhoPoisonedInf"
+	{
+		"#format"	"{1:N}"
+		"ru"			"{B}{1} {R}отравил заражённых за командные очки"
+	}
+	"YouPoisonedInf"
+	{
+		"ru"			"{B}Вы {R}отравили заражённых за командные очки"
+	}
+	"WhoIgnitedTheHearts"
+	{
+		"#format"	"{1:N}"
+		"ru"			"{B}{1} {R}поджог пукан заражённых"
+	}
+	"YouIgnitedTheHearts"
+	{
+		"ru"			"{B}Вы {R}воспламенили очаг"
+	}
+	"WhoHealedSurvivors"
+	{
+		"#format"	"{1:N}"
+		"ru"			"{B}{1} {R}вылечил всех на 50 хп за командные очки"
+	}
+	"YouHealedSurvivors"
+	{
+		"ru"			"{B}Вы {R}полечили всех выживших"
+	}
+	"WhoBuyAmmo"
+	{
+		"#format"	"{1:N}"
+		"ru"			"{B}{1} {R}купил всем патроны за командные очки"
+	}
+	"YouBuyAmmo"
+	{
+		"ru"			"{B}Вы {R}купили всем патроны за командные очки"
+	}
+	"MenuTitleOfTransferPlayersList"
+	{
+		"ru"			"Кого концентрировать:"
+	}
+	"MenuTitleOfTransfer"
+	{
+		"ru"			"В каком масштабе?"
+	}
+	"YouGaveTheTeammate10percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (10  §)"
+	}
+	"YouReceivedFromTeammate10percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (10  §)"
+	}
+	"YouGaveTheTeammate20percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (20  §)"
+	}
+	"YouReceivedFromTeammate20percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (20  §)"
+	}
+	"YouGaveTheTeammate30percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (30  §)"
+	}
+	"YouReceivedFromTeammate30percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (30  §)"
+	}
+	"YouGaveTheTeammate40percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (40  §)"
+	}
+	"YouReceivedFromTeammate40percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (40  §)"
+	}
+	"YouGaveTheTeammate50percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (50  §)"
+	}
+	"YouReceivedFromTeammate50percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (50  §)"
+	}
+	"YouGaveTheTeammate60percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (60  §)"
+	}
+	"YouReceivedFromTeammate60percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (60  §)"
+	}
+	"YouGaveTheTeammate70percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (70  §)"
+	}
+	"YouReceivedFromTeammate70percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (70  §)"
+	}
+	"YouGaveTheTeammate80percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (80  §)"
+	}
+	"YouGaveTheTeammate80percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (80  §)"
+	}
+	"YouGaveTheTeammate90percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (90  §)"
+	}
+	"YouReceivedFromTeammate90percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (90  §)"
+	}
+	"YouGaveTheTeammate100percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы отдали игроку {RB}{1} {BLA}{2} (100  §)"
+	}
+	"YouReceivedFromTeammate100percents"
+	{
+		"#format"	"{1:N},{2:i}"
+		"ru"			"{B}Вы получили от игрока {RB}{1} {BLA}{2} (100  §)"
+	}
+	"TitleNameOfMyPurchase"
+	{
+		"ru"			"Мои покупки"
+	}
+}

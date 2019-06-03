@@ -1,0 +1,238 @@
+"Games"
+{
+	"#default"
+	{
+		"#supported"
+		{
+			"engine"	"left4dead"
+			"engine"	"left4dead2"
+		}
+		"Addresses"
+		{
+			"SpamPatch_Add1"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig1"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig1"
+				}
+			}
+			"SpamPatch_Add2"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig2"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig2"
+				}
+			}
+			"SpamPatch_Add3"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig3"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig3"
+				}
+			}
+			"SpamPatch_Add4"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig4"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig4"
+				}
+			}
+			"SpamPatch_Add5"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig5"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig5"
+				}
+			}
+			"SpamPatch_Add6"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig6"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig6"
+				}
+			}
+			"SpamPatch_Add7"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig7"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig7"
+				}
+			}
+			"SpamPatch_Add8"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig8"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig8"
+				}
+			}
+			"SpamPatch_Add9"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig9"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig9"
+				}
+			}
+			"SpamPatch_Add10"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig10"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig10"
+				}
+			}
+			"SpamPatch_Add11"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig11"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig11"
+				}
+			}
+			"SpamPatch_Add12"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig12"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig12"
+				}
+			}
+			"SpamPatch_Add13"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig13"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig13"
+				}
+			}
+		}
+		"Signatures"
+		{
+			"SpamPatch_Sig1"
+			{
+				"library"		"server"
+				"windows"		"Invalid counterterrorist spawnpoint"
+				"linux"			"Invalid counterterrorist spawnpoint"
+			}
+			"SpamPatch_Sig2"
+			{
+				"library"		"server"
+				"windows"		"Couldn't find any entities named %s"
+				"linux"			"Couldn't find any entities named %s"
+			}
+			"SpamPatch_Sig3"
+			{
+				"library"		"server"
+				"windows"		"Couldn't find any entity named"
+				"linux"			"Couldn't find any entity named"
+			}
+			"SpamPatch_Sig4"
+			{
+				"library"		"server"
+				"windows"		"%s has Door model (%s) with no door_options"
+				"linux"			"%s has Door model (%s) with no door_options"
+			}
+			"SpamPatch_Sig5"
+			{
+				"library"		"server"
+				"windows"		"CSpeechScriptBridge initializing"
+				"linux"			"CSpeechScriptBridge initializing"
+			}
+			"SpamPatch_Sig6"
+			{
+				"library"		"server"
+				"windows"		"Commentary: Loading commentary data from"
+				"linux"			"Commentary: Loading commentary data from"
+			}
+			"SpamPatch_Sig7"
+			{
+				"library"		"server"
+				"windows"		"Setting CBeam to non-sprite model"
+				"linux"			"Setting CBeam to non-sprite model"
+			}
+			"SpamPatch_Sig8"
+			{
+				"library"		"server"
+				"windows"		"Setting CBaseEntity to non-brush model"
+				"linux"			"Setting CBaseEntity to non-brush model"
+			}
+			"SpamPatch_Sig9"
+			{
+				"library"		"server"
+				"windows"		"CSceneEntity %s :\"%s\" unable to find gesture"
+				"linux"			"CSceneEntity %s :\"%s\" unable to find gesture"
+			}
+			"SpamPatch_Sig10"
+			{
+				"library"		"server"
+				"windows"		"ERROR: Tried to create bone follower on invalid"
+				"linux"			"ERROR: Tried to create bone follower on invalid"
+			}
+			"SpamPatch_Sig11"
+			{
+				"library"		"server"
+				"windows"		"Attempting to precache model, but model name is NULL"
+				"linux"			"Attempting to precache model, but model name is NULL"
+			}
+			"SpamPatch_Sig12"
+			{
+				"library"		"server"
+				"windows"		"Map Bug: "
+				"linux"			"Map Bug: "
+			}
+			"SpamPatch_Sig13"
+			{
+				"library"		"server"
+				"windows"		"SCRIPT PERF WARNING"
+				"linux"			"SCRIPT PERF WARNING"
+			}
+		}
+	}
+}

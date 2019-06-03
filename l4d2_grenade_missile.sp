@@ -2,6 +2,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <l4d2_simple_combat>
 
 #define PLUGIN_VERSION			"0.2"
 #include "modules/l4d2ps.sp"
@@ -55,7 +56,7 @@ public void OnPluginStart()
 	g_pCvarAllowBile = CreateConVar("l4d2_gm_vomitjar_allow", "0", "是否允许跟踪胆汁", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarDetonateBile = CreateConVar("l4d2_gm_vomitjar_explode", "1", "是否允许跟踪胆汁自动爆炸", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarTrailBile = CreateConVar("l4d2_gm_vomitjar_trails", "0", "是否允许跟踪胆汁显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarAllowGrenade = CreateConVar("l4d2_gm_glp_allow", "1", "是否允许跟踪榴弹", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarAllowGrenade = CreateConVar("l4d2_gm_glp_allow", "0", "是否允许跟踪榴弹", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarDetonateGrenade = CreateConVar("l4d2_gm_glp_explode", "1", "是否允许跟踪榴弹自动爆炸", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarTrailGrenade = CreateConVar("l4d2_gm_glp_trails", "0", "是否允许跟踪榴弹显示轨迹", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarFlySpeed = CreateConVar("l4d2_gm_fly_speed", "800.0", "跟踪导弹飞行速度", CVAR_FLAGS, true, 100.0, true, 3000.0);
@@ -113,6 +114,14 @@ public void OnPluginStart()
 		g_pfnVomitjarDetonate = null;
 		g_pfnGrenadeTouch = null;
 	}
+	
+	CreateTimer(1.0, Timer_SkillRegister);
+}
+
+public Action Timer_SkillRegister(Handle timer, any unused)
+{
+	SC_CreateSkill("gm_track", "跟踪榴弹", 0, "榴弹可以跟踪敌人/跟随准星");
+	return Plugin_Continue;
 }
 
 public void OnMapStart()
@@ -204,6 +213,12 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if(entity <= MaxClients || StrContains(classname, "_projectile", false) == -1)
 		return;
 	
+	int client = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
+	if(!IsValidClient(client) || GetClientTeam(client) != 2)
+		client = GetEntPropEnt(entity, Prop_Data, "m_hThrower");
+	if(!IsValidClient(client) || GetClientTeam(client) != 2)
+		return;
+	
 	if(StrEqual("molotov_projectile", classname, false))
 	{
 		if(g_pCvarAllowMolotov.BoolValue)
@@ -248,7 +263,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if(StrEqual("grenade_launcher_projectile", classname, false))
 	{
-		if(g_pCvarAllowGrenade.BoolValue)
+		if(g_pCvarAllowGrenade.BoolValue || SC_IsClientHaveSkill(client, "gm_track"))
 			SDKHook(entity, SDKHook_SpawnPost, SDKHooked_ProjectileSpawned);
 		
 		if(g_pCvarTrailGrenade.BoolValue)

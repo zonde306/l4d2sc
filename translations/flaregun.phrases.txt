@@ -1,0 +1,83 @@
+"Phrases"
+{
+	"Equipped"
+	{
+		"en"		"Grenade Launcher mode set to {green}<MODE>{olive}. To change, write {green}!flaregun{olive} in chat."
+	}
+	"MenuTitle"
+	{
+		"en"		"Flare Gun Type"
+	}
+	"TitleDefault"
+	{
+		"en"		"Stock (grenade launcher)"
+	}
+	"TitleBounce"
+	{
+		"en"		"Bounce (ignites, no explosion)"
+	}
+	"TitleFlare"
+	{
+		"en"		"Flare (stock explosion)"
+	}
+	"TitleHoming"
+	{
+		"en"		"Homing Rocket"
+	}
+	"TitleJump"
+	{
+		"en"		"Jump Launcher"
+	}
+	"TitleRemote"
+	{
+		"en"		"Remote (right click)"
+	}
+	"TitleSticky"
+	{
+		"en"		"Sticky Flare (no explosion)"
+	}
+	"TitleSensor"
+	{
+		"en"		"Sensor Bomb"
+	}
+	"TitleTimed"
+	{
+		"en"		"Timed Bomb"
+	}
+	"TypeDefault"
+	{
+		"en"		"Default Grenade Launcher with no effects and stock explosion."
+	}
+	"TypeBounce"
+	{
+		"en"		"Bounces and ignites Infected and explosives."
+	}
+	"TypeFlare"
+	{
+		"en"		"Flare Gun with default Grenade Launcher damage and explosion."
+	}
+	"TypeHoming"
+	{
+		"en"		"Projectiles can be directed to where you aim."
+	}
+	"TypeJump"
+	{
+		"en"		"Projectiles stick to surfaces and launch you through the air when jumping above them and right clicking."
+	}
+	"TypeRemote"
+	{
+		"en"		"Projectiles stick to surfaces and explode when you right click."
+	}
+	"TypeSensor"
+	{
+		"en"		"Projectiles sticks to surfaces and explode when common or special infected go near."
+	}
+	"TypeSticky"
+	{
+		"en"		"Sticks to surfaces and iluminates the area."
+	}
+	"TypeTimed"
+	{
+		"en"		"Projectiles stick to surfaces and explode after <TIME>."
+	}
+}

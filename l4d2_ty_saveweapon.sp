@@ -78,9 +78,9 @@ public void OnPluginStart()
 	HookEvent("player_bot_replace", 		Event_Player_Bot_Replace);
 	HookEvent("bot_player_replace", 		Event_Bot_Player_Replace);
 	
-	g_hNoob 								= CreateConVar("l4d2_ty_noob",							"0", "Give SMG after join", FCVAR_NOTIFY);
-	g_hClearAfterCampaign 					= CreateConVar("l4d2_ty_clear_after_campaign", 			"1", "Wipe weapons after campaign", FCVAR_NOTIFY);
-	g_hFullHealth							= CreateConVar("l4d2_ty_healing",						"0", "Give Health after join", FCVAR_NOTIFY);
+	g_hNoob 								= CreateConVar("l4d2_ty_noob",							"0", "开局给冲锋枪", FCVAR_NOTIFY);
+	g_hClearAfterCampaign 					= CreateConVar("l4d2_ty_clear_after_campaign", 			"1", "开局缓存武器模型", FCVAR_NOTIFY);
+	g_hFullHealth							= CreateConVar("l4d2_ty_healing",						"0", "开局回血", FCVAR_NOTIFY);
 
 	RegAdminCmd("sm_save_weap", 			CMD_SaveWeap, 		ADMFLAG_CHEATS, "Save equipment");
 	RegAdminCmd("sm_save_weap_all", 		CMD_SaveWeapAll, 	ADMFLAG_CHEATS, "Save equipment of all survivors");
@@ -445,7 +445,7 @@ void TyGiveWeapon(int client)
 	if (GetEntProp(client, Prop_Send, "m_isIncapacitated") == 1) SetEntProp(client, Prop_Send, "m_isIncapacitated", 0);	
 	SetEntProp(client, Prop_Send, "m_iMaxHealth", g_iWeaponInfo[client][iMaxHealth]);
 
-	if(g_hFullHealth.BoolValue)
+	if(g_hFullHealth.BoolValue && g_bCanAppropriate)
 	{
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
 		SetEntProp(client, Prop_Send, "m_isGoingToDie", 0);

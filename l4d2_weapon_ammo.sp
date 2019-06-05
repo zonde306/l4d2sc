@@ -36,6 +36,7 @@ int g_iAmmoSmg, g_iAmmoSilenced, g_iAmmoMP5, g_iAmmoPump, g_iAmmoChrome, g_iAmmo
 int g_iClipSmg, g_iClipSilenced, g_iClipMP5, g_iClipPump, g_iClipChrome, g_iClipSG552, g_iClipRifle, g_iClipAk47,
 	g_iClipDesert, g_iClipAuto, g_iClipSpas, g_iClipHunting, g_iClipMilitary, g_iClipScout, g_iClipAwp;
 
+ConVar g_pCvarPatchReloadShot;
 ConVar g_pCvarSmgClip, g_pCvarSmgAmmo, g_pCvarSilencedClip, g_pCvarSilencedAmmo, g_pCvarMP5Clip, g_pCvarMP5Ammo,
 	g_pCvarPumpClip, g_pCvarPumpAmmo, g_pCvarChromeClip, g_pCvarChromeAmmo, g_pCvarSG552Clip, g_pCvarSG552Ammo,
 	g_pCvarRifleClip, g_pCvarRifleAmmo, g_pCvarAk47Clip, g_pCvarAk47Ammo, g_pCvarDesertClip, g_pCvarDesertAmmo,
@@ -45,6 +46,7 @@ ConVar g_pCvarSmgClip, g_pCvarSmgAmmo, g_pCvarSilencedClip, g_pCvarSilencedAmmo,
 public OnPluginStart()
 {
 	InitPlugin("wa");
+	g_pCvarPatchReloadShot = CreateConVar("l4d2_wa_reload_shot_fix", "1", "修复霰弹枪无法开枪", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSmgClip = CreateConVar("l4d2_wa_smg_clip", "50", "普通冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
 	g_pCvarSmgAmmo = CreateConVar("l4d2_wa_smg_ammo", "650", "普通冲锋枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
 	g_pCvarSilencedClip = CreateConVar("l4d2_wa_smg_silenced_clip", "50", "消音冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
@@ -452,17 +454,16 @@ public void OnThink_UpdateWeapon(int client)
 		return;
 	}
 	
+	/*
 	if(HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
 	{
-		/*
-		PrintToChat(client, "m_reloadState = %d", GetEntProp(weapon, Prop_Send, "m_reloadState"));
-		PrintToChat(client, "m_reloadAnimState = %d", GetEntProp(weapon, Prop_Send, "m_reloadAnimState"));
-		PrintToChat(client, "m_reloadNumShells = %d", GetEntProp(weapon, Prop_Send, "m_reloadNumShells"));
-		PrintToChat(client, "m_reloadStartTime = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadStartTime"));
-		PrintToChat(client, "m_reloadInsertDuration = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadInsertDuration"));
-		PrintToChat(client, "m_reloadEndDuration = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadEndDuration"));
-		PrintToChat(client, "m_shellsInserted = %d", GetEntProp(weapon, Prop_Send, "m_shellsInserted"));
-		*/
+		// PrintToChat(client, "m_reloadState = %d", GetEntProp(weapon, Prop_Send, "m_reloadState"));
+		// PrintToChat(client, "m_reloadAnimState = %d", GetEntProp(weapon, Prop_Send, "m_reloadAnimState"));
+		// PrintToChat(client, "m_reloadNumShells = %d", GetEntProp(weapon, Prop_Send, "m_reloadNumShells"));
+		// PrintToChat(client, "m_reloadStartTime = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadStartTime"));
+		// PrintToChat(client, "m_reloadInsertDuration = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadInsertDuration"));
+		// PrintToChat(client, "m_reloadEndDuration = %f", GetEntPropFloat(weapon, Prop_Send, "m_reloadEndDuration"));
+		// PrintToChat(client, "m_shellsInserted = %d", GetEntProp(weapon, Prop_Send, "m_shellsInserted"));
 		
 		if(StrEqual(classname, "weapon_autoshotgun", false))
 		{
@@ -483,16 +484,23 @@ public void OnThink_UpdateWeapon(int client)
 			SetEntPropFloat(weapon, Prop_Send, "m_reloadEndDuration", 0.6);
 		}
 	}
+	*/
 	
 	// 取消换弹夹，但是没有换武器（爬梯/开机关/按按钮/挂边）
 	if(currentClip == 0 || HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
 	{
 		OnSwitch_ChangeWeapon(client, weapon);
 		
-		float time = GetGameTime() + 0.3;
-		SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
-		SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
-		SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time);
+		if(g_pCvarPatchReloadShot.BoolValue)
+		{
+			float time = GetGameTime() + 0.3;
+			if(GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") > time)
+				SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
+			if(GetEntPropFloat(client, Prop_Send, "m_flNextAttack") > time)
+				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
+			SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time - 0.3);
+		}
+		
 		return;
 	}
 	

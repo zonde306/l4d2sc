@@ -195,6 +195,7 @@ public void OnPluginStart()
 	g_iStatsDisplayType = CreateConVar("pstats_display_type", "2", "显示模式.1=积分.2=计数.3=全部", _, true, 1.0, true, 3.0);
 	g_bShowRankOnConnect = CreateConVar("pstats_show_rank_onjoin", "1", "换图或加入时显示统计", _, true, 0.0, true, 1.0);
 	g_bConnectAnnounceEnabled = CreateConVar("pstats_cannounce_enabled", "1", "玩家连接时显示统计", _, true, 0.0, true, 1.0);
+	AutoExecConfig(true, "l4d2_simpleplayerstats");
 	
 	g_sGameMode = FindConVar("mp_gamemode");
 	g_sServerName = FindConVar("hostname");

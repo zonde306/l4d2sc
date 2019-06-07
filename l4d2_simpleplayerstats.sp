@@ -17,6 +17,22 @@
 * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*
+* -------------------------------------------------
+* Change Log
+* -------------------------------------------------
+* 
+* 1.0.0-alpha - 6/1/2019
+*  - Initial Release
+*
+* 1.0.1-alpha - 6/4/2019
+* - Bug Fix: Extra stats item from player rank panel does not execute when selected
+* - Bug Fix: Error 'Client index is invalid' thrown during player initialization
+* - Verify if steamid is valid for ShowInGamePlayerRanks
+* - Bug Fix: Views in the database were hardcoded to query from 'playerstats' database. This will not work for those who use a different database name.
+*
+*/
+
 #include <sourcemod>
 #include <clientprefs>
 #include <sdktools>
@@ -28,7 +44,7 @@
 #define DEBUG
 
 #define PLUGIN_AUTHOR "mac & cheese (a.k.a thresh0ld)"
-#define PLUGIN_VERSION "1.0.0-alpha"
+#define PLUGIN_VERSION "1.0.1-alpha"
 
 #define TEAM_SPECTATOR          1
 #define TEAM_SURVIVOR           2
@@ -103,6 +119,11 @@
 
 Database g_hDatabase = null;
 StringMap g_mStatModifiers;
+StringMap g_mPlayersInitialized;
+
+//Prepared statements
+DBStatement g_hQueryRecordExists = null;
+DBStatement g_hQueryHideExtras = null;
 
 bool g_bPlayerInitialized[MAXPLAYERS + 1] = false;
 bool g_bInitializing[MAXPLAYERS + 1] = false;
@@ -118,9 +139,8 @@ char g_StatPanelTitleInGame[255];
 char g_StatPanelTitleExtras[255];
 
 char g_ConfigAnnounceFormat[512];
+char g_SelSteamIds[MAXPLAYERS + 1][MAX_STEAMAUTH_LENGTH];
 bool g_bSkillDetectLoaded = false;
-char g_SelSteamIds[MAXPLAYERS + 1][64];
-
 ConVar g_bDebug;
 ConVar g_bVersusExclusive;
 ConVar g_bEnabled;
@@ -200,6 +220,7 @@ public void OnPluginStart()
 	g_sGameMode = FindConVar("mp_gamemode");
 	g_sServerName = FindConVar("hostname");
 	g_mStatModifiers = new StringMap();
+	g_mPlayersInitialized = new StringMap();
 	
 	if (!InitDatabase()) {
 		Error("Could not connect to the database. Please check your database configuration file and make sure everything is configured correctly. (db section name: %s)", DB_CONFIG_NAME);
@@ -210,7 +231,8 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_top", Command_ShowTopPlayers, "Display the top N players. A menu panel will be displayed to the requesting player");
 	RegConsoleCmd("sm_ranks", Command_ShowTopPlayersInGame, "Display the ranks of the players currently playing in the server. A menu panel will be displayed to the requesting player.");
 	RegConsoleCmd("sm_hidestats", Command_HideExtraFromPublic, "If set by the player, extra stats will not be shown to the public (e.g. via top 10 panel)");
-	RegAdminCmd("sm_pstats_reload", Command_ReloadConfig, ADMFLAG_ROOT, "Reloads plugin configuration. This is useful if you have modified the playerstats.cfg file. 'This command also synchronizes the modifier values set from the configuration file to the database.");
+	RegAdminCmd("sm_pstats_reload", Command_ReloadConfig, ADMFLAG_ROOT, "Reloads plugin configuration. This is useful if you have modified the playerstats.cfg file. This command also synchronizes the modifier values set from the configuration file to the database.");
+	RegAdminCmd("sm_pstats_wipe", Command_WipeRecord, ADMFLAG_ROOT, "Wipes/Reset the record of a player (Reset all back to 0)");
 	
 	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Post);
 	HookEvent("player_incapacitated", Event_PlayerIncapped, EventHookMode_Post);
@@ -232,7 +254,6 @@ public void OnPluginStart()
 */
 public void OnAllPluginsLoaded() {
 	g_bSkillDetectLoaded = LibraryExists("skill_detect");
-	
 	Debug("OnAllPluginsLoaded()");
 }
 
@@ -376,8 +397,198 @@ public void OnMapEnd() {
 * Callback for sm_hidestats command
 */
 public Action Command_HideExtraFromPublic(int client, int args) {
-	Debug("Hide stats");
+	if (client != 0 && !IS_VALID_HUMAN(client)) {
+		Debug("Client %i not valid", client);
+		return Plugin_Handled;
+	}
+	
+	if (args >= 1) {
+		char arg[255];
+		GetCmdArg(1, arg, sizeof(arg));
+		
+		if (!String_IsNumeric(arg)) {
+			Notify(client, "Usage: sm_hidestats <1 = Hide, 0 = Unhide>");
+			return Plugin_Handled;
+		}
+		
+		char steamId[MAX_STEAMAUTH_LENGTH];
+		if (!GetClientAuthId(client, AuthId_Steam2, steamId, sizeof(steamId))) {
+			Notify(client, "Could not process your request at this time. If the issue persists, please contact your administrator (Reason: Invalid Steam ID)");
+			return Plugin_Handled;
+		}
+		
+		HideStats(steamId, StringToInt(arg) > 0, client);
+	} else {
+		Notify(client, "Usage: sm_hidestats <1 = Hide, 0 = Unhide>");
+	}
+	
 	return Plugin_Handled;
+}
+
+void HideStats(const char[] steamId, bool hide, int client = -1) {
+	int len = strlen(steamId) * 2 + 1;
+	char[] qSteamId = new char[len];
+	SQL_EscapeString(g_hDatabase, steamId, qSteamId, len);
+	
+	char query[128];
+	Format(query, sizeof(query), "UPDATE STATS_PLAYERS SET hide_extra_stats = %i WHERE steam_id = '%s'", (hide) ? 1 : 0, qSteamId);
+	
+	DataPack pack = new DataPack();
+	pack.WriteString(steamId);
+	pack.WriteCell(client);
+	pack.WriteCell(hide);
+	
+	g_hDatabase.Query(TQ_HideStats, query, pack);
+}
+
+public void TQ_HideStats(Database db, DBResultSet results, const char[] error, DataPack pack) {
+	if (results == null) {
+		Error("TQ_HideStats :: Query failed (Reason: %s)", error);
+		return;
+	}
+	
+	pack.Reset();
+	char steamId[MAX_STEAMAUTH_LENGTH];
+	pack.ReadString(steamId, sizeof(steamId));
+	int clientId = pack.ReadCell();
+	bool hide = pack.ReadCell();
+	
+	if (results.AffectedRows >= 0) {
+		if (hide) {
+			Notify(clientId, "Your extra stats should now be hidden from public viewing");
+		} else {
+			Notify(clientId, "Your extra stats should now be visible to anyone");
+		}
+	}
+}
+
+public Action Command_WipeRecord(int client, int args) {
+	
+	if (client != 0 && !IS_VALID_HUMAN(client)) {
+		Debug("Client %i not valid", client);
+		return Plugin_Handled;
+	}
+	
+	//check if sync argument was provided
+	if (args >= 1) {
+		char arg[255];
+		
+		char target_name[MAX_TARGET_LENGTH];
+		int target_list[MAXPLAYERS], target_count;
+		bool tn_is_ml;
+		
+		GetCmdArgString(arg, sizeof(arg));
+		String_Trim(arg, arg, sizeof(arg));
+		
+		if (String_StartsWith(arg, "STEAM_")) {
+			Debug("Wiping player record of '%s'", arg);
+			WipePlayerRecord(arg, client);
+		}
+		else if ((target_count = ProcessTargetString(
+					arg, 
+					client, 
+					target_list, 
+					MAXPLAYERS, 
+					COMMAND_FILTER_CONNECTED, 
+					target_name, 
+					sizeof(target_name), 
+					tn_is_ml)) <= 0)
+		{
+			/* This function replies to the admin with a failure message */
+			ReplyToTargetError(client, target_count);
+			return Plugin_Handled;
+		}
+		
+		for (int i = 0; i < target_count; i++) {
+			if (IsClientConnected(target_list[i]) && IsClientAuthorized(target_list[i]) && !IsFakeClient(target_list[i])) {
+				char steamId[MAX_STEAMAUTH_LENGTH];
+				if (GetClientAuthId(target_list[i], AuthId_Steam2, steamId, sizeof(steamId))) {
+					Debug("Wiping player record of '%s'", steamId);
+					WipePlayerRecord(steamId, client);
+				}
+			}
+		}
+	} else {
+		Notify(client, "Usage: sm_pstats_wipe <@all/@survivors/@infected....> <steam id>");
+	}
+	
+	return Plugin_Handled;
+}
+
+/**
+* Reset the stats of the specified player. This will NOT delete a player record.
+*/
+void WipePlayerRecord(const char[] steamId, int client = -1) {
+	if (StringBlank(steamId)) {
+		return;
+	}
+	
+	Debug("Resetting player record of steam id %s", steamId);
+	
+	int len = strlen(steamId) * 2 + 1;
+	char[] qSteamId = new char[len];
+	SQL_EscapeString(g_hDatabase, steamId, qSteamId, len);
+	
+	int bufferSize = (ComputeBufferSize(g_sBasicStats, sizeof(g_sBasicStats)) + ComputeBufferSize(g_sExtraStats, sizeof(g_sExtraStats))) * 5;
+	char[] fields = new char[bufferSize];
+	
+	for (int i = 0; i < sizeof(g_sBasicStats); i++) {
+		char tmp[128];
+		FormatEx(tmp, sizeof(tmp), "%s = 0,", g_sBasicStats[i]);
+		StrCat(fields, bufferSize, tmp);
+	}
+	
+	for (int i = 0; i < sizeof(g_sExtraStats); i++) {
+		char tmp[128];
+		if (i < sizeof(g_sExtraStats) - 1) {
+			FormatEx(tmp, sizeof(tmp), "%s = 0,", g_sExtraStats[i]);
+		} else {
+			FormatEx(tmp, sizeof(tmp), "%s = 0", g_sExtraStats[i]);
+		}
+		StrCat(fields, bufferSize, tmp);
+	}
+	
+	bufferSize *= 2 + 1;
+	char[] query = new char[bufferSize];
+	
+	Format(query, bufferSize, "UPDATE STATS_PLAYERS SET %s WHERE steam_id = '%s'", fields, qSteamId);
+	
+	DataPack pack = new DataPack();
+	pack.WriteString(steamId);
+	pack.WriteCell(client);
+	
+	g_hDatabase.Query(TQ_WipePlayerRecord, query, pack);
+}
+
+public void TQ_WipePlayerRecord(Database db, DBResultSet results, const char[] error, DataPack pack) {
+	if (results == null) {
+		Error("TQ_WipePlayerRecord :: Query failed (Reason: %s)", error);
+		return;
+	}
+	
+	pack.Reset();
+	char steamId[MAX_STEAMAUTH_LENGTH];
+	pack.ReadString(steamId, sizeof(steamId));
+	int client = pack.ReadCell();
+	
+	if (results.AffectedRows > 0) {
+		Notify(client, "Record has been wiped clean for steam id '%s'", steamId);
+	} else {
+		Notify(client, "No affected records after wipe attempt to '%s'", steamId);
+	}
+	
+	delete pack;
+}
+
+/**
+* Computes the sum of the length of each element on the multi-dimensional character array
+*/
+stock int ComputeBufferSize(const char[][] arr, int size) {
+	int len = 0;
+	for (int i = 0; i < size; i++) {
+		len += strlen(arr[i]);
+	}
+	return len;
 }
 
 /**
@@ -567,6 +778,32 @@ bool LoadConfigData() {
 	return true;
 }
 
+public bool PlayerRecordExists(const char[] steamId) {
+	int count = 0;
+	
+	if (g_hQueryRecordExists == null) {
+		char error[255];
+		g_hQueryRecordExists = SQL_PrepareQuery(g_hDatabase, "SELECT COUNT(1) FROM STATS_PLAYERS s WHERE s.steam_id = ? LIMIT 1", error, sizeof(error));
+		if (g_hQueryRecordExists == null) {
+			Error("PlayerRecordExists :: Unable to prepare sql query (Reason: %s)", error);
+			return false;
+		}
+	}
+	
+	SQL_BindParamString(g_hQueryRecordExists, 0, steamId, false);
+	
+	if (!SQL_Execute(g_hQueryRecordExists)) {
+		Error("Unable to execute query for PlayerRecordExists");
+		return false;
+	}
+	
+	if (SQL_FetchRow(g_hQueryRecordExists)) {
+		count = SQL_FetchInt(g_hQueryRecordExists, 0);
+	}
+	
+	return count > 0;
+}
+
 public int GetStatModifierCount() {
 	int count = 0;
 	DBResultSet query = SQL_Query(g_hDatabase, "SELECT COUNT(1) FROM STATS_SKILLS");
@@ -630,9 +867,9 @@ public void TQ_SyncStatModifiers(Database db, DBResultSet results, const char[] 
 	modifier = pack.ReadFloat();
 	
 	if (results.AffectedRows > 0) {
-		Debug("Synchronized cached entry to DB (%s = %.2f)", name, modifier);
+		Info("Synchronized cached entry to DB (%s = %.2f)", name, modifier);
 	} else {
-		Debug("Nothing was synced (%s = %.2f)", name, modifier);
+		Info("Nothing was synced (%s = %.2f)", name, modifier);
 	}
 }
 
@@ -681,6 +918,12 @@ public Action Event_PlayerConnect(Event event, const char[] name, bool dontBroad
 	if (!isBot) {
 		int client = GetClientOfUserId(userid);
 		Debug("\n\nPLAYER_CONNECT_EVENT :: Name = %s, Steam ID: %s, IP: %s, Slot: %i, User ID: %i, Is Bot: %i, Client ID: %i\n\n", playerName, steamId, ipAddress, slot, userid, isBot, client);
+		if (PlayerRecordExists(steamId)) {
+			Info("Found existing record for player '%s' (%s)", playerName, steamId);
+		} else {
+			Debug("\n\nNo player record found for %s (%s)", playerName, steamId);
+		}
+		
 		//InitializePlayer(client, true);
 	}
 }
@@ -778,7 +1021,10 @@ public void ShowInGamePlayerRanks(int client) {
 	}
 	
 	char steamId[128];
-	GetClientAuthId(client, AuthId_Steam2, steamId, sizeof(steamId));
+	if (!GetClientAuthId(client, AuthId_Steam2, steamId, sizeof(steamId))) {
+		Error("ShowInGamePlayerRanks :: Could not retrieve a valid steam id for '%N'", client);
+		return;
+	}
 	
 	char steamIds[256];
 	int count = GetInGamePlayerSteamIds(steamIds, sizeof(steamIds));
@@ -1103,6 +1349,11 @@ public Action Command_ShowRank(int client, int args) {
 * Display the rank/stats panel to the requesting player
 */
 public void ShowPlayerRankPanel(int client, const char[] steamId) {
+	if (!IS_VALID_HUMAN(client)) {
+		Debug("Skipping display of rank panel for client %i. Not a valid human player", client);
+		return;
+	}
+	
 	//Check if a request is already in progress
 	if (g_bShowingRankPanel[client]) {
 		if (IS_VALID_HUMAN(client)) {
@@ -1111,8 +1362,8 @@ public void ShowPlayerRankPanel(int client, const char[] steamId) {
 		}
 	}
 	
-	if (!IS_VALID_HUMAN(client)) {
-		Debug("Skipping display of rank panel for client %i. Not a valid human player", client);
+	if (!isInitialized(client)) {
+		Debug("ShowPlayerRankPanel :: Client %N is not yet initialized", client);
 		return;
 	}
 	
@@ -1175,13 +1426,13 @@ public void TQ_ShowPlayerRankPanel(Database db, DBResultSet results, const char[
 			ExtractPlayerStats(results, map);
 			
 			char steamId[128];
-			int createDate;
-			int lastJoinDate;
+			char createDate[255];
+			char lastJoinDate[255];
 			
 			//Retrieve general info
 			map.GetString(STATS_STEAM_ID, steamId, sizeof(steamId));
-			map.GetValue(STATS_LAST_JOIN_DATE, lastJoinDate);
-			map.GetValue(STATS_CREATE_DATE, createDate);
+			map.GetString(STATS_LAST_JOIN_DATE, lastJoinDate, sizeof(lastJoinDate));
+			map.GetString(STATS_CREATE_DATE, createDate, sizeof(createDate));
 			
 			char msg[255];
 			Panel panel = new Panel();
@@ -1212,7 +1463,11 @@ public void TQ_ShowPlayerRankPanel(Database db, DBResultSet results, const char[
 			PanelDrawStatLineBreak(panel); //line-break
 			
 			//If extra stats are enabled, display the menu item
-			if (ExtrasEnabled()) {
+			//Extra stats will be shown to the requesting player if
+			// - The target player did not opt out extra stats from public viewing
+			// - The requesting player is viewing his own
+			// - The requesting player is an admin
+			if (ExtrasEnabled() && (!HideExtrasFromPublic(selSteamId) || IsSamePlayer(clientId, selSteamId) || Client_IsAdmin(clientId))) {
 				Format(msg, sizeof(msg), "更多");
 				panel.DrawItem(msg, ITEMDRAW_DEFAULT);
 				
@@ -1228,9 +1483,44 @@ public void TQ_ShowPlayerRankPanel(Database db, DBResultSet results, const char[
 			panel.Send(clientId, PlayerStatsMenuHandler, g_iStatsMenuTimeout.IntValue);
 		}
 		
-		g_bShowingRankPanel[clientId] = false;
 		delete map;
+	} else {
+		Debug("TQ_ShowPlayerRankPanel :: No record was fetched for client %N. Possibly deleted from the database?", clientId);
+		ResetInitializeFlags(clientId);
 	}
+	g_bShowingRankPanel[clientId] = false;
+}
+
+public bool IsSamePlayer(int client, const char[] steamId) {
+	return client == Client_FindBySteamId(steamId);
+}
+
+public bool HideExtrasFromPublic(const char[] steamId) {
+	int count = 0;
+	
+	if (g_hQueryHideExtras == null) {
+		char error[255];
+		g_hQueryHideExtras = SQL_PrepareQuery(g_hDatabase, "SELECT hide_extra_stats FROM STATS_PLAYERS s WHERE s.steam_id = ?", error, sizeof(error));
+		if (g_hQueryHideExtras == null) {
+			Error("HideExtrasFromPublic :: Unable to prepare sql query (Reason: %s)", error);
+			return false;
+		}
+	}
+	
+	SQL_BindParamString(g_hQueryHideExtras, 0, steamId, false);
+	
+	if (!SQL_Execute(g_hQueryHideExtras)) {
+		Error("Unable to execute query for HideExtrasFromPublic");
+		return false;
+	}
+	
+	if (SQL_FetchRow(g_hQueryHideExtras)) {
+		count = SQL_FetchInt(g_hQueryHideExtras, 0);
+	}
+	
+	Debug("Hide extra stats from public (steamId = %s, result = %s)", steamId, (count > 0) ? "Yes" : "No");
+	
+	return count > 0;
 }
 
 /**
@@ -1240,7 +1530,7 @@ public int PlayerStatsMenuHandler(Menu menu, MenuAction action, int client, int 
 {
 	//Verify that the player is still connected to the server
 	if (!IS_VALID_HUMAN(client)) {
-		Error("PlayerStatsMenuHandler :: Client id %i is no longer valid (Player has probably left the server before the completion of this request)", client);
+		Debug("PlayerStatsMenuHandler :: Client id %i is no longer valid (Player has probably left the server before the completion of this request)", client);
 		delete menu;
 		return;
 	}
@@ -1266,13 +1556,14 @@ public int PlayerStatsMenuHandler(Menu menu, MenuAction action, int client, int 
 	/* If the menu was cancelled, print a message to the server about it. */
 	else if (action == MenuAction_Cancel)
 	{
-		Debug("Client %d's menu was cancelled.  Reason: %d", client, selectedIndex);
-		strcopy(g_SelSteamIds[client], sizeof(g_SelSteamIds[]), "");
+		Debug("PlayerStatsMenuHandler :: Client %d's menu was cancelled.", client, selectedIndex);
+		//strcopy(g_SelSteamIds[client], sizeof(g_SelSteamIds[]), "");
 	}
 	/* If the menu has ended, destroy it */
 	else if (action == MenuAction_End)
 	{
 		Debug("PlayerStatsMenuHandler :: Cleaning up resources");
+		strcopy(g_SelSteamIds[client], sizeof(g_SelSteamIds[]), "");
 		delete menu;
 	}
 }
@@ -1376,7 +1667,7 @@ public void TQ_ShowExtraStatsPanel(Database db, DBResultSet results, const char[
 			
 			PanelDrawStatLineBreak(panel);
 			
-			panel.DrawItem("返回", ITEMDRAW_DEFAULT);
+			PanelDrawStatItem(panel, "返回");
 			
 			panel.Send(client, ShowExtraStatsMenuHandler, g_iStatsMenuTimeout.IntValue);
 			
@@ -1387,6 +1678,59 @@ public void TQ_ShowExtraStatsPanel(Database db, DBResultSet results, const char[
 	}
 }
 
+/**
+* Menu Callback Handler for ShowExtraStatsPanel panel
+*/
+public int ShowExtraStatsMenuHandler(Menu menu, MenuAction action, int client, int selectedIndex) {
+	//Verify that the player is still connected to the server
+	if (!IS_VALID_HUMAN(client)) {
+		Error("ShowExtraStatsMenuHandler :: Client id %i is no longer valid (Player has probably left the server before the completion of this request)", client);
+		return;
+	}
+	
+	/* If an option was selected, tell the client about the item. */
+	if (action == MenuAction_Select)
+	{
+		Debug("ShowExtraStatsMenuHandler :: Item selected: %i", selectedIndex);
+		
+		//Go Back
+		if (selectedIndex == 3) {
+			ShowPlayerRankPanel(client, g_SelSteamIds[client]);
+		}
+	}
+	/* If the menu was cancelled, print a message to the server about it. */
+	else if (action == MenuAction_Cancel)
+	{
+		Debug("ShowExtraStatsMenuHandler :: Client %d's menu was cancelled.", client, selectedIndex);
+	}
+	/* If the menu has ended, destroy it */
+	else if (action == MenuAction_End)
+	{
+		Debug("Menu has ended");
+		delete menu;
+		strcopy(g_SelSteamIds[client], sizeof(g_SelSteamIds[]), "");
+	}
+}
+
+/**
+* Retrieve the modifier/multiplier value for the requested stat key
+*/
+public float GetStatModifier(const char[] statKey) {
+	if (g_mStatModifiers == null) {
+		Error("GetStatMultiplier :: The modifier map has not yet been initialized. Using default.");
+		return DEFAULT_POINT_MODIFIER;
+	}
+	float modifier = DEFAULT_POINT_MODIFIER;
+	if (!g_mStatModifiers.GetValue(statKey, modifier)) {
+		Error("GetStatMultiplier :: Could not retrieve stat modifier for '%s'. Using default.", statKey);
+	}
+	Debug("Using modifier for '%s' = %.2f", statKey, modifier);
+	return modifier;
+}
+
+/**
+* Utility function to draw a stat item to a panel. Points are automatically computed by this method using the cached modifiers. 
+*/
 public void PanelDrawStat(Panel & panel, const char[] label, const char[] statKey, StringMap & map) {
 	int amount = 0;
 	char msg[64];
@@ -1401,14 +1745,7 @@ public void PanelDrawStat(Panel & panel, const char[] label, const char[] statKe
 	
 	int displayType = g_iStatsDisplayType.IntValue;
 	
-	//apply points modifier
-	float modifier = DEFAULT_POINT_MODIFIER;
-	
-	//retrieve modifier from global map (if available)
-	if (!g_mStatModifiers.GetValue(statKey, modifier))
-		Debug("No modifier found for stat '%s'. Default modifier will be used (%.2f).", statKey, DEFAULT_POINT_MODIFIER);
-	
-	float points = amount * modifier;
+	float points = amount * GetStatModifier(statKey);
 	
 	//display both points and amount	
 	if (displayType == STATS_DISPLAY_TYPE_BOTH) {
@@ -1471,41 +1808,6 @@ void PanelDrawStatItem(Panel & panel, const char[] name, const char[] valPrefix 
 }
 
 /**
-* Menu Callback Handler for ShowExtraStatsPanel panel
-*/
-public int ShowExtraStatsMenuHandler(Menu menu, MenuAction action, int client, int selectedIndex) {
-	//Verify that the player is still connected to the server
-	if (!IS_VALID_HUMAN(client)) {
-		Error("ShowExtraStatsMenuHandler :: Client id %i is no longer valid (Player has probably left the server before the completion of this request)", client);
-		return;
-	}
-	
-	/* If an option was selected, tell the client about the item. */
-	if (action == MenuAction_Select)
-	{
-		Debug("ShowExtraStatsMenuHandler :: Item selected: %i", selectedIndex);
-		
-		//Go Back
-		if (selectedIndex == 3) {
-			ShowPlayerRankPanel(client, g_SelSteamIds[client]);
-		}
-	}
-	/* If the menu was cancelled, print a message to the server about it. */
-	else if (action == MenuAction_Cancel)
-	{
-		Debug("Client %d's menu was cancelled.  Reason: %d", client, selectedIndex);
-		strcopy(g_SelSteamIds[client], sizeof(g_SelSteamIds[]), "");
-	}
-	/* If the menu has ended, destroy it */
-	else if (action == MenuAction_End)
-	{
-		Debug("Menu has ended");
-		delete menu;
-		strcopy(g_SelSteamIds[client], sizeof(g_SelSteamIds[]), "");
-	}
-}
-
-/**
 * Helper function for extracting a single row of player statistic from the result set and store it on a map
 * 
 * @return true if the extraction was succesful from the result set, otherwise false if the extraction failed.
@@ -1516,68 +1818,16 @@ public void ExtractPlayerStats(DBResultSet & results, StringMap & map) {
 		return;
 	}
 	
-	int idxSteamId = -1;
-	int idxLastKnownAlias = -1;
-	int idxLastJoinDate = -1;
-	int idxSurvivorsKilled = -1;
-	int idxSurvivorsIncapped = -1;
-	int idxInfectedKilled = -1;
-	int idxInfectedHeadshot = -1;
-	int idxTotalPoints = -1;
-	int idxPlayerRank = -1;
-	int idxCreateDate = -1;
-	
-	//Retrieve field indices
-	results.FieldNameToNum(STATS_STEAM_ID, idxSteamId);
-	results.FieldNameToNum(STATS_LAST_KNOWN_ALIAS, idxLastKnownAlias);
-	results.FieldNameToNum(STATS_LAST_JOIN_DATE, idxLastJoinDate);
-	results.FieldNameToNum(STATS_SURVIVOR_KILLED, idxSurvivorsKilled);
-	results.FieldNameToNum(STATS_SURVIVOR_INCAPPED, idxSurvivorsIncapped);
-	results.FieldNameToNum(STATS_INFECTED_KILLED, idxInfectedKilled);
-	results.FieldNameToNum(STATS_INFECTED_HEADSHOT, idxInfectedHeadshot);
-	results.FieldNameToNum(STATS_TOTAL_POINTS, idxTotalPoints);
-	results.FieldNameToNum(STATS_RANK, idxPlayerRank);
-	results.FieldNameToNum(STATS_CREATE_DATE, idxCreateDate);
-	
-	//Fetch values
-	char steamId[128];
-	char lastKnownAlias[255];
-	int lastJoinDate = 0;
-	float totalPoints = 0.0;
-	int rankNum = -1;
-	
-	//Basic Stats
-	int survivorsKilled = 0;
-	int survivorsIncapped = 0;
-	int infectedKilled = 0;
-	int infectedHeadshot = 0;
-	int createDate = 0;
-	
-	//Fetch general info
-	results.FetchString(idxSteamId, steamId, sizeof(steamId));
-	results.FetchString(idxLastKnownAlias, lastKnownAlias, sizeof(lastKnownAlias));
-	lastJoinDate = results.FetchInt(idxLastJoinDate);
-	createDate = results.FetchInt(idxCreateDate);
-	totalPoints = results.FetchFloat(idxTotalPoints);
-	rankNum = results.FetchInt(idxPlayerRank);
-	
-	//Fetch basic stats
-	survivorsKilled = results.FetchInt(idxSurvivorsKilled);
-	survivorsIncapped = results.FetchInt(idxSurvivorsIncapped);
-	infectedKilled = results.FetchInt(idxInfectedKilled);
-	infectedHeadshot = results.FetchInt(idxInfectedHeadshot);
-	createDate = results.FetchInt(idxCreateDate);
-	
-	map.SetString(STATS_STEAM_ID, steamId, true);
-	map.SetString(STATS_LAST_KNOWN_ALIAS, lastKnownAlias, true);
-	map.SetValue(STATS_LAST_JOIN_DATE, lastJoinDate, true);
-	map.SetValue(STATS_TOTAL_POINTS, totalPoints, true);
-	map.SetValue(STATS_RANK, rankNum, true);
-	map.SetValue(STATS_SURVIVOR_KILLED, survivorsKilled, true);
-	map.SetValue(STATS_SURVIVOR_INCAPPED, survivorsIncapped, true);
-	map.SetValue(STATS_INFECTED_KILLED, infectedKilled, true);
-	map.SetValue(STATS_INFECTED_HEADSHOT, infectedHeadshot, true);
-	map.SetValue(STATS_CREATE_DATE, createDate, true);
+	FetchStrFieldToMap(results, STATS_STEAM_ID, map);
+	FetchStrFieldToMap(results, STATS_LAST_KNOWN_ALIAS, map);
+	FetchStrFieldToMap(results, STATS_LAST_JOIN_DATE, map);
+	FetchFloatFieldToMap(results, STATS_TOTAL_POINTS, map);
+	FetchIntFieldToMap(results, STATS_RANK, map);
+	FetchIntFieldToMap(results, STATS_SURVIVOR_KILLED, map);
+	FetchIntFieldToMap(results, STATS_SURVIVOR_INCAPPED, map);
+	FetchIntFieldToMap(results, STATS_INFECTED_KILLED, map);
+	FetchIntFieldToMap(results, STATS_INFECTED_HEADSHOT, map);
+	FetchStrFieldToMap(results, STATS_CREATE_DATE, map);
 }
 
 /**
@@ -1589,65 +1839,82 @@ public void ExtractPlayerStatsExtra(DBResultSet & results, StringMap & map) {
 		return;
 	}
 	
-	int idxSkeetHunterSniper = -1;
-	int idxSkeetHunterShotgun = -1;
-	int idxSkeetHunterMelee = -1;
-	int idxSkeetTankRock = -1;
-	int idxWitchCrownStandard = -1;
-	int idxWitchCrownDraw = -1;
-	int idxBoomerPop = -1;
-	int idxChargerLevel = -1;
-	int idxSmokerTongueCut = -1;
-	int idxHunterDeadStop = -1;
-	int idxBoomerQuad = -1;
-	int idxHunterTwentyFive = -1;
-	int idxDeathCharge = -1;
-	int idxTankRockHits = -1;
-	
-	bool success = true;
-	
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_SKEET_HUNTER_SNIPER, idxSkeetHunterSniper);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_SKEET_HUNTER_SHOTGUN, idxSkeetHunterShotgun);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_SKEET_HUNTER_MELEE, idxSkeetHunterMelee);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_SKEET_TANK_ROCK, idxSkeetTankRock);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_WITCH_CROWN_STD, idxWitchCrownStandard);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_WITCH_CROWN_DRAW, idxWitchCrownDraw);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_BOOMER_POP, idxBoomerPop);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_CHARGER_LEVEL, idxChargerLevel);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_SMOKER_TONGUE_CUT, idxSmokerTongueCut);
-	success &= results.FieldNameToNum(STATS_EXTRA_SURV_HUNTER_DEADSTOP, idxHunterDeadStop);
-	success &= results.FieldNameToNum(STATS_EXTRA_SI_BOOMER_QUAD, idxBoomerQuad);
-	success &= results.FieldNameToNum(STATS_EXTRA_SI_HUNTER_25, idxHunterTwentyFive);
-	success &= results.FieldNameToNum(STATS_EXTRA_SI_DEATHCHARGE, idxDeathCharge);
-	success &= results.FieldNameToNum(STATS_EXTRA_SI_TANK_ROCK_HITS, idxTankRockHits);
-	
-	if (!success) {
-		Error("There was a problem retrieving one of the field names from the result set");
-		return;
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_SKEET_HUNTER_SNIPER, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_SKEET_HUNTER_SHOTGUN, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_SKEET_HUNTER_MELEE, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_SKEET_TANK_ROCK, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_WITCH_CROWN_STD, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_WITCH_CROWN_DRAW, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_BOOMER_POP, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_CHARGER_LEVEL, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_SMOKER_TONGUE_CUT, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SURV_HUNTER_DEADSTOP, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SI_BOOMER_QUAD, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SI_HUNTER_25, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SI_DEATHCHARGE, map);
+	FetchIntFieldToMap(results, STATS_EXTRA_SI_TANK_ROCK_HITS, map);
+}
+
+/**
+* Convenience function to fetch a string field from a resultset and store it's value into a StringMap instance
+*/
+public bool FetchStrFieldToMap(DBResultSet & results, const char[] field, StringMap & map) {
+	if (results == null || map == null || StringBlank(field)) {
+		return false;
 	}
 	
-	map.SetValue(STATS_EXTRA_SURV_SKEET_HUNTER_SNIPER, results.FetchInt(idxSkeetHunterSniper));
-	map.SetValue(STATS_EXTRA_SURV_SKEET_HUNTER_SHOTGUN, results.FetchInt(idxSkeetHunterShotgun));
-	map.SetValue(STATS_EXTRA_SURV_SKEET_HUNTER_MELEE, results.FetchInt(idxSkeetHunterMelee));
-	map.SetValue(STATS_EXTRA_SURV_SKEET_TANK_ROCK, results.FetchInt(idxSkeetTankRock));
-	map.SetValue(STATS_EXTRA_SURV_WITCH_CROWN_STD, results.FetchInt(idxWitchCrownStandard));
-	map.SetValue(STATS_EXTRA_SURV_WITCH_CROWN_DRAW, results.FetchInt(idxWitchCrownDraw));
-	map.SetValue(STATS_EXTRA_SURV_BOOMER_POP, results.FetchInt(idxBoomerPop));
-	map.SetValue(STATS_EXTRA_SURV_CHARGER_LEVEL, results.FetchInt(idxChargerLevel));
-	map.SetValue(STATS_EXTRA_SURV_SMOKER_TONGUE_CUT, results.FetchInt(idxSmokerTongueCut));
-	map.SetValue(STATS_EXTRA_SURV_HUNTER_DEADSTOP, results.FetchInt(idxHunterDeadStop));
-	map.SetValue(STATS_EXTRA_SI_BOOMER_QUAD, results.FetchInt(idxBoomerQuad));
-	map.SetValue(STATS_EXTRA_SI_HUNTER_25, results.FetchInt(idxHunterTwentyFive));
-	map.SetValue(STATS_EXTRA_SI_DEATHCHARGE, results.FetchInt(idxDeathCharge));
-	map.SetValue(STATS_EXTRA_SI_TANK_ROCK_HITS, results.FetchInt(idxTankRockHits));
+	int fieldId = -1;
+	if (results.FieldNameToNum(field, fieldId) && fieldId >= 0) {
+		char value[255];
+		results.FetchString(fieldId, value, sizeof(value));
+		map.SetString(field, value, true);
+		return true;
+	}
+	return false;
+}
+
+/**
+* Convenience function to fetch a float field from a resultset and store it's value into a StringMap instance
+*/
+public bool FetchFloatFieldToMap(DBResultSet & results, const char[] field, StringMap & map) {
+	if (results == null || map == null || StringBlank(field)) {
+		return false;
+	}
+	
+	int fieldId = -1;
+	if (results.FieldNameToNum(field, fieldId) && fieldId >= 0) {
+		float value = results.FetchFloat(fieldId);
+		map.SetValue(field, value, true);
+		return true;
+	}
+	return false;
+}
+
+/**
+* Convenience function to fetch an integer field from a resultset and store it's value into a StringMap instance
+*/
+public bool FetchIntFieldToMap(DBResultSet & results, const char[] field, StringMap & map) {
+	if (results == null || map == null || StringBlank(field)) {
+		return false;
+	}
+	
+	int fieldId = -1;
+	if (results.FieldNameToNum(field, fieldId) && fieldId >= 0) {
+		int value = results.FetchInt(fieldId);
+		map.SetValue(field, value, true);
+		return true;
+	}
+	return false;
 }
 
 /**
 * Returns the number of human players currently in the server (including spectators)
 */
-int GetHumanPlayerCount(bool includeSpec = true) {
+int GetHumanPlayerCount(bool includeSpec = true, int excludeClient = -1) {
 	int count = 0;
 	for (int i = 1; i <= MAX_CLIENTS; i++) {
+		if (excludeClient >= 1 && i == excludeClient)
+			continue;
 		if (includeSpec) {
 			if (IS_VALID_HUMAN(i))
 				count++;
@@ -1709,8 +1976,7 @@ public void InitializePlayer(int client, bool updateJoinDateIfExists) {
 	
 	char steamId[255];
 	if (!GetClientAuthId(client, AuthId_Steam2, steamId, sizeof(steamId))) {
-		g_bInitializing[client] = false;
-		g_bPlayerInitialized[client] = false;
+		ResetInitializeFlags(client);
 		Error("Could not initialize player '%N'. Invalid steam id (%s)", client, steamId);
 		return;
 	}
@@ -1742,6 +2008,84 @@ public void InitializePlayer(int client, bool updateJoinDateIfExists) {
 	g_hDatabase.Query(TQ_InitializePlayer, query, client);
 }
 
+public void ResetInitializeFlags(int client) {
+	if (!IS_VALID_HUMAN(client)) {
+		Debug("ResetInitializeFlags :: Client index %i no longer valid.");
+		return;
+	}
+	Debug("Resetting init flags for client %N", client);
+	g_bPlayerInitialized[client] = false;
+	g_bInitializing[client] = false;
+}
+
+public void InitializePlayerById(const char[] name, const char[] steamId, bool updateJoinDateIfExists) {
+	Debug("Initializing Player %s (%s)", name, steamId);
+	
+	//unnecessary? 
+	int len = strlen(steamId) * 2 + 1;
+	char[] qSteamId = new char[len];
+	SQL_EscapeString(g_hDatabase, steamId, qSteamId, len);
+	
+	len = strlen(name) * 2 + 1;
+	char[] qName = new char[len];
+	SQL_EscapeString(g_hDatabase, name, qName, len);
+	
+	char query[512];
+	
+	if (updateJoinDateIfExists) {
+		Debug("InitializePlayerById :: Join date will be updated for %s", name);
+		FormatEx(query, sizeof(query), "INSERT INTO STATS_PLAYERS (steam_id, last_known_alias, last_join_date) VALUES ('%s', '%s', CURRENT_TIMESTAMP()) ON DUPLICATE KEY UPDATE last_join_date = CURRENT_TIMESTAMP(), last_known_alias = '%s'", qSteamId, qName, qName);
+	}
+	else {
+		Debug("InitializePlayerById :: Join date will NOT be updated for %s", name);
+		FormatEx(query, sizeof(query), "INSERT INTO STATS_PLAYERS (steam_id, last_known_alias, last_join_date) VALUES ('%s', '%s', CURRENT_TIMESTAMP()) ON DUPLICATE KEY UPDATE last_known_alias = '%s'", qSteamId, qName, qName);
+	}
+	
+	DataPack pack = new DataPack();
+	pack.WriteString(name);
+	pack.WriteString(steamId);
+	
+	//g_bInitializing[client] = true;
+	g_hDatabase.Query(TQ_InitializePlayerBySteamId, query, pack);
+}
+
+/**
+* SQL Callback for InitializePlayer threaded query
+*/
+public void TQ_InitializePlayerBySteamId(Database db, DBResultSet results, const char[] error, DataPack pack) {
+	
+	char name[MAX_NAME_LENGTH];
+	char steamId[MAX_STEAMAUTH_LENGTH];
+	
+	pack.Reset();
+	pack.ReadString(name, sizeof(name));
+	pack.ReadString(steamId, sizeof(steamId));
+	
+	if (results == null) {
+		Error("TQ_InitializePlayerBySteamId :: Query failed (Reason: %s)", error);
+		//g_bPlayerInitialized[client] = false;
+		//g_bInitializing[client] = false;
+		return;
+	}
+	
+	if (results.AffectedRows == 0) {
+		Debug("TQ_InitializePlayerBySteamId :: Nothing was updated for player %s (%s)", name, steamId);
+	}
+	else if (results.AffectedRows == 1) {
+		Debug("TQ_InitializePlayerBySteamId :: Player %s (%s) has been initialized for the first time", name, steamId);
+	}
+	else if (results.AffectedRows > 1) {
+		Debug("TQ_InitializePlayerBySteamId :: Existing record has been updated for player %s (%s)", name, steamId);
+	}
+	
+	//g_bPlayerInitialized[client] = true;
+	//g_bInitializing[client] = false;
+	
+	g_mPlayersInitialized.SetValue(steamId, true);
+	
+	Debug("Player %s (%s) successfully initialized", name, steamId);
+}
+
 /**
 * SQL Callback for InitializePlayer threaded query
 */
@@ -1749,16 +2093,14 @@ public void TQ_InitializePlayer(Database db, DBResultSet results, const char[] e
 	int client = data;
 	
 	if (!IS_VALID_CLIENT(client) || !IsClientConnected(client)) {
-		Debug("TQ_InitializePlayer :: Client %N (%i) is not valid or not connected. Skipping initialization", client, client);
-		g_bInitializing[client] = false;
-		g_bPlayerInitialized[client] = false;
+		Debug("TQ_InitializePlayer :: Client index '%i' is not valid or not connected. Skipping initialization", client);
+		ResetInitializeFlags(client);
 		return;
 	}
 	
 	if (results == null) {
 		Error("TQ_InitializePlayer :: Query failed (Reason: %s)", error);
-		g_bPlayerInitialized[client] = false;
-		g_bInitializing[client] = false;
+		ResetInitializeFlags(client);
 		return;
 	}
 	
@@ -1880,8 +2222,8 @@ public void TQ_PlayerConnectAnnounce(Database db, DBResultSet results, const cha
 			
 			char steamId[128];
 			char lastKnownAlias[255];
-			int createDate;
-			int lastJoinDate;
+			char createDate[255];
+			char lastJoinDate[255];
 			float totalPoints;
 			int rankNum;
 			int survivorsKilled;
@@ -1891,19 +2233,20 @@ public void TQ_PlayerConnectAnnounce(Database db, DBResultSet results, const cha
 			
 			map.GetString(STATS_STEAM_ID, steamId, sizeof(steamId));
 			map.GetString(STATS_LAST_KNOWN_ALIAS, lastKnownAlias, sizeof(lastKnownAlias));
-			map.GetValue(STATS_LAST_JOIN_DATE, lastJoinDate);
+			map.GetString(STATS_LAST_JOIN_DATE, lastJoinDate, sizeof(lastJoinDate));
+			map.GetString(STATS_CREATE_DATE, createDate, sizeof(createDate));
 			map.GetValue(STATS_TOTAL_POINTS, totalPoints);
 			map.GetValue(STATS_RANK, rankNum);
 			map.GetValue(STATS_SURVIVOR_KILLED, survivorsKilled);
 			map.GetValue(STATS_SURVIVOR_INCAPPED, survivorsIncapped);
 			map.GetValue(STATS_INFECTED_KILLED, infectedKilled);
 			map.GetValue(STATS_INFECTED_HEADSHOT, infectedHeadshot);
-			map.GetValue(STATS_CREATE_DATE, createDate);
 			
-			char tmpMsg[253];
+			char tmpMsg[255];
 			
 			//parse stats
 			ParseKeywordsWithMap(g_ConfigAnnounceFormat, tmpMsg, sizeof(tmpMsg), map);
+			
 			Debug("PARSE RESULT = %s", tmpMsg);
 			
 			Client_PrintToChatAll(true, tmpMsg);
@@ -1990,11 +2333,10 @@ public void ParseKeywordsWithMap(const char[] text, char[] buffer, int size, Str
 			found = true;
 		}
 		else if ((pos = StrContains(g_ConfigAnnounceFormat, searchKeyDate, false)) > -1) {
-			int valueInt;
-			map.GetValue(keyName, valueInt);
+			map.GetString(keyName, valueStr, sizeof(valueStr));
 			FormatEx(sKey, searchKeySize, searchKeyDate);
-			FormatTime(valueStr, sizeof(valueStr), NULL_STRING, valueInt);
-			Debug("(%i: %s) Key '%s' FOUND at position %i (value = %s (%i), type = date)", i, keyName, sKey, pos, valueStr, valueInt);
+			//FormatTime(valueStr, sizeof(valueStr), NULL_STRING, valueInt);
+			Debug("(%i: %s) Key '%s' FOUND at position %i (value = %s, type = date)", i, keyName, sKey, pos, valueStr);
 			found = true;
 		}
 		else {
@@ -2034,7 +2376,7 @@ public Action Event_PlayerTeam(Event event, const char[] name, bool dontBroadcas
 	event.GetString("name", playerName, sizeof(playerName));
 	
 	//Only display the rank panel if the player has completed transitioning to a team
-	if (IS_VALID_CLIENT(clientId) && !isBot) {
+	if (IS_VALID_CLIENT(clientId) && !isBot && !disconnect) {
 		Debug("Player %N has joined a team (old team = %i, new team = %i, disconnect = %i, bot = %i)", clientId, oldTeamId, newTeamId, disconnect, isBot);
 		if (ShowRankOnConnect() && !PlayerRankShown(clientId) && IS_VALID_HUMAN(clientId)) {
 			char steamId[MAX_STEAMAUTH_LENGTH];
@@ -2171,7 +2513,7 @@ public Action Event_PlayerDeath(Event event, const char[] name, bool dontBroadca
 /**
 * Utility function for updating the stat field of the player
 */
-public void UpdateStat(int client, const char[] column, int amount) {
+void UpdateStat(int client, const char[] column, int amount = 1, int victim = -1) {
 	if (!AllowCollectStats()) {
 		return;
 	}
@@ -2221,29 +2563,41 @@ public void UpdateStat(int client, const char[] column, int amount) {
 	pack.WriteString(column);
 	pack.WriteCell(client);
 	pack.WriteCell(amount);
+	pack.WriteCell(victim);
 	
 	g_hDatabase.Query(TQ_UpdateStat, query, pack);
 }
 
-public void TQ_UpdateStat(Database db, DBResultSet results, const char[] error, any data) {
+public void TQ_UpdateStat(Database db, DBResultSet results, const char[] error, DataPack pack) {
 	if (results == null) {
 		Error("TQ_UpdateStat :: Query failed (Reason: %s)", error);
 		return;
 	}
 	
-	DataPack pack = data;
 	char column[128];
 	
 	pack.Reset();
 	pack.ReadString(column, sizeof(column));
 	int clientId = pack.ReadCell();
-	int points = pack.ReadCell();
+	int count = pack.ReadCell();
+	int victimId = pack.ReadCell();
+	
+	float modifier = GetStatModifier(column);
+	float points = count * modifier;
 	
 	if (results.AffectedRows > 0) {
-		Debug("Stat '%s' updated for %N (Points: %i)", column, clientId, points);
+		if (IS_VALID_CLIENT(victimId)) {
+			Debug("Stat '%s' updated for %N (Count: %i, Multiplier: %.2f, Points: %.2f, Victim: %N)", column, clientId, count, modifier, points, victimId);
+		} else {
+			Debug("Stat '%s' updated for %N (Count: %i, Multiplier: %.2f, Points: %.2f, Victim: N/A)", column, clientId, count, modifier, points);
+		}
 	}
 	else {
-		Debug("Stat '%s' not updated for %N (Points: %i)", column, clientId, points);
+		if (IS_VALID_CLIENT(victimId)) {
+			Debug("Stat '%s' not updated for %N (Count: %i, Multiplier: %.2f, Points: %.2f, Victim: %N)", column, clientId, count, modifier, points, victimId);
+		} else {
+			Debug("Stat '%s' not updated for %N (Count: %i, Multiplier: %.2f, Points: %.2f, Victim: N/A)", column, clientId, count, modifier, points);
+		}
 	}
 	
 	delete pack;
@@ -2597,7 +2951,8 @@ public void OnBunnyHopStreak(int survivor, int streak, float maxVelocity) {
 		Debug("Stat 'OnBunnyHopStreak' is skipped. Extra stat recording is disabled");
 		return;
 	}
-	Debug("%N had a BHOP stream of %i (Speed: %.2f)", survivor, streak, maxVelocity);
+	if (streak >= 3)
+		Debug("%N had a BHOP streak of %i (Speed: %.2f)", survivor, streak, maxVelocity);
 }
 
 /************* END: SKILL DETECTION *********************/
@@ -2764,7 +3119,7 @@ public void Notify(int client, const char[] format, any...)
 {
 	int len = strlen(format) + 255;
 	char[] formattedString = new char[len];
-	VFormat(formattedString, len, format, 2);
+	VFormat(formattedString, len, format, 3);
 	
 	len = len + 8;
 	char[] debugMessage = new char[len];
@@ -2840,4 +3195,4 @@ public void Debug(const char[] format, any...)
 			PrintToConsole(i, debugMessage);
 	}
 	#endif
-} 
+}

@@ -67,7 +67,8 @@ public void OnPluginStart()
 	AddCommandListener(SMPSay, "sm_psay");
 		
 	TriggerTimer(CreateTimer(15.0, NewFCheck, _, TIMER_REPEAT));
-	
+	HookEventEx("player_connect", Event_PlayerConnect);
+	HookEventEx("player_disconnect", Event_PlayerDisconnect);
 	
 	AutoExecConfig(true, "chat_logger_redux");
 }
@@ -207,23 +208,74 @@ public Action NewFCheck(Handle timer, any unused)
 
 public void OnMapStart()
 {
-	char map[128];
-	GetCurrentMap(map, 128);
-	Format(map, 128, "--------- %s start ---------", map);
-	WriteFileLine(Path_handle, map);
+	char map[64];
+	GetCurrentMap(map, 64);
+	
+	char sTime[256];
+	FormatTime(sTime, sizeof(sTime), cv_sTimeFormat);
+	
+	char buffer[255];
+	FormatEx(buffer, 255, "[%s] map ending: %s", sTime, map);
+	
+	WriteFileLine(Path_handle, buffer);
 	FlushFile(Path_handle);
 }
 
 public void OnMapEnd()
 {
-	char map[128];
-	GetCurrentMap(map, 128);
-	Format(map, 128, "--------- %s end ---------", map);
+	char map[64];
+	GetCurrentMap(map, 64);
 	
-	WriteFileLine(Path_handle, map);
+	char sTime[256];
+	FormatTime(sTime, sizeof(sTime), cv_sTimeFormat);
+	
+	char buffer[255];
+	FormatEx(buffer, 255, "[%s] map starting: %s", sTime, map);
+	
+	WriteFileLine(Path_handle, buffer);
 	FlushFile(Path_handle);
 }
 
+public void Event_PlayerConnect(Event event, const char[] eventName, bool unknown)
+{
+	char name[MAX_NAME_LENGTH], ip[32], steamId[32];
+	event.GetString("name", name, MAX_NAME_LENGTH);
+	event.GetString("address", ip, 32);
+	event.GetString("networkid", steamId, 32);
+	
+	if(steamId[0] == EOS || StrEqual(steamId, "BOT", false))
+		return;
+	
+	char sTime[256];
+	FormatTime(sTime, sizeof(sTime), cv_sTimeFormat);
+	
+	char buffer[255];
+	FormatEx(buffer, 255, "[%s] player %s (%s) connecting... from %s", sTime, name, steamId, ip);
+	
+	WriteFileLine(Path_handle, buffer);
+	FlushFile(Path_handle);
+}
+
+public void Event_PlayerDisconnect(Event event, const char[] eventName, bool unknown)
+{
+	char name[MAX_NAME_LENGTH], reason[255], steamId[32];
+	event.GetString("name", name, MAX_NAME_LENGTH);
+	event.GetString("reason", reason, 255);
+	event.GetString("networkid", steamId, 32);
+	
+	if(steamId[0] == EOS || StrEqual(steamId, "BOT", false))
+		return;
+	
+	char sTime[256];
+	FormatTime(sTime, sizeof(sTime), cv_sTimeFormat);
+	
+	char buffer[255];
+	FormatEx(buffer, 255, "[%s] player %s (%s) disconnected... with: %s", sTime, name, steamId, reason);
+	
+	WriteFileLine(Path_handle, buffer);
+	FlushFile(Path_handle);
+}
+/*
 public void OnClientConnected(int client)
 {
 	if(IsFakeClient(client))
@@ -255,7 +307,7 @@ public void OnClientDisconnect(int client)
 	WriteFileLine(Path_handle, name);
 	FlushFile(Path_handle);
 }
-
+*/
 public void OnClientSayCommand_Post(int client, const char[] command, const char[] sArgs)
 {
 	if (!sv_bEnabled || !IsHooked)

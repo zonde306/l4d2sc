@@ -48,7 +48,7 @@ enum ()
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Special Infected Ability Movement",
+	name = "感染者使用技能时移动",
 	author = "SilverShot",
 	description = "Continue normal movement speed while spitting/smoking/tank throwing rocks.",
 	version = PLUGIN_VERSION,

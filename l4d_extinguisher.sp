@@ -191,7 +191,7 @@ enum ()
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Extinguisher and Flamethrower",
+	name = "灭火器",
 	author = "SilverShot",
 	description = "Usable Extinguishers.",
 	version = PLUGIN_VERSION,

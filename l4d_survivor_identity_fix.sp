@@ -50,6 +50,9 @@ public void OnClientPutInServer(int client)
 // ------------------------------------------------------------------------
 public MRESReturn SetModel(int client, Handle hParams)
 {
+	if(client < 1 || client > MaxClients)
+		return;
+	
 	if (GetClientTeam(client) != TEAM_SURVIVOR) 
 	{
 		g_Models[client][0] = '\0' ;

@@ -63,7 +63,7 @@ stock ExecuteAllConfigs()
 				CreateTimer(time, ExecuteConfig, pack, TIMER_FLAG_NO_MAPCHANGE);
 				time += 0.1;
 			}else{
-				LogError("No config file for %s", fullpath);
+				// LogError("No config file for %s", fullpath);
 			}
 		}
 	}

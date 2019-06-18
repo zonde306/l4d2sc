@@ -71,6 +71,9 @@ public void OnClientPutInServer(int client)
 
 public Action OnGasCanEquip(int client, int weapon)
 {
+	if(gascanArray == INVALID_HANDLE)
+		return;
+	
 	if (IsValidEnt(weapon))
 	{
 		char weaponClassname[32];
@@ -163,7 +166,7 @@ public Action OnMolotovThrown(Event event, const char[] name, bool dontBroadcast
 
 public void OnEntityDestroyed(int entity)
 {
-	if (!IsValidEnt(entity))
+	if (gascanArray == INVALID_HANDLE || !IsValidEnt(entity))
 	{
 		return;
 	}
@@ -231,6 +234,9 @@ void RefreshThem()
 
 void GasCansHook(bool apply)
 {
+	if(gascanArray == INVALID_HANDLE)
+		return;
+	
 	if (apply)
 	{
 		for (int i = 0; i <= GetMaxEntities(); i++)

@@ -12,7 +12,7 @@ static Handle:MedsArray = INVALID_HANDLE;
 
 public Plugin:myinfo = 
 {
-	name = "[L4D2] Defib using bots", 
+	name = "机器人使用电击器", 
 	author = "DeathChaos25", 
 	description = "Allows bots to use Defibrillators in L4D2", 
 	version = PLUGIN_VERSION, 

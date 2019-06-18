@@ -34,7 +34,7 @@ public OnPluginStart()
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("witch_killed", Event_WitchDeath);
 	
-	AutoExecConfig(true, "200IQBots_DontFuckWithHer");
+	AutoExecConfig(true, "l4d2_DontFuckWithHerMan");
 	
 }
 

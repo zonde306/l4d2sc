@@ -143,6 +143,7 @@ public void OnClientConnected(int client)
 	{
 		KillTimer(g_hTimerIdleChange);
 		g_hTimerIdleChange = null;
+		PrintToServer("server not empty...");
 	}
 }
 
@@ -161,6 +162,8 @@ public void CheckEmptyServer(any unused)
 	
 	if(g_hTimerIdleChange == null)
 		g_hTimerIdleChange = CreateTimer(g_pCvarIdleDelay.FloatValue, Timer_ChangeLevelEmpty);
+	
+	PrintToServer("server is empty...");
 }
 
 public Action Timer_ChangeLevelEmpty(Handle timer, any unused)

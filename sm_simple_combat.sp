@@ -5,7 +5,6 @@
 #include <colors>
 #include <adminmenu>
 
-#define _USE_SKILL_DETECT_			// 使用 l4d2_skill_detect.smx 插件提供的 forward
 // #define _USE_PLUGIN_MAX_HEALTH_		// 使用当前插件定义的血量上限代替 m_iMaxHealth 作为标准
 // #define _USE_CONSOLE_MESSAGE_		// 当玩家获得奖励时打印控制台信息
 // #define _USE_DATABASE_SQLITE_		// 使用 SQLite 储存数据
@@ -26,10 +25,6 @@ const int MOVING_BUTTON = (IN_FORWARD|IN_BACK|IN_LEFT|IN_RIGHT|IN_MOVELEFT|IN_MO
 
 // 不是有效的攻击伤害
 const int INVALID_DAMAGE_TYPE = (DMG_FALL|DMG_BURN|DMG_BLAST);
-
-#if defined _USE_SKILL_DETECT_
-#include <l4d2_skill_detect>
-#endif	// _USE_SKILL_DETECT_
 
 #if defined _USE_DETOUR_FUNC_
 #include <dhooks>
@@ -204,7 +199,7 @@ public void OnPluginStart()
 	g_pCvarCoinDead = CreateConVar("sc2_coin_dead", "1", "死亡每秒获得多少硬币", CVAR_FLAGS, true, 0.0);
 #endif	// defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_MYSQL_
 	
-	AutoExecConfig(true, "l4d2_smiple_combat2");
+	AutoExecConfig(true, "sm_smiple_combat2");
 	BuildPath(Path_SM, g_szSaveDataPath, 260, "data/l4d2_simple_combat");
 	
 	RegConsoleCmd("sm_sc", Cmd_MainMenu);
@@ -1540,6 +1535,9 @@ public void OnGameFrame()
 	g_iGameFramePerSecond = frame;
 	nextTime = curTime + g_fThinkInterval;
 	frame = 0;
+	
+	if(g_hDatabase == null)
+		Timer_ConnectDatabase(INVALID_HANDLE, 0);
 	
 	Timer_OnMenuThink(INVALID_HANDLE, 0);
 }
@@ -3220,9 +3218,6 @@ public bool TraceFilter_FindEnemyInRange(int entity, int mask, any client)
 	int team = GetClientTeam(client);
 	if(IsValidAliveClient(entity))
 		return (GetClientTeam(entity) != team);
-	
-	if(team != 2)
-		return false;
 	
 	char classname[64];
 	GetEntityClassname(entity, classname, 64);

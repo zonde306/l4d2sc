@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION		"1.1"
+#define PLUGIN_VERSION		"1.1.1"
 
 /*======================================================================================
 	Plugin Info:
@@ -11,6 +11,11 @@
 
 ========================================================================================
 	Change Log:
+
+1.1.1 (09-Jun-2019)
+	- Added FORCE_VALUES define to force create missing keys.
+	- Slightly optimized fixing single line mistake.
+	- Slight code cleaning.
 
 1.1 (01-Jun-2019)
 	- Fixed reading incorrect data for map specific sections.
@@ -39,6 +44,7 @@
 #define CONFIG_WEAPONS			"data/l4d_info_editor_weapons.cfg"
 #define MAX_STRING_LENGTH		4096
 #define DEBUG_VALUES			0
+#define FORCE_VALUES			1 // Force create keyvalues when not found.
 
 Handle g_hForwardOnGetMission;
 Handle g_hForwardOnGetWeapons;
@@ -58,7 +64,7 @@ bool g_bLoadNewMap;
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "任务和武器数据修改",
+	name = "地图武器数据修改",
 	author = "SilverShot",
 	description = "Modify gamemodes.txt and weapons.txt values by config instead of conflicting VPK files.",
 	version = PLUGIN_VERSION,
@@ -282,7 +288,7 @@ public Action CmdInfoReload(int client, int args)
 		g_alMissionData.GetString(i, key, sizeof(key));
 		g_alMissionData.GetString(i + 1, value, sizeof(value));
 
-		#if DEBUG_VALUES
+		#if DEBUG_VALUES || FORCE_VALUES
 		char check[MAX_STRING_LENGTH];
 		SDKCall(SDK_KV_GetString, g_PointerMission, check, sizeof check, key, "N/A");
 
@@ -290,9 +296,23 @@ public Action CmdInfoReload(int client, int args)
 		{
 			if( strcmp(check, "N/A") == 0 )
 			{
-				PrintToServer("MissionInfo: \"%s\" not found.", key);
+				#if FORCE_VALUES
+					if( SDK_KV_FindKey != null )
+					{
+						SDKCall(SDK_KV_FindKey, g_PointerMission, key, true);
+						#if DEBUG_VALUES
+							PrintToServer("MissionInfo: Attempted to create \"%s\".", key);
+						#endif
+					}
+				#endif
+
+				#if DEBUG_VALUES
+					PrintToServer("MissionInfo: \"%s\" not found.", key);
+				#endif
 			} else {
-				PrintToServer("MissionInfo: Set \"%s\" to \"%s\". Was \"%s\".", key, value, check);
+				#if DEBUG_VALUES
+					PrintToServer("MissionInfo: Set \"%s\" to \"%s\". Was \"%s\".", key, value, check);
+				#endif
 			}
 		}
 		#endif
@@ -436,12 +456,26 @@ public MRESReturn GetMissionInfo(Handle hReturn, Handle hParams)
 
 		if( strcmp(check, value) )
 		{
-			#if DEBUG_VALUES
+			#if DEBUG_VALUES || FORCE_VALUES
 			if( strcmp(check, "N/A") == 0 )
 			{
-				PrintToServer("MissionInfo: \"%s\" not found.", key);
+				#if FORCE_VALUES
+					if( SDK_KV_FindKey != null )
+					{
+						SDKCall(SDK_KV_FindKey, g_PointerMission, key, true);
+						#if DEBUG_VALUES
+							PrintToServer("MissionInfo: Attempted to create \"%s\".", key);
+						#endif
+					}
+				#endif
+
+				#if DEBUG_VALUES
+					PrintToServer("MissionInfo: \"%s\" not found.", key);
+				#endif
 			} else {
-				PrintToServer("MissionInfo: Set \"%s\" to \"%s\". Was \"%s\".", key, value, check);
+				#if DEBUG_VALUES
+					PrintToServer("MissionInfo: Set \"%s\" to \"%s\". Was \"%s\".", key, value, check);
+				#endif
 			}
 			#endif
 
@@ -512,12 +546,26 @@ void WeaponInfoFunction(int funk, Handle hParams)
 
 				if( strcmp(check, value) )
 				{
-					#if DEBUG_VALUES
+					#if DEBUG_VALUES || FORCE_VALUES
 					if( strcmp(check, "N/A") == 0 )
 					{
-						PrintToServer("WeaponInfo: \"%s/%s\" not found.", class, key);
+						#if FORCE_VALUES
+							if( SDK_KV_FindKey != null )
+							{
+								SDKCall(SDK_KV_FindKey, g_PointerMission, key, true);
+								#if DEBUG_VALUES
+									PrintToServer("MissionInfo: Attempted to create \"%s\".", key);
+								#endif
+							}
+						#endif
+
+						#if DEBUG_VALUES
+							PrintToServer("WeaponInfo: \"%s/%s\" not found.", class, key);
+						#endif
 					} else {
-						PrintToServer("WeaponInfo: Set \"%s/%s\" to \"%s\". Was \"%s\".", class, key, value, check);
+						#if DEBUG_VALUES
+							PrintToServer("WeaponInfo: Set \"%s/%s\" to \"%s\". Was \"%s\".", class, key, value, check);
+						#endif
 					}
 					#endif
 
@@ -531,7 +579,6 @@ void WeaponInfoFunction(int funk, Handle hParams)
 	Call_StartForward(g_hForwardOnGetWeapons);
 	Call_PushCell(pThis);
 	Call_PushString(class);
-	// Call_PushString("a");
 	Call_Finish();
 }
 
@@ -580,7 +627,7 @@ void ResetPlugin()
 void LoadConfig()
 {
 	g_alMissionData = new ArrayList(ByteCountToCells(MAX_STRING_LENGTH));
-	g_alWeaponsData = new ArrayList(ByteCountToCells(MAX_STRING_LENGTH));
+	g_alWeaponsData = new ArrayList();
 
 	char sPath[PLATFORM_MAX_PATH];
 
@@ -606,7 +653,6 @@ bool ParseConfigFile(const char[] file)
 	char error[128];
 	int line, col;
 	SMCError result = parser.ParseFile(file, line, col);
-	delete parser;
 
 	if( result != SMCError_Okay )
 	{
@@ -620,6 +666,7 @@ bool ParseConfigFile(const char[] file)
 		}
 	}
 
+	delete parser;
 	return (result == SMCError_Okay);
 }
 
@@ -702,8 +749,8 @@ public SMCResult Config_KeyValue(Handle parser, const char[] key, const char[] v
 				int index = aHand.FindString(key);
 				if( index != -1 )
 				{
-					RemoveFromArray(aHand, index);
-					RemoveFromArray(aHand, index);
+					aHand.Erase(index);
+					aHand.Erase(index);
 				}
 
 				aHand.PushString(key);

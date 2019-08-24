@@ -215,7 +215,7 @@ public void OnMapStart()
 	FormatTime(sTime, sizeof(sTime), cv_sTimeFormat);
 	
 	char buffer[255];
-	FormatEx(buffer, 255, "[%s] map ending: %s", sTime, map);
+	FormatEx(buffer, 255, "[%s] map starting: %s", sTime, map);
 	
 	WriteFileLine(Path_handle, buffer);
 	FlushFile(Path_handle);
@@ -230,7 +230,7 @@ public void OnMapEnd()
 	FormatTime(sTime, sizeof(sTime), cv_sTimeFormat);
 	
 	char buffer[255];
-	FormatEx(buffer, 255, "[%s] map starting: %s", sTime, map);
+	FormatEx(buffer, 255, "[%s] map ending: %s", sTime, map);
 	
 	WriteFileLine(Path_handle, buffer);
 	FlushFile(Path_handle);

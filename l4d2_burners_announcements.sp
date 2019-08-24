@@ -226,8 +226,11 @@ void RefreshThem()
 	
 	GasCansHook(false);
 	
-	ClearArray(gascanArray);
-	ClearArray(hitterArray);
+	if(gascanArray)
+		ClearArray(gascanArray);
+	
+	if(hitterArray)
+		ClearArray(hitterArray);
 	
 	GasCansHook(true);
 }

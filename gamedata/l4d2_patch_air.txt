@@ -1,0 +1,101 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Addresses"
+        {
+            "Should"
+            {
+                "signature" "Should"
+            }
+			"Vomit"
+            {
+                "signature" "Vomit"
+            }
+			"Charge"
+            {
+                "signature" "Charge"
+            }
+			"Tongue"
+            {
+                "signature" "Tongue"
+            }
+			"TongueAbillity"
+            {
+                "signature" "TongueAbillity"
+            }
+			"Throw"
+            {
+                "signature" "Throw"
+            }
+        }
+		"Functions"
+        {
+            "Should"
+            {
+				"address" "Should"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"ignore"
+            }
+			"Vomit"
+			{
+				"address" "Vomit"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"ignore"
+			}
+			"TongueAbillity"
+			{
+				"address" "TongueAbillity"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"ignore"
+			}
+        }
+		"Offsets"
+		{
+			"charge_offset"
+			{
+				"windows"		"133"
+			}
+			"smoker_offset"
+			{
+				"windows"		"59"
+			}
+		}
+		"Signatures"
+		{
+			"Should"
+			{
+				"library"	"server"
+				"windows"	"\x56\x57\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xF0\x85\xF6\x75\x2A\x5F\x32\xC0\x5E\xC3\x8B\xCE"
+			}
+			"Vomit"
+			{
+				"library"	"server"
+				"windows"	"\x56\x57\x8B\xF9\x8B\x87\x38\x04\x00\x00\x83\xF8\xFF\x74\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\xC8\x81\xE1\xFF\x0F\x00\x00\x03\xC9\x8D\x4C\xCA\x04\xC1\xE8\x0C\x39\x41\x04\x75\x2A\x8B\x31\x85\xF6\x75\x2A\x5F\x32\xC0\x5E\xC3\x8B\x06\x8B\x90\x50\x05\x00\x00\x8B\xCE\xFF\xD2\x84\xC0\x75\x2A\xF7\x86\xD4\x1C\x00\x00\x00\x08\x00\x00"
+			}
+			"Charge"
+			{
+				"library"	"server"
+				"windows"	"\x57\x8B\xF9\x8B\x07\x8B\x90\x24\x03\x00\x00\xFF\xD2\x84\xC0\x0F\x84\x2A\x2A\x2A\x2A\x8B\x87\x38\x04\x00\x00\x53"
+			}
+			"Tongue"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x08\x56\x8B\xF1\x8B\x86\x38\x04\x00\x00\x83\xF8\xFF\x0F\x84"
+			}
+			"TongueAbillity"
+			{
+				"library"	"server"
+				"windows"	"\x56\x57\x8B\xF9\x8B\x87\x38\x04\x00\x00\x83\xF8\xFF\x74\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\xC8\x81\xE1\xFF\x0F\x00\x00\x03\xC9\x8D\x4C\xCA\x04\xC1\xE8\x0C\x39\x41\x04\x75\x2A\x8B\x31\x85\xF6\x74"
+			}
+			"Throw"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x51\x53\x8B\xD9\x8B\x83\x38\x04\x00\x00\x83\xF8\xFF"
+			}
+		}
+	}
+}

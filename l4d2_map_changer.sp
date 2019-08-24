@@ -73,7 +73,9 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_votemap", Command_VoteMapMenu);
 	RegConsoleCmd("sm_mapvote", Command_VoteMapMenu);
 	RegConsoleCmd("sm_nextmap", Command_NextMap);
+	
 	AddCommandListener(Command_SkipOuttro, "SkipOuttro");
+	AddCommandListener(Command_OuttroDone, "outtro_stats_done");
 	
 	HookEvent("round_start", Event_RoundStart);
 	HookEvent("finale_win", Event_FinalWin);
@@ -271,13 +273,23 @@ public Action Command_SkipOuttro(int client, const char[] command, int argc)
 			KillTimer(g_hTimerChangeMap);
 		
 		g_hTimerChangeMap = CreateTimer(0.1, Timer_ChangeLevel);
-		PrintToChatAll("\x03[提示]\x01 更换地图：\x05%s", g_szNextMapName);
+		PrintToChatAll("\x03[提示]\x01 投票完成，更换地图：\x05%s", g_szNextMapName);
 	}
 	else
 	{
 		PrintToChatAll("\x03[提示]\x01 投票进度：\x05%d\x01/\x04%d\x01。", g_iTotalVoted, g_iTotalNeedVote);
 	}
 	
+	return Plugin_Continue;
+}
+
+public Action Command_OuttroDone(int client, const char[] command, int argc)
+{
+	if(g_hTimerChangeMap != null)
+		KillTimer(g_hTimerChangeMap);
+	
+	Timer_ChangeLevel(null, 0);
+	PrintToChatAll("\x03[提示]\x01 展示结束，更换地图：\x05%s", g_szNextMapName);
 	return Plugin_Continue;
 }
 
@@ -444,7 +456,7 @@ public Action Timer_ChangeLevel(Handle timer, any unused)
 	g_hTimerChangeMap = null;
 	
 	if(g_szNextMap[0] == EOS)
-		return Plugin_Continue;
+		g_pCvarIdleMap.GetString(g_szNextMap, sizeof(g_szNextMap));
 	
 	ServerCommand("changelevel %s", g_szNextMap);
 	return Plugin_Continue;

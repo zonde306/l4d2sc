@@ -3,9 +3,11 @@
 #include <sdktools>
 #include <sdkhooks>
 
-#define PLUGIN_VERSION		"1.4"
+#define PLUGIN_VERSION		"2.1"
 #define CVAR_FLAGS		FCVAR_PLUGIN|FCVAR_NOTIFY
 #define CONFIG_DATA		"data/scavengebotsds.cfg"
+#define CONFIG_FINALE_DATA		"data/scavengefinalebotsds.cfg"
+#define CONFIG_SCAVENGE_DATA		"data/scavengegamebotsds.cfg"
 
 static Handle:hScavengeBotsDS = INVALID_HANDLE;
 static bool:bScavengeBotsDS = false;
@@ -20,16 +22,26 @@ static BotUseGasCan[MAXPLAYERS+1];
 static GasNozzle;
 static Float:NozzleOrigin[3];
 static Float:NozzleAngles[3];
+static Float:NozzleOrigin2[3];
+static Float:NozzleAngles2[3];
+static Float:NozzleOrigin3[3];
+static Float:NozzleAngles3[3];
+
 static bool:bScavengeInProgress = false;
+static bool:bFinaleScavengeInProgress = false;
+static bool:bScavengeGameInProgress = false;
+static bool:FinaleHasStarted = false;
+static bool:EscapeReady = false;
 
 public Plugin:myinfo =
 {
-	name = "机器人倒油",
+	name = "机器人倒汽油",
 	author = "Machine/Xanaguy",
-	description = "Survivor Bots Scavenging now more compatible with other campaigns. (Coop/Versus only)",
+	description = "Survivor Bots Scavenging now more compatible overall.",
 	version = PLUGIN_VERSION,
 	url = ""
 }
+
 public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 {
 	decl String:game[12];
@@ -41,23 +53,48 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 	}
 	return APLRes_Success;
 }
+
 public OnPluginStart()
 {
 	hScavengeBotsDS = CreateConVar("scavengebotsds_on", "1", "Enable ScavengeBots? 0=off, 1=on.", CVAR_FLAGS, true, 0.0, true, 1.0);
 	bScavengeBotsDS = GetConVarBool(hScavengeBotsDS);
 
 	HookEvent("finale_start", Finale_Start);
+	HookEvent("gauntlet_finale_start", Finale_Start);
+	HookEvent("player_use", Start_Scavenging);
 	HookEvent("gascan_pour_completed", Start_Scavenging);
 	HookEvent("instructor_server_hint_create", Start_Scavenging);
 	HookEvent("finale_vehicle_incoming", Stop_Scavenging);
 	HookEvent("finale_vehicle_ready", Stop_Scavenging);
 	HookEvent("finale_escape_start", Stop_Scavenging);
+	HookEvent("scavenge_round_start", Scavenge_Round_Start);
 	HookEvent("round_start", Round_Start);
 	HookEvent("weapon_drop", Weapon_Drop);
+	HookEvent("scavenge_round_halftime", ResetBools);
+	HookEvent("scavenge_round_finished", ResetBools);
+	HookEvent("round_end", ResetBools);
+	HookEvent("map_transition", ResetBools);
+	HookEvent("mission_lost", ResetBools);
+	HookEvent("finale_win", ResetBools);
+	HookEvent("round_start_pre_entity", ResetBools);
 
 	HookConVarChange(hScavengeBotsDS, ConVarChanged);
 
 	CreateTimer(0.1, BotUpdate, _, TIMER_REPEAT);
+}
+
+public OnMapStart()
+{
+	bFinaleScavengeInProgress = false;
+	bScavengeInProgress = false;
+	bScavengeGameInProgress = false;
+	FinaleHasStarted = false;
+	EscapeReady = false;
+}
+
+public Action:ResetBools(Handle:event, const String:name[], bool:dontBroadcast)
+{
+	CreateTimer(0.1, CallBotsOff, 0);
 }
 
 public ConVarChanged(Handle:convar, const String:oldValue[], const String:newValue[])
@@ -91,24 +128,52 @@ public ConVarChanged(Handle:convar, const String:oldValue[], const String:newVal
 }
 public Action:Finale_Start(Handle:event, String:event_name[], bool:dontBroadcast)
 {
+	FinaleHasStarted = true;
+	bScavengeGameInProgress = false;
+	bScavengeInProgress = false;
+	
 	new entity = -1;
 	
-	while ((entity = FindEntityByClassname(entity, "game_scavenge_progress_display")) != -1)
+	if (!IsInvalidMap())
 	{
-		bScavengeInProgress = true;
-		LoadConfig();
-	}
-	while ((entity = FindEntityByClassname(entity, "point_prop_use_target")) != INVALID_ENT_REFERENCE)
-	{
-		GasNozzle = entity;
-		HookSingleEntityOutput(entity, "OnUseStarted", OnUseStarted);
-		HookSingleEntityOutput(entity, "OnUseCancelled", OnUseCancelled);
-		HookSingleEntityOutput(entity, "OnUseFinished", OnUseFinished);
+		while ((entity = FindEntityByClassname(entity, "game_scavenge_progress_display")) != -1)
+		{
+			bFinaleScavengeInProgress = true;
+			LoadFinaleConfig();
+		}
+		while ((entity = FindEntityByClassname(entity, "point_prop_use_target")) != INVALID_ENT_REFERENCE)
+		{
+			GasNozzle = entity;
+			HookSingleEntityOutput(entity, "OnUseStarted", OnUseStarted);
+			HookSingleEntityOutput(entity, "OnUseCancelled", OnUseCancelled);
+			HookSingleEntityOutput(entity, "OnUseFinished", OnUseFinished);
+		}
 	}
 }
+
+public Action:Scavenge_Round_Start(Handle:event, String:event_name[], bool:dontBroadcast)
+{
+	if (!IsInvalidMap())
+	{
+		bScavengeGameInProgress = true;
+		LoadScavengeConfig();
+		new entity = -1;
+		
+		while ((entity = FindEntityByClassname(entity, "point_prop_use_target")) != INVALID_ENT_REFERENCE)
+		{
+			GasNozzle = entity;
+			HookSingleEntityOutput(entity, "OnUseStarted", OnUseStarted);
+			HookSingleEntityOutput(entity, "OnUseCancelled", OnUseCancelled);
+			HookSingleEntityOutput(entity, "OnUseFinished", OnUseFinished);
+		}
+	}
+}
+
 public Action:Stop_Scavenging(Handle:event, String:event_name[], bool:dontBroadcast)
 {
 	bScavengeInProgress = false;
+	bFinaleScavengeInProgress = false;
+	EscapeReady = true;
 	CreateTimer(0.2, EscapeTime);
 	if (bScavengeBotsDS)
 	{
@@ -132,29 +197,7 @@ public Action:Round_Start(Handle:event, String:event_name[], bool:dontBroadcast)
 
 public Action:Start_Scavenging(Handle:event, String:event_name[], bool:dontBroadcast)
 {
-	new entity = -1;
-	
-	while ((entity = FindEntityByClassname(entity, "game_scavenge_progress_display")) != -1)
-	{
-		if ((GetEntProp(entity, Prop_Send, "m_bActive", 1)) && !IsScavenge())
-		{
-			bScavengeInProgress = true;
-			LoadConfig();
-			CreateTimer(0.1, ScavengeUpdate);
-		}
-		else 
-		{
-			bScavengeInProgress = false;
-		}
-	}
-	while ((entity = FindEntityByClassname(entity, "point_prop_use_target")) != INVALID_ENT_REFERENCE)
-	{
-		GasNozzle = entity;
-		HookSingleEntityOutput(entity, "OnUseStarted", OnUseStarted);
-		HookSingleEntityOutput(entity, "OnUseCancelled", OnUseCancelled);
-		HookSingleEntityOutput(entity, "OnUseFinished", OnUseFinished);
-	}
-
+	CreateTimer(0.1, ScavengeDoubleCheckStart);
 }
 
 public Action:Weapon_Drop(Handle:event, const String:event_name[], bool:dontBroadcast)
@@ -196,6 +239,10 @@ public OnClientDisconnect(client)
 stock ResetVariables()
 {
 	bScavengeInProgress = false;
+	bFinaleScavengeInProgress = false;
+	bScavengeGameInProgress = false;
+	FinaleHasStarted = false;
+	EscapeReady = false;
 }
 stock ResetClientArrays(client)
 {
@@ -215,14 +262,14 @@ stock LoadConfig()
 	BuildPath(Path_SM, Path, sizeof(Path), "%s", CONFIG_DATA);
 	if (!FileExists(Path))
 	{
-		PrintToServer("ScavengeBots Error: Cannot read the config %s", Path);
+		PrintToServer("ScavengeBotsDS Error: Cannot read the config %s", Path);
 		bScavengeInProgress = false;
 		return;
 	}
 	new Handle:File = CreateKeyValues("maps");
 	if (!FileToKeyValues(File, Path))
 	{
-		PrintToServer("ScavengeBots Error: Failed to get maps from %s", Path);
+		PrintToServer("ScavengeBotsDS Error: Failed to get maps from %s", Path);
 		bScavengeInProgress = false;
 		CloseHandle(File);
 		return;
@@ -231,15 +278,86 @@ stock LoadConfig()
 	GetCurrentMap(Map, sizeof(Map));
 	if (!KvJumpToKey(File, Map))
 	{
-		PrintToServer("ScavengeBots Error: Failed to get map from %s", Path);
+		PrintToServer("ScavengeBotsDS Error: Failed to get map from %s", Path);
 		bScavengeInProgress = false;
 		CloseHandle(File);
 		return;
 	}
-	KvGetVector(File, "origin", NozzleOrigin);
-	KvGetVector(File, "angles", NozzleAngles);
+	if (FinaleHasStarted)
+	{
+		bScavengeInProgress = false;
+		CloseHandle(File);
+		return;
+	}
+	KvGetVector(File, "origin", NozzleOrigin2);
+	KvGetVector(File, "angles", NozzleAngles2);
 	CloseHandle(File);
 }
+
+stock LoadFinaleConfig()
+{	
+	decl String:Path[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, Path, sizeof(Path), "%s", CONFIG_FINALE_DATA);
+	if (!FileExists(Path))
+	{
+		PrintToServer("ScavengeBotsDS Error: Cannot read the config %s", Path);
+		bFinaleScavengeInProgress = false;
+		return;
+	}
+	new Handle:FinaleFile = CreateKeyValues("finalemaps");
+	if (!FileToKeyValues(FinaleFile, Path))
+	{
+		PrintToServer("ScavengeBotsDS Error: Failed to get maps from %s", Path);
+		bFinaleScavengeInProgress = false;
+		CloseHandle(FinaleFile);
+		return;
+	}
+	decl String:Map[PLATFORM_MAX_PATH];
+	GetCurrentMap(Map, sizeof(Map));
+	if (!KvJumpToKey(FinaleFile, Map))
+	{
+		PrintToServer("ScavengeBotsDS Error: Failed to get map from %s", Path);
+		bFinaleScavengeInProgress = false;
+		CloseHandle(FinaleFile);
+		return;
+	}
+	KvGetVector(FinaleFile, "origin", NozzleOrigin);
+	KvGetVector(FinaleFile, "angles", NozzleAngles);
+	CloseHandle(FinaleFile);
+}
+
+stock LoadScavengeConfig()
+{	
+	decl String:Path[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, Path, sizeof(Path), "%s", CONFIG_SCAVENGE_DATA);
+	if (!FileExists(Path))
+	{
+		PrintToServer("ScavengeBotsDS Error: Cannot read the config %s", Path);
+		bScavengeGameInProgress = false;
+		return;
+	}
+	new Handle:ScavengeFile = CreateKeyValues("scavengemaps");
+	if (!FileToKeyValues(ScavengeFile, Path))
+	{
+		PrintToServer("ScavengeBotsDS Error: Failed to get maps from %s", Path);
+		bScavengeGameInProgress = false;
+		CloseHandle(ScavengeFile);
+		return;
+	}
+	decl String:Map[PLATFORM_MAX_PATH];
+	GetCurrentMap(Map, sizeof(Map));
+	if (!KvJumpToKey(ScavengeFile, Map))
+	{
+		PrintToServer("ScavengeBotsDS Error: Failed to get map from %s", Path);
+		bScavengeGameInProgress = false;
+		CloseHandle(ScavengeFile);
+		return;
+	}
+	KvGetVector(ScavengeFile, "origin", NozzleOrigin3);
+	KvGetVector(ScavengeFile, "angles", NozzleAngles3);
+	CloseHandle(ScavengeFile);
+}
+
 public Action:BotUpdate(Handle:timer)
 {
 	if (!IsServerProcessing())
@@ -260,16 +378,24 @@ public Action:BotUpdate(Handle:timer)
 	return Plugin_Continue;
 }
 
-public Action:ScavengeUpdate(Handle:Timer)
+public Action:CallBotsOff(Handle:Timer)
 {
+	bFinaleScavengeInProgress = false;
+	bScavengeInProgress = false;
+	bScavengeGameInProgress = false;
+	FinaleHasStarted = false;
+	EscapeReady = false;
+}
+
+public Action:ScavengeUpdate(Handle:Timer)
+{	
 	new objective = -1;
 	
 	while ((objective = FindEntityByClassname(objective, "game_scavenge_progress_display")) != -1)
 	{
-		if ((GetEntProp(objective, Prop_Send, "m_bActive", 1)))
+		if (GetEntProp(objective, Prop_Send, "m_bActive", 1) && !FinaleHasStarted && !bFinaleScavengeInProgress && !bScavengeGameInProgress && !EscapeReady && !IsInvalidMap())
 		{
 			bScavengeInProgress = true;
-			LoadConfig();
 		}
 		else
 		{
@@ -277,14 +403,41 @@ public Action:ScavengeUpdate(Handle:Timer)
 		}
 	}
 }
+
+public Action:ScavengeDoubleCheckStart(Handle:Timer)
+{
+	new objective2 = -1;
+	
+	while ((objective2 = FindEntityByClassname(objective2, "game_scavenge_progress_display")) != -1)
+	{
+		if ((GetEntProp(objective2, Prop_Send, "m_bActive", 1)) && !IsScavenge() && !FinaleHasStarted && !bFinaleScavengeInProgress && !bScavengeGameInProgress && !EscapeReady && !IsInvalidMap())
+		{
+			bScavengeInProgress = true;
+			LoadConfig();
+		}
+		else 
+		{
+			CreateTimer(0.1, ScavengeUpdate);
+		}
+	}
+	while ((objective2 = FindEntityByClassname(objective2, "point_prop_use_target")) != INVALID_ENT_REFERENCE)
+	{
+		GasNozzle = objective2;
+		HookSingleEntityOutput(objective2, "OnUseStarted", OnUseStarted);
+		HookSingleEntityOutput(objective2, "OnUseCancelled", OnUseCancelled);
+		HookSingleEntityOutput(objective2, "OnUseFinished", OnUseFinished);
+	}
+}
 public Action:EscapeTime(Handle:Timer)
 {
+	bFinaleScavengeInProgress = false;
 	bScavengeInProgress = false;
+	EscapeReady = true;
 }
 
 stock BotAI(client)
 {
-	if (IsBot(client) && bScavengeInProgress)
+	if (IsBot(client) && bScavengeInProgress || IsBot(client) && bFinaleScavengeInProgress || IsBot(client) && bScavengeGameInProgress)
 	{
 		//PrintToChatAll("client %N, action %i, target %i", client, BotAction[client], BotTarget[client]);
 		if (BotAction[client] == -1)
@@ -445,9 +598,25 @@ stock BotAI(client)
 		}
 		else if (BotAction[client] == 2)
 		{
-			if (!IsPlayerHeld(client) && !IsPlayerIncap(client) && IsGasCan(IsHoldingGasCan(client)))
+			if (!IsPlayerHeld(client) && !IsPlayerIncap(client) && IsGasCan(IsHoldingGasCan(client)) && !bScavengeInProgress && bFinaleScavengeInProgress && !bScavengeGameInProgress)
 			{
 				L4D2_RunScript("CommandABot({cmd=1,pos=Vector(%f,%f,%f),bot=GetPlayerFromUserID(%i)})", NozzleOrigin[0], NozzleOrigin[1], NozzleOrigin[2], GetClientUserId(client));
+				BotAction[client] = 3;
+				BotAIUpdate[client] = 10;
+				BotAbortTick[client] = 50;
+				GetClientAbsOrigin(client, BotCheckPos[client]);
+			}
+			else if (!IsPlayerHeld(client) && !IsPlayerIncap(client) && IsGasCan(IsHoldingGasCan(client)) && bScavengeInProgress && !bFinaleScavengeInProgress && !bScavengeGameInProgress)
+			{
+				L4D2_RunScript("CommandABot({cmd=1,pos=Vector(%f,%f,%f),bot=GetPlayerFromUserID(%i)})", NozzleOrigin2[0], NozzleOrigin2[1], NozzleOrigin2[2], GetClientUserId(client));
+				BotAction[client] = 3;
+				BotAIUpdate[client] = 10;
+				BotAbortTick[client] = 50;
+				GetClientAbsOrigin(client, BotCheckPos[client]);
+			}
+			else if (!IsPlayerHeld(client) && !IsPlayerIncap(client) && IsGasCan(IsHoldingGasCan(client)) && !bScavengeInProgress && !bFinaleScavengeInProgress && bScavengeGameInProgress)
+			{
+				L4D2_RunScript("CommandABot({cmd=1,pos=Vector(%f,%f,%f),bot=GetPlayerFromUserID(%i)})", NozzleOrigin3[0], NozzleOrigin3[1], NozzleOrigin3[2], GetClientUserId(client));
 				BotAction[client] = 3;
 				BotAIUpdate[client] = 10;
 				BotAbortTick[client] = 50;
@@ -486,7 +655,7 @@ stock BotAI(client)
 					BotAbortTick[client] = 60;
 				}
 			}
-			if (BotAIUpdate[client] > 0)
+			if (BotAIUpdate[client] > 0 && !bScavengeInProgress && bFinaleScavengeInProgress && !bScavengeGameInProgress)
 			{
 				BotAIUpdate[client] -= 1;
 				if (BotAIUpdate[client] == 0)
@@ -495,10 +664,48 @@ stock BotAI(client)
 					BotAIUpdate[client] = 10;
 				}
 			}
+			if (BotAIUpdate[client] > 0 && bScavengeInProgress && !bFinaleScavengeInProgress && !bScavengeGameInProgress)
+			{
+				BotAIUpdate[client] -= 1;
+				if (BotAIUpdate[client] == 0)
+				{
+					L4D2_RunScript("CommandABot({cmd=1,pos=Vector(%f,%f,%f),bot=GetPlayerFromUserID(%i)})", NozzleOrigin2[0], NozzleOrigin2[1], NozzleOrigin2[2], GetClientUserId(client));
+					BotAIUpdate[client] = 10;
+				}
+			}
+			if (BotAIUpdate[client] > 0 && !bScavengeInProgress && !bFinaleScavengeInProgress && bScavengeGameInProgress)
+			{
+				BotAIUpdate[client] -= 1;
+				if (BotAIUpdate[client] == 0)
+				{
+					L4D2_RunScript("CommandABot({cmd=1,pos=Vector(%f,%f,%f),bot=GetPlayerFromUserID(%i)})", NozzleOrigin3[0], NozzleOrigin3[1], NozzleOrigin3[2], GetClientUserId(client));
+					BotAIUpdate[client] = 10;
+				}
+			}
 			decl Float:Origin[3];
 			GetEntPropVector(client, Prop_Send, "m_vecOrigin", Origin);
 			new Float:distance = GetVectorDistance(Origin, NozzleOrigin);
 			if (distance < 50.0)
+			{
+				if (BotUseGasCan[client] == -1)
+				{
+					BotUseGasCan[client] = 1;
+				}
+			}
+			decl Float:Origin2[3];
+			GetEntPropVector(client, Prop_Send, "m_vecOrigin", Origin2);
+			new Float:distance2 = GetVectorDistance(Origin2, NozzleOrigin2);
+			if (distance2 < 50.0)
+			{
+				if (BotUseGasCan[client] == -1)
+				{
+					BotUseGasCan[client] = 1;
+				}
+			}
+			decl Float:Origin3[3];
+			GetEntPropVector(client, Prop_Send, "m_vecOrigin", Origin3);
+			new Float:distance3 = GetVectorDistance(Origin3, NozzleOrigin3);
+			if (distance3 < 50.0)
 			{
 				if (BotUseGasCan[client] == -1)
 				{
@@ -536,6 +743,7 @@ stock BotAI(client)
 		}
 	}
 }
+
 stock PickupGasCan(client, entity)
 {
 	if (IsBot(client) && entity > 0 && IsValidEntity(entity))
@@ -596,12 +804,50 @@ public OnPreThink(client)
 			{
 				if (BotUseGasCan[client] == 1)
 				{
-					if (IsGasCan(IsHoldingGasCan(client)) && !IsPlayerHeld(client) && !IsPlayerIncap(client))
+					if (IsGasCan(IsHoldingGasCan(client)) && !IsPlayerHeld(client) && !IsPlayerIncap(client) && !bScavengeInProgress && bFinaleScavengeInProgress && !bScavengeGameInProgress)
 					{
 						new owner = GetEntPropEnt(GasNozzle, Prop_Send, "m_useActionOwner");
 						if (owner <= 0)
 						{
 							TeleportEntity(client, NozzleOrigin, NozzleAngles, NULL_VECTOR);
+							new buttons = GetClientButtons(client);
+							SetEntProp(client, Prop_Data, "m_nButtons", buttons|IN_ATTACK);
+						}
+						else
+						{
+							new entity = GetEntPropEnt(owner, Prop_Send, "m_hOwner");
+							if (entity == client)
+							{
+								new buttons = GetClientButtons(client);
+								SetEntProp(client, Prop_Data, "m_nButtons", buttons|IN_ATTACK);
+							}
+						} 
+					}
+					else if (IsGasCan(IsHoldingGasCan(client)) && !IsPlayerHeld(client) && !IsPlayerIncap(client) && bScavengeInProgress && !bFinaleScavengeInProgress && !bScavengeGameInProgress)
+					{
+						new owner = GetEntPropEnt(GasNozzle, Prop_Send, "m_useActionOwner");
+						if (owner <= 0)
+						{
+							TeleportEntity(client, NozzleOrigin2, NozzleAngles2, NULL_VECTOR);
+							new buttons = GetClientButtons(client);
+							SetEntProp(client, Prop_Data, "m_nButtons", buttons|IN_ATTACK);
+						}
+						else
+						{
+							new entity = GetEntPropEnt(owner, Prop_Send, "m_hOwner");
+							if (entity == client)
+							{
+								new buttons = GetClientButtons(client);
+								SetEntProp(client, Prop_Data, "m_nButtons", buttons|IN_ATTACK);
+							}
+						} 
+					}
+					else if (IsGasCan(IsHoldingGasCan(client)) && !IsPlayerHeld(client) && !IsPlayerIncap(client) && !bScavengeInProgress && !bFinaleScavengeInProgress && bScavengeGameInProgress)
+					{
+						new owner = GetEntPropEnt(GasNozzle, Prop_Send, "m_useActionOwner");
+						if (owner <= 0)
+						{
+							TeleportEntity(client, NozzleOrigin3, NozzleAngles3, NULL_VECTOR);
 							new buttons = GetClientButtons(client);
 							SetEntProp(client, Prop_Data, "m_nButtons", buttons|IN_ATTACK);
 						}
@@ -805,6 +1051,17 @@ stock bool:IsCoop()
 	GetConVarString(FindConVar("mp_gamemode"), gamemode, sizeof(gamemode));
 	if (StrContains(gamemode, "coop", false) > -1)
 		return true;
+	return false;
+}
+stock bool:IsInvalidMap()
+{
+	decl String:mapname[64];
+	GetCurrentMap(mapname, sizeof(mapname));
+	
+	if (StrEqual(mapname, "l4d2_pl_badwater", true))
+	{
+		return true;
+	}
 	return false;
 }
 stock L4D2_RunScript(const String:sCode[], any:...)

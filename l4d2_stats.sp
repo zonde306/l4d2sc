@@ -400,7 +400,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 					if ((victim != b) && attacker != b && IsClientInGame(b))
 					{
 						CPrintToChat(b, "{blue}%s {olive}%N {default}在飞扑时被 {olive}%N {default}射死了 (射击 {blue}%d{default} 次)",
-							(shots > 1 ? "☆" : "★"), attacker, victim, shots);
+							(shots > 1 ? "☆" : "★"), victim, attacker, shots);
 					}
 				}
 			}

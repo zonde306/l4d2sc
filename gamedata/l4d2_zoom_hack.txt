@@ -1,0 +1,29 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			"CGetFov"
+			{
+				"library"	"server"
+				"linux"		"@_ZN11CBasePlayer6GetFOVEv"
+				"windows"	"\x56\x8B\xF1\x8B\x06\x8B\x90\xF8\x04\x00\x00\x57"
+			}
+			"CGetDefaultFov"
+			{
+				"library"	"server"
+				"linux"		"@_ZNK11CBasePlayer13GetDefaultFOVEv"
+				"windows" 	"\x8B\x81\x90\x1D\x00\x00"
+			}
+		}
+		"Offsets"
+		{
+			"GetZoomLevel"
+			{
+				"windows"	"450"
+				"linux"		"452"
+			}
+		}
+	}
+}

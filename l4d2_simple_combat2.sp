@@ -5119,6 +5119,7 @@ stock int GetPlayerUserId(int client)
 	GetClientIP(client, ip, 64);
 	GeoipCountry(ip, country, 64);
 	g_hDatabase.Escape(name, name, MAX_NAME_LENGTH);
+	g_hDatabase.Escape(country, country, 64);
 	
 	// 这个仅用于第一次加入时记录，最后一次的信息在 user_online 查看
 #if defined _USE_DATABASE_MYSQL_
@@ -5213,6 +5214,7 @@ bool LoadFromFile(int client)
 	char ip[64], country[64];
 	GetClientIP(client, ip, 64);
 	GeoipCountry(ip, country, 64);
+	g_hDatabase.Escape(country, country, 64);
 	
 	tran = SQL_CreateTransaction();
 	g_iClientUserId[client] = userId;
@@ -5231,6 +5233,10 @@ bool LoadFromFile(int client)
 	char city[45], region[45], country_name[45], country_code[3], country_code3[4];
 	if(GeoipGetRecord(ip, city, region, country_name, country_code, country_code3))
 	{
+		g_hDatabase.Escape(city, city, 45);
+		g_hDatabase.Escape(region, region, 45);
+		g_hDatabase.Escape(country_name, country_name, 45);
+		
 		// 更新客户端物理地址详细信息
 		tran.AddQuery(tr("UPDATE user_online SET country_name = '%s', region = '%s', city = '%s', code = '%s', code3 = '%s' WHERE uid = %d;",
 			country_name, region, city, country_code, country_code3, userId));

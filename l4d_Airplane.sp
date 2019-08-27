@@ -357,7 +357,7 @@ public void OnPluginStart()
 	cColorFlare 		=  		CreateConVar("airdrop_flare_color"		, 	"25 25 255"	, "照明弹颜色"												, FCVAR_NONE);
 	cFlareLenght 		=  		CreateConVar("airdrop_flare_length"		, 	"75"		, "照明弹烟雾高度"								, FCVAR_NONE);
 	cFlareAplha 		=  		CreateConVar("airdrop_flare_alpha"		, 	"255"		, "照明弹烟雾透明度"									, FCVAR_NONE);
-	cTimeOpen 			= 		CreateConVar("airdrop_open_time"		, 	"2.5"		, "开箱时间"												, FCVAR_NONE);
+	cTimeOpen 			= 		CreateConVar("airdrop_open_time"		, 	"1"		, "开箱时间"												, FCVAR_NONE);
 	cCountAirdrops 		= 		CreateConVar("airdrop_count_airdrops"	, 	"3"			, "空投数量"										, FCVAR_NONE);
 	cTankChance 		= 		CreateConVar("airdrop_tank_chance"		, 	"50"		, "开箱开出克几率"									, FCVAR_NONE);
 	cVocalize 			=		CreateConVar("airdrop_vocalize_chance"	, 	"40"		, "开箱说话几率"										, FCVAR_NONE);	
@@ -367,7 +367,7 @@ public void OnPluginStart()
 	cMessages 			=		CreateConVar("airdrop_enable_message"	, 	"0"			, "显示提示"										, FCVAR_NONE);
 	cAirHeight 			=		CreateConVar("airdrop_height"			, 	"400"		, "空投起始高度"											, FCVAR_NONE);
 	cRemoveCrate 		=		CreateConVar("airdrop_remove_time"		, 	"60"		, "箱子多少秒后消失"					, FCVAR_NONE);
-	cTimerPlane			=		CreateConVar("airdrop_plane_time"		, 	"120"		, "空投间隔"									, FCVAR_NONE);
+	cTimerPlane			=		CreateConVar("airdrop_plane_time"		, 	"999999"		, "定时自动空投间隔"									, FCVAR_NONE);
 	cItemsCount			=		CreateConVar("airdrop_count_items"		, 	"6"			, "空投物品数量"								, FCVAR_NONE);
 	cRemoveItems		=		CreateConVar("airdrop_delete_item_time"	, 	"60"		, "空投物品多少秒后消失"					, FCVAR_NONE);
 	

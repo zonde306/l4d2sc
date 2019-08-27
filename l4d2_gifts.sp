@@ -978,8 +978,13 @@ public void SQLCallback(Handle owner, Handle hndl, const char[] error, any data)
 
 void NotifyGift(int client, int type, int Score, int gift = -1)
 {
+	float origin[3];
+	if(IsValidClient(client))
+		GetClientAbsOrigin(client, origin);
+	
 	if(type == TYPE_ESTANDAR)
 	{
+		/*
 		if (bDatabase)
 		{
 			Client_PrintToChatAll(false, "%s %t", TAG_GIFT, "Spawn Gift Standard", client, Score);
@@ -989,7 +994,8 @@ void NotifyGift(int client, int type, int Score, int gift = -1)
 		{
 			Client_PrintToChatAll(false, "%s %t", TAG_GIFT, "Spawn Gift Standard Not Points", client);
 		}
-		EmitSoundToAll(SND_REWARD1);
+		*/
+		EmitSoundToAll(SND_REWARD1, client, _, _, _, _, _, _, origin);
 		AddCollect(client, type);
 	}
 	else if(type == TYPE_SPECIAL)
@@ -1033,6 +1039,7 @@ void NotifyGift(int client, int type, int Score, int gift = -1)
 		if(index >= 0 && index < MAX_SPECIALWEAPONS)
 		{
 			GiveWeapon(client, weapons_name[index][0]);
+			/*
 			if (bDatabase)
 			{
 				Client_PrintToChatAll(false, "%s %t", TAG_GIFT, "Spawn Gift Special", client, Score, weapons_name[index][1]);
@@ -1042,10 +1049,12 @@ void NotifyGift(int client, int type, int Score, int gift = -1)
 			{
 				Client_PrintToChatAll(false, "%s %t", TAG_GIFT, "Spawn Gift Special Not Points", client, weapons_name[index][1]);
 			}
+			*/
 		}
 		else
 		{
 			GiveWeapon(client, g_sGifSWeapon[gift]);
+			/*
 			if (bDatabase)
 			{
 				Client_PrintToChatAll(false, "%s %t", TAG_GIFT, "Spawn Gift Special", client, Score, g_sGifSWeapon[gift]);
@@ -1055,8 +1064,9 @@ void NotifyGift(int client, int type, int Score, int gift = -1)
 			{
 				Client_PrintToChatAll(false, "%s %t", TAG_GIFT, "Spawn Gift Special Not Points", client, g_sGifSWeapon[gift]);
 			}
+			*/
 		}
-		EmitSoundToAll(SND_REWARD2);
+		EmitSoundToAll(SND_REWARD2, client, _, _, _, _, _, _, origin);
 
 		AddCollect(client, type);
 	}
@@ -1252,6 +1262,11 @@ public void OutputHook_OnPlayerPickupGift(const char[] output, int gift, int cli
 		Score = iGiftEPoints;
 		NotifyGift(client, TYPE_ESTANDAR, Score);
 		type = TYPE_ESTANDAR;
+		
+#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
+	SC_GiveClientExperience(client, 1000);
+	SC_GiveClientCash(client, 250);
+#endif
 	}
 	else
 	{
@@ -1259,6 +1274,11 @@ public void OutputHook_OnPlayerPickupGift(const char[] output, int gift, int cli
 		Score = iGiftSPoints;
 		NotifyGift(client, TYPE_SPECIAL, Score, gift);
 		type = TYPE_SPECIAL;
+		
+#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
+	SC_GiveClientExperience(client, 2500);
+	SC_GiveClientCash(client, 500);
+#endif
 	}
 	
 	if (bDatabase)
@@ -1276,11 +1296,6 @@ public void OutputHook_OnPlayerPickupGift(const char[] output, int gift, int cli
 		WritePackCell(data, type);
 		SendSQLUpdate(query, SQLCallback, data);
 	}
-	
-#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
-	SC_GiveClientExperience(client, 1000);
-	SC_GiveClientCash(client, 250);
-#endif
 	
 	gifts_collected_map += 1;
 	gifts_collected_round += 1;

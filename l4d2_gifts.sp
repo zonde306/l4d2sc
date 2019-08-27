@@ -115,9 +115,11 @@
 #include <sourcemod>
 #include <smlib>
 #include <l4d_stocks>
+
 #pragma newdecls required
 
 #define USE_DATABASE 		true // If you want to use the database.
+#define USE_SIMPLECOMBAT	true
 #define DATABASE_CONFIG 	"l4d2gifts"
 #define TAG_GIFT			"{G}[{L}GIFTS{G}]\x01"
 #define PLUGIN_FCVAR		0 //FCVAR_PLUGIN
@@ -162,6 +164,10 @@ ConVar cvar_gift_probabilityE;
 ConVar cvar_gift_probabilityS;
 ConVar cvar_gift_maxcollectMap;
 ConVar cvar_gift_maxcollectRound;
+
+#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
+#include <l4d2_simple_combat>
+#endif
 
 char weapons_name[MAX_SPECIALWEAPONS][2][50] = 
 {
@@ -1270,6 +1276,11 @@ public void OutputHook_OnPlayerPickupGift(const char[] output, int gift, int cli
 		WritePackCell(data, type);
 		SendSQLUpdate(query, SQLCallback, data);
 	}
+	
+#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
+	SC_GiveClientExperience(client, 1000);
+	SC_GiveClientCash(client, 250);
+#endif
 	
 	gifts_collected_map += 1;
 	gifts_collected_round += 1;

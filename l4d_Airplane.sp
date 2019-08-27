@@ -103,6 +103,11 @@
 
 #define MAXLIST 26
 #define MAXENTITIES 128
+#define USE_SIMPLECOMBAT	true
+
+#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
+#include <l4d2_simple_combat>
+#endif
 
 // ====================================================================================================
 //					VARIEBLES
@@ -369,7 +374,25 @@ public void OnPluginStart()
 	AutoExecConfig(true, "l4d_Airplane");
 	HookConVarChange(cCustomModel, CvarChanged);
 	LoadPercents();
+	
+#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
+	CreateTimer(1.0, Timer_RegisterSimpleCombat);
+#endif
 }
+
+#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
+public Action Timer_RegisterSimpleCombat(Handle timer, any unused)
+{
+	SC_CreateSpell("airdrop_ac130", "呼叫空投", 100, 5000, "在瞄准位置呼叫空投补给\nsm_ac130");
+	return Plugin_Continue;
+}
+
+public void SC_OnUseSpellPost(int client, const char[] classname)
+{
+	if(StrEqual(classname, "airdrop_ac130", false))
+		CallAirdrop(client, 0);
+}
+#endif
 
 public void CvarChanged(Handle hCvar, const char[] sOldVal, const char[] sNewVal)
 {

@@ -3,7 +3,7 @@
 #endif
 #define __l4d2_simple_combat__
 
-public SharedPlugin:__pl_simplecombat =
+public SharedPlugin __pl_simplecombat =
 {
 	name = "l4d2_simple_combat",
 	file = "l4d2_simple_combat2.smx",
@@ -147,7 +147,7 @@ native int SC_GetClientSkillSlot(int client);
 native int SC_SetClientSkillSlot(int client, int amount);
 
 // 给玩家经验
-native int SC_GiveClientExperience(int client);
+native int SC_GiveClientExperience(int client, int amount);
 
 // 给玩家资金
 native int SC_GiveClientCash(int client, int amount);

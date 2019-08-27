@@ -10,60 +10,70 @@
 	"Spawn Gift Standard"
 	{
 		"en"			"%N got %d points!"
+		"chi"			"%N 获得了 %d 积分!"
 		"es"			"%N obtuvo %d puntos!"
 	}
 	
 	"Spawn Gift Special"
 	{
 		"en"			"%N got %d points + %s!"
+		"chi"			"%N 获得了 %d 积分 + %s!"
 		"es"			"%N obtuvo %d puntos + %s!"
 	}
 	
 	"Spawn Gift Standard Not Points"
 	{
 		"en"			"%N got gift!"
+		"chi"			"%N 捡到了 礼物!"
 		"es"			"%N obtuvo un regalo!"
 	}
 	
 	"Spawn Gift Special Not Points"
 	{
 		"en"			"%N got gift + %s!"
+		"chi"			"%N 捡到了 礼物 + %s!"
 		"es"			"%N obtuvo un regalo + %s!"
 	}
 	
 	"Your Points for gifts collected"
 	{
 		"en"			"{L}Your Points for gifts collected"
+		"chi"			"{L}你因为捡到了礼物而获得积分"
 		"es"			"{L}Tus puntos por regalos recogidos"
 	}
 	
 	"In current map: %d"
 	{
 		"en"			"In current map: %d"
+		"chi"			"当前地图已捡礼物: %d"
 		"es"			"En el mapa actual: %d"
 	}
 	
 	"In current round: %d"
 	{
 		"en"			"In current round: %d"
+		"chi"			"当前回合已捡礼物: %d"
 		"es"			"En la ronda actual: %d"
 	}
 	
 	"Number of gifts collected"
 	{
 		"en"			"{L}Number of gifts collected"
+		"chi"			"{L}个礼物已经被捡走了"
 		"es"			"{L}Cantidad de regalos recogidos"
 	}
 	
 	"In current map: %d | In current round: %d"
 	{
 		"en"			"In current map: %d | In current round: %d"
+		"chi"			"当前地图已捡礼物: %d | 当前回合已捡礼物: %d"
 		"es"			"En el mapa actual: %d | En la ronda actual: %d"
 	}
 	
 	"In current map: %d | In current round: %d | Throughout the game: %d"
 	{
 		"en"			"In current map: %d | In current round: %d | Throughout the game: %d"
+		"chi"			"当前地图已捡礼物: %d | 当前回合已捡礼物: %d | 服务器已捡礼物: %d"
 		"es"			"En el mapa actual: %d | En la ronda actual: %d | En todo el juego: %d"
 	}
 }

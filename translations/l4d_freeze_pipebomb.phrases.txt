@@ -1,0 +1,17 @@
+/*
+	Following named colors are supported:
+	 - {white}	(use instead of \x01 )
+	 - {cyan}	(use instead of \x03 )
+	 - {orange}	(use instead of \x04 )
+	 - {green}	(use instead of \x05 )
+*/
+
+"Phrases"
+{
+	"FREEZE"
+	{
+		"#format"	"{1:N}"
+		"en"		"{green}[pipebomb] {cyan}{1} {white}received freezing bomb."
+		"es"		"{green}[pipebomb] {cyan}{1} {white}recibió bomba congelante."
+	}
+}

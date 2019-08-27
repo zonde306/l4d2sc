@@ -1,0 +1,7 @@
+"Phrases"
+{
+	"PourGas_Pickup"
+	{
+		"en"			"Pour gas onto the ground by pressing your reload (R) or zoom key (mouse 3)."
+	}
+}

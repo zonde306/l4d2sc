@@ -1,0 +1,15 @@
+"Phrases"
+{
+	"ChargerSteering_Mouse"
+	{
+		"en"			"Use the mouse to change direction while charging."
+	}
+	"ChargerSteering_Strafe"
+	{
+		"en"			"Use the MOVE LEFT/RIGHT (A/D keys) to strafe while charging."
+	}
+	"ChargerSteering_Both"
+	{
+		"en"			"Use the mouse or MOVE LEFT/RIGHT (A/D keys) to change direction while charging."
+	}
+}

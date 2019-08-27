@@ -571,7 +571,7 @@ stock bool:Client_IsOnLadder(client)
 	}
 }
 
-enum Water_Level
+enum Water_level
 {
 	WATER_LEVEL_NOT_IN_WATER = 0,
 	WATER_LEVEL_FEET_IN_WATER,
@@ -1351,7 +1351,7 @@ stock Client_RemoveAllWeapons(client, const String:exclude[]="", bool:clearAmmo=
  * @param className		Weapon Classname.
  * @return				True if client has the weapon, otherwise false.
  */
-stock bool:Client_HasWeapon(client, const String:className[])
+stock Client_HasWeapon(client, const String:className[])
 {
 	new weapon = Client_GetWeapon(client, className);
 

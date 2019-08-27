@@ -1,0 +1,43 @@
+"Phrases"
+{
+	"VoteMode_Force"
+	{
+		"en"	"Force Game Mode:"
+	}
+	"VoteMode_Vote"
+	{
+		"en"	"Vote Game Mode:"
+	}
+	"VoteMode_Pass"
+	{
+		"en"	"An admin has passed the current vote."
+	}
+	"VoteMode_Veto"
+	{
+		"en"	"An admin has ended the current vote."
+	}
+	"VoteMode_InProgress"
+	{
+		"en"	"Cannot start vote, already in progress!"
+	}
+	"VoteMode_Started"
+	{
+		"en"	"Started a vote to change game mode to:"
+	}
+	"VoteMode_Change"
+	{
+		"en"	"Change Game Mode to:"
+	}
+	"VoteMode_Voted"
+	{
+		"en"	"was voted on changing game mode."
+	}
+	"VoteMode_Changing"
+	{
+		"en"	"Changing to"
+	}
+	"VoteMode_Restarting"
+	{
+		"en"	"Map restarting in 3 seconds..."
+	}
+}

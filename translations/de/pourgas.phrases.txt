@@ -1,0 +1,7 @@
+﻿"Phrases"
+{
+	"PourGas_Pickup"
+	{
+		"de"			"Gieße Benzin auf den Boden indem du deine Nachlade (R) oder Zoom Taste (mittlere Maustaste) drückst."
+	}
+}

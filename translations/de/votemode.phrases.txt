@@ -1,0 +1,43 @@
+"Phrases"
+{
+	"VoteMode_Force"
+	{
+		"de"	"Spielmodus erzwingen:"
+	}
+	"VoteMode_Vote"
+	{
+		"de"	"Spielmodus Umfrage:"
+	}
+	"VoteMode_Pass"
+	{
+		"de"	"Ein Admin hat die aktuelle Umfrage passieren lassen."
+	}
+	"VoteMode_Veto"
+	{
+		"de"	"Ein Admin hat ein Veto gegen die aktuelle Umfrage eingelegt."
+	}
+	"VoteMode_InProgress"
+	{
+		"de"	"Kann keine Umfrage starten, es läuft bereits eine!"
+	}
+	"VoteMode_Started"
+	{
+		"de"	"Umfrage gestartet zum Ändern des Spielmodus zu:"
+	}
+	"VoteMode_Change"
+	{
+		"de"	"Ändere Spielmodus zu:"
+	}
+	"VoteMode_Voted"
+	{
+		"de"	"wurde bei der Spielmodus Umfrage gewählt."
+	}
+	"VoteMode_Changing"
+	{
+		"de"	"Wechsele zu"
+	}
+	"VoteMode_Restarting"
+	{
+		"de"	"Karte lädt in 3 Sekunden neu..."
+	}
+}

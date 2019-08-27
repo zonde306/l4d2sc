@@ -1,0 +1,15 @@
+"Phrases"
+{
+	"ChargerSteering_Mouse"
+	{
+		"de"			"Benutze die Maus, um die Richtung zu ändern während dem Chargen."
+	}
+	"ChargerSteering_Strafe"
+	{
+		"de"			"Benutze die NACH LINKS/RECHTS BEWEGEN Tasten (A/D) zum Bewegen während dem Chargen."
+	}
+	"ChargerSteering_Both"
+	{
+		"de"			"Benutze die Maus oder NACH LINKS/RECHTS BEWEGEN Tasten (A/D), um die Richtung zu ändern während dem Chargen."
+	}
+}

@@ -34,6 +34,7 @@ enum(<<=1)
 	GMF_SCAVENGE = (1 << 4)
 };
 
+bool g_bHasFirstMap = true;
 float g_fNextVoteAllow = 0.0;
 ArrayList g_hVoteMapList, g_hEndMapList;
 char g_szNextMap[64], g_szNextMapName[128];
@@ -108,6 +109,12 @@ public void OnMapStart()
 	g_hEndMapList.Clear();
 	g_hVoteMapList.Clear();
 	LoadVoteMapList();
+	
+	if(g_bHasFirstMap)
+	{
+		g_bHasFirstMap = false;
+		CheckEmptyServer(0);
+	}
 }
 
 public void OnMapEnd()

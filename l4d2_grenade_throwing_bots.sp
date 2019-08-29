@@ -307,18 +307,19 @@ public Action L4D2_OnFindScavengeItem(int client, int &item)
 		{
 			for (int i = 0; i < throwablesFound.Length; i++)
 			{
-				if (!IsValidEntity(throwablesFound.Get(i)) || !HasEntProp(i, Prop_Send, "m_vecOrigin"))
+				int entity = throwablesFound.Get(i);
+				if (!IsValidEntity(entity) || !HasEntProp(entity, Prop_Send, "m_vecOrigin"))
 				{
 					return Plugin_Continue;
 				}
 				
-				GetEntPropVector(throwablesFound.Get(i), Prop_Send, "m_vecOrigin", itemOrigin);
+				GetEntPropVector(entity, Prop_Send, "m_vecOrigin", itemOrigin);
 				GetEntPropVector(client, Prop_Send, "m_vecOrigin", scavengerOrigin);
 				
 				float distance = GetVectorDistance(scavengerOrigin, itemOrigin);
 				if (distance < 250.0)
 				{
-					item = throwablesFound.Get(i);
+					item = entity;
 					return Plugin_Changed;
 				}
 			}

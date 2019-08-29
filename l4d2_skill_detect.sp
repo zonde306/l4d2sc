@@ -1256,7 +1256,9 @@ public Action: Event_PlayerShoved( Handle:event, const String:name[], bool:dontB
 	}
 	
 	// check for shove on smoker by pull victim
-	if ( g_iSmokerVictim[victim] == attacker )
+	if ( g_iSmokerVictim[victim] == attacker ||
+		GetEntPropEnt(victim, Prop_Send, "m_tongueVictim") == attacker ||
+		GetEntPropEnt(attacker, Prop_Send, "m_tongueOwner") == victim )
 	{
 		g_bSmokerShoved[victim] = true;
 	}
@@ -1270,6 +1272,12 @@ bool: IsJockeyLeaping( jockey )
 	new abilityEnt = GetEntPropEnt( jockey, Prop_Send, "m_customAbility" );
 	if ( IsValidEntity(abilityEnt) && HasEntProp(abilityEnt, Prop_Send, "m_isLeaping") &&
 		GetEntProp(abilityEnt, Prop_Send, "m_isLeaping") )
+		return true;
+	
+	new Float:time = GetGameTime();
+	if ( IsValidEntity(abilityEnt) && HasEntProp(abilityEnt, Prop_Send, "m_timestamp") &&
+		GetEntPropFloat(abilityEnt, Prop_Send, "m_timestamp") <= time &&
+		GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") == -1 )
 		return true;
 	
 	return false;
@@ -2548,6 +2556,8 @@ stock HandlePop( attacker, victim, shoveCount, Float:timeAlive, Float:timeNear )
 		}
 	}
 	
+	// PrintToConsoleAll("%d pop %d", attacker, victim);
+	
 	Call_StartForward(g_hForwardBoomerPop);
 	Call_PushCell(attacker);
 	Call_PushCell(victim);
@@ -2572,6 +2582,8 @@ stock HandlePopStop(attacker, victim, hits, Float:timeVomit)
 			PrintToChatAll( "\x03☆ \x01玩家 \x04%N\x01 把正在呕吐的 \x05Boomer\x01 推停了. (%.1f 秒)", attacker, timeVomit );
 		}
 	}
+	
+	// PrintToConsoleAll("%d popstop %d", attacker, victim);
 	
 	Call_StartForward(g_hForwardBoomerPopStop);
 	Call_PushCell(attacker);
@@ -2601,6 +2613,8 @@ stock HandleLevel( attacker, victim )
 		}
 	}
 	
+	// PrintToConsoleAll("%d level %d", attacker, victim);
+	
 	// call forward
 	Call_StartForward(g_hForwardLevel);
 	Call_PushCell(attacker);
@@ -2625,6 +2639,8 @@ stock HandleLevelHurt( attacker, victim, damage )
 			PrintToChatAll( "\x03☆ \x01某个生还者使用近战砍死了冲锋的 \x05Charger\x01 (伤害 \x03%i\x01).", damage );
 		}
 	}
+	
+	// PrintToConsoleAll("%d hurtlevel %d", attacker, victim);
 	
 	// call forward
 	Call_StartForward(g_hForwardLevelHurt);
@@ -2653,6 +2669,8 @@ stock HandleDeadstop( attacker, victim, bool:hunter = true )
 		}
 	}
 	
+	// PrintToConsoleAll("%d deadstop %d", attacker, victim);
+	
 	Call_StartForward(g_hForwardHunterDeadstop);
 	Call_PushCell(attacker);
 	Call_PushCell(victim);
@@ -2672,6 +2690,8 @@ stock HandleShove( attacker, victim, zombieClass )
 			PrintToChatAll( "\x03☆ \x04%N\x01 推开了尝试控人的 \x05特感\x01.", attacker );
 		}
 	}
+	
+	// PrintToConsoleAll("%d shove %d", attacker, victim);
 	
 	Call_StartForward(g_hForwardSIShove);
 	Call_PushCell(attacker);
@@ -2787,6 +2807,8 @@ stock HandleSkeet( attacker, victim, bool:bMelee = false, bool:bSniper = false, 
 			HandleSkeetAssist(attacker, victim);
 	}
 	
+	// PrintToConsoleAll("%d skeet %d", attacker, victim);
+	
 	// call forward
 	if ( bSniper )
 	{
@@ -2873,6 +2895,8 @@ stock HandleNonSkeet( attacker, victim, damage, bool:bOverKill = false, bool:bMe
 		}
 	}
 	
+	// PrintToConsoleAll("%d non-skeet %d", attacker, victim);
+	
 	// call forward
 	if ( bSniper )
 	{
@@ -2919,6 +2943,8 @@ HandleCrown( attacker, damage )
 		}
 	}
 	
+	// PrintToConsoleAll("%d crown %d", attacker, damage);
+	
 	// call forward
 	Call_StartForward(g_hForwardCrown);
 	Call_PushCell(attacker);
@@ -2939,6 +2965,8 @@ HandleDrawCrown( attacker, damage, chipdamage )
 			PrintToChatAll( "\x03★ \x01未知人士引秒了一个 \x05Witch\x01 (最终伤害 \x03%i\x01 damage, 初始伤害 \x05%i\x01).", damage, chipdamage );
 		}
 	}
+	
+	// PrintToConsoleAll("%d drawcrown %d", attacker, damage);
 	
 	// call forward
 	Call_StartForward(g_hForwardDrawCrown);
@@ -2964,6 +2992,8 @@ HandleTongueCut( attacker, victim )
 		}
 	}
 	
+	// PrintToConsoleAll("%d cutting %d", attacker, victim);
+	
 	// call forward
 	Call_StartForward(g_hForwardTongueCut);
 	Call_PushCell(attacker);
@@ -2986,6 +3016,8 @@ HandleSmokerSelfClear( attacker, victim, bool:withShove = false )
 			PrintToChatAll( "\x03☆ \x04%N\x01 被 \x05Smoker\x01 拉自救%s.", attacker, (withShove ? " (推)" : "") );
 		}
 	}
+	
+	// PrintToConsoleAll("%d cleared %d", attacker, victim);
 	
 	// call forward
 	Call_StartForward(g_hForwardSmokerSelfClear);
@@ -3020,6 +3052,8 @@ HandleRockSkeeted( attacker, victim )
 		PrintToChatAll( "\x03☆ \x04%N\x01 打爆了 \x05Tank\x01 的石头.", attacker );
 	}
 	
+	// PrintToConsoleAll("%d rock-skeet %d", attacker, victim);
+	
 	Call_StartForward(g_hForwardRockSkeeted);
 	Call_PushCell(attacker);
 	Call_PushCell(victim);
@@ -3044,6 +3078,8 @@ stock HandleHunterDP( attacker, victim, actualDamage, Float:calculatedDamage, Fl
 			PrintToChatAll( "\x03★ \x01一个 \x04Hunter\x01 高空飞扑砸到了 \x05%N\x01 (伤害 \x03%i\x01, 高度 \x05%i\x01).", victim, RoundFloat(calculatedDamage), RoundFloat(height) );
 		}
 	}
+	
+	// PrintToConsoleAll("%d hunter-dp %d", attacker, victim);
 	
 	Call_StartForward(g_hForwardHunterDP);
 	Call_PushCell(attacker);
@@ -3071,6 +3107,8 @@ stock HandleJockeyDP( attacker, victim, Float:height )
 			PrintToChatAll( "\x03★ \x01一个 \x04Jockey\x01 空投骑到了 \x05%N\x01 的脸上 (高度 \x05%i\x01).", victim, RoundFloat(height) );
 		}
 	}
+	
+	// PrintToConsoleAll("%d jockey-dp %d", attacker, victim);
 	
 	Call_StartForward(g_hForwardJockeyDP);
 	Call_PushCell(attacker);
@@ -3106,6 +3144,8 @@ stock HandleDeathCharge( attacker, victim, Float:height, Float:distance, bool:bC
 				);
 		}
 	}
+	
+	// PrintToConsoleAll("%d deathcharge %d", attacker, victim);
 	
 	Call_StartForward(g_hForwardDeathCharge);
 	Call_PushCell(attacker);
@@ -3159,6 +3199,8 @@ stock HandleClear( attacker, victim, pinVictim, zombieClass, Float:clearTimeA, F
 		}
 	}
 	
+	// PrintToConsoleAll("%d instaclear %d", attacker, victim);
+	
 	Call_StartForward(g_hForwardClear);
 	Call_PushCell(attacker);
 	Call_PushCell(victim);
@@ -3192,6 +3234,8 @@ stock HandleBHopStreak( survivor, streak, Float: maxVelocity )
 				maxVelocity
 			);
 	}
+	
+	// PrintToConsoleAll("%d bhop %d", survivor, streak);
 	
 	Call_StartForward(g_hForwardBHopStreak);
 	Call_PushCell(survivor);
@@ -3250,6 +3294,8 @@ stock HandleCarAlarmTriggered( survivor, infected, reason )
 			PrintToChatAll( "\x03× \x05%N\x01 触发了警报车.", survivor );
 		}
 	}
+	
+	// PrintToConsoleAll("%d alarmed %d", survivor, infected);
 	
 	Call_StartForward(g_hForwardAlarmTriggered);
 	Call_PushCell(survivor);

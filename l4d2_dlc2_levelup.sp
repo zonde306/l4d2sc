@@ -1360,9 +1360,6 @@ stock void PrintToLeft(int client, const char[] text, any ...)
 
 stock void PrintToLeftAll(const char[] text, any ...)
 {
-	if(!IsValidClient(client) || IsFakeClient(client))
-		return;
-
 	char buffer[255];
 	VFormat(buffer, 255, text, 2);
 

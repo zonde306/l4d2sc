@@ -3004,6 +3004,9 @@ public Action Timer_OnMenuThink(Handle timer, any data)
 {
 	float time = GetGameTime();
 	
+	if(g_hDatabase == null)
+		Timer_ConnectDatabase(null, 0);
+	
 #if defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_
 	int alivePlayer[MAXPLAYERS + 1] = {-1, ...}, maxAlivePlayer = 0;
 	int deadPlayer[MAXPLAYERS + 1] = {-1, ...}, maxDeadPlayer = 0;

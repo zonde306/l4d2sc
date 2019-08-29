@@ -435,7 +435,7 @@ new		Handle:			g_hCvarMaxPounceDamage								= INVALID_HANDLE;	// z_hunter_max_p
 public Plugin:myinfo = 
 {
 	name = "技能检测",
-	author = "Tabun",
+	author = "Tabun, zonde306",
 	description = "检测空爆hunter, 近战秒牛, 砍舌头, 连跳等操作.",
 	version = PLUGIN_VERSION,
 	url = "https://github.com/Tabbernaut/L4D2-Plugins"
@@ -520,7 +520,7 @@ public OnPluginStart()
 	// cvars: config
 	
 	g_hCvarReport = CreateConVar(			"sm_skill_report_enable" ,		"1", "是否开启聊天框显示操作", FCVAR_NONE, true, 0.0, true, 1.0 );
-	g_hCvarReportFlags = CreateConVar(		"sm_skill_report_flags" ,		REP_DEFAULT, "在聊天框内显示的内容 (bitflags: 1,2:skeets/hurt; 4,8:level/chip; 16,32:crown/draw; 64,128:cut/selfclear, ... ).", FCVAR_NONE, true, 0.0 );
+	g_hCvarReportFlags = CreateConVar(		"sm_skill_report_flags" ,		REP_DEFAULT, "在聊天框内显示的内容\n(bitflags: 1,2:skeets/hurt; 4,8:level/chip; 16,32:crown/draw; 64,128:cut/selfclear, ... ).", FCVAR_NONE, true, 0.0 );
 	
 	g_hCvarAllowMelee = CreateConVar(		"sm_skill_skeet_allowmelee",	"1", "是否检测近战击杀飞扑 Hunter", FCVAR_NONE, true, 0.0, true, 1.0 );
 	g_hCvarAllowSniper = CreateConVar(		"sm_skill_skeet_allowsniper",	"1", "是否检测狙击爆头击杀飞扑 Hunter", FCVAR_NONE, true, 0.0, true, 1.0 );
@@ -2536,7 +2536,7 @@ public Action: L4D_OnCThrowActivate ( ability )
 stock HandlePop( attacker, victim, shoveCount, Float:timeAlive, Float:timeNear )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_POP && timeNear < 5.0 )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_POP) && timeNear < 5.0 )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -2560,7 +2560,8 @@ stock HandlePop( attacker, victim, shoveCount, Float:timeAlive, Float:timeNear )
 stock HandlePopStop(attacker, victim, hits, Float:timeVomit)
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_POPSTOP && hits < 1 && timeVomit < GetConVarFloat(g_hCvarInstaTime) )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_POPSTOP) &&
+		hits < 1 && timeVomit < GetConVarFloat(g_hCvarInstaTime) )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -2584,7 +2585,7 @@ stock HandlePopStop(attacker, victim, hits, Float:timeVomit)
 stock HandleLevel( attacker, victim )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_LEVEL )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_LEVEL) )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -2610,7 +2611,7 @@ stock HandleLevel( attacker, victim )
 stock HandleLevelHurt( attacker, victim, damage )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_HURTLEVEL )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_HURTLEVEL) )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -2637,7 +2638,7 @@ stock HandleLevelHurt( attacker, victim, damage )
 stock HandleDeadstop( attacker, victim, bool:hunter = true )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_DEADSTOP )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_DEADSTOP) )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -2660,7 +2661,7 @@ stock HandleDeadstop( attacker, victim, bool:hunter = true )
 stock HandleShove( attacker, victim, zombieClass )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_SHOVE )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_SHOVE) )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -2716,7 +2717,7 @@ stock HandleSkeet( attacker, victim, bool:bMelee = false, bool:bSniper = false, 
 	shots = 1, assist = -1, bool:isHunter = true )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_SKEET )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_SKEET) )
 	{
 		if ( attacker == -2 )
 		{
@@ -2823,7 +2824,7 @@ stock HandleNonSkeet( attacker, victim, damage, bool:bOverKill = false, bool:bMe
 	shots = 1, bool:isHunter = true )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_HURTSKEET )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_HURTSKEET) )
 	{
 		if(IS_VALID_INGAME(attacker))
 		{
@@ -2907,7 +2908,7 @@ stock HandleNonSkeet( attacker, victim, damage, bool:bOverKill = false, bool:bMe
 HandleCrown( attacker, damage )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_CROWN )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_CROWN) )
 	{
 		if ( IS_VALID_INGAME(attacker) )
 		{
@@ -2928,14 +2929,14 @@ HandleCrown( attacker, damage )
 HandleDrawCrown( attacker, damage, chipdamage )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_DRAWCROWN )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_DRAWCROWN) )
 	{
 		if ( IS_VALID_INGAME(attacker) )
 		{
 			PrintToChatAll( "\x03★ \x04%N\x01 引秒了一个 \x05Witch\x01 (最终伤害 \x03%i\x01, 初始伤害 \x05%i\x01).", attacker, damage, chipdamage );
 		}
 		else {
-			PrintToChatAll( "\x03★ \x01引秒了一个 \x05Witch\x01 (最终伤害 \x03%i\x01 damage, 初始伤害 \x05%i\x01).", damage, chipdamage );
+			PrintToChatAll( "\x03★ \x01未知人士引秒了一个 \x05Witch\x01 (最终伤害 \x03%i\x01 damage, 初始伤害 \x05%i\x01).", damage, chipdamage );
 		}
 	}
 	
@@ -2951,7 +2952,7 @@ HandleDrawCrown( attacker, damage, chipdamage )
 HandleTongueCut( attacker, victim )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_TONGUECUT )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_TONGUECUT) )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -2973,8 +2974,8 @@ HandleTongueCut( attacker, victim )
 HandleSmokerSelfClear( attacker, victim, bool:withShove = false )
 {
 	// report?
-	if (	GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_SELFCLEAR &&
-			(!withShove || GetConVarInt(g_hCvarReport) & REP_SELFCLEARSHOVE )
+	if (	GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_SELFCLEAR) &&
+			(!withShove || (GetConVarInt(g_hCvarReport) & REP_SELFCLEARSHOVE) )
 	) {
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -3005,7 +3006,7 @@ HandleRockEaten( attacker, victim )
 HandleRockSkeeted( attacker, victim )
 {
 	// report?
-	if ( GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_ROCKSKEET )
+	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_ROCKSKEET) )
 	{
 		/*
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
@@ -3030,7 +3031,7 @@ stock HandleHunterDP( attacker, victim, actualDamage, Float:calculatedDamage, Fl
 {
 	// report?
 	if (	GetConVarBool(g_hCvarReport)
-		&&	GetConVarInt(g_hCvarReportFlags) & REP_HUNTERDP
+		&&	(GetConVarInt(g_hCvarReportFlags) & REP_HUNTERDP)
 		&&	height >= GetConVarFloat(g_hCvarHunterDPThresh)
 		&&	!playerIncapped
 	) {
@@ -3058,7 +3059,7 @@ stock HandleJockeyDP( attacker, victim, Float:height )
 {
 	// report?
 	if (	GetConVarBool(g_hCvarReport)
-		&&	GetConVarInt(g_hCvarReportFlags) & REP_JOCKEYDP
+		&&	(GetConVarInt(g_hCvarReportFlags) & REP_JOCKEYDP)
 		&&	height >= GetConVarFloat(g_hCvarJockeyDPThresh)
 	) {
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(attacker) )
@@ -3084,7 +3085,7 @@ stock HandleDeathCharge( attacker, victim, Float:height, Float:distance, bool:bC
 {
 	// report?
 	if (	GetConVarBool(g_hCvarReport) &&
-			GetConVarInt(g_hCvarReportFlags) & REP_DEATHCHARGE &&
+			(GetConVarInt(g_hCvarReportFlags) & REP_DEATHCHARGE) &&
 			height >= GetConVarFloat(g_hCvarDeathChargeHeight)
 	) {
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(attacker) )
@@ -3124,7 +3125,7 @@ stock HandleClear( attacker, victim, pinVictim, zombieClass, Float:clearTimeA, F
 	
 	PrintDebug(0, "Clear: %i freed %i from %i: time: %.2f / %.2f -- class: %s (with shove? %i)", attacker, pinVictim, victim, clearTimeA, clearTimeB, g_csSIClassName[zombieClass], bWithShove );
 	
-	if ( attacker != pinVictim && GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_INSTACLEAR )
+	if ( attacker != pinVictim && GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_INSTACLEAR) )
 	{
 		new Float: fMinTime = GetConVarFloat(g_hCvarInstaTime);
 		new Float: fClearTime = clearTimeA;
@@ -3181,7 +3182,7 @@ stock HandleVomitLanded( attacker, boomCount )
 // bhaps
 stock HandleBHopStreak( survivor, streak, Float: maxVelocity )
 {
-	if (	GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_BHOPSTREAK &&
+	if (	GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_BHOPSTREAK) &&
 			IS_VALID_INGAME(survivor) && !IsFakeClient(survivor) &&
 			streak >= GetConVarInt(g_hCvarBHopMinStreak)
 	) {
@@ -3201,7 +3202,7 @@ stock HandleBHopStreak( survivor, streak, Float: maxVelocity )
 // car alarms
 stock HandleCarAlarmTriggered( survivor, infected, reason )
 {
-	if (	GetConVarBool(g_hCvarReport) && GetConVarInt(g_hCvarReportFlags) & REP_CARALARM &&
+	if (	GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_CARALARM) &&
 			IS_VALID_INGAME(survivor) && !IsFakeClient(survivor)
 	) {
 		if ( reason == CALARM_HIT ) {

@@ -307,7 +307,7 @@ public Action L4D2_OnFindScavengeItem(int client, int &item)
 		{
 			for (int i = 0; i < throwablesFound.Length; i++)
 			{
-				if (!IsValidEntity(throwablesFound.Get(i)))
+				if (!IsValidEntity(throwablesFound.Get(i)) || !HasEntProp(i, Prop_Send, "m_vecOrigin"))
 				{
 					return Plugin_Continue;
 				}

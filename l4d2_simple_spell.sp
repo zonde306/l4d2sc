@@ -189,10 +189,15 @@ void OnSpellUse_HealAll(int client)
 void OnSpellUse_ReviveAll(int client)
 {
 	int team = GetClientTeam(client);
+	int weapon = GetPlayerWeaponSlot(client, 0);
 	for(int i = 1; i <= MaxClients; ++i)
 	{
 		if(!IsValidAliveClient(i) || GetClientTeam(i) != team)
 			continue;
+		
+		int attacker = GetCurrentAttacker(i);
+		if(IsValidAliveClient(attacker))
+			SDKHooks_TakeDamage(attacker, i, client, 999.0, DMG_BULLET, weapon);
 		
 		CheatCommand(i, "script", "GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(i));
 	}
@@ -651,6 +656,34 @@ void OnSpellUse_TeleportFrom(int client)
 		
 		TeleportEntity(i, origin, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
 	}
+}
+
+stock int GetCurrentAttacker(int client)
+{
+	if(!IsValidAliveClient(client))
+		return -1;
+	
+	int attacker = GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	attacker = GetEntPropEnt(client, Prop_Send, "m_pummelAttacker");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	attacker = GetEntPropEnt(client, Prop_Send, "m_pounceAttacker");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	attacker = GetEntPropEnt(client, Prop_Send, "m_tongueOwner");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	attacker = GetEntPropEnt(client, Prop_Send, "m_carryAttacker");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	return -1;
 }
 
 void CheatCommand(int client, const char[] command, const char[] buffer = "", any ...)

@@ -273,14 +273,15 @@ public Action:L4D2_OnFindScavengeItem(client, &item)
 			}
 			for (new i = 0; i <= GetArraySize(MedsArray) - 1; i++)
 			{
-				if (IsValidEntity(i))
+				new entity = GetArrayCell(MedsArray, i);
+				if (IsValidEntity(entity))
 				{
-					GetEntPropVector(GetArrayCell(MedsArray, i), Prop_Send, "m_vecOrigin", Origin);
+					GetEntPropVector(entity, Prop_Send, "m_vecOrigin", Origin);
 					GetEntPropVector(client, Prop_Send, "m_vecOrigin", TOrigin);
 					new Float:distance = GetVectorDistance(TOrigin, Origin);
 					if (distance < 300)
 					{
-						item = GetArrayCell(MedsArray, i);
+						item = entity;
 						return Plugin_Changed;
 					}
 				}

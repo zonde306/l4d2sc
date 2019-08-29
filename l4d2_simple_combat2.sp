@@ -5529,7 +5529,12 @@ bool SaveToFile(int client)
 public void SQLTran_SavePlayerComplete(Database db, any client, int numQueries, DBResultSet[] res, any[] unused)
 {
 	if(IsValidClient(client))
-		LogMessage("保存玩家 %N 成功，共有 %d 个法术和 %d 个技能。", client, g_hPlayerSpell[client].Length, g_hPlayerSkill[client].Length);
+	{
+		if(g_hPlayerSpell[client] && g_hPlayerSkill[client])
+			LogMessage("保存玩家 %N 成功，共有 %d 个法术和 %d 个技能。", client, g_hPlayerSpell[client].Length, g_hPlayerSkill[client].Length);
+		else
+			LogMessage("保存玩家 %N 成功。", client);
+	}
 	else
 		LogMessage("保存玩家 %d 成功。", client);
 	

@@ -579,10 +579,15 @@ public Action Timer_QueryConVarTimeout(Handle timer, any client)
 	g_hTimerQueryTimeout[client] = null;
 	g_iQueryTimeout[client] += 1;
 	
+	if(!IsValidClient(client))
+		return Plugin_Stop;
+	
 	int maxQueryCount = g_ConVar_QueryMaxCount.IntValue;
 	if(maxQueryCount > 0 && g_iQueryTimeout[client] > maxQueryCount)
 		if(!(GetUserFlagBits(client) & ADMFLAG_ROOT))
 			KickClient(client, "查询 ConVar 失败，请重启游戏\nQuery ConVar Timeout");
+	
+	return Plugin_Continue;
 }
 
 public void ConVar_QueryClient(QueryCookie cookie, int client, ConVarQueryResult result, const char[] cvarName, const char[] cvarValue)

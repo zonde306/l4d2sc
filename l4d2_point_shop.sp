@@ -25,15 +25,19 @@ ConVar g_pCvarUZI, g_pCvarTMP, g_pCvarMP5, g_pCvarChrome, g_pCvarPump,
 	g_pCvarBaseball, g_pCvarCricket, g_pCvarCrowbar, g_pCvarGuitar, g_pCvarFireaxe, g_pCvarPan,
 	g_pCvarGolfclub, g_pCvarKatana, g_pCvarKnife, g_pCvarMachete, g_pCvarShield, g_pCvarTonfa,
 	g_pCvarMob, g_pCvarSmoker, g_pCvarBoomer, g_pCvarHunter, g_pCvarSpitter, g_pCvarJockey, g_pCvarCharger,
-	g_pCvarWitch, g_pCvarTank;
+	g_pCvarWitch, g_pCvarTank, g_pCvarRespawnSelf, g_pCvarRespawnOther, g_pCvarReviveOther;
 
 Menu g_hMenuMain, g_hMenuTier1, g_hMenuTier2, g_hMenuTier3, g_hMenuItem, g_hMenuMelee, g_hMenuUpgrade,
-	g_hMenuZombie;
+	g_hMenuZombie, g_hMenuRespawn;
 
 public void OnPluginStart()
 {
 	CreateConVar("ps_version", PLUGIN_VERSION, "插件版本", CVAR_FLAGS);
 	g_pCvarAllow = CreateConVar("ps_allow", "1", "是否开启插件", CVAR_FLAGS, true, 0.0, true, 1.0);
+	
+	g_pCvarRespawnSelf = CreateConVar("ps_cost_respawn_self", "9000", "复活自己 价格.-1=禁用", CVAR_FLAGS, true, -1.0);
+	g_pCvarRespawnOther = CreateConVar("ps_cost_respawn_other", "8000", "复活队友 价格.-1=禁用", CVAR_FLAGS, true, -1.0);
+	g_pCvarReviveOther = CreateConVar("ps_cost_revive_other", "3500", "救援队友 价格.-1=禁用", CVAR_FLAGS, true, -1.0);
 	
 	g_pCvarUZI = CreateConVar("ps_cost_smg", "1000", "冲锋枪 价格.-1=禁用", CVAR_FLAGS, true, -1.0);
 	g_pCvarTMP = CreateConVar("ps_cost_smg_slienced", "1150", "消音冲锋枪 价格.-1=禁用", CVAR_FLAGS, true, -1.0);
@@ -96,8 +100,10 @@ public void OnPluginStart()
 	CreateTimer(1.0, Timer_SetupMenuItem);
 }
 
-#define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
-#define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1))
+#define IsValidClient(%1)				(1 <= %1 <= MaxClients && IsClientInGame(%1))
+#define IsValidAliveClient(%1)			(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1))
+#define IsPlayerIncapacitated(%1)		(GetEntProp(%1, Prop_Send, "m_isIncapacitated", 1) != 0)
+#define IsPlayerHanging(%1)				(GetEntProp(%1, Prop_Send, "m_isHangingFromLedge", 1) != 0)
 
 public Action Timer_SetupMenuItem(Handle timer, any data)
 {
@@ -112,7 +118,7 @@ public void SC_OnMenuItemClickPost(int client, const char[] info, const char[] d
 
 public Action Cmd_BuyMenu(int client, int argc)
 {
-	if(!IsValidAliveClient(client))
+	if(!IsValidClient(client))
 		return Plugin_Continue;
 	
 	if(!g_pCvarAllow.BoolValue)
@@ -127,9 +133,18 @@ public Action Cmd_BuyMenu(int client, int argc)
 	int team = GetClientTeam(client);
 	if(team == 2)
 	{
-		g_hMenuMain.ExitBackButton = (argc == -1);
-		g_hMenuMain.SetTitle(tr("%s\n当前金钱：%d", GetMenuTitleNaked(g_hMenuMain), SC_GetClientCash(client)));
-		g_hMenuMain.Display(client, MENU_TIME_FOREVER);
+		if(IsPlayerAlive(client))
+		{
+			g_hMenuMain.ExitBackButton = (argc == -1);
+			g_hMenuMain.SetTitle(tr("%s\n当前金钱：%d", GetMenuTitleNaked(g_hMenuMain), SC_GetClientCash(client)));
+			g_hMenuMain.Display(client, MENU_TIME_FOREVER);
+		}
+		else
+		{
+			g_hMenuRespawn.ExitBackButton = (argc == -1);
+			g_hMenuRespawn.SetTitle(tr("%s\n当前金钱：%d", GetMenuTitleNaked(g_hMenuRespawn), SC_GetClientCash(client)));
+			g_hMenuRespawn.Display(client, MENU_TIME_FOREVER);
+		}
 	}
 	else if(team == 3)
 	{
@@ -262,6 +277,17 @@ void BuildMenu()
 	g_hMenuZombie.AddItem("tank", MakeItemCost("克（Tank）", g_pCvarTank));
 	g_hMenuZombie.ExitBackButton = true;
 	g_hMenuZombie.ExitButton = true;
+	
+	if(g_hMenuRespawn != null)
+		delete g_hMenuRespawn;
+	
+	g_hMenuRespawn = CreateMenu(MenuHandler_Respawn);
+	g_hMenuRespawn.SetTitle("商店菜单 - 复活");
+	g_hMenuRespawn.AddItem("respawn", MakeItemCost("复活自己", g_pCvarRespawnSelf));
+	g_hMenuRespawn.AddItem("respawn", MakeItemCost("复活队友", g_pCvarRespawnOther));
+	g_hMenuRespawn.AddItem("revive", MakeItemCost("救援队友", g_pCvarReviveOther));
+	g_hMenuRespawn.ExitBackButton = true;
+	g_hMenuRespawn.ExitButton = true;
 }
 
 public int MenuHandler_MainMenu(Menu menu, MenuAction action, int client, int select)
@@ -488,6 +514,282 @@ public int MenuHandler_Zombie(Menu menu, MenuAction action, int client, int sele
 	
 	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
 	return 0;
+}
+
+public int MenuHandler_Respawn(Menu menu, MenuAction action, int client, int select)
+{
+	if(!IsValidClient(client))
+		return 0;
+	
+	if(action != MenuAction_Select)
+		return 0;
+	
+	int cash = SC_GetClientCash(client);
+	
+	char display[255];
+	GetMenuTitleNaked(menu, display, 255);
+	menu.SetTitle(tr("%s\n当前金钱：%d", display, cash));
+	
+	int cost = GetMenuItemCost(menu, select, display, 255);
+	if(cost == -1)
+	{
+		PrintToChat(client, "\x03[提示]\x04%s 暂时缺货。", display);
+		menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+		return 0;
+	}
+	
+	if(cost > 0 && cost > cash)
+	{
+		PrintToChat(client, "\x03[提示]\x01 购买 \x04%s\x01 失败，金钱不足。需要：\x05%d\x01，现有：\x05%d\x01。",
+			display, cost, cash);
+		menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+		return 0;
+	}
+	
+	switch(select)
+	{
+		case 0:
+		{
+			// CheatCommand(client, "respawn");
+			CheatCommand(client, "script", "GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(client));
+			
+			if(cost > 0)
+			{
+				SC_SetClientCash(client, cash - cost);
+				PrintToChat(client, "\x03[提示]\x01 购买 \x04%s\x01 完成，剩余 \x05%d\x01 金钱。",
+					display, SC_GetClientCash(client));
+			}
+			else
+			{
+				PrintToChat(client, "\x03[提示]\x01 获取 \x04%s\x01 完成。", display);
+			}
+		}
+		case 1:
+		{
+			if(!ShowRespawnMenu(client))
+			{
+				PrintToChat(client, "\x03[提示]\x01 没有死亡的队友。");
+				menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+			}
+		}
+		case 2:
+		{
+			if(!ShowReviveMenu(client))
+			{
+				PrintToChat(client, "\x03[提示]\x01 没有需要帮助的队友。");
+				menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+			}
+		}
+	}
+	
+	return 0;
+}
+
+stock Menu ShowRespawnMenu(int client)
+{
+	Menu m = CreateMenu(MenuHandler_RespawnOther);
+	m.SetTitle("商店菜单 - 复活队友\n价格：%d", g_pCvarRespawnOther.IntValue);
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(i == client || !IsValidClient(i) || GetClientTeam(i) != 2 || IsPlayerAlive(i))
+			continue;
+		
+		m.AddItem(tr("%d", i), tr("%N", i));
+	}
+	
+	if(m.ItemCount > 0)
+	{
+		m.Display(client, MENU_TIME_FOREVER);
+		return m;
+	}
+	
+	delete m;
+	return null;
+}
+
+public int MenuHandler_RespawnOther(Menu menu, MenuAction action, int client, int select)
+{
+	if(!IsValidClient(client))
+		return 0;
+	
+	if(action != MenuAction_Select)
+		return 0;
+	
+	int cash = SC_GetClientCash(client);
+	
+	char display[255];
+	GetMenuTitleNaked(menu, display, 255);
+	menu.SetTitle(tr("%s\n当前金钱：%d", display, cash));
+	
+	int cost = g_pCvarRespawnOther.IntValue;
+	if(cost == -1)
+	{
+		PrintToChat(client, "\x03[提示]\x04%s 暂时缺货。", display);
+		menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+		return 0;
+	}
+	
+	if(cost > 0 && cost > cash)
+	{
+		PrintToChat(client, "\x03[提示]\x01 购买 \x04%s\x01 失败，金钱不足。需要：\x05%d\x01，现有：\x05%d\x01。",
+			display, cost, cash);
+		menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+		return 0;
+	}
+	
+	char info[4];
+	menu.GetItem(select, info, 4);
+	int subject = StringToInt(info);
+	if(!IsValidClient(subject) || GetClientTeam(subject) != 2 || IsPlayerAlive(subject))
+	{
+		PrintToChat(client, "\x03[提示]\x04 他已经不需要复活了。");
+		if(!ShowRespawnMenu(client))
+			g_hMenuRespawn.Display(client, MENU_TIME_FOREVER);
+		return 0;
+	}
+	
+	// CheatCommand(subject, "respawn");
+	CheatCommand(client, "script", "GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(subject));
+	
+	if(cost > 0)
+	{
+		SC_SetClientCash(client, cash - cost);
+		PrintToChat(client, "\x03[提示]\x01 购买 \x04%s\x01 完成，剩余 \x05%d\x01 金钱。",
+			display, SC_GetClientCash(client));
+	}
+	else
+	{
+		PrintToChat(client, "\x03[提示]\x01 获取 \x04%s\x01 完成。", display);
+	}
+	
+	if(!ShowRespawnMenu(client))
+		g_hMenuRespawn.Display(client, MENU_TIME_FOREVER);
+	
+	return 0;
+}
+
+stock Menu ShowReviveMenu(int client)
+{
+	Menu m = CreateMenu(MenuHandler_ReviveOther);
+	m.SetTitle("商店菜单 - 救援队友\n价格：%d", g_pCvarReviveOther.IntValue);
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(i == client || !IsValidClient(i) || GetClientTeam(i) != 2 || !IsPlayerAlive(i))
+			continue;
+		
+		if(!IsPlayerIncapacitated(i) && !IsPlayerHanging(i) && GetCurrentAttacker(i) == -1)
+			continue;
+		
+		m.AddItem(tr("%d", i), tr("%N", i));
+	}
+	
+	if(m.ItemCount > 0)
+	{
+		m.Display(client, MENU_TIME_FOREVER);
+		return m;
+	}
+	
+	delete m;
+	return null;
+}
+
+public int MenuHandler_ReviveOther(Menu menu, MenuAction action, int client, int select)
+{
+	if(!IsValidClient(client))
+		return 0;
+	
+	if(action != MenuAction_Select)
+		return 0;
+	
+	int cash = SC_GetClientCash(client);
+	
+	char display[255];
+	GetMenuTitleNaked(menu, display, 255);
+	menu.SetTitle(tr("%s\n当前金钱：%d", display, cash));
+	
+	int cost = g_pCvarReviveOther.IntValue;
+	if(cost == -1)
+	{
+		PrintToChat(client, "\x03[提示]\x04%s 暂时缺货。", display);
+		menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+		return 0;
+	}
+	
+	if(cost > 0 && cost > cash)
+	{
+		PrintToChat(client, "\x03[提示]\x01 购买 \x04%s\x01 失败，金钱不足。需要：\x05%d\x01，现有：\x05%d\x01。",
+			display, cost, cash);
+		menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+		return 0;
+	}
+	
+	char info[4];
+	menu.GetItem(select, info, 4);
+	int subject = StringToInt(info);
+	if(!IsValidClient(subject) || GetClientTeam(subject) != 2 || !IsPlayerAlive(subject) ||
+		(!IsPlayerIncapacitated(subject) && !IsPlayerHanging(subject) && GetCurrentAttacker(subject) == -1))
+	{
+		PrintToChat(client, "\x03[提示]\x04 他已经不需要救援了。");
+		if(!ShowRespawnMenu(client))
+			g_hMenuRespawn.Display(client, MENU_TIME_FOREVER);
+		return 0;
+	}
+	
+	int attacker = GetCurrentAttacker(subject);
+	if(IsValidAliveClient(attacker))
+		ForcePlayerSuicide(attacker);
+	
+	if(IsPlayerIncapacitated(subject) || IsPlayerHanging(subject))
+	{
+		// CheatCommand(subject, "revive");
+		CheatCommand(client, "script", "GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(subject));
+	}
+	
+	if(cost > 0)
+	{
+		SC_SetClientCash(client, cash - cost);
+		PrintToChat(client, "\x03[提示]\x01 购买 \x04%s\x01 完成，剩余 \x05%d\x01 金钱。",
+			display, SC_GetClientCash(client));
+	}
+	else
+	{
+		PrintToChat(client, "\x03[提示]\x01 获取 \x04%s\x01 完成。", display);
+	}
+	
+	if(!ShowRespawnMenu(client))
+		g_hMenuRespawn.Display(client, MENU_TIME_FOREVER);
+	
+	return 0;
+}
+
+stock int GetCurrentAttacker(int client)
+{
+	if(!IsValidAliveClient(client))
+		return -1;
+	
+	int attacker = GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	attacker = GetEntPropEnt(client, Prop_Send, "m_pummelAttacker");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	attacker = GetEntPropEnt(client, Prop_Send, "m_pounceAttacker");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	attacker = GetEntPropEnt(client, Prop_Send, "m_tongueOwner");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	attacker = GetEntPropEnt(client, Prop_Send, "m_carryAttacker");
+	if(IsValidAliveClient(attacker))
+		return attacker;
+	
+	return -1;
 }
 
 char GetMenuTitleNaked(Menu menu, char[] buffer = "", int len = 0)

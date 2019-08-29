@@ -1645,18 +1645,22 @@ public Action tmrAutoGrab(Handle timer)
 											{
 												int iCount = GetEntProp(ent, Prop_Data, "m_itemCount");
 												if( iCount > 1 )
-													SetEntProp(ent, Prop_Data, "m_itemCount", iCount -1);
-												else
-													AcceptEntityInput(ent, "kill");
+													// SetEntProp(ent, Prop_Data, "m_itemCount", iCount -1);
+													AcceptEntityInput(ent, "Use", client, ent);
+												// else
+													// AcceptEntityInput(ent, "kill");
 											}
 										}
 										else
-											AcceptEntityInput(ent, "kill");
+										{
+											// AcceptEntityInput(ent, "kill");
+											AcceptEntityInput(ent, "Use", client, ent);
+										}
 
 										FireEventsFootlocker(client, ent, s_EdictClassName);
 
 										ResetItemArray(count);
-										GiveItem(client, s_EdictClassName);
+										// GiveItem(client, s_EdictClassName);
 										Vocalize(client, s_EdictClassName);
 
 										if( g_bNotify && g_bTranslation && !g_bBlockVocalize )

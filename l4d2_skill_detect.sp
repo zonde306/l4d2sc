@@ -2724,10 +2724,10 @@ stock HandleSkeet( attacker, victim, bool:bMelee = false, bool:bSniper = false, 
 			if(IS_VALID_INGAME(assist))
 			{
 				if ( IS_VALID_INGAME(victim) && !IsFakeClient(victim) ) {
-					PrintToChatAll( "\x03★ \x05%N\x01 在飞扑时被 \x04%N\x01 和他的队友合力打死了", victim, attacker );
+					PrintToChatAll( "\x03★ \x05%N\x01 在飞扑时被 \x04%N\x01 和他的队友合力打死了", victim, assist );
 				} else {
 					PrintToChatAll( "\x03★ \x01 某个 \x05%s\x01 在飞扑时被 \x04%N\x01 和他的队友合力打死了",
-						(isHunter ? "Hunter" : "Jockey"), attacker );
+						(isHunter ? "Hunter" : "Jockey"), assist );
 				}
 			}
 			else

@@ -1257,13 +1257,28 @@ public Action: Event_PlayerShoved( Handle:event, const String:name[], bool:dontB
 	
 	// check for shove on smoker by pull victim
 	if ( g_iSmokerVictim[victim] == attacker ||
-		GetEntPropEnt(victim, Prop_Send, "m_tongueVictim") == attacker ||
-		GetEntPropEnt(attacker, Prop_Send, "m_tongueOwner") == victim )
+		GetEntPropEnt(attacker, Prop_Send, "m_tongueVictim") == victim ||
+		GetEntPropEnt(victim, Prop_Send, "m_tongueOwner") == attacker )
 	{
 		g_bSmokerShoved[victim] = true;
+		// PrintToChat(attacker, "shoved %d player_shoved", victim);
 	}
 	
 	//PrintDebug(0, "shove by %i on %i", attacker, victim );
+	return Plugin_Continue;
+}
+
+public Action:L4D_OnShovedBySurvivor(attacker, victim, const Float:vector[3])
+{
+	// check for shove on smoker by pull victim
+	if ( g_iSmokerVictim[victim] == attacker ||
+		GetEntPropEnt(attacker, Prop_Send, "m_tongueVictim") == victim ||
+		GetEntPropEnt(victim, Prop_Send, "m_tongueOwner") == attacker )
+	{
+		g_bSmokerShoved[victim] = true;
+		// PrintToChat(attacker, "shoved %d L4D_OnShovedBySurvivor", victim);
+	}
+	
 	return Plugin_Continue;
 }
 
@@ -3005,7 +3020,7 @@ HandleSmokerSelfClear( attacker, victim, bool:withShove = false )
 {
 	// report?
 	if (	GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_SELFCLEAR) &&
-			(!withShove || (GetConVarInt(g_hCvarReport) & REP_SELFCLEARSHOVE) )
+			(!withShove || (GetConVarInt(g_hCvarReportFlags) & REP_SELFCLEARSHOVE) )
 	) {
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
@@ -3018,6 +3033,7 @@ HandleSmokerSelfClear( attacker, victim, bool:withShove = false )
 	}
 	
 	// PrintToConsoleAll("%d cleared %d", attacker, victim);
+	// PrintToChat(attacker, "selfclear %d, shove %d", victim, withShove);
 	
 	// call forward
 	Call_StartForward(g_hForwardSmokerSelfClear);

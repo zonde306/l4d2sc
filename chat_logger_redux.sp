@@ -6,7 +6,7 @@
 
 #define PLUGIN_VERSION "1.1.2"
 
-Handle ConVars[14];
+Handle ConVars[16];
 Handle Path_handle;
 
 bool sv_bEnabled;
@@ -21,6 +21,8 @@ bool sv_bHsay;
 bool sv_bPsay;
 bool sv_bFormatting;
 bool sv_bConsole;
+bool sv_bConnect;
+bool sv_bChangeLevel;
 char cv_sFolder[64];
 
 bool IsHooked;
@@ -50,6 +52,8 @@ public void OnPluginStart()
 	ConVars[11] = CreateConVar("sm_chat_log_rtf_format", "0", "记录模式.0=txt.1=rtf", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	ConVars[12] = CreateConVar("sm_chat_log_console", "1", "记录控制台", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	ConVars[13] = CreateConVar("sm_chat_log_folder", "chat", "文件名", FCVAR_NOTIFY);
+	ConVars[14] = CreateConVar("sm_chat_log_connect", "1", "是否记录玩家连接", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	ConVars[15] = CreateConVar("sm_chat_log_map", "1", "是否记录换图", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 		
 	for (int i = 0; i < sizeof(ConVars); i++)
 	{
@@ -156,6 +160,14 @@ public int HandleCvars (Handle cvar, const char[] oldValue, const char[] newValu
 	{
 		strcopy(cv_sFolder, sizeof(cv_sFolder), newValue);
 	}
+	else if (cvar == ConVars[14])
+	{
+		sv_bConnect = bValue;
+	}
+	else if (cvar == ConVars[15])
+	{
+		sv_bChangeLevel = bValue;
+	}
 }
 
 public Action NewFCheck(Handle timer, any unused)
@@ -208,6 +220,9 @@ public Action NewFCheck(Handle timer, any unused)
 
 public void OnMapStart()
 {
+	if(!sv_bChangeLevel)
+		return;
+	
 	char map[64];
 	GetCurrentMap(map, 64);
 	
@@ -223,6 +238,9 @@ public void OnMapStart()
 
 public void OnMapEnd()
 {
+	if(!sv_bChangeLevel)
+		return;
+	
 	char map[64];
 	GetCurrentMap(map, 64);
 	
@@ -238,6 +256,9 @@ public void OnMapEnd()
 
 public void Event_PlayerConnect(Event event, const char[] eventName, bool unknown)
 {
+	if(!sv_bConnect)
+		return;
+	
 	char name[MAX_NAME_LENGTH], ip[32], steamId[32];
 	event.GetString("name", name, MAX_NAME_LENGTH);
 	event.GetString("address", ip, 32);
@@ -258,6 +279,9 @@ public void Event_PlayerConnect(Event event, const char[] eventName, bool unknow
 
 public void Event_PlayerDisconnect(Event event, const char[] eventName, bool unknown)
 {
+	if(!sv_bConnect)
+		return;
+	
 	char name[MAX_NAME_LENGTH], reason[255], steamId[32];
 	event.GetString("name", name, MAX_NAME_LENGTH);
 	event.GetString("reason", reason, 255);

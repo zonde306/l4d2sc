@@ -2016,8 +2016,7 @@ void RespawnClient(int client, int target=0)
 		RoundRespawnSig(client);
 
 		if (!g_ADFreeze && weaponizePlayer)
-	{
-		   
+		{
 			if(g_PrimaryWeapon[0] != '\0')
 				QuickCheat(client, "give", g_PrimaryWeapon);
 			

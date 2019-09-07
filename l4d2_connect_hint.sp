@@ -258,6 +258,7 @@ public void Event_PlayerDisconnect(Event event, const char[] eventName, bool don
 	char name[MAX_NAME_LENGTH], reason[255], ip[32];
 	event.GetString("name", name, MAX_NAME_LENGTH);
 	event.GetString("reason", reason, 255);
+	ReplaceString(reason, 255, "\n", " ");
 	
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(IsValidClient(client))

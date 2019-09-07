@@ -16,15 +16,17 @@ public Plugin myinfo =
 
 int g_iMissionLost = 0;
 ConVar g_hCvarDifficulty;
-ConVar g_pCvarDifficulty, g_pCvarLostDemote, g_pCvarMinDifficulty, g_pCvarBlockVote;
+ConVar g_pCvarDifficulty, g_pCvarLostDemote, g_pCvarMinDifficulty, g_pCvarBlockDifficulty, g_pCvarBlockReturn, g_pCvarBlockRestart;
 
 public void OnPluginStart()
 {
 	InitPlugin("dl");
 	g_pCvarDifficulty = CreateConVar("l4d2_dl_default", "4", "默认难度等级.0=禁用.1=简单.2=普通.3=困难.4=专家", CVAR_FLAGS, true, 0.0, true, 4.0);
 	g_pCvarMinDifficulty = CreateConVar("l4d2_dl_min", "2", "最小难度等级.0=禁用.1=简单.2=普通.3=困难.4=专家", CVAR_FLAGS, true, 0.0, true, 4.0);
-	g_pCvarLostDemote = CreateConVar("l4d2_dl_demote", "2", "失败多少次降级难度.0=禁用", CVAR_FLAGS, true, 0.0, true, 5.0);
-	g_pCvarBlockVote = CreateConVar("l4d2_dl_block_vote", "1", "禁止难度投票", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarLostDemote = CreateConVar("l4d2_dl_demote", "3", "失败多少次降级难度.0=禁用", CVAR_FLAGS, true, 0.0, true, 5.0);
+	g_pCvarBlockDifficulty = CreateConVar("l4d2_dl_block_difficulty", "1", "禁止难度投票", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarBlockReturn = CreateConVar("l4d2_dl_block_return", "1", "禁止返回大厅投票", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarBlockRestart = CreateConVar("l4d2_dl_block_restart", "1", "禁止重启战役投票", CVAR_FLAGS, true, 0.0, true, 1.0);
 	AutoExecConfig(true, "l4d2_difficulty_locker");
 	
 	g_hCvarDifficulty = FindConVar("z_difficulty");
@@ -91,14 +93,17 @@ public Action Cmd_CallVote(int client, const char[] command, int argc)
 	if(!IsPluginAllow() || argc < 2)
 		return Plugin_Continue;
 	
-	if(!g_pCvarBlockVote.BoolValue)
-		return Plugin_Continue;
-	
 	char voteType[32];
 	GetCmdArg(1, voteType, 32);
 	UpdateDifficultyLock(0);
 	
-	if(StrEqual(voteType, "ChangeDifficulty", false))
+	if(g_pCvarBlockDifficulty.BoolValue && StrEqual(voteType, "ChangeDifficulty", false))
+		return Plugin_Handled;
+	
+	if(g_pCvarBlockReturn.BoolValue && StrEqual(voteType, "ReturnToLobby", false))
+		return Plugin_Handled;
+	
+	if(g_pCvarBlockRestart.BoolValue && StrEqual(voteType, "RestartGame", false))
 		return Plugin_Handled;
 	
 	return Plugin_Continue;

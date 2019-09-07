@@ -274,7 +274,7 @@ public Action:L4D2_OnFindScavengeItem(client, &item)
 			for (new i = 0; i <= GetArraySize(MedsArray) - 1; i++)
 			{
 				new entity = GetArrayCell(MedsArray, i);
-				if (IsValidEntity(entity))
+				if (IsValidEntity(entity) && HasEntProp(entity, Prop_Send, "m_vecOrigin"))
 				{
 					GetEntPropVector(entity, Prop_Send, "m_vecOrigin", Origin);
 					GetEntPropVector(client, Prop_Send, "m_vecOrigin", TOrigin);

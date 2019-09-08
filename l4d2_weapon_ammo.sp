@@ -668,6 +668,13 @@ int GetClientWeaponAmmo(int client, const char[] classname)
 		return -1;
 	}
 	
+	if(IsFakeClient(client))
+	{
+		int defaults = GetDefaultWeaponAmmo(classname);
+		if(defaults > ammo)
+			ammo = defaults;
+	}
+	
 	if(!SC_IsClientHaveSkill(client, "ca_maxammo"))
 		return ammo;
 	
@@ -676,6 +683,57 @@ int GetClientWeaponAmmo(int client, const char[] classname)
 		ammo = g_iMaxAmmo;
 	
 	return ammo;
+}
+
+int GetDefaultWeaponAmmo(const char[] classname)
+{
+	if(StrContains(classname, "weapon_") != 0)
+		return -1;
+	
+	static ConVar ammo_assaultrifle_max, ammo_autoshotgun_max, ammo_huntingrifle_max,
+		ammo_shotgun_max, ammo_smg_max, ammo_sniperrifle_max;
+	if(ammo_assaultrifle_max == null)
+	{
+		ammo_assaultrifle_max = FindConVar("ammo_assaultrifle_max");
+		ammo_autoshotgun_max = FindConVar("ammo_autoshotgun_max");
+		ammo_huntingrifle_max = FindConVar("ammo_huntingrifle_max");
+		ammo_shotgun_max = FindConVar("ammo_shotgun_max");
+		ammo_smg_max = FindConVar("ammo_smg_max");
+		ammo_sniperrifle_max = FindConVar("ammo_sniperrifle_max");
+	}
+	
+	if(StrEqual(classname, "weapon_rifle", false))
+		return ammo_assaultrifle_max.IntValue;
+	if(StrEqual(classname, "weapon_rifle_ak47", false))
+		return ammo_assaultrifle_max.IntValue;
+	if(StrEqual(classname, "weapon_rifle_desert", false))
+		return ammo_assaultrifle_max.IntValue;
+	if(StrEqual(classname, "weapon_rifle_sg552", false))
+		return ammo_assaultrifle_max.IntValue;
+	if(StrEqual(classname, "weapon_smg", false))
+		return ammo_smg_max.IntValue;
+	if(StrEqual(classname, "weapon_smg_silenced", false))
+		return ammo_smg_max.IntValue;
+	if(StrEqual(classname, "weapon_smg_mp5", false))
+		return ammo_smg_max.IntValue;
+	if(StrEqual(classname, "weapon_sniper_military", false))
+		return ammo_sniperrifle_max.IntValue;
+	if(StrEqual(classname, "weapon_sniper_scout", false))
+		return ammo_sniperrifle_max.IntValue;
+	if(StrEqual(classname, "weapon_sniper_awp", false))
+		return ammo_sniperrifle_max.IntValue;
+	if(StrEqual(classname, "weapon_hunting_rifle", false))
+		return ammo_huntingrifle_max.IntValue;
+	if(StrEqual(classname, "weapon_pumpshotgun", false))
+		return ammo_shotgun_max.IntValue;
+	if(StrEqual(classname, "weapon_shotgun_spas", false))
+		return ammo_autoshotgun_max.IntValue;
+	if(StrEqual(classname, "weapon_shotgun_chrome", false))
+		return ammo_shotgun_max.IntValue;
+	if(StrEqual(classname, "weapon_autoshotgun", false))
+		return ammo_autoshotgun_max.IntValue;
+	
+	return -1;
 }
 
 stock void InitFindEntity()

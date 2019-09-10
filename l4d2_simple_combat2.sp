@@ -4942,9 +4942,9 @@ stock char tr(const char[] text, any ...)
 }
 
 #if defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_
-public Action Timer_ConnectDatabase(Handle timer, any unused)
+public Action Timer_ConnectDatabase(Handle timer, any force)
 {
-	if(g_hDatabase != null)
+	if(g_hDatabase != null && !force)
 		return Plugin_Stop;
 	
 	static KeyValues kv;
@@ -5386,6 +5386,10 @@ public void SQLTran_LoadPlayerFailure(Database db, any client, int numQueries, c
 		return;
 	
 	LogError("读取玩家 %N 失败：[%d] %s", client, failIndex, error);
+	
+	if(StrContains(error, "Lost connection", false) > -1 ||
+		StrContains(error, "server has gone away", false) > -1)
+		Timer_ConnectDatabase(null, 1);
 }
 
 #endif	// defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_
@@ -5561,6 +5565,10 @@ public void SQLTran_SavePlayerFailure(Database db, any client, int numQueries, c
 		LogError("保存玩家 %N 失败：[%d] %s", client, failIndex, error);
 	else
 		LogError("保存玩家 %d 失败：[%d] %s", client, failIndex, error);
+	
+	if(StrContains(error, "Lost connection", false) > -1 ||
+		StrContains(error, "server has gone away", false) > -1)
+		Timer_ConnectDatabase(null, 1);
 }
 
 #endif	// defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_

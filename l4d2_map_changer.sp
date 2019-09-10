@@ -87,8 +87,9 @@ public void OnPluginStart()
 	HookEvent("finale_radio_start", Event_FinalStart);
 	HookEvent("mission_lost", Event_FinalLost);
 	HookEvent("final_reportscreen", Event_FinalReport);
-	HookEvent("player_left_start_area", Event_StartPlay);
-	HookEvent("player_first_spawn", Event_RoundStartEx);
+	HookEvent("player_left_start_area", Event_LeftStartArea);
+	HookEvent("player_team", Event_PlayerChangeTeam);
+	HookEvent("door_unlocked", Event_DoorUnlocked);
 }
 
 public void OnMapStart()
@@ -295,7 +296,7 @@ public Action Command_OuttroDone(int client, const char[] command, int argc)
 	if(g_hTimerChangeMap != null)
 		KillTimer(g_hTimerChangeMap);
 	
-	Timer_ChangeLevel(null, 0);
+	g_hTimerChangeMap = CreateTimer(0.1, Timer_ChangeLevel);
 	PrintToChatAll("\x03[提示]\x01 展示结束，更换地图：\x05%s", g_szNextMapName);
 	return Plugin_Continue;
 }
@@ -310,21 +311,41 @@ public void Event_RoundStart(Event event, const char[] eventName, bool dontBroad
 	
 	g_hTimerCheckGameMode = CreateTimer(1.0, Timer_CheckGameMode);
 	g_hTimerSupply = CreateTimer(1.5, Timer_GivePlayerItem);
+	LogMessage("round start supply");
 }
 
-public void Event_RoundStartEx(Event event, const char[] eventName, bool dontBroadcast)
+public void Event_PlayerChangeTeam(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(!IsPluginAllow())
 		return;
 	
-	if(!g_bHasFirstRound)
+	if(!g_bHasFirstRound || !IsAllPlayerReady())
 		return;
+	
+	g_bHasFirstRound = false;
 	
 	if(g_hTimerSupply != null)
 		KillTimer(g_hTimerSupply);
 	
+	g_hTimerSupply = CreateTimer(0.1, Timer_GivePlayerItem);
+	LogMessage("client ready supply");
+}
+
+public void Event_DoorUnlocked(Event event, const char[] eventName, bool dontBroadcast)
+{
+	if(!IsPluginAllow())
+		return;
+	
+	if(!g_bHasFirstRound || !event.GetBool("checkpoint"))
+		return;
+	
 	g_bHasFirstRound = false;
-	g_hTimerSupply = CreateTimer(1.5, Timer_GivePlayerItem);
+	
+	if(g_hTimerSupply != null)
+		KillTimer(g_hTimerSupply);
+	
+	g_hTimerSupply = CreateTimer(0.1, Timer_GivePlayerItem);
+	LogMessage("door unlock supply");
 }
 
 public Action Timer_GivePlayerItem(Handle timer, any unused)
@@ -479,14 +500,24 @@ public void Event_FinalReport(Event event, const char[] eventName, bool dontBroa
 		g_bHasVoteSkipOuttro[i] = false;
 }
 
-public void Event_StartPlay(Event event, const char[] eventName, bool dontBroadcast)
+public void Event_LeftStartArea(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(!IsPluginAllow())
 		return;
 	
+	if(g_bHasFirstRound)
+	{
+		g_bHasFirstRound = false;
+		
+		if(g_hTimerSupply != null)
+			KillTimer(g_hTimerSupply);
+		
+		g_hTimerSupply = CreateTimer(0.1, Timer_GivePlayerItem);
+	}
+	
 	char current[64];
 	GetCurrentMap(current, 64);
-	if(g_hEndMapList.FindString(current) == -1 && FindFinaleEntity() == -1)
+	if(g_hEndMapList.FindString(current) == -1 && !IsFinale())
 		return;
 	
 	if((g_szNextMap[0] == EOS || g_szNextMapName[0] == EOS) && g_hTimerVoteStarting == null)
@@ -990,7 +1021,35 @@ stock bool CheatCommandEx(int client = 0, const char[] command, const char[] arg
 	return true;
 }
 
-int FindFinaleEntity()
+stock bool IsAllPlayerReady()
 {
-	return FindEntityByClassname(-1, "trigger_finale");
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(!IsClientConnected(i) || IsFakeClient(i) || GetClientTeam(i) != 2)
+			continue;
+		
+		if(!IsClientInGame(i))
+			return false;
+	}
+	
+	return true;
+}
+
+stock bool IsFinale()
+{
+	char nextMap[64];
+	nextMap[0] = EOS;
+	
+	int entity = FindEntityByClassname(-1, "info_changelevel");
+	if(entity == -1)
+		entity = FindEntityByClassname(-1, "trigger_changelevel");
+	if(entity > -1)
+		GetEntPropString(entity, Prop_Data, "m_mapName", nextMap, 64);
+	
+	if((FindEntityByClassname(-1, "trigger_finale") > -1 ||
+		FindEntityByClassname(-1, "env_outtro_stats") > -1) &&
+		nextMap[0] == EOS)
+		return true;
+	
+	return false;
 }

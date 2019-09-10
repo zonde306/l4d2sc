@@ -413,7 +413,7 @@ public void OnMapStart()
 	PrecacheSound(SOUND_CRACKLE);
 	PrecacheModel(MODEL_FLARE);
 
-	if(cCustomModel.IntValue)
+	if(cCustomModel.BoolValue)
 		if (!IsModelPrecached("models/props_crates/supply_crate02_custom.mdl")) PrecacheModel("models/props_crates/supply_crate02_custom.mdl");
 
 	for(int i = 0; i < 2; i++)
@@ -442,7 +442,7 @@ public Action CallAirdrop(int client, int args)
 {
 	float vPos[3];
 	AirPlane(client, vPos);
-	if(cMessages.IntValue) CPrintToChatAll("%t", "call_airdrop", client);
+	if(cMessages.BoolValue) CPrintToChatAll("%t", "call_airdrop", client);
 	return Plugin_Handled;
 }
 
@@ -604,7 +604,7 @@ public Action tSetGravity(Handle timer, any entity)
 		vAng[0] = 89.0;
 		Handle hTrace;
 		vSpeed[2] = float(cParachuteSpeed.IntValue) * -1;
-		if(cCustomModel.IntValue)
+		if(cCustomModel.BoolValue)
 			TeleportEntity(entity, NULL_VECTOR, NULL_VECTOR, vSpeed);
 		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vPos);
 		hTrace = TR_TraceRayFilterEx(vPos, vAng, CONTENTS_SOLID, RayType_Infinite, TraceDontHitSelf, entity);
@@ -614,7 +614,7 @@ public Action tSetGravity(Handle timer, any entity)
 			float vDistance = GetVectorDistance(vPos, vEndPos);
 			if(vDistance < 20.5)
 			{
-				if(cFlare.IntValue)
+				if(cFlare.BoolValue)
 				{
 					GetConVarString(cColorFlare, sColor, sizeof sColor);
 					vAng[0] = 0.0;
@@ -623,7 +623,7 @@ public Action tSetGravity(Handle timer, any entity)
 					MakeFlare(entity, vAng, vPos, sColor, sColor);
 					gFlares[entity] = true;
 				}
-				if(cCustomModel.IntValue)
+				if(cCustomModel.BoolValue)
 				{
 					iGravity = EntRefToEntIndex(g_iParachute[entity]);	
 					if(iGravity != INVALID_ENT_REFERENCE)
@@ -712,7 +712,7 @@ void CreateCrates(float vPos[3])
 		AcceptEntityInput(entity, "AddOutput");
 		AcceptEntityInput(entity, "FireUser1");
 		
-		if(cFlare.IntValue || cCustomModel.IntValue)
+		if(cFlare.BoolValue || cCustomModel.BoolValue)
 		{
 			for(int v = MaxClients; v < 2049; v++)
 			{
@@ -724,7 +724,7 @@ void CreateCrates(float vPos[3])
 			}
 		}
 		
-		if(cCustomModel.IntValue)
+		if(cCustomModel.BoolValue)
 		{	
 			iGravity = CreateEntityByName("prop_dynamic_override");
 			SetEntityModel(iGravity, "models/props_crates/supply_crate02_custom.mdl");
@@ -734,20 +734,34 @@ void CreateCrates(float vPos[3])
 			AcceptEntityInput(iGravity, "SetParent", entity);
 			g_iParachute[entity] = EntIndexToEntRef(iGravity);
 		}
-	
-		iTrigger = CreateEntityByName("func_button_timed");
+		
+		if(cTimeOpen.IntValue > 0)
+		{
+			iTrigger = CreateEntityByName("func_button_timed");
+			DispatchKeyValue(iTrigger, "use_string", sUseString);
+			DispatchKeyValue(iTrigger, "use_time", sTimeOpen);
+			DispatchKeyValue(iTrigger, "auto_disable", "1");
+			DispatchKeyValue(iTrigger, "spawnflags", "0");
+			HookSingleEntityOutput(iTrigger, "OnTimeUp", OnTimeUp);
+			SetEntProp(iTrigger, Prop_Data, "m_takedamage", 0, 1);
+		}
+		else
+		{
+			iTrigger = CreateEntityByName("func_button");
+			DispatchKeyValue(iTrigger, "spawnflags", "1025");
+			HookSingleEntityOutput(iTrigger, "OnPressed", OnTimeUp);
+			HookSingleEntityOutput(iTrigger, "OnDamaged", OnTimeUp);
+		}
+		
 		DispatchKeyValueVector(iTrigger, "origin", vPos);
-		DispatchKeyValue(iTrigger, "use_string", sUseString);
-		DispatchKeyValue(iTrigger, "use_time", sTimeOpen);
-		DispatchKeyValue(iTrigger, "auto_disable", "1");
 		TeleportEntity(iTrigger, vPos, NULL_VECTOR, NULL_VECTOR);
 		DispatchSpawn(iTrigger);
 		ActivateEntity(iTrigger);
-			
+		AcceptEntityInput(iTrigger, "Enable");
+		
 		SetEntPropVector(iTrigger, Prop_Send, "m_vecMins", view_as<float>({-225.0, -225.0, -225.0}));
 		SetEntPropVector(iTrigger, Prop_Send, "m_vecMaxs", view_as<float>({225.0, 225.0, 225.0}));
-		HookSingleEntityOutput(iTrigger, "OnTimeUp", OnTimeUp);
-		//HookSingleEntityOutput(iTrigger, "OnPressed", OnPressed);
+		
 		//HookSingleEntityOutput(iTrigger, "OnUnPressed", OnUnPressed);
 		SetEntityModel(iTrigger, gModeList[2]);
 		SetEntityRenderMode(iTrigger, RENDER_NONE);
@@ -761,11 +775,11 @@ void CreateCrates(float vPos[3])
 		    SetEntProp(entity, Prop_Send, "m_iGlowType", 3);
 		    SetEntProp(entity, Prop_Send, "m_glowColorOverride", GetColor(sColor));
 		}
-		SetEntProp(iTrigger, Prop_Data, "m_takedamage", 0, 1);
+		
 		SetEntProp(entity, Prop_Data, "m_takedamage", 0, 1);
 		gIndexCrate[iTrigger] = EntIndexToEntRef(entity);
 	}
-	if(cMessages.IntValue) CPrintToChatAll("%t {white}%.2f %.2f %.2f", "airdrop_coordinates" , vPos[0], vPos[1], vPos[2]);
+	if(cMessages.BoolValue) CPrintToChatAll("%t {white}%.2f %.2f %.2f", "airdrop_coordinates" , vPos[0], vPos[1], vPos[2]);
 }
 
 public void OnTimeUp(const char[] output, int caller, int activator, float delay)
@@ -802,7 +816,7 @@ public void OnTimeUp(const char[] output, int caller, int activator, float delay
 			//int iFlareSound = EntRefToEntIndex(g_iFlares[entity][0]);
 			//if(iFlareSound != INVALID_ENT_REFERENCE)
 			//	StopSound(iFlareSound, SNDCHAN_AUTO, SOUND_CRACKLE);
-			if(cMessages.IntValue)
+			if(cMessages.BoolValue)
 				for(int i = 1; i <= MaxClients; i++)
 					if(IsClientInGame(i)) CPrintToChat(i, "%t", "open_airdrop", activator);
 			if(IsLeft4Dead2) 

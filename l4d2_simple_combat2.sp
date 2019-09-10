@@ -5385,7 +5385,7 @@ public void SQLTran_LoadPlayerFailure(Database db, any client, int numQueries, c
 	if(!IsValidClient(client) || failIndex == -1)
 		return;
 	
-	LogError("读取玩家 %N 失败：%s", client, error[failIndex]);
+	LogError("读取玩家 %N 失败：[%d] %s", client, failIndex, error);
 }
 
 #endif	// defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_
@@ -5558,9 +5558,9 @@ public void SQLTran_SavePlayerFailure(Database db, any client, int numQueries, c
 		return;
 	
 	if(IsValidClient(client))
-		LogError("保存玩家 %N 失败：%s", client, error[failIndex]);
+		LogError("保存玩家 %N 失败：[%d] %s", client, failIndex, error);
 	else
-		LogError("保存玩家 %d 失败：%s", client, error[failIndex]);
+		LogError("保存玩家 %d 失败：[%d] %s", client, failIndex, error);
 }
 
 #endif	// defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_

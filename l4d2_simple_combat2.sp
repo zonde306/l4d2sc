@@ -5145,7 +5145,10 @@ stock int GetPlayerUserId(int client)
 		return -1;
 	}
 	
-	return (g_iClientUserId[client] = res.FetchInt(0));
+	int userId = res.FetchInt(0);
+	SQL_FastQuery(g_hDatabase, tr("INSERT IGNORE INTO l4d2_simple_combat2 (uid) VALUES ('%d');", userId));
+	SQL_FastQuery(g_hDatabase, tr("INSERT IGNORE INTO l4d2_simple_combat_spell (uid) VALUES ('%d');", userId));
+	return (g_iClientUserId[client] = userId);
 }
 
 public int SW_OnValidateClient(int ownerSteamId, int clientSteamId)
@@ -5182,18 +5185,26 @@ bool LoadFromFile(int client)
 	
 #if defined _USE_DATABASE_MYSQL_ || defined _USE_DATABASE_SQLITE_
 	int userId = GetPlayerUserId(client);
+	if(userId <= 0)
+	{
+		LogError("获取玩家 %N 的 uid 失败(%d)", client, userId);
+		return false;
+	}
+	
 	Transaction tran = SQL_CreateTransaction();
 	
 	// 更新数据
+	/*
 #if defined _USE_DATABASE_MYSQL_
-	tran.AddQuery(tr("INSERT IGNORE INTO user_online (uid) VALUES ('%d');", userId));
-	tran.AddQuery(tr("INSERT IGNORE INTO l4d2_simple_combat2 (uid) VALUES ('%d');", userId));
-	tran.AddQuery(tr("INSERT IGNORE INTO l4d2_simple_combat_spell (uid) VALUES ('%d');", userId));
+	SQL_FastQuery(g_hDatabase, tr("INSERT IGNORE INTO user_online (uid) VALUES ('%d');", userId));
+	SQL_FastQuery(g_hDatabase, tr("INSERT IGNORE INTO l4d2_simple_combat2 (uid) VALUES ('%d');", userId));
+	SQL_FastQuery(g_hDatabase, tr("INSERT IGNORE INTO l4d2_simple_combat_spell (uid) VALUES ('%d');", userId));
 #else
-	tran.AddQuery(tr("INSERT OR IGNORE INTO user_online (uid) VALUES ('%d');", userId));
-	tran.AddQuery(tr("INSERT OR IGNORE INTO l4d2_simple_combat2 (uid) VALUES ('%d');", userId));
-	tran.AddQuery(tr("INSERT OR IGNORE INTO l4d2_simple_combat_spell (uid) VALUES ('%d');", userId));
+	SQL_FastQuery(g_hDatabase, tr("INSERT OR IGNORE INTO user_online (uid) VALUES ('%d');", userId));
+	SQL_FastQuery(g_hDatabase, tr("INSERT OR IGNORE INTO l4d2_simple_combat2 (uid) VALUES ('%d');", userId));
+	SQL_FastQuery(g_hDatabase, tr("INSERT OR IGNORE INTO l4d2_simple_combat_spell (uid) VALUES ('%d');", userId));
 #endif
+	*/
 	
 	SQL_ExecuteTransaction(g_hDatabase, tran);
 	
@@ -5220,7 +5231,7 @@ bool LoadFromFile(int client)
 	g_hDatabase.Escape(country, country, 64);
 	
 	tran = SQL_CreateTransaction();
-	g_iClientUserId[client] = userId;
+	// g_iClientUserId[client] = userId;
 	
 	// 读取存档
 	tran.AddQuery(tr("SELECT max_health, max_stamina, max_magic, max_willpower, accounts, points, level, experience, level_experience, skill_slot FROM l4d2_simple_combat2 WHERE uid = '%d';", userId));
@@ -5327,6 +5338,7 @@ public void SQLTran_LoadPlayerComplete(Database db, any client, int numQueries, 
 	if(!IsValidClient(client))
 		return;
 	
+	bool failure = false;
 	if(res[0] != null && res[0].RowCount > 0 && res[0].FetchRow())
 	{
 		g_iMaxHealth[client] = res[0].FetchInt(0);
@@ -5344,6 +5356,16 @@ public void SQLTran_LoadPlayerComplete(Database db, any client, int numQueries, 
 	{
 		// 这种情况一般不会出现的
 		LogError("错误：玩家 %N 查询信息失败。", client);
+		failure = true;
+	
+		if(g_iClientUserId[client] > 0)
+		{
+#if defined _USE_DATABASE_MYSQL_
+			SQL_FastQuery(g_hDatabase, tr("INSERT IGNORE INTO l4d2_simple_combat2 (uid) VALUES ('%d');", g_iClientUserId[client]));
+#else
+			SQL_FastQuery(g_hDatabase, tr("INSERT OR IGNORE INTO l4d2_simple_combat2 (uid) VALUES ('%d');", g_iClientUserId[client]));
+#endif
+		}
 	}
 	
 	if(res[1] != null && res[1].RowCount > 0 && res[1].FetchRow())
@@ -5364,6 +5386,16 @@ public void SQLTran_LoadPlayerComplete(Database db, any client, int numQueries, 
 	{
 		// 这种情况一般不会出现的
 		LogError("错误：玩家 %N 查询法术失败。", client);
+		failure = true;
+		
+		if(g_iClientUserId[client] > 0)
+		{
+#if defined _USE_DATABASE_MYSQL_
+			SQL_FastQuery(g_hDatabase, tr("INSERT IGNORE INTO l4d2_simple_combat_spell (uid) VALUES ('%d');", g_iClientUserId[client]));
+#else
+			SQL_FastQuery(g_hDatabase, tr("INSERT OR IGNORE INTO l4d2_simple_combat_spell (uid) VALUES ('%d');", g_iClientUserId[client]));
+#endif
+		}
 	}
 	
 	Call_StartForward(g_fwOnLoadPost);
@@ -5376,7 +5408,10 @@ public void SQLTran_LoadPlayerComplete(Database db, any client, int numQueries, 
 #endif
 	Call_Finish();
 	
-	LogMessage("读取玩家 %N 成功，共有 %d 个法术和 %d 个技能。", client, g_hPlayerSpell[client].Length, g_hPlayerSkill[client].Length);
+	if(!failure)
+		LogMessage("读取玩家 %N 成功，共有 %d 个法术和 %d 个技能。", client, g_hPlayerSpell[client].Length, g_hPlayerSkill[client].Length);
+	else
+		LoadFromFile(client);
 	// SetupPlayerHook(client);
 }
 
@@ -5409,6 +5444,11 @@ bool SaveToFile(int client)
 	int userId = g_iClientUserId[client];
 	if(userId <= 0)
 		userId = GetPlayerUserId(client);
+	if(userId <= 0)
+	{
+		LogError("获取玩家 %N 的 uid 失败(%d)", client, userId);
+		return false;
+	}
 	
 	Transaction tran = SQL_CreateTransaction();
 	

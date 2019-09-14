@@ -92,6 +92,8 @@ public void OnConfigsExecuted()
 	sv_bFormatting = GetConVarBool(ConVars[11]);
 	sv_bConsole = GetConVarBool(ConVars[12]);
 	GetConVarString(ConVars[13], cv_sFolder, sizeof(cv_sFolder));
+	sv_bConnect = GetConVarBool(ConVars[14]);
+	sv_bChangeLevel = GetConVarBool(ConVars[15]);
 }
 
 public int HandleCvars (Handle cvar, const char[] oldValue, const char[] newValue)

@@ -327,7 +327,7 @@ public void Event_PlayerChangeTeam(Event event, const char[] eventName, bool don
 	if(g_hTimerSupply != null)
 		KillTimer(g_hTimerSupply);
 	
-	g_hTimerSupply = CreateTimer(0.1, Timer_GivePlayerItem);
+	g_hTimerSupply = CreateTimer(1.0, Timer_GivePlayerItem);
 	LogMessage("client ready supply");
 }
 
@@ -1025,7 +1025,7 @@ stock bool IsAllPlayerReady()
 {
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		if(!IsClientConnected(i) || IsFakeClient(i) || GetClientTeam(i) != 2)
+		if(!IsClientConnected(i) || IsFakeClient(i))
 			continue;
 		
 		if(!IsClientInGame(i))

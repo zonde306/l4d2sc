@@ -24,11 +24,7 @@
 #include <geoip>
 #include <geoipcity>
 
-#define _SQL_CONNECT_HOST_		"zonde306.site"
-#define _SQL_CONNECT_PORT_		"3306"
-#define _SQL_CONNECT_DATABASE_	"source_game"
-#define _SQL_CONNECT_USER_		"srcgame"
-#define _SQL_CONNECT_PASSWORD_	"abby6382"
+
 #endif	// defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_MYSQL_
 
 #define PLUGIN_VERSION	"0.2"

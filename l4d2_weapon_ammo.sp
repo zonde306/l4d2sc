@@ -128,6 +128,21 @@ public Action Timer_SkillRegister(Handle timer, any unused)
 	return Plugin_Continue;
 }
 
+public Action SC_OnSkillGetInfo(int client, const char[] classname,
+	char[] display, int displayMaxLength, char[] description, int descriptionMaxLength)
+{
+	if(StrEqual(classname, "ca_maxammo", false))
+		FormatEx(description, descriptionMaxLength, "备用弹药 ＋%.2f％", SKILLAMMO_SIZE - 1.0);
+	else if(StrEqual(classname, "ca_maxclip", false))
+		FormatEx(description, descriptionMaxLength, "弹夹大小 ＋%.2f％", SKILLCLIP_SIZE - 1.0);
+	else if(StrEqual(classname, "upf_moreupgrade", false))
+		FormatEx(description, descriptionMaxLength, "弹药升级 ＋%.2f％", SKILLUPGRADE_SIZE - 1.0);
+	else
+		return Plugin_Continue;
+	
+	return Plugin_Changed;
+}
+
 public void OnCvarUpdate_UpdateAmmo(ConVar cvar, const char[] oldValue, const char[] newValue)
 {
 	g_iClipSmg = g_pCvarSmgClip.IntValue;

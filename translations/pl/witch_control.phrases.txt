@@ -1,0 +1,19 @@
+"Phrases"
+{
+	"Information"
+	{
+		"pl"	"PodpowiedŸ"
+	}
+	"Take witch"
+	{
+		"pl"	"Mo¿esz przej¹æ kontrolê nad Witch naciskaj¹c przycisk USE na niej"
+	}
+	"Lose witch"
+	{
+		"pl"	"Mo¿esz oddaæ jej kontrolê naciskaj¹c znowu przycisk USE"
+	}
+	"Sit witch"
+	{
+		"pl"	"Mo¿esz usi¹œæ i wstaæ u¿ywaj¹c przycisu DUCK"
+	}
+}

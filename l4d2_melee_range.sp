@@ -118,7 +118,7 @@ public Action SC_OnSkillGetInfo(int client, const char[] classname,
 	char[] display, int displayMaxLength, char[] description, int descriptionMaxLength)
 {
 	if(StrEqual(classname, "sl_melee_range", false))
-		FormatEx(description, descriptionMaxLength, "近战武器攻击范围 ＋%.2f％", WEAPON_RADIUS - 1.0);
+		FormatEx(description, descriptionMaxLength, "近战武器攻击范围 ＋%.2f％", (WEAPON_RADIUS - 1.0) * 100);
 	else
 		return Plugin_Continue;
 	

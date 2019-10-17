@@ -1,0 +1,19 @@
+"Phrases"
+{
+	"Information"
+	{
+		"en"	"Hint"
+	}
+	"Take witch"
+	{
+		"en"	"You can take control of the witch by pressing the USE button on her"
+	}
+	"Lose witch"
+	{
+		"en"	"You can let go control of the witch by pressing the USE button again"
+	}
+	"Sit witch"
+	{
+		"en"	"You can sit down and get up as witch by pressing the DUCK button"
+	}
+}

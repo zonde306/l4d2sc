@@ -566,7 +566,7 @@ public void SC_OnUseSpellPost(int client, const char[] classname)
 public void OnClientPutInServer(int client)
 {
 	// SDKHook(client, SDKHook_WeaponEquip,	OnWeaponEquip);
-	SDKHook(client, SDKHook_WeaponDrop,		OnWeaponDrop);
+	// SDKHook(client, SDKHook_WeaponDrop,		OnWeaponDrop);
 }
 
 public void OnClientPostAdminCheck(int client)
@@ -2269,6 +2269,8 @@ void Explode_Effects(int client, int entity, int index, bool fromTimer = true)
 		// Stop sounds
 		StopSounds(entity);
 	}
+	
+	g_iClientGrenadeType[client] = -1;
 }
 
 

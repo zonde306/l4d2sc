@@ -1,0 +1,37 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Addresses" // Signatures & ptr has been found by BHaType
+		{
+			"TheNavAreas"
+			{
+				"linux"
+				{
+					"signature" "TheNavAreas" 
+					"read" "428"
+				}
+				"read" "0"
+			}
+			"TheCount"
+			{
+				"linux"
+				{
+					"signature" "TheCount" 
+					"read" "18"
+				}
+			}
+		}
+		"Signatures"
+		{
+			"TheNavAreas"
+			{
+				"linux"		"@_ZN8CNavArea10SpliceEditEPS_"
+			}
+			"TheCount"
+			{
+				"linux"		"@_ZL19nav_update_lightingRK8CCommand"
+			}
+		}
+	}
+}

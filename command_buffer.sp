@@ -50,7 +50,7 @@ char g_sCurrentCommand[ARGS_BUFFER_LENGTH];
 
 public Plugin myinfo =
 {
-	name = "修复缓冲区溢出无法加载配置",
+	name = "缓冲区溢出修复",
 	author = "SilverShot and Peace-Maker",
 	description = "Fixes the 'Cbuf_AddText: buffer overflow' console error on servers, which causes ConVars to use their default value.",
 	version = PLUGIN_VERSION,

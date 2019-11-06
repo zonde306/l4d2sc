@@ -1,0 +1,38 @@
+"Games"
+{
+	"#default"
+	{
+		"Functions"
+		{
+			"InputSurvivorStandingOnCar"
+			{
+				"signature"		"InputSurvivorStandingOnCar"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"address"
+				"arguments"
+				{
+					"client"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+		}
+	}
+
+	"left4dead"
+	{
+		"Signatures"
+		{
+			"InputSurvivorStandingOnCar"
+			{
+				"library"		"server"
+				"windows"		"\x83\x2A\x2A\x56\x8B\x2A\x80\xBE\x2A\x2A\x2A\x2A\x2A\x0F\x85\x2A\x2A\x2A\x2A\x80\xBE\x2A\x2A\x2A\x2A\x2A\x0F\x85"
+				"linux"			"_ZN8CCarProp26InputSurvivorStandingOnCarER11inputdata_t"
+				/* 83 ? ? 56 8B ? 80 BE ? ? ? ? ? 0F 85 ? ? ? ? 80 BE ? ? ? ? ? 0F 85 */
+				/* Search: "ContextAlarm" */
+			}
+		}
+	}
+}

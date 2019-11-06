@@ -47,7 +47,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public Plugin myinfo =
 {
-	name = "更好的换图",
+	name = "更好的换图API",
 	author = "Lux",
 	description = "Creates a clean way to change maps, sm_map causes leaks and other spooky stuff causing server perf to be worse over time.",
 	version = PLUGIN_VERSION,

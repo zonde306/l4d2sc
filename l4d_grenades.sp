@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION 		"1.5"
+#define PLUGIN_VERSION 		"1.9"
 
 /*=======================================================================================
 	Plugin Info:
@@ -12,8 +12,25 @@
 ========================================================================================
 	Change Log:
 
+1.9 (23-Oct-2019)
+	- Fixed Freezer mode not preserving special infected render color. Thanks to "Dragokas" for reporting.
+
+1.8 (23-Oct-2019)
+	- Changed "Bullets" mode projectile sound.
+	- Maybe fixed invalid entity errors again, reported by "KRUTIK".
+	- Minor changes to late loading and turning the plugin on/off.
+
+1.7 (18-Oct-2019)
+	- Fixed handle memory leak.
+
+1.6 (18-Oct-2019)
+	- Fixed invalid entity errors reported by "KRUTIK".
+	- Fixed L4D1 errors reported by "Dragokas".
+	- Fixed not completely disabling everything when the plugin is turned off.
+	- Now prevents ledge hanging when floating in Anti-Gravity.
+
 1.5 (17-Oct-2019)
-	- Added 6 new types: Extinguisher, Glow, Anti-Gravity, Fire Cluster, Bullets and Flak.
+	- Added 6 new types: "Extinguisher", "Glow", "Anti-Gravity", "Fire Cluster", "Bullets" and "Flak".
 	- Added command "sm_grenade" to open a menu for choosing the grenade type. Optional args to specify a type.
 	- Added "mode_switch" in the config to control how to change grenade type. Menu and/or key combination.
 	- Auto display and close menu with "mode_switch" when selecting a different type via key combination.
@@ -213,7 +230,7 @@ static const char g_sSoundsZap[][]	=
 	"ambient/energy/zap9.wav"
 };
 
-// Grenade vocalizations unused by default.
+// Grenade vocalizations unused by default. Maybe more, only briefly checked.
 static const char g_sSoundsMissing[][]	=
 {
 	"player/survivor/voice/gambler/grenade10.wav",
@@ -324,7 +341,7 @@ enum ()
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "åŽŸåž‹æ‰‹é›·",
+	name = "Ô­ÐÍÊÖÀ×",
 	author = "SilverShot",
 	description = "Creates a selection of different grenade types.",
 	version = PLUGIN_VERSION,
@@ -381,7 +398,7 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 	sdkDeafenClient = EndPrepSDKCall();
-	if( sdkDeafenClient == INVALID_HANDLE )
+	if( sdkDeafenClient == null )
 		SetFailState("Failed to create SDKCall: CTerrorPlayer::Deafen");
 
 	// Dissolve
@@ -481,15 +498,7 @@ public void OnPluginStart()
 	if( g_bLateLoad )
 	{
 		LoadDataConfig();
-
-		for( int i = 1; i <= MaxClients; i++ )
-		if( IsClientInGame(i) )
-		{
-			// Hook WeaponEquip
-			OnClientPutInServer(i);
-			// Get cookies
-			OnClientPostAdminCheck(i);
-		}
+		IsAllowed();
 	}
 	
 	CreateTimer(1.0, Timer_Register);
@@ -506,24 +515,24 @@ public Action Timer_Register(Handle timer, any unused)
 	// 6=Flashbang, 7=Shield, 8=Tesla, 9=Chemical, 10=Freeze
 	// 11=Medic, 12=Vaporizer, 13=Extinguisher, 14=Glow, 15=Anti-Gravity
 	// 16=Fire Cluster, 17=Bullets, 18=Flak
-	SC_CreateSpell("ss_pg_bomb", "é«˜çˆ†å¼¹", 10, 200, "çˆ†ç‚¸");
-	SC_CreateSpell("ss_pg_cluster", "åˆ†è£‚å¼¹", 10, 200, "æ•£å¸ƒå¤šä¸ªå°åž‹ç‚¸å¼¹");
-	SC_CreateSpell("ss_pg_firework", "çƒŸèŠ±å¼¹", 10, 200, "çƒŸèŠ±ç›’çˆ†ç‚¸æ•ˆæžœ");
-	SC_CreateSpell("ss_pg_smoke", "çƒŸé›¾å¼¹", 10, 200, "åœ¨èŒƒå›´å†…é®æŒ¡è§†çº¿");
-	SC_CreateSpell("ss_pg_hole", "å¼•åŠ›å¼¹", 10, 200, "å°†èŒƒå›´å†…çš„ç›®æ ‡å¸åˆ°ä¸­å¿ƒ");
-	SC_CreateSpell("ss_pg_flashbang", "éœ‡æ’¼å¼¹", 10, 200, "ä»¤èŒƒå›´å†…çš„ç›®æ ‡è€³é¸£");
-	SC_CreateSpell("ss_pg_shield", "æŠ¤å«å¼¹", 10, 200, "åœ¨èŒƒå›´å†…çš„ç”Ÿè¿˜è€…ä¼¤å®³é™ä½Ž");
-	SC_CreateSpell("ss_pg_tesla", "ç”µå‡»å¼¹", 10, 200, "ç”µå‡»èŒƒå›´å†…çš„ç›®æ ‡");
-	SC_CreateSpell("ss_pg_chemical", "é…¸æ¶²å¼¹", 10, 200, "åˆ›å»ºä¸€æ»©é…¸æ¶²è…èš€é‡Œé¢çš„ç›®æ ‡");
-	SC_CreateSpell("ss_pg_freeze", "å†·å†»å¼¹", 10, 200, "å†»ç»“èŒƒå›´å†…çš„æ•Œäºº");
-	SC_CreateSpell("ss_pg_medic", "æ²»ç–—å¼¹", 10, 200, "åœ¨èŒƒå›´å†…æ¢å¤ç”Ÿå‘½");
-	SC_CreateSpell("ss_pg_vaporizer", "æº¶è§£å¼¹", 10, 200, "æº¶è§£èŒƒå›´å†…çš„ç›®æ ‡");
-	SC_CreateSpell("ss_pg_extinguisher", "ç­ç«å¼¹", 10, 200, "æ‰‘ç­èŒƒå›´å†…çš„ç«ç„°");
-	SC_CreateSpell("ss_pg_glow", "æ ‡è®°å¼¹", 10, 200, "ç»™èŒƒå›´å†…çš„ç›®æ ‡åŠ ä¸Šå…‰åœˆ");
-	SC_CreateSpell("ss_pg_gravity", "æŠ›å°„å¼¹", 10, 200, "å°†èŒƒå›´å†…çš„ç›®æ ‡æŠ›èµ·æ¥");
-	SC_CreateSpell("ss_pg_fire", "åˆ†è£‚ç‡ƒçƒ§å¼¹", 10, 200, "æ•£å¸ƒå¤šä¸ªå°åž‹ç‡ƒçƒ§å¼¹");
-	SC_CreateSpell("ss_pg_bullets", "ç ´ç‰‡å¼¹", 10, 200, "æ•£å¸ƒå¤šä¸ªç ´ç‰‡ä»¥ä¼¤å®³èŒƒå›´å†…çš„ç›®æ ‡");
-	SC_CreateSpell("ss_pg_flask", "ç«èŠ±å¼¹", 10, 200, "å–·å°„ç«èŠ±ç‚¹ç‡ƒé™„è¿‘ç›®æ ‡");
+	SC_CreateSpell("ss_pg_bomb", "¸ß±¬µ¯", 10, 200, "±¬Õ¨");
+	SC_CreateSpell("ss_pg_cluster", "·ÖÁÑµ¯", 10, 200, "É¢²¼¶à¸öÐ¡ÐÍÕ¨µ¯");
+	SC_CreateSpell("ss_pg_firework", "ÑÌ»¨µ¯", 10, 200, "ÑÌ»¨ºÐ±¬Õ¨Ð§¹û");
+	SC_CreateSpell("ss_pg_smoke", "ÑÌÎíµ¯", 10, 200, "ÔÚ·¶Î§ÄÚÕÚµ²ÊÓÏß");
+	SC_CreateSpell("ss_pg_hole", "ÒýÁ¦µ¯", 10, 200, "½«·¶Î§ÄÚµÄÄ¿±êÎüµ½ÖÐÐÄ");
+	SC_CreateSpell("ss_pg_flashbang", "Õðº³µ¯", 10, 200, "Áî·¶Î§ÄÚµÄÄ¿±ê¶úÃù");
+	SC_CreateSpell("ss_pg_shield", "»¤ÎÀµ¯", 10, 200, "ÔÚ·¶Î§ÄÚµÄÉú»¹ÕßÉËº¦½µµÍ");
+	SC_CreateSpell("ss_pg_tesla", "µç»÷µ¯", 10, 200, "µç»÷·¶Î§ÄÚµÄÄ¿±ê");
+	SC_CreateSpell("ss_pg_chemical", "ËáÒºµ¯", 10, 200, "´´½¨Ò»Ì²ËáÒº¸¯Ê´ÀïÃæµÄÄ¿±ê");
+	SC_CreateSpell("ss_pg_freeze", "Àä¶³µ¯", 10, 200, "¶³½á·¶Î§ÄÚµÄµÐÈË");
+	SC_CreateSpell("ss_pg_medic", "ÖÎÁÆµ¯", 10, 200, "ÔÚ·¶Î§ÄÚ»Ö¸´ÉúÃü");
+	SC_CreateSpell("ss_pg_vaporizer", "ÈÜ½âµ¯", 10, 200, "ÈÜ½â·¶Î§ÄÚµÄÄ¿±ê");
+	SC_CreateSpell("ss_pg_extinguisher", "Ãð»ðµ¯", 10, 200, "ÆËÃð·¶Î§ÄÚµÄ»ðÑæ");
+	SC_CreateSpell("ss_pg_glow", "±ê¼Çµ¯", 10, 200, "¸ø·¶Î§ÄÚµÄÄ¿±ê¼ÓÉÏ¹âÈ¦");
+	SC_CreateSpell("ss_pg_gravity", "Å×Éäµ¯", 10, 200, "½«·¶Î§ÄÚµÄÄ¿±êÅ×ÆðÀ´");
+	SC_CreateSpell("ss_pg_fire", "·ÖÁÑÈ¼ÉÕµ¯", 10, 200, "É¢²¼¶à¸öÐ¡ÐÍÈ¼ÉÕµ¯");
+	SC_CreateSpell("ss_pg_bullets", "ÆÆÆ¬µ¯", 10, 200, "É¢²¼¶à¸öÆÆÆ¬ÒÔÉËº¦·¶Î§ÄÚµÄÄ¿±ê");
+	SC_CreateSpell("ss_pg_flask", "»ð»¨µ¯", 10, 200, "ÅçÉä»ð»¨µãÈ¼¸½½üÄ¿±ê");
 	return Plugin_Continue;
 }
 
@@ -565,20 +574,28 @@ public void SC_OnUseSpellPost(int client, const char[] classname)
 // ====================================================================================================
 public void OnClientPutInServer(int client)
 {
-	// SDKHook(client, SDKHook_WeaponEquip,	OnWeaponEquip);
-	// SDKHook(client, SDKHook_WeaponDrop,		OnWeaponDrop);
+	/*
+	if( g_bCvarAllow )
+	{
+		SDKHook(client, SDKHook_WeaponEquip,	OnWeaponEquip);
+		SDKHook(client, SDKHook_WeaponDrop,		OnWeaponDrop);
+	}
+	*/
 }
 
 public void OnClientPostAdminCheck(int client)
 {
-	if( g_iConfigPrefs != 1 )
-		g_iClientGrenadeType[client] = -1;
-
-	if( !IsFakeClient(client) )
+	if( g_bCvarAllow )
 	{
-		// CreateTimer(0.2, tmrCookies, GetClientUserId(client));
-	} else {
-		SetCurrentNadePref(client); // Mostly for lateloads
+		if( g_iConfigPrefs != 1 )
+			g_iClientGrenadeType[client] = -1;
+
+		if( !IsFakeClient(client) )
+		{
+			// CreateTimer(0.2, tmrCookies, GetClientUserId(client));
+		} else {
+			SetCurrentNadePref(client); // Mostly for lateloads
+		}
 	}
 }
 
@@ -732,6 +749,8 @@ int CreateGrenadeProjectile(int client, int index, bool projectile)
 	return entity;
 }
 
+
+
 // ====================================================================================================
 //					MENU
 // ====================================================================================================
@@ -744,7 +763,7 @@ public Action Cmd_Grenade(int client, int args)
 	}
 
 	// If grenade mode not allowed to change
-	if( g_iConfigPrefs == 3 )
+	if( g_bCvarAllow == false && g_iConfigPrefs == 3 )
 	{
 		return Plugin_Handled;
 	}
@@ -922,6 +941,15 @@ void IsAllowed()
 
 		AddNormalSoundHook(view_as<NormalSHook>(SoundHook));
 		HookEvent("round_end",			Event_RoundEnd,			EventHookMode_PostNoCopy);
+
+		for( int i = 1; i <= MaxClients; i++ )
+		if( IsClientInGame(i) )
+		{
+			// Hook WeaponEquip
+			OnClientPutInServer(i);
+			// Get cookies
+			OnClientPostAdminCheck(i);
+		}
 	}
 
 	else if( g_bCvarAllow == true && (bCvarAllow == false || bAllowMode == false) )
@@ -1357,7 +1385,7 @@ public Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_M
 	{
 		if( GetEntProp(entity, Prop_Data, "m_iHammerID") )
 		{
-			volume = 0.5;
+			volume = 0.6;
 			strcopy(sample, sizeof sample, g_sSoundsHit[GetRandomInt(0, sizeof g_sSoundsHit - 1)]);
 			return Plugin_Changed;
 		}
@@ -1463,7 +1491,10 @@ void ResetPlugin()
 		g_fLastFreeze[i] = 0.0;
 		g_fLastShield[i] = 0.0;
 		g_fLastUse[i] = 0.0;
-		SDKUnhook(i, SDKHook_OnTakeDamageAlive, OnShield);
+
+		SDKUnhook(i, SDKHook_OnTakeDamageAlive,	OnShield);
+		SDKUnhook(i, SDKHook_WeaponEquip,		OnWeaponEquip);
+		SDKUnhook(i, SDKHook_WeaponDrop,		OnWeaponDrop);
 	}
 
 	int entity = -1;
@@ -1487,11 +1518,11 @@ void ResetPlugin()
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
 {
 	// Preferences allow to change grenade type, holding Shoot and pressing Shove
-	if( g_iConfigPrefs != 3 )
+	if( g_bCvarAllow && g_iConfigPrefs != 3 )
 	{
 		if( buttons & IN_ATTACK )
 		{
-			if( buttons & IN_ATTACK2  )
+			if( buttons & IN_ATTACK2 )
 			{
 				// Check only a few times per second
 				if( GetGameTime() - g_fLastUse[client] > MAX_WAIT )
@@ -1529,10 +1560,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			g_bChangingTypesMenu[client] = false;
 
-			if( GetClientMenu(client, INVALID_HANDLE) != MenuSource_None )
+			if( GetClientMenu(client, null) != MenuSource_None )
 			{
 				InternalShowMenu(client, "\10", 1); // thanks to Zira
-				CancelClientMenu(client, true, INVALID_HANDLE);
+				CancelClientMenu(client, true, null);
 			}
 		}
 	}
@@ -1676,6 +1707,9 @@ public void OnNextFrame(int entity)
 			entity = CreateProjectile(entity, client, index);
 			if( entity == 0 )
 				return;
+
+			// Hurt entity
+			CreateHurtEntity();
 
 			// Detonate / Stick on contact
 			float detonate = g_GrenadeData[index - 1][CONFIG_FUSE];
@@ -2080,11 +2114,14 @@ void PrjEffects_Bullets(int entity)
 	SetupPrjEffects(entity, vPos, "255 100 0"); // Yellow orange
 
 	// Particles
-	DisplayParticle(entity,	PARTICLE_SPARKS,	vPos, NULL_VECTOR);
-	DisplayParticle(entity,	PARTICLE_GSPARKS,	vPos, NULL_VECTOR, 0.2);
+	if( g_bLeft4Dead2 )
+	{
+		DisplayParticle(entity,	PARTICLE_SPARKS,	vPos, NULL_VECTOR);
+		DisplayParticle(entity,	PARTICLE_GSPARKS,	vPos, NULL_VECTOR, 0.2);
+	}
 
 	// Sound
-	PlaySound(entity, SOUND_STEAM);
+	PlaySound(entity, SOUND_FLICKER);
 }
 
 // ====================================================================================================
@@ -2111,7 +2148,7 @@ void PrjEffects_Flak(int entity)
 // ====================================================================================================
 public Action Timer_Detonate(Handle timer, any entity)
 {
-	if( (entity = EntRefToEntIndex(entity)) != INVALID_ENT_REFERENCE )
+	if( g_bCvarAllow && (entity = EntRefToEntIndex(entity)) != INVALID_ENT_REFERENCE )
 	{
 		Detonate_Grenade(entity);
 	}
@@ -2199,7 +2236,7 @@ void Detonate_Grenade(int entity)
 
 public Action Timer_Repeat_Explode(Handle timer, any entity)
 {
-	if( (entity = EntRefToEntIndex(entity)) != INVALID_ENT_REFERENCE )
+	if( g_bCvarAllow && (entity = EntRefToEntIndex(entity)) != INVALID_ENT_REFERENCE )
 	{
 		// Get index
 		int index = GetEntProp(entity, Prop_Data, "m_iHammerID");
@@ -2235,6 +2272,8 @@ public Action Timer_Repeat_Explode(Handle timer, any entity)
 // ====================================================================================================
 void Explode_Effects(int client, int entity, int index, bool fromTimer = true)
 {
+	CreateHurtEntity();
+
 	switch( index - 1 )
 	{
 		case INDEX_BOMB:			Explode_Bomb			(client, entity, index);
@@ -2269,7 +2308,6 @@ void Explode_Effects(int client, int entity, int index, bool fromTimer = true)
 		// Stop sounds
 		StopSounds(entity);
 	}
-	
 	g_iClientGrenadeType[client] = -1;
 }
 
@@ -2868,7 +2906,11 @@ public void OnTouchTriggerFreezer(int entity, int target)
 						CreateTimer(0.5, tmrFreezer, GetClientUserId(target), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
 						PlaySound(target, SOUND_FREEZER);
-						SetEntityRenderColor(target, 0, 128, 255, 192);
+
+						if( GetEntProp(target, Prop_Send, "m_clrRender") == -1 )
+						{
+							SetEntityRenderColor(target, 0, 128, 255, 192);
+						}
 					}
 
 					if( GetEntityMoveType(target) != MOVETYPE_NONE )
@@ -2890,7 +2932,10 @@ public Action tmrFreezer(Handle timer, any client)
 		}
 
 		PlaySound(client, SOUND_FREEZER);
-		SetEntityRenderColor(client, 255, 255, 255, 255);
+
+		if( GetEntProp(client, Prop_Send, "m_clrRender") == -1056997376 ) // Our render color
+			SetEntityRenderColor(client, 255, 255, 255, 255);
+
 		SetEntityMoveType(client, MOVETYPE_WALK);
 	}
 	return Plugin_Stop;
@@ -3562,8 +3607,8 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 
 
 	// Hurt survivors/special/common/witch with scaled damage
-	CreateHurtEntity();
 	vPos[2] -= 5.0;
+	CreateHurtEntity();
 
 
 
@@ -3880,6 +3925,8 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 	{
 		SetEntProp(aGodMode.Get(i), Prop_Data, "m_takedamage", 2);
 	}
+
+	delete aGodMode;
 }
 
 
@@ -4026,8 +4073,9 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 				vVel[2] = 100.0;
 			TeleportEntity(target, NULL_VECTOR, NULL_VECTOR, vVel);
 
+			AcceptEntityInput(client, "DisableLedgeHang");
 			SetEntityGravity(target, 0.4);
-			CreateTimer(0.1, tmrResetGravity, target <= MaxClients ? GetClientUserId(target) : EntIndexToEntRef(target), TIMER_REPEAT);
+			CreateTimer(0.1, tmrResetGravity, GetClientUserId(target), TIMER_REPEAT);
 		}
 	}
 
@@ -4045,11 +4093,12 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 
 public Action tmrResetGravity(Handle timer, any target)
 {
-	target = ValidTargetRef(target);
+	if( (target = GetClientOfUserId(target)) )
 	if( target )
 	{
 		if( GetEntProp(target, Prop_Send, "m_fFlags") & FL_ONGROUND )
 		{
+			AcceptEntityInput(target, "EnableLedgeHang");
 			SetEntityGravity(target, 1.0);
 		} else {
 			return Plugin_Continue;
@@ -4077,7 +4126,7 @@ int ValidTargetRef(int target)
 		if( (target = EntRefToEntIndex(target)) != INVALID_ENT_REFERENCE )
 			return target;
 	} else {
-		if( (target = GetClientOfUserId(target)) != 0 )
+		if( (target = GetClientOfUserId(target)) )
 			return target;
 	}
 
@@ -4569,13 +4618,13 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 								float fRadius=0.0)
 {
 	TE_Start("EffectDispatch");
-	TE_WriteFloat("m_vOrigin.x", fParticleStartPos[0]);
-	TE_WriteFloat("m_vOrigin.y", fParticleStartPos[1]);
-	TE_WriteFloat("m_vOrigin.z", fParticleStartPos[2]);
-	TE_WriteFloat("m_vStart.x", fParticleEndPos[0]);//end point usually for bulletparticles or ropes
-	TE_WriteFloat("m_vStart.y", fParticleEndPos[1]);
-	TE_WriteFloat("m_vStart.z", fParticleEndPos[2]);
-	
+	TE_WriteFloat(g_bLeft4Dead2 ? "m_vOrigin.x"	:	"m_vStart[0]",		fParticleStartPos[0]);
+	TE_WriteFloat(g_bLeft4Dead2 ? "m_vOrigin.y"	:	"m_vStart[1]",		fParticleStartPos[1]);
+	TE_WriteFloat(g_bLeft4Dead2 ? "m_vOrigin.z"	:	"m_vStart[2]",		fParticleStartPos[2]);
+	TE_WriteFloat(g_bLeft4Dead2 ? "m_vStart.x"	:	"m_vOrigin[0]",		fParticleEndPos[0]);//end point usually for bulletparticles or ropes
+	TE_WriteFloat(g_bLeft4Dead2 ? "m_vStart.y"	:	"m_vOrigin[1]",		fParticleEndPos[1]);
+	TE_WriteFloat(g_bLeft4Dead2 ? "m_vStart.z"	:	"m_vOrigin[2]",		fParticleEndPos[2]);
+
 	static int iEffectIndex = INVALID_STRING_INDEX;
 	if(iEffectIndex < 0)
 	{
@@ -4584,9 +4633,9 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 			SetFailState("Unable to find EffectDispatch/ParticleEffect indexes");
 		
 	}
-	
+
 	TE_WriteNum("m_iEffectName", iEffectIndex);
-	
+
 	if(iParticleIndex < 0)
 	{
 		static int iParticleStringIndex = INVALID_STRING_INDEX;
@@ -4598,21 +4647,21 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 	}
 	else
 		TE_WriteNum("m_nHitBox", iParticleIndex);
-	
+
 	TE_WriteNum("entindex", iEntIndex);
 	TE_WriteNum("m_nAttachmentIndex", iAttachmentIndex);
-	
+
 	TE_WriteVector("m_vAngles", fParticleAngles);
-	
+
 	TE_WriteNum("m_fFlags", iFlags);
 	TE_WriteFloat("m_flMagnitude", fMagnitude);// saw this being used in pipebomb needs testing what it does probs shaking screen?
 	TE_WriteFloat("m_flScale", fScale);
 	TE_WriteFloat("m_flRadius", fRadius);// saw this being used in pipebomb needs testing what it does probs shaking screen?
 	TE_WriteNum("m_nDamageType", iDamageType);// this shit is required dunno why for attachpoint emitting valve probs named it wrong
-	
+
 	if(SendToAll)
 		TE_SendToAll(fDelay);
-	
+
 	return true;
 }
 

@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION 		"1.1"
+#define PLUGIN_VERSION 		"1.2"
 
 /*=======================================================================================
 	Plugin Info:
@@ -10,6 +10,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.2 (23-Oct-2019)
+	- Added cvar "l4d_infected_movement_smoker" to control Smoker movement while someones hanging the tongue.
 
 1.1 (23-Aug-2018)
 	- Fixed the Smoker not working correctly. Thanks to "phoenix0001" for reporting.
@@ -29,10 +32,11 @@
 #define CVAR_FLAGS			FCVAR_NOTIFY
 
 
-ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarType, g_hSpeedSmoke, g_hSpeedSpit, g_hSpeedTank;
-int g_iCvarAllow, g_iCvarType;
+ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarSmoker, g_hCvarType, g_hSpeedSmoke, g_hSpeedSpit, g_hSpeedTank;
+int g_iCvarAllow, g_iCvarSmoker, g_iCvarType;
 bool g_bCvarAllow, g_bLeft4Dead2;
 float g_fSpeedSmoke, g_fSpeedSpit, g_fSpeedTank;
+float g_fTime[MAXPLAYERS+1];
 
 enum ()
 {
@@ -48,7 +52,7 @@ enum ()
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "感染者使用技能时移动",
+	name = "[L4D & L4D2] Special Infected Ability Movement",
 	author = "SilverShot",
 	description = "Continue normal movement speed while spitting/smoking/tank throwing rocks.",
 	version = PLUGIN_VERSION,
@@ -58,8 +62,8 @@ public Plugin myinfo =
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	EngineVersion test = GetEngineVersion();
-	if (test == Engine_Left4Dead) g_bLeft4Dead2 = false;
-	else if (test == Engine_Left4Dead2) g_bLeft4Dead2 = true;
+	if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
+	else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
 	else
 	{
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
@@ -71,11 +75,12 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnPluginStart()
 {
 	g_hCvarAllow =		CreateConVar(	"l4d_infected_movement_allow",		"3",			"0=Plugin off, 1=Allow players only, 2=Allow bots only, 3=Both.", CVAR_FLAGS );
-	g_hCvarType =		CreateConVar(	"l4d_infected_movement_type",		"7",			"These Special Infected can use: 1=Smoker, 2=Spitter, 4=Tank, 7=All.", CVAR_FLAGS );
 	g_hCvarModes =		CreateConVar(	"l4d_infected_movement_modes",		"",				"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
 	g_hCvarModesOff =	CreateConVar(	"l4d_infected_movement_modes_off",	"",				"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
 	g_hCvarModesTog =	CreateConVar(	"l4d_infected_movement_modes_tog",	"0",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
-	CreateConVar(						"l4d_infected_movement_version",		PLUGIN_VERSION, "Ability Movement plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
+	g_hCvarSmoker =		CreateConVar(	"l4d_infected_movement_smoker",		"2",			"0=Only on shooting. 1=Smokers can move while pulling someone. 2=Smokers can also move when someone is hanging from the tongue.", CVAR_FLAGS );
+	g_hCvarType =		CreateConVar(	"l4d_infected_movement_type",		"7",			"These Special Infected can use: 1=Smoker, 2=Spitter, 4=Tank, 7=All.", CVAR_FLAGS );
+	CreateConVar(						"l4d_infected_movement_version",	PLUGIN_VERSION, "Ability Movement plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
 	AutoExecConfig(true,				"l4d_infected_movement");
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
@@ -85,6 +90,7 @@ public void OnPluginStart()
 	g_hCvarModesOff.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarModesTog.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarType.AddChangeHook(ConVarChanged_Cvars);
+	g_hCvarSmoker.AddChangeHook(ConVarChanged_Cvars);
 
 	g_hSpeedTank = FindConVar("z_tank_speed");
 	g_hSpeedTank.AddChangeHook(ConVarChanged_Cvars);
@@ -124,6 +130,7 @@ void GetCvars()
 		g_fSpeedSpit = g_hSpeedSpit.FloatValue;
 	g_fSpeedSmoke = g_hSpeedSmoke.FloatValue;
 	g_fSpeedTank = g_hSpeedTank.FloatValue;
+	g_iCvarSmoker = g_hCvarSmoker.IntValue;
 	g_iCvarType = g_hCvarType.IntValue;
 }
 
@@ -217,8 +224,6 @@ public void OnGamemode(const char[] output, int caller, int activator, float del
 // ====================================================================================================
 //					EVENTS
 // ====================================================================================================
-static float g_fTime[MAXPLAYERS+1];
-
 public void Event_Reset(Event event, const char[] name, bool dontBroadcast)
 {
 	ResetPlugin();
@@ -270,14 +275,14 @@ public void Event_Use(Event event, const char[] name, bool dontBroadcast)
 		|| strcmp(sUse, "ability_tongue") == 0
 	)
 	{
-		if( GetGameTime() - g_fTime[client] >= 3.0 )
+		if( g_fTime[client] - GetGameTime() < 0.0 )
 		{
+			g_fTime[client] = GetGameTime() + 3.0;
 			// Hooked 3 times, because each alone is not enough, this creates the smoothest play with minimal movement stutter
 			SDKHook(client, SDKHook_PostThinkPost, onThinkFunk);
 			SDKHook(client, SDKHook_PreThink, onThinkFunk);
 			SDKHook(client, SDKHook_PreThinkPost, onThinkFunk);
 		}
-		g_fTime[client] = GetGameTime();
 	}
 }
 
@@ -285,15 +290,39 @@ public void onThinkFunk(int client) //Dance
 {
 	if( IsClientInGame(client) )
 	{
-		if( GetGameTime() - g_fTime[client] < 3.0 )
+		if( g_fTime[client] - GetGameTime() > 0.0 )
 		{
-			SetEntPropFloat(client, Prop_Send, "m_flStamina", 0.0);
-
 			int class = GetEntProp(client, Prop_Send, "m_zombieClass");
 			if( class == 1 || class == 4 || class == 8 || (!g_bLeft4Dead2 && class == 5) )
 			{
 				SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", class == 4 ? g_fSpeedSpit : class == 1 ? g_fSpeedSmoke : g_fSpeedTank);
 			}
+
+			// Allow continuous smoker movement while pulling someone.
+			if( class == 1 )
+			{
+				// Allow continuous smoker movement when victim hanging from tongue
+				// Only on shooting
+				if( g_iCvarSmoker == 0 )
+				{
+					if( g_fTime[client] - GetGameTime() > 1.2 ) g_fTime[client] = GetGameTime() + 1.2;
+				}
+				// Not hanging
+				else if( g_iCvarSmoker == 2 || GetEntProp(client, Prop_Send, "m_nSequence") != 31 )
+				{
+					g_fTime[client] = GetGameTime() + 0.5;
+				}
+				// Always
+				else
+				{
+					g_fTime[client] = 0.0;
+					SDKUnhook(client, SDKHook_PostThinkPost, onThinkFunk);
+					SDKUnhook(client, SDKHook_PreThink, onThinkFunk);
+					SDKUnhook(client, SDKHook_PreThinkPost, onThinkFunk);
+				}
+			}
+
+			SetEntPropFloat(client, Prop_Send, "m_flStamina", 0.0);
 		} else {
 			g_fTime[client] = 0.0;
 			SDKUnhook(client, SDKHook_PostThinkPost, onThinkFunk);

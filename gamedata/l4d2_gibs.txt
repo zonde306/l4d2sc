@@ -1,0 +1,54 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Signatures" // Signatures founded by BHaType
+		{
+			"_CreateEntity"
+			{
+				// * _CreateEntity<CGib>(CGib *, char const*)
+				// * 55 8B EC 56 8B 75 0C 57 8B 7D 08 83 FE FF
+				
+				"library"	"server"
+				"linux"		"@_Z13_CreateEntityI4CGibEPT_S2_PKc_isra_32_constprop_49"
+				"windows"	"\x55\x8B\xEC\x56\x8B\x75\x0C\x57\x8B\x7D\x08\x83\xFE\xFF"
+			}
+			"CGib::Spawn"
+			{
+				// * CGib::Spawn(CGib *this, const char *)
+				// * 55 8B EC 56 57 6A 01 6A 05
+				
+				"library"	"server"
+				"linux"		"@_ZN4CGib5SpawnEPKc"
+				"windows"	"\x55\x8B\xEC\x56\x57\x6A\x01\x6A\x05"
+			}
+			"CGib::InitGib"
+			{
+				// * CGib::InitGib(CGib *this, CBaseEntity *, float, float)
+				// * 55 8B EC 83 EC 30 56 57 8B 7D 08 8B F1
+				
+				"library"	"server"
+				"linux"		"@_ZN4CGib7InitGibEP11CBaseEntityff"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x56\x57\x8B\x7D\x08\x8B\xF1"
+			}
+			"CBaseAnimating::LookupAttachment"
+			{
+				// * CBaseAnimating::LookupAttachment(CBaseAnimating *this, const char *)
+				// * 55 8B EC 56 8B F1 83 BE D0 13 00 00 00 75 ? E8 ? ? ? ? 85 C0 74 ? 8B CE E8 ? ? ? ? 8B 86 D0 13 00 00 5E 85 C0 74 ? 83 38 00 75 ? 33 C0 5D C2 04 00 8B 4D 08
+				
+				"library"	"server"
+				"linux"		"@_ZN14CBaseAnimating16LookupAttachmentEPKc"
+				"windows"	"\x55\x8B\xEC\x56\x8B\xF1\x83\xBE\xD0\x13\x00\x00\x00\x75\x2A\xE8\x2A\x2A\x2A\x2A\x85\xC0\x74\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x8B\x86\xD0\x13\x00\x00\x5E\x85\xC0\x74\x2A\x83\x38\x00\x75\x2A\x33\xC0\x5D\xC2\x04\x00\x8B\x4D\x08"
+			}	
+			"CBaseAnimating::GetAttachment"
+			{
+				// * CBaseAnimating::GetAttachment(int, Vector &, QAngle &)
+				// * 55 8B EC 83 EC 34 A1 ? ? ? ? 33 C5 89 45 FC 8B 01
+				
+				"library"	"server"
+				"linux"		"@_ZN14CBaseAnimating13GetAttachmentEiR6VectorR6QAngle"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x34\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x8B\x01"
+			}
+		}
+	}
+}

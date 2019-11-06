@@ -1,0 +1,11 @@
+"Phrases"
+{
+	"Information"
+	{
+		"en"	"Hint"
+	}
+	"Throw a grenade"
+	{
+		"en"	"You can throw a grenade while incapacitated,\npress MOUSE2 for weapon changing"
+	}
+}

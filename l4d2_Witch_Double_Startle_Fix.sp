@@ -38,7 +38,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public Plugin myinfo =
 {
-	name = "[L4D2]Witch_Double_Start_Fix",
+	name = "修复 Witch 吃惊时间太长",
 	author = "Lux",
 	description = "Fixes witch when wandering playing startle twice by forcing the NextThink to end the startle.",
 	version = PLUGIN_VERSION,

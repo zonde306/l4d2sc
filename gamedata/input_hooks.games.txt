@@ -1,0 +1,51 @@
+"Games"
+{
+	// CSS, TF2, DODS
+	"#default"
+	{
+		"Offsets"
+		{
+			"AcceptInput"
+			{
+				"windows"	"36"
+				"linux"		"37"
+			}
+		}
+	}
+
+	"csgo"
+	{
+		"Offsets"
+		{
+			"AcceptInput"
+			{
+				"windows"	"41"
+				"linux"		"42"
+			}
+		}
+	}
+
+	"left4dead"
+	{
+		"Offsets"
+		{
+			"AcceptInput"
+			{
+				"windows"	"37"
+				"linux"		"38"
+			}
+		}
+	}
+
+	"left4dead2"
+	{
+		"Offsets"
+		{
+			"AcceptInput"
+			{
+				"windows"	"43"
+				"linux"		"44"
+			}
+		}
+	}
+}

@@ -25,6 +25,8 @@ public Plugin myinfo =
 	url = "http://www.sourcemod.net"
 };
 
+native void L4D2_ChangeLevel(const char[] sMapName);
+
 enum(<<=1)
 {
 	GMF_NONE = 0,
@@ -190,7 +192,11 @@ public Action Timer_ChangeLevelEmpty(Handle timer, any unused)
 	
 	char map[64];
 	g_pCvarIdleMap.GetString(map, 64);
-	ServerCommand("changelevel %s", map);
+	if(FindPluginByFile("l4d2_changelevel.smx") != null)
+		L4D2_ChangeLevel(map);
+	else
+		ServerCommand("changelevel %s", map);
+	
 	return Plugin_Continue;
 }
 
@@ -486,7 +492,10 @@ public Action Timer_ChangeLevel(Handle timer, any unused)
 	if(g_szNextMap[0] == EOS)
 		g_pCvarIdleMap.GetString(g_szNextMap, sizeof(g_szNextMap));
 	
-	ServerCommand("changelevel %s", g_szNextMap);
+	if(FindPluginByFile("l4d2_changelevel.smx") != null)
+		L4D2_ChangeLevel(g_szNextMap);
+	else
+		ServerCommand("changelevel %s", g_szNextMap);
 	return Plugin_Continue;
 }
 

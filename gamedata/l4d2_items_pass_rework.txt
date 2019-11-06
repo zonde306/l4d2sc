@@ -1,0 +1,48 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Addresses"
+		{
+			"CTerrorPlayer::GiveActiveWeapon"
+			{
+				"windows"
+				{
+					"signature" "CTerrorPlayer::GiveActiveWeapon"
+				}
+				"linux"
+				{
+					"signature" "CTerrorPlayer::GiveActiveWeapon"
+				}
+			}
+		}
+		"Offsets"
+		{
+			"Patch1"
+			{
+				"windows" "79"
+				"linux" "68"
+			}
+			"Patch2"
+			{
+				"windows" "80"
+				"linux" "67"
+			}
+		}
+		"Signatures" 
+		{
+			"CTerrorPlayer::GiveActiveWeapon"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer16GiveActiveWeaponEPS_"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x9C\x00\x00\x00\x56"
+			}
+			"CTerrorPlayer::ThrowWeapon"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer11ThrowWeaponEP13CTerrorWeaponPS_fPKcS4_"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x4C\x01\x00\x00\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x8B\x45\x0C"
+			}
+		}
+	}
+}

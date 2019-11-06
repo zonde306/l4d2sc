@@ -1,0 +1,30 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Offsets"
+		{
+			/*
+			* CTerrorPlayer::Deafen(float,float,float)
+			*/
+			"CTerrorPlayer::Deafen"
+			{
+				"windows"	"516"
+				"linux"		"517"
+				"mac"		"517"
+			}
+		}
+		"Signatures"
+		{
+			"CMolotov::EmitGrenade"
+			{
+				// * CMolotov::EmitGrenade(Vector, QAngle, Vector, Vector, CBasePlayer *)
+				// * 55 8B EC 8B 45 38 50 8D 4D 2C 51 8D 55 20 52 8D 45 14 50 8D 4D 08 51 E8 C4 0D 00 00
+				
+				"library" "server"
+				"linux" "@_ZN8CMolotov11EmitGrenadeE6Vector6QAngleS0_S0_P11CBasePlayer"
+				"windows" "\x55\x8B\xEC\x8B\x45\x38\x50\x8D\x4D\x2C\x51\x8D\x55\x20\x52\x8D\x45\x14\x50\x8D\x4D\x08\x51\xE8\xC4\x0D\x00\x00"
+			}
+		}
+	}
+}

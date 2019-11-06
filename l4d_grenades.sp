@@ -1,16 +1,23 @@
-#define PLUGIN_VERSION 		"1.9"
+#define PLUGIN_VERSION 		"1.10"
 
-/*=======================================================================================
+/*====================================================================================================
 	Plugin Info:
 
 *	Name	:	[L4D & L4D2] Prototype Grenades
 *	Author	:	SilverShot
 *	Descrp	:	Creates a selection of different grenade types.
-*	Link	:	http://forums.alliedmods.net/showthread.php?t=318965
-*	Plugins	:	http://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
+*	Link	:	https://forums.alliedmods.net/showthread.php?t=318965
+*	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
-========================================================================================
+======================================================================================================
 	Change Log:
+
+1.10 (01-Nov-2019)
+	- Changed the way grenade bounce sounds are replaced to prevent plugin conflicts. Thanks to "Lux" for the idea.
+	- Optimizations: Changed string creation to static char for faster CPU cycles. Various string comparison changes.
+	- Now only supports "Gear Transfer" plugin version 2.0 or greater to preserve random grenade type preferences.
+	- Removed 1 frame delay on weapon equip from previous version of supporting "Gear Transfer" plugin.
+	- Fixed "GrenadeMenu_Invalid" PrintToChat not replacing the colors. Thanks to "BHaType" for reporting.
 
 1.9 (23-Oct-2019)
 	- Fixed Freezer mode not preserving special infected render color. Thanks to "Dragokas" for reporting.
@@ -76,7 +83,7 @@
 1.0 (03-Oct-2019)
 	- Initial release.
 
-========================================================================================
+======================================================================================================
 	Thanks:
 
 	This plugin was made using source code from the following plugins.
@@ -86,12 +93,12 @@
 	https://gist.github.com/LuxLuma/73a8fab2b5f44ef800070bfd5e7fe257
 
 *	Thanks to "AtomicStryker" for "[L4D & L4D2] Smoker Cloud Damage" - Modified IsVisibleTo() function.
-	http://forums.alliedmods.net/showthread.php?p=866613
+	https://forums.alliedmods.net/showthread.php?p=866613
 
 *	"Zuko & McFlurry" for "[L4D2] Weapon/Zombie Spawner" - Modified SetTeleportEndPoint() function.
-	http://forums.alliedmods.net/showthread.php?t=109659
+	https://forums.alliedmods.net/showthread.php?t=109659
 
-======================================================================================*/
+====================================================================================================*/
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -101,6 +108,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <l4d2_simple_combat>
+
 
 
 //LMC
@@ -132,6 +140,7 @@ bool	bLMC_Available;
 #define MODEL_SPRITE			"models/sprites/glow01.spr"
 
 #define PARTICLE_MUZZLE			"weapon_muzzle_flash_autoshotgun"
+#define PARTICLE_BASHED			"screen_bashed"
 #define PARTICLE_TRACERS		"weapon_tracers"
 #define PARTICLE_TRACER_50		"weapon_tracers_50cal"
 #define PARTICLE_SMOKER1		"smoker_smokecloud_cheap"
@@ -272,7 +281,8 @@ float	g_fConfigWitch;												// Witch damage multiplier.
 float	g_fConfigPhysics;											// Physics props damage multiplier.
 int		g_iEntityHurt;												// Hurt entity.
 int		g_iParticleTracer;											// Particle index for TE.
-int		g_iParticleTracer50;										// Particle index for TE.
+int		g_iParticleTracer50;
+int		g_iParticleBashed;
 
 
 
@@ -341,11 +351,11 @@ enum ()
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "Ô­ÐÍÊÖÀ×",
+	name = "åŽŸåž‹æ‰‹é›·",
 	author = "SilverShot",
 	description = "Creates a selection of different grenade types.",
 	version = PLUGIN_VERSION,
-	url = "http://forums.alliedmods.net/showthread.php?t=318965"
+	url = "https://forums.alliedmods.net/showthread.php?t=318965"
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -478,7 +488,7 @@ public void OnPluginStart()
 
 	// ====================================================================================================
 	// OTHER
-	// ====================================================================================================	
+	// ====================================================================================================
 	// Translations
 	char sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "translations/grenades.phrases.txt");
@@ -515,24 +525,24 @@ public Action Timer_Register(Handle timer, any unused)
 	// 6=Flashbang, 7=Shield, 8=Tesla, 9=Chemical, 10=Freeze
 	// 11=Medic, 12=Vaporizer, 13=Extinguisher, 14=Glow, 15=Anti-Gravity
 	// 16=Fire Cluster, 17=Bullets, 18=Flak
-	SC_CreateSpell("ss_pg_bomb", "¸ß±¬µ¯", 10, 200, "±¬Õ¨");
-	SC_CreateSpell("ss_pg_cluster", "·ÖÁÑµ¯", 10, 200, "É¢²¼¶à¸öÐ¡ÐÍÕ¨µ¯");
-	SC_CreateSpell("ss_pg_firework", "ÑÌ»¨µ¯", 10, 200, "ÑÌ»¨ºÐ±¬Õ¨Ð§¹û");
-	SC_CreateSpell("ss_pg_smoke", "ÑÌÎíµ¯", 10, 200, "ÔÚ·¶Î§ÄÚÕÚµ²ÊÓÏß");
-	SC_CreateSpell("ss_pg_hole", "ÒýÁ¦µ¯", 10, 200, "½«·¶Î§ÄÚµÄÄ¿±êÎüµ½ÖÐÐÄ");
-	SC_CreateSpell("ss_pg_flashbang", "Õðº³µ¯", 10, 200, "Áî·¶Î§ÄÚµÄÄ¿±ê¶úÃù");
-	SC_CreateSpell("ss_pg_shield", "»¤ÎÀµ¯", 10, 200, "ÔÚ·¶Î§ÄÚµÄÉú»¹ÕßÉËº¦½µµÍ");
-	SC_CreateSpell("ss_pg_tesla", "µç»÷µ¯", 10, 200, "µç»÷·¶Î§ÄÚµÄÄ¿±ê");
-	SC_CreateSpell("ss_pg_chemical", "ËáÒºµ¯", 10, 200, "´´½¨Ò»Ì²ËáÒº¸¯Ê´ÀïÃæµÄÄ¿±ê");
-	SC_CreateSpell("ss_pg_freeze", "Àä¶³µ¯", 10, 200, "¶³½á·¶Î§ÄÚµÄµÐÈË");
-	SC_CreateSpell("ss_pg_medic", "ÖÎÁÆµ¯", 10, 200, "ÔÚ·¶Î§ÄÚ»Ö¸´ÉúÃü");
-	SC_CreateSpell("ss_pg_vaporizer", "ÈÜ½âµ¯", 10, 200, "ÈÜ½â·¶Î§ÄÚµÄÄ¿±ê");
-	SC_CreateSpell("ss_pg_extinguisher", "Ãð»ðµ¯", 10, 200, "ÆËÃð·¶Î§ÄÚµÄ»ðÑæ");
-	SC_CreateSpell("ss_pg_glow", "±ê¼Çµ¯", 10, 200, "¸ø·¶Î§ÄÚµÄÄ¿±ê¼ÓÉÏ¹âÈ¦");
-	SC_CreateSpell("ss_pg_gravity", "Å×Éäµ¯", 10, 200, "½«·¶Î§ÄÚµÄÄ¿±êÅ×ÆðÀ´");
-	SC_CreateSpell("ss_pg_fire", "·ÖÁÑÈ¼ÉÕµ¯", 10, 200, "É¢²¼¶à¸öÐ¡ÐÍÈ¼ÉÕµ¯");
-	SC_CreateSpell("ss_pg_bullets", "ÆÆÆ¬µ¯", 10, 200, "É¢²¼¶à¸öÆÆÆ¬ÒÔÉËº¦·¶Î§ÄÚµÄÄ¿±ê");
-	SC_CreateSpell("ss_pg_flask", "»ð»¨µ¯", 10, 200, "ÅçÉä»ð»¨µãÈ¼¸½½üÄ¿±ê");
+	SC_CreateSpell("ss_pg_bomb", "é«˜çˆ†å¼¹", 10, 200, "çˆ†ç‚¸");
+	SC_CreateSpell("ss_pg_cluster", "åˆ†è£‚å¼¹", 10, 200, "æ•£å¸ƒå¤šä¸ªå°åž‹ç‚¸å¼¹");
+	SC_CreateSpell("ss_pg_firework", "çƒŸèŠ±å¼¹", 10, 200, "çƒŸèŠ±ç›’çˆ†ç‚¸æ•ˆæžœ");
+	SC_CreateSpell("ss_pg_smoke", "çƒŸé›¾å¼¹", 10, 200, "åœ¨èŒƒå›´å†…é®æŒ¡è§†çº¿");
+	SC_CreateSpell("ss_pg_hole", "å¼•åŠ›å¼¹", 10, 200, "å°†èŒƒå›´å†…çš„ç›®æ ‡å¸åˆ°ä¸­å¿ƒ");
+	SC_CreateSpell("ss_pg_flashbang", "éœ‡æ’¼å¼¹", 10, 200, "ä»¤èŒƒå›´å†…çš„ç›®æ ‡è€³é¸£");
+	SC_CreateSpell("ss_pg_shield", "æŠ¤å«å¼¹", 10, 200, "åœ¨èŒƒå›´å†…çš„ç”Ÿè¿˜è€…ä¼¤å®³é™ä½Ž");
+	SC_CreateSpell("ss_pg_tesla", "ç”µå‡»å¼¹", 10, 200, "ç”µå‡»èŒƒå›´å†…çš„ç›®æ ‡");
+	SC_CreateSpell("ss_pg_chemical", "é…¸æ¶²å¼¹", 10, 200, "åˆ›å»ºä¸€æ»©é…¸æ¶²è…èš€é‡Œé¢çš„ç›®æ ‡");
+	SC_CreateSpell("ss_pg_freeze", "å†·å†»å¼¹", 10, 200, "å†»ç»“èŒƒå›´å†…çš„æ•Œäºº");
+	SC_CreateSpell("ss_pg_medic", "æ²»ç–—å¼¹", 10, 200, "åœ¨èŒƒå›´å†…æ¢å¤ç”Ÿå‘½");
+	SC_CreateSpell("ss_pg_vaporizer", "æº¶è§£å¼¹", 10, 200, "æº¶è§£èŒƒå›´å†…çš„ç›®æ ‡");
+	SC_CreateSpell("ss_pg_extinguisher", "ç­ç«å¼¹", 10, 200, "æ‰‘ç­èŒƒå›´å†…çš„ç«ç„°");
+	SC_CreateSpell("ss_pg_glow", "æ ‡è®°å¼¹", 10, 200, "ç»™èŒƒå›´å†…çš„ç›®æ ‡åŠ ä¸Šå…‰åœˆ");
+	SC_CreateSpell("ss_pg_gravity", "æŠ›å°„å¼¹", 10, 200, "å°†èŒƒå›´å†…çš„ç›®æ ‡æŠ›èµ·æ¥");
+	SC_CreateSpell("ss_pg_fire", "åˆ†è£‚ç‡ƒçƒ§å¼¹", 10, 200, "æ•£å¸ƒå¤šä¸ªå°åž‹ç‡ƒçƒ§å¼¹");
+	SC_CreateSpell("ss_pg_bullets", "ç ´ç‰‡å¼¹", 10, 200, "æ•£å¸ƒå¤šä¸ªç ´ç‰‡ä»¥ä¼¤å®³èŒƒå›´å†…çš„ç›®æ ‡");
+	SC_CreateSpell("ss_pg_flask", "ç«èŠ±å¼¹", 10, 200, "å–·å°„ç«èŠ±ç‚¹ç‡ƒé™„è¿‘ç›®æ ‡");
 	return Plugin_Continue;
 }
 
@@ -605,8 +615,8 @@ public Action tmrCookies(Handle timer, any client)
 	if( client && IsClientInGame(client) )
 	{
 		// Get client cookies, set type if available or default.
-		char sCookie[10];
-		char sChars[3][3];
+		static char sCookie[10];
+		static char sChars[3][3];
 		GetClientCookie(client, g_hCookie, sCookie, sizeof(sCookie));
 
 		if( strlen(sCookie) >= 5 )
@@ -643,7 +653,7 @@ void SetClientPrefs(int client)
 {
 	if( !IsFakeClient(client) )
 	{
-		char sCookie[10];
+		static char sCookie[10];
 		Format(sCookie, sizeof sCookie, "%d,%d,%d", g_iClientGrenadePref[client][0], g_iClientGrenadePref[client][1], g_iClientGrenadePref[client][2]);
 		SetClientCookie(client, g_hCookie, sCookie);
 	}
@@ -790,11 +800,11 @@ public Action Cmd_Grenade(int client, int args)
 					GetGrenadeIndex(client, type); // Iterate to valid index.
 					index = g_iClientGrenadeType[client];
 
-					char translation[256];
+					static char translation[256];
 					Format(translation, sizeof translation, "GrenadeMod_Title_%d", index);
 					Format(translation, sizeof translation, "%T %T", "GrenadeMod_Mode", client, translation, client);
 					ReplaceColors(translation, sizeof translation);
-					PrintToChat(client, "%s", translation);
+					PrintToChat(client, translation);
 				}
 			}
 		}
@@ -814,8 +824,8 @@ void ShowGrenadeMenu(int client)
 		{
 			// Create menu
 			Menu menu = new Menu(Menu_Grenade);
-			char text[64];
-			char temp[4];
+			static char text[64];
+			static char temp[4];
 
 			Format(text, sizeof(text), "%T", "GrenadeMenu_Title", client);
 			menu.SetTitle(text);
@@ -866,7 +876,7 @@ void ShowGrenadeMenu(int client)
 		}
 	}
 
-	char translation[256];
+	static char translation[256];
 	Format(translation, sizeof translation, "%T", "GrenadeMenu_Invalid", client);
 	ReplaceColors(translation, sizeof translation);
 	PrintToChat(client, translation);
@@ -878,6 +888,8 @@ public int Menu_Grenade(Menu menu, MenuAction action, int client, int index)
 	{
 		case MenuAction_Select:
 		{
+			static char translation[256];
+
 			// Validate weapon
 			int iWeapon = GetPlayerWeaponSlot(client, 2);
 			if( iWeapon > MaxClients && IsValidEntity(iWeapon) )
@@ -886,7 +898,7 @@ public int Menu_Grenade(Menu menu, MenuAction action, int client, int index)
 				if( type )
 				{
 					// Get index
-					char sTemp[4];
+					static char sTemp[4];
 					menu.GetItem(index, sTemp, sizeof(sTemp));
 					index = StringToInt(sTemp);
 
@@ -897,17 +909,18 @@ public int Menu_Grenade(Menu menu, MenuAction action, int client, int index)
 					SetEntProp(iWeapon, Prop_Data, "m_iHammerID", index + 1);
 
 					// Print
-					char translation[256];
 					Format(translation, sizeof translation, "GrenadeMod_Title_%d", index);
 					Format(translation, sizeof translation, "%T %T", "GrenadeMod_Mode", client, translation, client);
 					ReplaceColors(translation, sizeof translation);
-					PrintToChat(client, "%s", translation);
+					PrintToChat(client, translation);
 
 					// Redisplay menu
 					ShowGrenadeMenu(client);
 				}
 			} else {
-				PrintToChat(client, "%T", "GrenadeMenu_Invalid", client);
+				Format(translation, sizeof translation, "%T", "GrenadeMenu_Invalid", client);
+				ReplaceColors(translation, sizeof translation);
+				PrintToChat(client, translation);
 			}
 		}
 		case MenuAction_End:
@@ -1050,6 +1063,7 @@ public void OnMapStart()
 	if( g_bLeft4Dead2 )
 		g_iParticleTracer50 = PrecacheParticle(PARTICLE_TRACER_50);
 	g_iParticleTracer = PrecacheParticle(PARTICLE_TRACERS);
+	g_iParticleBashed = PrecacheParticle(PARTICLE_BASHED);
 	PrecacheParticle(PARTICLE_MUZZLE);
 	PrecacheParticle(PARTICLE_SMOKER1);
 	PrecacheParticle(PARTICLE_SMOKER2);
@@ -1163,7 +1177,7 @@ void LoadDataConfig()
 {
 	// Load Config
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_DATA);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_DATA);
 	if( !FileExists(sPath) )
 	{
 		SetFailState("Missing config '%s' please re-install.", CONFIG_DATA);
@@ -1250,18 +1264,20 @@ any Clamp(any value, any max, any min = 0.0)
 // ====================================================================================================
 public void OnWeaponEquip(int client, int weapon)
 {
-	RequestFrame(OnNextEquip, EntIndexToEntRef(weapon)); // Delayed by a frame to support Gear Transfer plugin setting the type.
-}
+	// No longer required in Gear Transfer 2.0!
 
-public void OnNextEquip(int weapon)
-{
-	if( (weapon = EntRefToEntIndex(weapon)) == INVALID_ENT_REFERENCE ) return;
+	// RequestFrame(OnNextEquip, EntIndexToEntRef(weapon)); // Delayed by a frame to support Gear Transfer plugin setting the type.
+// }
+
+// public void OnNextEquip(int weapon)
+// {
+	// if( (weapon = EntRefToEntIndex(weapon)) == INVALID_ENT_REFERENCE ) return;
 
 	int type = IsGrenade(weapon);
 	if( type )
 	{
-		int client = GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity");
-		if( client == -1 || !IsClientInGame(client) ) return;
+		// int client = GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity");
+		// if( client == -1 || !IsClientInGame(client) ) return;
 
 		// Random grenade prefs
 		if( g_iConfigPrefs != 1 || g_iConfigBots && IsFakeClient(client) )
@@ -1310,12 +1326,12 @@ public void OnNextEquip(int weapon)
 		// Hints
 		if( !IsFakeClient(client) )
 		{
-			char translation[256];
+			static char translation[256];
 			Format(translation, sizeof translation, "GrenadeMod_Title_%d", g_iClientGrenadeType[client]);
 
 			Format(translation, sizeof translation, "%T %T", "GrenadeMod_Mode", client, translation, client);
 			ReplaceColors(translation, sizeof translation);
-			PrintToChat(client, "%s", translation);
+			PrintToChat(client, translation);
 
 			// If grenade mode allowed to change
 			if( g_iConfigPrefs != 3 )
@@ -1385,8 +1401,11 @@ public Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_M
 	{
 		if( GetEntProp(entity, Prop_Data, "m_iHammerID") )
 		{
-			volume = 0.6;
-			strcopy(sample, sizeof sample, g_sSoundsHit[GetRandomInt(0, sizeof g_sSoundsHit - 1)]);
+			PlaySound(entity, g_sSoundsHit[GetRandomInt(0, sizeof g_sSoundsHit - 1)]);
+
+			volume = 0.0;
+			// volume = 0.6;
+			// strcopy(sample, sizeof sample, g_sSoundsHit[GetRandomInt(0, sizeof g_sSoundsHit - 1)]);
 			return Plugin_Changed;
 		}
 	}
@@ -1461,7 +1480,7 @@ public Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_M
 
 			if( edit ) // Replace invalid number with valid number
 			{
-				char val[3];
+				static char val[3];
 				Format(val, sizeof val, "%02d", edit);
 				sample[pos + 7] = val[0];
 				sample[pos + 8] = val[1];
@@ -1540,11 +1559,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							int index = GetGrenadeIndex(client, type);
 							SetEntProp(iWeapon, Prop_Data, "m_iHammerID", index + 1);
 
-							char translation[256];
+							static char translation[256];
 							Format(translation, sizeof translation, "GrenadeMod_Title_%d", index);
 							Format(translation, sizeof translation, "%T %T", "GrenadeMod_Mode", client, translation, client);
 							ReplaceColors(translation, sizeof translation);
-							PrintToChat(client, "%s", translation);
+							PrintToChat(client, translation);
 
 							if( g_iConfigBinds == 4 )
 							{
@@ -1649,9 +1668,9 @@ public void OnEntityCreated(int entity, const char[] classname)
 			)
 			{
 				if(
-					strcmp(classname, "molotov_projectile") == 0 ||
-					strcmp(classname, "pipe_bomb_projectile") == 0 ||
-					g_bLeft4Dead2 && strcmp(classname, "vomitjar_projectile") == 0
+					strncmp(classname, "molotov_projectile", 13) == 0 ||
+					strncmp(classname, "pipe_bomb_projectile", 13) == 0 ||
+					g_bLeft4Dead2 && strncmp(classname, "vomitjar_projectile", 13) == 0
 				)
 				{
 					SDKHook(entity, SDKHook_SpawnPost, SpawnPost);
@@ -1698,7 +1717,7 @@ public void OnNextFrame(int entity)
 		if( index > 0 )
 		{
 			// Game bug: when "weapon_oxygentank" and "weapon_propanetank" explode they create a "pipe_bomb_projectile". This prevents those erroneous ents.
-			float vTest[3];
+			static float vTest[3];
 			GetEntPropVector(entity, Prop_Send, "m_vInitialVelocity", vTest);
 			if( vTest[0] == 0.0 && vTest[1] == 0.0 && vTest[2] == 0.0 )
 				return;
@@ -1763,7 +1782,7 @@ void SetupPrjEffects(int entity, float vPos[3], const char[] color)
 	CreateEnvSprite(entity, color);
 
 	// Steam
-	float vAng[3];
+	static float vAng[3];
 	GetEntPropVector(entity, Prop_Data, "m_angRotation", vAng);
 	MakeEnvSteam(entity, vPos, vAng, color);
 
@@ -1781,7 +1800,7 @@ void SetupPrjEffects(int entity, float vPos[3], const char[] color)
 void PrjEffects_Bomb(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "255 0 0"); // Red
 
 	// Particles
@@ -1803,7 +1822,7 @@ void PrjEffects_Bomb(int entity)
 void PrjEffects_Cluster(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "255 255 0"); // Yellow
 
 	// Particles
@@ -1824,7 +1843,7 @@ void PrjEffects_Cluster(int entity)
 void PrjEffects_Firework(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "255 150 0"); // Orange
 
 	// Particles
@@ -1843,7 +1862,7 @@ void PrjEffects_Firework(int entity)
 void PrjEffects_Smoke(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "100 100 100"); // Grey
 
 	// Particles
@@ -1863,7 +1882,7 @@ void PrjEffects_Smoke(int entity)
 void PrjEffects_BlackHole(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "200 0 255"); // Purple
 
 	// Particles
@@ -1884,7 +1903,7 @@ void PrjEffects_BlackHole(int entity)
 void PrjEffects_Flashbang(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "255 255 255"); // White
 
 	// Particles
@@ -1904,7 +1923,7 @@ void PrjEffects_Flashbang(int entity)
 void PrjEffects_Shield(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "0 220 255"); // Light Blue
 
 	// Particles
@@ -1924,7 +1943,7 @@ void PrjEffects_Shield(int entity)
 void PrjEffects_Tesla(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "0 50 155"); // Blue
 
 	// Particles
@@ -1945,7 +1964,7 @@ void PrjEffects_Tesla(int entity)
 void PrjEffects_Chemical(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "150 255 0"); // Lime green
 
 	// Particles
@@ -1963,7 +1982,7 @@ void PrjEffects_Chemical(int entity)
 void PrjEffects_Freezer(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "0 150 255"); // Light Blue
 
 	// Particles
@@ -1982,7 +2001,7 @@ void PrjEffects_Freezer(int entity)
 void PrjEffects_Medic(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "0 150 0"); // Green
 
 	// Sound
@@ -1997,7 +2016,7 @@ void PrjEffects_Medic(int entity)
 void PrjEffects_Vaporizer(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "50 0 255"); // Purple
 
 	// Particles
@@ -2019,7 +2038,7 @@ void PrjEffects_Vaporizer(int entity)
 void PrjEffects_Extinguisher(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "0 50 255"); // Blue
 
 	// Particles
@@ -2032,7 +2051,7 @@ void PrjEffects_Extinguisher(int entity)
 void PrjEffects_Glow(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "255 150 0"); // Yellow-ish
 
 	// Particles
@@ -2049,7 +2068,7 @@ void PrjEffects_Glow(int entity)
 void PrjEffects_AntiGravity(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "0 255 100"); // Lime Green
 
 	// Particles
@@ -2066,7 +2085,7 @@ public Action tmrSlowdown(Handle timer, any entity)
 {
 	if( (entity = EntRefToEntIndex(entity)) != INVALID_ENT_REFERENCE )
 	{
-		float vVel[3];
+		static float vVel[3];
 		GetEntPropVector(entity, Prop_Data, "m_vecAbsVelocity", vVel);
 		float speed = GetVectorLength(vVel);
 
@@ -2089,7 +2108,7 @@ public Action tmrSlowdown(Handle timer, any entity)
 void PrjEffects_FireCluster(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "255 50 0"); // Orange
 
 	// Particles
@@ -2110,7 +2129,7 @@ void PrjEffects_FireCluster(int entity)
 void PrjEffects_Bullets(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "255 100 0"); // Yellow orange
 
 	// Particles
@@ -2130,7 +2149,7 @@ void PrjEffects_Bullets(int entity)
 void PrjEffects_Flak(int entity)
 {
 	// Grenade Pos + Effects
-	float vPos[3];
+	static float vPos[3];
 	SetupPrjEffects(entity, vPos, "255 100 100"); // Rose
 
 	// Particles
@@ -2158,22 +2177,9 @@ public void OnTouch_Detonate(int entity, int other)
 {
 	if( other > MaxClients )
 	{
-		char classname[12];
+		static char classname[12];
 		GetEdictClassname(other, classname, sizeof classname);
-
-		if(
-			classname[0] == 't' &&
-			classname[1] == 'r' &&
-			classname[2] == 'i' &&
-			classname[3] == 'g' &&
-			classname[4] == 'g' &&
-			classname[5] == 'e' &&
-			classname[6] == 'r' &&
-			classname[7] == '_'
-		)
-		{
-			return;
-		}
+		if( strncmp(classname, "trigger_", 8) == 0 ) return;
 	}
 
 	Detonate_Grenade(entity);
@@ -2188,7 +2194,7 @@ void Detonate_Grenade(int entity)
 	{
 		// Get index
 		int index = GetEntProp(entity, Prop_Data, "m_iHammerID");
-		float vPos[3];
+		static float vPos[3];
 
 		// Stick to surface
 		if( g_GrenadeData[index - 1][CONFIG_STICK] )
@@ -2210,7 +2216,7 @@ void Detonate_Grenade(int entity)
 		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 		// Explosion start time
-		SetEntPropFloat(entity, Prop_Send, "m_flCreateTime", GetGameTime());
+		SetEntPropFloat(entity, Prop_Data, "m_flCreateTime", GetGameTime());
 
 		// Do explode
 		Explode_Effects(client, entity, index, false);
@@ -2223,7 +2229,7 @@ void Detonate_Grenade(int entity)
 		}
 
 		// Stop env_steam
-		char sTemp[64];
+		static char sTemp[64];
 		Format(sTemp, sizeof sTemp, "OnUser4 silv_steam_%d:TurnOff::0.0:-1", entity);
 		SetVariantString(sTemp);
 		AcceptEntityInput(entity, "AddOutput");
@@ -2250,7 +2256,7 @@ public Action Timer_Repeat_Explode(Handle timer, any entity)
 		}
 
 		// Check duration
-		if( GetGameTime() - GetEntPropFloat(entity, Prop_Send, "m_flCreateTime") > g_GrenadeData[index - 1][CONFIG_TIME] )
+		if( GetGameTime() - GetEntPropFloat(entity, Prop_Data, "m_flCreateTime") > g_GrenadeData[index - 1][CONFIG_TIME] )
 		{
 			InputKill(entity, 0.2);
 
@@ -2319,7 +2325,7 @@ void Explode_Effects(int client, int entity, int index, bool fromTimer = true)
 public void Explode_Bomb(int client, int entity, int index)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -2357,7 +2363,7 @@ public void Explode_Bomb(int client, int entity, int index)
 public void Explode_Cluster(int client, int entity, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	if( fromTimer == false )
@@ -2391,6 +2397,7 @@ public void Explode_Cluster(int client, int entity, int index, bool fromTimer)
 	}
 
 	// Projectiles
+	static float vVel[3];
 	int max = 3;
 	int particle;
 	vPos[2] += 10.0;
@@ -2413,7 +2420,6 @@ public void Explode_Cluster(int client, int entity, int index, bool fromTimer)
 			SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", client); // Store owner
 
 			// Set origin and velocity
-			float vVel[3];
 			if( index - 1 == INDEX_FIRECLUSTER )
 			{
 				vVel[0] = GetRandomFloat(-g_GrenadeData[index - 1][CONFIG_RANGE], g_GrenadeData[index - 1][CONFIG_RANGE] / 2);
@@ -2450,24 +2456,11 @@ public void Explode_Cluster(int client, int entity, int index, bool fromTimer)
 
 public void OnTouchTrigger_Cluster(int entity, int target)
 {
-	char classname[12];
+	static char classname[12];
 	GetEdictClassname(target, classname, sizeof classname);
+	if( strncmp(classname, "trigger_", 8) == 0 ) return;
 
-	if(
-		classname[0] == 't' &&
-		classname[1] == 'r' &&
-		classname[2] == 'i' &&
-		classname[3] == 'g' &&
-		classname[4] == 'g' &&
-		classname[5] == 'e' &&
-		classname[6] == 'r' &&
-		classname[7] == '_'
-	)
-	{
-		return;
-	}
-
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 	DisplayParticle(entity, PARTICLE_BLAST2,		vPos, NULL_VECTOR);
 	DisplayParticle(entity, PARTICLE_PIPE2,			vPos, NULL_VECTOR);
@@ -2501,7 +2494,7 @@ public void Explode_Firework(int client, int entity, int index, bool fromTimer)
 	if( fromTimer == false )
 	{
 		// Grenade Pos
-		float vPos[3];
+		static float vPos[3];
 		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 		// Explosion
@@ -2539,7 +2532,7 @@ public void Explode_Firework(int client, int entity, int index, bool fromTimer)
 public void Explode_Smoke(int client, int entity, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	if( fromTimer == false )
@@ -2562,7 +2555,7 @@ public void Explode_Smoke(int client, int entity, int index, bool fromTimer)
 public void Explode_BlackHole(int client, int entity, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Create Explosion
@@ -2593,7 +2586,7 @@ public void Explode_BlackHole(int client, int entity, int index, bool fromTimer)
 public void Explode_Flashbang(int client, int entity, int index)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -2626,7 +2619,7 @@ public void Explode_Flashbang(int client, int entity, int index)
 public void Explode_Shield(int client, int entity, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Particles
@@ -2687,7 +2680,7 @@ public Action OnShield(int victim, int &attacker, int &inflictor, float &damage,
 public void Explode_Tesla(int client, int grenade, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(grenade, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -2709,8 +2702,8 @@ public void Explode_Tesla(int client, int grenade, int index, bool fromTimer)
 
 void TeslaShock(int grenade, int target)
 {
-	char sTemp[32];
-	float vPos[3];
+	static char sTemp[32];
+	static float vPos[3];
 	int entity;
 	int iType = GetRandomInt(0, 1);
 
@@ -2775,7 +2768,7 @@ void TeslaShock(int grenade, int target)
 public void Explode_Chemical(int client, int entity, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -2827,7 +2820,7 @@ public void Explode_Chemical(int client, int entity, int index, bool fromTimer)
 public void Explode_Freezer(int client, int entity, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	if( fromTimer == false )
@@ -2860,7 +2853,7 @@ public void OnTouchTriggerFreezer2(int entity, int target)
 {
 	if( target > MaxClients )
 	{
-		char classname[12];
+		static char classname[12];
 		GetEdictClassname(target, classname, sizeof classname);
 
 		int targ = g_GrenadeTarg[INDEX_FREEZER];
@@ -2871,7 +2864,7 @@ public void OnTouchTriggerFreezer2(int entity, int target)
 
 			PlaySound(target, SOUND_FREEZER);
 
-			float vPos[3];
+			static float vPos[3];
 			GetEntPropVector(target, Prop_Data, "m_vecOrigin", vPos);
 			int client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
 			PushCommon(client, target, vPos);
@@ -2947,7 +2940,7 @@ public Action tmrFreezer(Handle timer, any client)
 public void Explode_Medic(int client, int entity, int index)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Shake
@@ -2998,7 +2991,7 @@ public void Explode_Medic(int client, int entity, int index)
 public void Explode_Vaporizer(int client, int entity, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -3012,7 +3005,7 @@ public void Explode_Vaporizer(int client, int entity, int index, bool fromTimer)
 void DissolveCommon(int client, int entity, int target, float fDamage)
 {
 	// Pos
-	float vPos[3], vEnd[3];
+	static float vPos[3], vEnd[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecOrigin", vPos);
 	GetEntPropVector(target, Prop_Data, "m_vecOrigin", vEnd);
 	vEnd[2] += 50;
@@ -3061,7 +3054,7 @@ void DissolveTarget(int client, int target, int original = 0)
 		if( target > MaxClients )
 		{
 			// Have to kill here because this function is called above the actual hurt in CreateExplosion.
-			char sTemp[8];
+			static char sTemp[8];
 			IntToString(GetEntProp(target, Prop_Data, "m_iHealth") - 10, sTemp, sizeof(sTemp));
 			DispatchKeyValue(g_iEntityHurt, "Damage", sTemp);
 			DispatchKeyValue(g_iEntityHurt, "DamageType", "0");
@@ -3081,7 +3074,7 @@ void DissolveTarget(int client, int target, int original = 0)
 		int fader = CreateEntityByName("func_ragdoll_fader");
 		if( fader != -1 )
 		{
-			float vec[3];
+			static float vec[3];
 			GetEntPropVector(original ? original : target, Prop_Data, "m_vecOrigin", vec);
 			TeleportEntity(fader, vec, NULL_VECTOR, NULL_VECTOR);
 			DispatchSpawn(fader);
@@ -3100,7 +3093,7 @@ int AttachFakeRagdoll(int target)
 	int entity = CreateEntityByName("prop_dynamic_ornament");
 	if( entity != -1 )
 	{
-		char sModel[64];
+		static char sModel[64];
 		GetEntPropString(target, Prop_Data, "m_ModelName", sModel, sizeof(sModel));
 		DispatchKeyValue(entity, "model", sModel);
 		DispatchSpawn(entity);
@@ -3126,7 +3119,7 @@ public Action OnCommonDamage(int victim, int &attacker, int &inflictor, float &d
 void Explode_Extinguisher(int client, int entity, int index)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -3176,7 +3169,7 @@ void Explode_Extinguisher(int client, int entity, int index)
 void Explode_Glow(int client, int entity, int index)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -3205,7 +3198,7 @@ void Explode_Glow(int client, int entity, int index)
 void Explode_AntiGravity(int client, int entity, int index)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -3228,7 +3221,7 @@ void Explode_AntiGravity(int client, int entity, int index)
 void Explode_Bullets(int client, int entity, int index, bool fromTimer)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Explosion
@@ -3248,10 +3241,9 @@ void Explode_Bullets(int client, int entity, int index, bool fromTimer)
 
 
 	// Bullets
-	char classname[16];
 	Handle trace;
-	float vEnd[3];
-	float vAng[3];
+	static char classname[16];
+	static float vEnd[3], vAng[3];
 	float fDamage = g_GrenadeData[index - 1][CONFIG_DAMAGE];
 	int particle;
 	int target;
@@ -3362,7 +3354,7 @@ void Explode_Bullets(int client, int entity, int index, bool fromTimer)
 void Explode_Flak(int client, int entity, int index)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Shake
@@ -3419,7 +3411,7 @@ void Explode_Flak(int client, int entity, int index)
 int CreateProjectile(int entity, int client, int index)
 {
 	// Save origin and velocity
-	float vPos[3], vAng[3], vVel[3];
+	static float vPos[3], vAng[3], vVel[3];
 	GetEntPropVector(entity, Prop_Data, "m_angRotation", vAng);
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 	GetEntPropVector(entity, Prop_Send, "m_vInitialVelocity", vVel);
@@ -3441,7 +3433,7 @@ int CreateProjectile(int entity, int client, int index)
 	SetEntPropFloat(entity, Prop_Data, "m_flElasticity", g_GrenadeData[index - 1][CONFIG_ELASTICITY]);
 
 	// Set origin and velocity
-	float vDir[3];
+	static float vDir[3];
 	GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
 	vPos[0] += vDir[0] * 10;
 	vPos[1] += vDir[1] * 10;
@@ -3467,19 +3459,13 @@ int CreateProjectile(int entity, int client, int index)
 // ====================================================================================================
 int IsGrenade(int weapon)
 {
-	char classname[20];
+	static char classname[20];
 	GetEdictClassname(weapon, classname, sizeof classname);
 
-	if(
-		classname[7] == 'm' ||
-		classname[7] == 'p' ||
-		classname[7] == 'v'
-	)
-	{
-		if( strcmp(classname, "weapon_molotov") == 0 )							return 1;
-		if( strcmp(classname, "weapon_pipe_bomb") == 0 )						return 2;
-		if( g_bLeft4Dead2 && strcmp(classname, "weapon_vomitjar") == 0 )		return 3;
-	}
+	if( strcmp(classname[7], "molotov") == 0 )							return 1;
+	if( strcmp(classname[7], "pipe_bomb") == 0 )						return 2;
+	if( g_bLeft4Dead2 && strcmp(classname[7], "vomitjar") == 0 )		return 3;
+
 	return 0;
 }
 
@@ -3548,7 +3534,7 @@ void StaggerClient(int userid, const float vPos[3])
 			DispatchSpawn(iScriptLogic);
 		}
 
-		char sBuffer[96];
+		static char sBuffer[96];
 		Format(sBuffer, sizeof(sBuffer), "GetPlayerFromUserID(%d).Stagger(Vector(%d,%d,%d))", userid, RoundFloat(vPos[0]), RoundFloat(vPos[1]), RoundFloat(vPos[2]));
 		SetVariantString(sBuffer);
 		AcceptEntityInput(iScriptLogic, "RunScriptCode");
@@ -3599,8 +3585,8 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 	ArrayList aGodMode = new ArrayList(); // GodMode list, prevent players/common/witch from taking env_explosion damage.
 	float damage = g_GrenadeData[index - 1][CONFIG_DAMAGE];
 	float fDamage, fDistance;
-	float vEnd[3];
-	char sTemp[16];
+	static float vEnd[3];
+	static char sTemp[16];
 	int team;
 	int i;
 
@@ -3723,6 +3709,9 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 			bf.WriteByte(255);
 			bf.WriteByte(240);
 			EndMessage();
+
+			L4D_TE_Create_Particle(_, _, g_iParticleBashed, _, _, false);
+			TE_Send(clients, flashcount);
 		}
 	}
 
@@ -3782,7 +3771,7 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 
 						if( index -1 == INDEX_BLACKHOLE )
 						{
-							float vAng[3];
+							static float vAng[3];
 							MakeVectorFromPoints(vPos, vEnd, vAng);
 							NormalizeVector(vAng, vAng);
 							vEnd[0] += vAng[0] * 10;
@@ -3958,7 +3947,7 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 		{
 			if( type == TARGET_WITCH )
 			{
-				float vAng[3];
+				static float vAng[3];
 				MakeVectorFromPoints(vPos, vEnd, vAng);
 				NormalizeVector(vAng, vAng);
 				vEnd[0] += vAng[0] * 10;
@@ -4027,13 +4016,13 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 	// ==================================================
 	else if( index -1 == INDEX_VAPORIZER )
 	{
-		if( GetGameTime() - GetEntPropFloat(target, Prop_Send, "m_flCreateTime") > g_GrenadeData[index - 1][CONFIG_DMG_TICK] )
+		if( GetGameTime() - GetEntPropFloat(target, Prop_Data, "m_flCreateTime") > g_GrenadeData[index - 1][CONFIG_DMG_TICK] )
 		{
 			GetEntPropVector(target, Prop_Data, "m_vecOrigin", vEnd);
 			vEnd[2] += 50.0;
 			if( IsVisibleTo(vPos, vEnd) )
 			{
-				SetEntPropFloat(target, Prop_Send, "m_flCreateTime", GetGameTime());
+				SetEntPropFloat(target, Prop_Data, "m_flCreateTime", GetGameTime());
 				DissolveCommon(client, entity, target, fDamage);
 				return true;
 			}
@@ -4065,7 +4054,7 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 	{
 		if( type == TARGET_SURVIVOR )
 		{
-			float vVel[3];
+			static float vVel[3];
 			GetEntPropVector(target, Prop_Data, "m_vecAbsVelocity", vVel);
 			if( GetEntProp(target, Prop_Send, "m_fFlags") & FL_ONGROUND )
 				vVel[2] = 350.0;
@@ -4136,7 +4125,7 @@ int ValidTargetRef(int target)
 /*
 int GetColor(char sTemp[32])
 {
-	char sColors[3][4];
+	static char sColors[3][4];
 	ExplodeString(sTemp, " ", sColors, 3, 4);
 
 	int color;
@@ -4163,7 +4152,7 @@ void CreateShake(float intensity, float range, float vPos[3])
 		return;
 	}
 
-	char sTemp[8];
+	static char sTemp[8];
 	FloatToString(intensity, sTemp, sizeof sTemp);
 	DispatchKeyValue(entity, "amplitude", sTemp);
 	DispatchKeyValue(entity, "frequency", "1.5");
@@ -4224,7 +4213,7 @@ void CreateFires(int target, int client, bool gascan)
 		if( gascan )		SetEntityModel(entity, MODEL_GASCAN);
 		else				SetEntityModel(entity, MODEL_CRATE);
 
-		float vPos[3];
+		static float vPos[3];
 		GetEntPropVector(target, Prop_Data, "m_vecOrigin", vPos);
 		vPos[2] += 10.0;
 		TeleportEntity(entity, vPos, NULL_VECTOR, NULL_VECTOR);
@@ -4241,7 +4230,7 @@ void CreateFires(int target, int client, bool gascan)
 
 void InputKill(int entity, float time)
 {
-	char temp[40];
+	static char temp[40];
 	Format(temp, sizeof temp, "OnUser4 !self:Kill::%f:-1", time);
 	SetVariantString(temp);
 	AcceptEntityInput(entity, "AddOutput");
@@ -4268,10 +4257,10 @@ void TriggerMultipleDamage(int entity, int index, float range, float vPos[3])
 
 	// Box size
 	range /= 2;
-	float vMins[3];
+	static float vMins[3];
 	vMins[0] = -range;
 	vMins[1] = -range;
-	float vMaxs[3];
+	static float vMaxs[3];
 	vMaxs[0] = range;
 	vMaxs[1] = range;
 	vMaxs[2] = 70.0;
@@ -4297,7 +4286,7 @@ public void OnTouchTriggerMultple(int trigger, int target)
 	int index = GetEntProp(trigger, Prop_Data, "m_iHammerID") - 1;
 
 	// Check classname
-	char classname[12];
+	static char classname[12];
 	GetEdictClassname(target, classname, sizeof classname);
 	if(
 		(index == INDEX_SHIELD && strcmp(classname, "player")) ||
@@ -4355,7 +4344,7 @@ void MakeEnvSteam(int target, const float vPos[3], const float vAng[3], const ch
 		return;
 	}
 
-	char sTemp[32];
+	static char sTemp[32];
 	Format(sTemp, sizeof sTemp, "silv_steam_%d", target);
 	DispatchKeyValue(entity, "targetname", sTemp);
 	DispatchKeyValue(entity, "SpawnFlags", "1");
@@ -4411,7 +4400,7 @@ void CreateEnvSprite(int target, const char[] sColor)
 void CreateBeamRing(int entity, int iColor[4], float min, float max)
 {
 	// Grenade Pos
-	float vPos[3];
+	static float vPos[3];
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 
 	// Make beam rings
@@ -4446,7 +4435,7 @@ int DisplayParticle(int target, const char[] sParticle, const float vPos[3], con
 	// Refire
 	if( refire )
 	{
-		char sTemp[64];
+		static char sTemp[64];
 		Format(sTemp, sizeof sTemp, "OnUser1 !self:Stop::%f:-1", refire - 0.05);
 		SetVariantString(sTemp);
 		AcceptEntityInput(entity, "AddOutput");
@@ -4464,7 +4453,7 @@ int DisplayParticle(int target, const char[] sParticle, const float vPos[3], con
 	// Attach
 	if( target )
 	{
-		SetVariantString("!activator"); 
+		SetVariantString("!activator");
 		AcceptEntityInput(entity, "SetParent", target);
 	}
 
@@ -4499,19 +4488,22 @@ int PrecacheParticle(const char[] sEffectName)
 // ====================================================================================================
 stock bool IsVisibleTo(float position[3], float targetposition[3])
 {
-	float vAngles[3], vLookAt[3];
+	static float vAngles[3], vLookAt[3];
 	position[2] += 50.0;
 
 	MakeVectorFromPoints(position, targetposition, vLookAt); // compute vector from start to target
 	GetVectorAngles(vLookAt, vAngles); // get angles from vector for trace
 
 	// execute Trace
-	Handle trace = TR_TraceRayFilterEx(position, vAngles, MASK_ALL, RayType_Infinite, _TraceFilter);
+	static Handle trace;
+	trace = TR_TraceRayFilterEx(position, vAngles, MASK_ALL, RayType_Infinite, _TraceFilter);
 
-	bool isVisible = false;
+	static bool isVisible;
+	isVisible = false;
+
 	if( TR_DidHit(trace) )
 	{
-		float vStart[3];
+		static float vStart[3];
 		TR_GetEndPosition(vStart, trace); // retrieve our trace endpoint
 
 		if( GetVectorDistance(position, vStart) + 25.0 >= GetVectorDistance(position, targetposition) )
@@ -4531,21 +4523,9 @@ public bool _TraceFilter(int entity, int contentsMask)
 		return false;
 
 	// Don't hit triggers
-	char classname[12];
+	static char classname[12];
 	GetEdictClassname(entity, classname, sizeof classname);
-	if(
-		classname[0] == 't' &&
-		classname[1] == 'r' &&
-		classname[2] == 'i' &&
-		classname[3] == 'g' &&
-		classname[4] == 'g' &&
-		classname[5] == 'e' &&
-		classname[6] == 'r' &&
-		classname[7] == '_'
-	)
-	{
-		return false;
-	}
+	if( strncmp(classname, "trigger_", 8) == 0 ) return false;
 
 	return true;
 }
@@ -4553,16 +4533,17 @@ public bool _TraceFilter(int entity, int contentsMask)
 bool SetTeleportEndPoint(int client, float vPos[3])
 {
 	GetClientEyePosition(client, vPos);
-	float vAng[3];
+	static float vAng[3];
 	GetClientEyeAngles(client, vAng);
 
-	Handle trace = TR_TraceRayFilterEx(vPos, vAng, MASK_SHOT, RayType_Infinite, ExcludeSelf_Filter, client);
+	static Handle trace;
+	trace = TR_TraceRayFilterEx(vPos, vAng, MASK_SHOT, RayType_Infinite, ExcludeSelf_Filter, client);
 
 	if(TR_DidHit(trace))
 	{
 		TR_GetEndPosition(vPos, trace);
 
-		float vDir[3];
+		static float vDir[3];
 		GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
 		vPos[0] -= vDir[0] * 10;
 		vPos[1] -= vDir[1] * 10;
@@ -4602,15 +4583,15 @@ public bool ExcludeSelf_Filter(int entity, int contentsMask, any client)
 *	fMagnitude = no idea saw being used with pipebomb blast (needs testing)
 *	fScale = guess its particle scale but most dont scale (needs testing)
 */
-stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0}, 
-								float fParticleEndPos[3]={0.0, 0.0, 0.0}, 
-								int iParticleIndex=-1, 
+stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
+								float fParticleEndPos[3]={0.0, 0.0, 0.0},
+								int iParticleIndex=-1,
 								int iEntIndex=0,
 								float fDelay=0.0,
 								bool SendToAll=true,
 								char sParticleName[64]="",
 								int iAttachmentIndex=0,
-								float fParticleAngles[3]={0.0, 0.0, 0.0}, 
+								float fParticleAngles[3]={0.0, 0.0, 0.0},
 								int iFlags=0,
 								int iDamageType=0,
 								float fMagnitude=0.0,
@@ -4631,7 +4612,6 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 		iEffectIndex = __FindStringIndex2(FindStringTable("EffectDispatch"), "ParticleEffect");
 		if(iEffectIndex == INVALID_STRING_INDEX)
 			SetFailState("Unable to find EffectDispatch/ParticleEffect indexes");
-		
 	}
 
 	TE_WriteNum("m_iEffectName", iEffectIndex);
@@ -4642,7 +4622,7 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 		iParticleStringIndex = __FindStringIndex2(iEffectIndex, sParticleName);
 		if(iParticleStringIndex == INVALID_STRING_INDEX)
 			return false;
-		
+
 		TE_WriteNum("m_nHitBox", iParticleStringIndex);
 	}
 	else
@@ -4669,24 +4649,24 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 /*
  * Rewrite of FindStringIndex, because in my tests
  * FindStringIndex failed to work correctly.
- * Searches for the index of a given string in a string table. 
- * 
+ * Searches for the index of a given string in a string table.
+ *
  * @param tableidx		A string table index.
  * @param str			String to find.
  * @return				String index if found, INVALID_STRING_INDEX otherwise.
  */
 stock int __FindStringIndex2(int tableidx, const char[] str)
 {
-	char buf[1024];
+	static char buf[1024];
 
 	int numStrings = GetStringTableNumStrings(tableidx);
 	for (int i=0; i < numStrings; i++) {
 		ReadStringTable(tableidx, i, buf, sizeof(buf));
-		
+
 		if (StrEqual(buf, str)) {
 			return i;
 		}
 	}
-	
+
 	return INVALID_STRING_INDEX;
 }

@@ -24,7 +24,7 @@ public Plugin:myinfo =
 	url = ""
 };
 
-Handle g_hFindUseEntity = null;
+Handle g_fnFindUseEntity = null;
 
 bool g_bHasShotGunChanged[MAXPLAYERS+1] = {false, ...};
 int g_iLastShotGunClip[MAXPLAYERS+1] = {0, ...}, g_iLastUpgradeClip[MAXPLAYERS+1] = {0, ...},
@@ -46,37 +46,37 @@ ConVar g_pCvarSmgClip, g_pCvarSmgAmmo, g_pCvarSilencedClip, g_pCvarSilencedAmmo,
 public OnPluginStart()
 {
 	InitPlugin("wa");
-	g_pCvarPatchReloadShot = CreateConVar("l4d2_wa_reload_shot_fix", "1", "修复霰弹枪无法开枪", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_pCvarSmgClip = CreateConVar("l4d2_wa_smg_clip", "50", "普通冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarSmgAmmo = CreateConVar("l4d2_wa_smg_ammo", "650", "普通冲锋枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarSilencedClip = CreateConVar("l4d2_wa_smg_silenced_clip", "50", "消音冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarSilencedAmmo = CreateConVar("l4d2_wa_smg_silenced_ammo", "650", "消音冲锋枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarMP5Clip = CreateConVar("l4d2_wa_smg_mp5_clip", "50", "MP5 冲锋枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarMP5Ammo = CreateConVar("l4d2_wa_smg_mp5_ammo", "650", "MP5 冲锋枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarPumpClip = CreateConVar("l4d2_wa_pumpshotgun_clip", "8", "木单喷弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarPumpAmmo = CreateConVar("l4d2_wa_pumpshotgun_ammo", "56", "木单喷弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarChromeClip = CreateConVar("l4d2_wa_shotgun_chrome_clip", "8", "铁单喷弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarChromeAmmo = CreateConVar("l4d2_wa_shotgun_chrome_ammo", "56", "铁单喷弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarRifleClip = CreateConVar("l4d2_wa_rifle_clip", "50", "M16 步枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarRifleAmmo = CreateConVar("l4d2_wa_rifle_ammo", "360", "M16 步枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarAk47Clip = CreateConVar("l4d2_wa_rifle_ak47_clip", "40", "AK47 步枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarAk47Ammo = CreateConVar("l4d2_wa_rifle_ak47_ammo", "360", "AK47 步枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarDesertClip = CreateConVar("l4d2_wa_rifle_desert_clip", "60", "三连发步枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarDesertAmmo = CreateConVar("l4d2_wa_rifle_desert_ammo", "360", "三连发步枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarSG552Clip = CreateConVar("l4d2_wa_rifle_sg552_clip", "50", "SG552 发步枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarSG552Ammo = CreateConVar("l4d2_wa_rifle_sg552_ammo", "360", "SG552 步枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarAutoClip = CreateConVar("l4d2_wa_autoshotgun_clip", "10", "一代连喷弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarAutoAmmo = CreateConVar("l4d2_wa_autoshotugn_ammo", "90", "一代连喷弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarSpasClip = CreateConVar("l4d2_wa_shotgun_spas_clip", "10", "二代连喷弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarSpasAmmo = CreateConVar("l4d2_wa_shotgun_spas_ammo", "90", "二代连喷弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarHuntingClip = CreateConVar("l4d2_wa_hunging_rifle_clip", "15", "猎枪弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarHuntingAmmo = CreateConVar("l4d2_wa_hunting_rifle_ammo", "150", "猎枪弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarMilitaryClip = CreateConVar("l4d2_wa_sniper_military_clip", "30", "连狙弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarMilitaryAmmo = CreateConVar("l4d2_wa_sniper_military_ammo", "180", "连狙弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarScoutClip = CreateConVar("l4d2_wa_sniper_scout_clip", "15", "鸟狙弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarScoutAmmo = CreateConVar("l4d2_wa_sniper_scout_ammo", "180", "鸟狙弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
-	g_pCvarAwpClip = CreateConVar("l4d2_wa_sniper_awp_clip", "20", "大鸟弹夹", FCVAR_NONE, true, 0.0, true, float(g_iMaxClip));
-	g_pCvarAwpAmmo = CreateConVar("l4d2_wa_sniper_awp_ammo", "180", "大鸟弹药", FCVAR_NONE, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarPatchReloadShot = CreateConVar("l4d2_wa_reload_shot_fix", "1", "修复霰弹枪无法开枪", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarSmgClip = CreateConVar("l4d2_wa_smg_clip", "50", "普通冲锋枪弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarSmgAmmo = CreateConVar("l4d2_wa_smg_ammo", "650", "普通冲锋枪弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarSilencedClip = CreateConVar("l4d2_wa_smg_silenced_clip", "50", "消音冲锋枪弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarSilencedAmmo = CreateConVar("l4d2_wa_smg_silenced_ammo", "650", "消音冲锋枪弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarMP5Clip = CreateConVar("l4d2_wa_smg_mp5_clip", "50", "MP5 冲锋枪弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarMP5Ammo = CreateConVar("l4d2_wa_smg_mp5_ammo", "650", "MP5 冲锋枪弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarPumpClip = CreateConVar("l4d2_wa_pumpshotgun_clip", "8", "木单喷弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarPumpAmmo = CreateConVar("l4d2_wa_pumpshotgun_ammo", "56", "木单喷弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarChromeClip = CreateConVar("l4d2_wa_shotgun_chrome_clip", "8", "铁单喷弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarChromeAmmo = CreateConVar("l4d2_wa_shotgun_chrome_ammo", "56", "铁单喷弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarRifleClip = CreateConVar("l4d2_wa_rifle_clip", "50", "M16 步枪弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarRifleAmmo = CreateConVar("l4d2_wa_rifle_ammo", "360", "M16 步枪弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarAk47Clip = CreateConVar("l4d2_wa_rifle_ak47_clip", "40", "AK47 步枪弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarAk47Ammo = CreateConVar("l4d2_wa_rifle_ak47_ammo", "360", "AK47 步枪弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarDesertClip = CreateConVar("l4d2_wa_rifle_desert_clip", "60", "三连发步枪弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarDesertAmmo = CreateConVar("l4d2_wa_rifle_desert_ammo", "360", "三连发步枪弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarSG552Clip = CreateConVar("l4d2_wa_rifle_sg552_clip", "50", "SG552 发步枪弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarSG552Ammo = CreateConVar("l4d2_wa_rifle_sg552_ammo", "360", "SG552 步枪弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarAutoClip = CreateConVar("l4d2_wa_autoshotgun_clip", "10", "一代连喷弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarAutoAmmo = CreateConVar("l4d2_wa_autoshotugn_ammo", "90", "一代连喷弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarSpasClip = CreateConVar("l4d2_wa_shotgun_spas_clip", "10", "二代连喷弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarSpasAmmo = CreateConVar("l4d2_wa_shotgun_spas_ammo", "90", "二代连喷弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarHuntingClip = CreateConVar("l4d2_wa_hunging_rifle_clip", "15", "猎枪弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarHuntingAmmo = CreateConVar("l4d2_wa_hunting_rifle_ammo", "150", "猎枪弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarMilitaryClip = CreateConVar("l4d2_wa_sniper_military_clip", "30", "连狙弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarMilitaryAmmo = CreateConVar("l4d2_wa_sniper_military_ammo", "180", "连狙弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarScoutClip = CreateConVar("l4d2_wa_sniper_scout_clip", "15", "鸟狙弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarScoutAmmo = CreateConVar("l4d2_wa_sniper_scout_ammo", "180", "鸟狙弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
+	g_pCvarAwpClip = CreateConVar("l4d2_wa_sniper_awp_clip", "20", "大鸟弹夹", CVAR_FLAGS, true, 0.0, true, float(g_iMaxClip));
+	g_pCvarAwpAmmo = CreateConVar("l4d2_wa_sniper_awp_ammo", "180", "大鸟弹药", CVAR_FLAGS, true, 0.0, true, float(g_iMaxAmmo));
 	AutoExecConfig(true, "l4d2_weapon_ammo");
 	
 	HookEvent("item_pickup", Event_ItemPickup);
@@ -521,7 +521,7 @@ public void OnThink_UpdateWeapon(int client)
 	
 	if(maxClip > 0)
 	{
-		// 如果设置的子弹多则减备用自动，少则增加
+		// 如果设置的子弹多则减备用子弹，少则增加
 		int change = maxClip - currentClip;
 		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 		SetEntProp(weapon, Prop_Send, "m_iClip1", maxClip);
@@ -765,19 +765,19 @@ stock void InitFindEntity()
 	PrepSDKCall_AddParameter(SDKType_PlainOldData,SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_Bool,SDKPass_Plain);
 	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity,SDKPass_Pointer);
-	g_hFindUseEntity = EndPrepSDKCall();
+	g_fnFindUseEntity = EndPrepSDKCall();
 	
 	CloseHandle(gConf);
 }
 
 stock int FindUseEntity(int client)
 {
-	if(g_hFindUseEntity == null)
+	if(g_fnFindUseEntity == null)
 		return GetClientAimTarget(client, false);
 	
 	static ConVar cvUseRadius;
 	if(cvUseRadius == null)
 		cvUseRadius = FindConVar("player_use_radius");
 	
-	return SDKCall(g_hFindUseEntity,client,cvUseRadius.FloatValue,0.0,0.0,0,false);
+	return SDKCall(g_fnFindUseEntity,client,cvUseRadius.FloatValue,0.0,0.0,0,false);
 }

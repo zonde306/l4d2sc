@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION 		"1.10"
+#define PLUGIN_VERSION 		"1.13"
 
 /*====================================================================================================
 	Plugin Info:
@@ -11,6 +11,17 @@
 
 ======================================================================================================
 	Change Log:
+
+1.13 (11-Nov-2019)
+	- Added option "0" to "preferences" in the config to give stock grenades on grenade pickup.
+
+1.12 (10-Nov-2019)
+	- Fixed breaking client preferences after map change due to last version fixes.
+
+1.11 (09-Nov-2019)
+	- Small optimizations.
+	- Fixed breaking equip on round restart.
+	- Fixed Shield type not working. Thanks to "fbef0102" for reporting.
 
 1.10 (01-Nov-2019)
 	- Changed the way grenade bounce sounds are replaced to prevent plugin conflicts. Thanks to "Lux" for the idea.
@@ -283,7 +294,7 @@ int		g_iEntityHurt;												// Hurt entity.
 int		g_iParticleTracer;											// Particle index for TE.
 int		g_iParticleTracer50;
 int		g_iParticleBashed;
-
+UserMsg	g_FadeUserMsgId;
 
 
 // VARS
@@ -504,6 +515,11 @@ public void OnPluginStart()
 
 
 
+	// UserMsg
+	g_FadeUserMsgId = GetUserMessageId("Fade");
+
+
+
 	// Late load
 	if( g_bLateLoad )
 	{
@@ -516,7 +532,7 @@ public void OnPluginStart()
 
 public void OnPluginEnd()
 {
-	ResetPlugin();
+	ResetPlugin(true);
 }
 
 public Action Timer_Register(Handle timer, any unused)
@@ -593,26 +609,15 @@ public void OnClientPutInServer(int client)
 	*/
 }
 
-public void OnClientPostAdminCheck(int client)
+public void OnClientCookiesCached(int client)
 {
 	if( g_bCvarAllow )
 	{
 		if( g_iConfigPrefs != 1 )
 			g_iClientGrenadeType[client] = -1;
-
-		if( !IsFakeClient(client) )
-		{
-			// CreateTimer(0.2, tmrCookies, GetClientUserId(client));
-		} else {
-			SetCurrentNadePref(client); // Mostly for lateloads
-		}
 	}
-}
 
-public Action tmrCookies(Handle timer, any client)
-{
-	client = GetClientOfUserId(client);
-	if( client && IsClientInGame(client) )
+	if( !IsFakeClient(client) )
 	{
 		// Get client cookies, set type if available or default.
 		static char sCookie[10];
@@ -631,8 +636,6 @@ public Action tmrCookies(Handle timer, any client)
 		g_iClientGrenadePref[client][0] = StringToInt(sChars[0]);
 		g_iClientGrenadePref[client][1] = StringToInt(sChars[1]);
 		g_iClientGrenadePref[client][2] = StringToInt(sChars[2]);
-
-		SetCurrentNadePref(client); // Mostly for lateloads
 	}
 }
 
@@ -958,16 +961,16 @@ void IsAllowed()
 		for( int i = 1; i <= MaxClients; i++ )
 		if( IsClientInGame(i) )
 		{
-			// Hook WeaponEquip
+			// Hook WeaponEquip, get cookies
 			OnClientPutInServer(i);
-			// Get cookies
-			OnClientPostAdminCheck(i);
+			OnClientCookiesCached(i);
+			// SetCurrentNadePref(i);
 		}
 	}
 
 	else if( g_bCvarAllow == true && (bCvarAllow == false || bAllowMode == false) )
 	{
-		ResetPlugin();
+		ResetPlugin(true);
 		g_bCvarAllow = false;
 
 		RemoveNormalSoundHook(view_as<NormalSHook>(SoundHook));
@@ -1045,7 +1048,7 @@ public void OnGamemode(const char[] output, int caller, int activator, float del
 // ====================================================================================================
 public void OnMapEnd()
 {
-	ResetPlugin();
+	ResetPlugin(true);
 }
 
 public void OnMapStart()
@@ -1201,7 +1204,7 @@ void LoadDataConfig()
 		g_iConfigBinds =				Clamp(g_iConfigBinds, 				4, 1);
 
 		g_iConfigPrefs =				hFile.GetNum("preferences",			1);
-		g_iConfigPrefs =				Clamp(g_iConfigPrefs, 				3, 1);
+		g_iConfigPrefs =				Clamp(g_iConfigPrefs, 				3, 0);
 
 		g_fConfigSurvivors =			hFile.GetFloat("damage_survivors",	1.0);
 		g_fConfigSurvivors =			Clamp(g_fConfigSurvivors, 			1000.0, 0.0);
@@ -1264,21 +1267,9 @@ any Clamp(any value, any max, any min = 0.0)
 // ====================================================================================================
 public void OnWeaponEquip(int client, int weapon)
 {
-	// No longer required in Gear Transfer 2.0!
-
-	// RequestFrame(OnNextEquip, EntIndexToEntRef(weapon)); // Delayed by a frame to support Gear Transfer plugin setting the type.
-// }
-
-// public void OnNextEquip(int weapon)
-// {
-	// if( (weapon = EntRefToEntIndex(weapon)) == INVALID_ENT_REFERENCE ) return;
-
 	int type = IsGrenade(weapon);
 	if( type )
 	{
-		// int client = GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity");
-		// if( client == -1 || !IsClientInGame(client) ) return;
-
 		// Random grenade prefs
 		if( g_iConfigPrefs != 1 || g_iConfigBots && IsFakeClient(client) )
 		{
@@ -1311,7 +1302,12 @@ public void OnWeaponEquip(int client, int weapon)
 		}
 
 		// Client prefs default
-		if( g_iClientGrenadeType[client] == -1 )
+		if( g_iConfigPrefs == 0 )
+		{
+			g_iClientGrenadeType[client] = 0;
+			g_iClientGrenadePref[client][type - 1] = 0;
+		}
+		else if( g_iClientGrenadeType[client] == -1 )
 		{
 			g_iClientGrenadeType[client] = g_iClientGrenadePref[client][type - 1];
 
@@ -1324,7 +1320,7 @@ public void OnWeaponEquip(int client, int weapon)
 		SetEntProp(weapon, Prop_Data, "m_iHammerID", g_iClientGrenadeType[client] + 1); // Store type
 
 		// Hints
-		if( !IsFakeClient(client) )
+		if( g_bCvarAllow && !IsFakeClient(client) )
 		{
 			static char translation[256];
 			Format(translation, sizeof translation, "GrenadeMod_Title_%d", g_iClientGrenadeType[client]);
@@ -1342,6 +1338,7 @@ public void OnWeaponEquip(int client, int weapon)
 					Format(translation, sizeof translation, "%T", "GrenadeMod_Hint", client);
 
 				ReplaceColors(translation, sizeof translation);
+				PrintToChat(client, translation);
 			}
 		}
 	}
@@ -1502,7 +1499,7 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 	ResetPlugin();
 }
 
-void ResetPlugin()
+void ResetPlugin(bool all = false)
 {
 	for( int i = 1; i <= MaxClients; i++ )
 	{
@@ -1511,9 +1508,12 @@ void ResetPlugin()
 		g_fLastShield[i] = 0.0;
 		g_fLastUse[i] = 0.0;
 
-		SDKUnhook(i, SDKHook_OnTakeDamageAlive,	OnShield);
-		SDKUnhook(i, SDKHook_WeaponEquip,		OnWeaponEquip);
-		SDKUnhook(i, SDKHook_WeaponDrop,		OnWeaponDrop);
+		if( all )
+		{
+			SDKUnhook(i, SDKHook_OnTakeDamageAlive,	OnShield);
+			SDKUnhook(i, SDKHook_WeaponEquip,		OnWeaponEquip);
+			SDKUnhook(i, SDKHook_WeaponDrop,		OnWeaponDrop);
+		}
 	}
 
 	int entity = -1;
@@ -3698,7 +3698,6 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 		if( flashcount && index -1 == INDEX_FLASHBANG )
 		{
 			// Blind
-			UserMsg g_FadeUserMsgId = GetUserMessageId("Fade");
 			Handle message = StartMessageEx(g_FadeUserMsgId, clients, flashcount);
 			BfWrite bf = UserMessageToBfWrite(message);
 			bf.WriteShort(RoundFloat(g_GrenadeData[index - 1][CONFIG_TIME]) * 1000);
@@ -4289,7 +4288,7 @@ public void OnTouchTriggerMultple(int trigger, int target)
 	static char classname[12];
 	GetEdictClassname(target, classname, sizeof classname);
 	if(
-		(index == INDEX_SHIELD && strcmp(classname, "player")) ||
+		(index == INDEX_SHIELD && strcmp(classname, "player") == 0) ||
 		(index != INDEX_SHIELD && strcmp(classname, "player") == 0 || strcmp(classname, "infected") == 0 || strcmp(classname, "witch") == 0)
 	)
 	{
@@ -4645,7 +4644,7 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 	return true;
 }
 
-//Credit smlib https://github.com/bcserv/smlib
+// Credit smlib https://github.com/bcserv/smlib
 /*
  * Rewrite of FindStringIndex, because in my tests
  * FindStringIndex failed to work correctly.

@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION		"2.2"
+#define PLUGIN_VERSION		"2.3"
 
 /*====================================================================================================
 	Plugin Info:
@@ -11,6 +11,10 @@
 
 ======================================================================================================
 	Change Log:
+
+2.3 (09-Nov-2019)
+	- Fixed "Invalid memory access". Thanks to "Lux" for reporting.
+	- Fixed bots not always picking up items.
 
 2.2 (04-Nov-2019)
 	- Additional optimization for L4D1.
@@ -368,6 +372,8 @@ static const char g_Pickups[9][] =
 	"weapon_defibrillator"
 };
 
+int g_Lengths[9];
+
 // Vocalize for Left 4 Dead 2
 static const char g_Coach[8][] =
 {
@@ -418,7 +424,7 @@ static const char g_Zoey[10][] =
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "机器人捡东西",
+	name = "[L4D & L4D2] Gear Transfer",
 	author = "SilverShot",
 	description = "Survivor bots can automatically pickup and give items. Players can switch, grab or give items.",
 	version = PLUGIN_VERSION,
@@ -442,7 +448,7 @@ public void OnPluginStart()
 {
 	// Translations
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, "%s", "translations/gear_transfer.phrases.txt");
+	BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, "translations/gear_transfer.phrases.txt");
 	if( FileExists(sPath) )
 	{
 		LoadTranslations("gear_transfer.phrases");
@@ -455,23 +461,23 @@ public void OnPluginStart()
 
 	// Cvars
 	g_hCvarAllow =			CreateConVar(	"l4d_gear_transfer_allow",			"1",			"0=Plugin Off, 1=Plugin On.", CVAR_FLAGS);
-	g_hCvarDistGive =		CreateConVar(	"l4d_gear_transfer_dist_give",		"150.0",		"递东西距离", CVAR_FLAGS);
-	g_hCvarDistGrab =		CreateConVar(	"l4d_gear_transfer_dist_grab",		"150.0",		"机器人捡东西距离", CVAR_FLAGS);
-	g_hCvarTimerGive =		CreateConVar(	"l4d_gear_transfer_timer_give",		"1.0",			"机器人递东西间隔.0=关闭", CVAR_FLAGS, true, 0.0, true, 10.0);
-	g_hCvarTimerGrab =		CreateConVar(	"l4d_gear_transfer_timer_grab",		"0.5",			"机器人找东西间隔.0=关闭", CVAR_FLAGS, true, 0.0, true, 10.0);
-	g_hCvarGive =			CreateConVar(	"l4d_gear_transfer_types_give",		"34578",		"机器人递东西类型. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
-	g_hCvarGrab =			CreateConVar(	"l4d_gear_transfer_types_grab",		"123456789",	"机器人捡起东西类型. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
-	g_hCvarTypes =			CreateConVar(	"l4d_gear_transfer_types_real",		"3456789",		"玩家可以递东西类型. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
-	g_hCvarMethod =			CreateConVar(	"l4d_gear_transfer_method",			"3",			"递东西按键.0=关.1=推.2=R.3=都行", CVAR_FLAGS);
+	g_hCvarDistGive =		CreateConVar(	"l4d_gear_transfer_dist_give",		"150.0",		"How close you have to be to transfer an item. Also affects bots auto give range.", CVAR_FLAGS);
+	g_hCvarDistGrab =		CreateConVar(	"l4d_gear_transfer_dist_grab",		"150.0",		"How close the bots need to be for them to pick up an item.", CVAR_FLAGS);
+	g_hCvarTimerGive =		CreateConVar(	"l4d_gear_transfer_timer_give",		"1.0",			"0.0=Off. How often to check survivor bot positions to real clients for auto give.", CVAR_FLAGS, true, 0.0, true, 10.0);
+	g_hCvarTimerGrab =		CreateConVar(	"l4d_gear_transfer_timer_grab",		"0.5",			"0.0=Off. How often to check survivor bot positions to item positions for auto grab.", CVAR_FLAGS, true, 0.0, true, 10.0);
+	g_hCvarGive =			CreateConVar(	"l4d_gear_transfer_types_give",		"123456789",	"Which type can bots auto give. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
+	g_hCvarGrab =			CreateConVar(	"l4d_gear_transfer_types_grab",		"123456789",	"Which type can bots auto grab. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
+	g_hCvarTypes =			CreateConVar(	"l4d_gear_transfer_types_real",		"123456789",	"The types real players can transfer. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
+	g_hCvarMethod =			CreateConVar(	"l4d_gear_transfer_method",			"3",			"0=Off. 1=Shove only, 2=Reload key only, 3=Shove and Reload key to transfer items.", CVAR_FLAGS);
 	g_hCvarModesBot =		CreateConVar(	"l4d_gear_transfer_modes_bot",		"",				"Disallow bots from auto give/grab in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
 	g_hCvarModesOn =		CreateConVar(	"l4d_gear_transfer_modes_on",		"",				"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
 	g_hCvarModesOff =		CreateConVar(	"l4d_gear_transfer_modes_off",		"",				"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
 	g_hCvarModesTog =		CreateConVar(	"l4d_gear_transfer_modes_tog",		"0",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
-	g_hCvarNotify =			CreateConVar(	"l4d_gear_transfer_notify",			"0",			"在聊天框显示物品捡起/递给", CVAR_FLAGS);
-	g_hCvarSounds =			CreateConVar(	"l4d_gear_transfer_sounds",			"1",			"递东西播放声音", CVAR_FLAGS);
-	g_hCvarTimeout =		CreateConVar(	"l4d_gear_transfer_timeout",		"5",			"换东西后防止被抢走的间隔(有包捡起个电击，电人后再捡回包，防止被抢包)", CVAR_FLAGS, true, 1.0);
-	g_hCvarTraces =			CreateConVar(	"l4d_gear_transfer_traces",			"15",			"检查可以捡东西RayTrace每frame调用间隔", CVAR_FLAGS, true, 1.0, true, 120.0);
-	g_hCvarVocalize =		CreateConVar(	"l4d_gear_transfer_vocalize",		"1",			"递东西语音，开局60秒内不说话", CVAR_FLAGS);
+	g_hCvarNotify =			CreateConVar(	"l4d_gear_transfer_notify",			"1",			"0=Off, 1=Display transfer info to everyone through chat messages.", CVAR_FLAGS);
+	g_hCvarSounds =			CreateConVar(	"l4d_gear_transfer_sounds",			"1",			"0=Off, 1=Play a sound to the person giving/receiving an item.", CVAR_FLAGS);
+	g_hCvarTimeout =		CreateConVar(	"l4d_gear_transfer_timeout",		"5",			"Timeout to stop bots returning an item after switching with a player. Timeout to prevent bots auto grabbing a recently dropped item.", CVAR_FLAGS, true, 1.0);
+	g_hCvarTraces =			CreateConVar(	"l4d_gear_transfer_traces",			"15",			"Maximum number of ray traces per frame for auto give/grab. This could be increased with minimal impact.", CVAR_FLAGS, true, 1.0, true, 120.0);
+	g_hCvarVocalize =		CreateConVar(	"l4d_gear_transfer_vocalize",		"1",			"0=Off. 1=Players vocalize when transferring items. Blocked for the first 60 seconds of a new round.", CVAR_FLAGS);
 	CreateConVar(							"l4d_gear_transfer_version",		PLUGIN_VERSION, "Gear Transfer plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
 	AutoExecConfig(true,					"l4d_gear_transfer");
 
@@ -506,6 +512,9 @@ public void OnPluginStart()
 	g_TypePack = new ArrayList();
 
 	// Start plugin
+	for( int i = 0; i < sizeof g_Pickups; i++ )
+		g_Lengths[i] = strlen(g_Pickups[i]);
+
 	IsAllowed();
 
 	#if BENCHMARK
@@ -1233,48 +1242,48 @@ public void OnEntityCreated(int entity, const char[] classname)
 	StartProfiling(g_Profiler);
 	#endif
 
-	if( g_bCvarAllow && g_iCvarGrab && classname[0] == 'w' && classname[6] == '_' ) // Match "w" and "_" from "weapon_"
+	if( g_bCvarAllow && g_iCvarGrab && classname[0] == 'w' ) // Match "w" from "weapon_"
 	{
-		int len;
-		for( int i = 0; i < MAX_TYPES; i++ )
+		int len = strlen(classname);
+		if( len > 13 && classname[6] == '_' ) // Min length "weapon_molotov". Match "_" from "weapon_"
 		{
-			if( !g_bLeft4Dead2 && (i == TYPE_ADREN || i == TYPE_VOMIT || (i > TOP_INDEX_NADE && i != TYPE_FIRST)) ) continue;
-
-			len = strlen(g_Pickups[i][7]);
-			if( strncmp(classname[7], g_Pickups[i][7], len > 13 ? 13 : len) == 0 ) // Match after "weapon_" for string len or 13 chars: (eg "upgradepack_i").
+			for( int i = 0; i < MAX_TYPES; i++ )
 			{
-				// Match for "_spawn"
-				if( classname[len + 7] == '_' )
-					len = i + MAX_TYPES;
-				else
-					len = i;
-
-				switch( GetItemSlot(i) )
+				if( strncmp(classname[7], g_Pickups[i][7], len > 20 ? 13 : len - 7) == 0 ) // Match after "weapon_" for string len or 13 chars: (eg "upgradepack_i").
 				{
-					case SLOT_MEDS:
+					// if( len > g_Lengths[i] && classname[len - 6] == '_' ) // Match "_" from "_spawn"
+					if( len > g_Lengths[i] ) // Is "_spawn" type
+						len = i + MAX_TYPES;
+					else
+						len = i;
+
+					switch( GetItemSlot(i) )
 					{
-						g_ListMeds.Push(EntIndexToEntRef(entity));
-						g_TypeMeds.Push(len);
+						case SLOT_MEDS:
+						{
+							g_ListMeds.Push(EntIndexToEntRef(entity));
+							g_TypeMeds.Push(len);
+						}
+						case SLOT_NADE:
+						{
+							g_ListNade.Push(EntIndexToEntRef(entity));
+							g_TypeNade.Push(len);
+						}
+						case SLOT_PACK:
+						{
+							g_ListPack.Push(EntIndexToEntRef(entity));
+							g_TypePack.Push(len);
+						}
 					}
-					case SLOT_NADE:
-					{
-						g_ListNade.Push(EntIndexToEntRef(entity));
-						g_TypeNade.Push(len);
-					}
-					case SLOT_PACK:
-					{
-						g_ListPack.Push(EntIndexToEntRef(entity));
-						g_TypePack.Push(len);
-					}
+
+					#if BENCHMARK
+					StopProfiling(g_Profiler);
+					float speed = GetProfilerTime(g_Profiler);
+					PrintToServer("GEAR:OnEntityCreated: %f. %d - (%s)", speed, entity, classname);
+					#endif
+
+					return;
 				}
-
-				#if BENCHMARK
-				StopProfiling(g_Profiler);
-				float speed = GetProfilerTime(g_Profiler);
-				PrintToServer("GEAR:OnEntityCreated: %f. %d - (%s)", speed, entity, classname);
-				#endif
-
-				return;
 			}
 		}
 	}
@@ -1520,7 +1529,6 @@ public Action tmrAutoGrab(Handle timer)
 
 	// Used to resume iteration after exiting from reaching trace ray count limit.
 	static int lastBot = 1;
-	static int lastSlot;
 	static int lastIndex;
 	static int maxIndex;
 	static int frameTraces;
@@ -1528,7 +1536,7 @@ public Action tmrAutoGrab(Handle timer)
 
 	#if BENCHMARK
 	if( lastIndex != 0 )
-	PrintToServer("GRAB RESUMING LAST INDEX %d. slot=%d bot=%d", lastIndex, lastSlot, lastBot);
+	PrintToServer("GRAB RESUMING LAST INDEX %d. bot=%d", lastIndex, lastBot);
 	#endif
 
 
@@ -1547,10 +1555,8 @@ public Action tmrAutoGrab(Handle timer)
 				continue;
 
 			// Loop through weapon slots
-			for( slot = lastSlot; slot < 3; slot++ )
+			for( slot = 0; slot < 3; slot++ )
 			{
-				lastSlot = slot;
-
 				// Bot missing item in slot, or owner is not bot. FIXME: Entity not handled after equip, could be invalid.
 				entity = g_iClientItem[bot][slot];
 				if( IsValidEntRef(entity) == false || GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity") != bot )
@@ -1607,7 +1613,7 @@ public Action tmrAutoGrab(Handle timer)
 										if( IsVisibleTo(vBot, vPos) )
 										{
 											#if BENCHMARK
-											PrintToServer("GRAB: VISIBLE. BOT %d. SLOT %d. TRACES (%d/%d)", bot, slot, frameTraces, g_iCvarTraces);
+											PrintToServer("GRAB: VISIBLE. BOT %d (%N). SLOT %d. TRACES (%d/%d)", bot, bot, slot, frameTraces, g_iCvarTraces);
 											#endif
 
 											// Limit number of traces per frame
@@ -1643,15 +1649,11 @@ public Action tmrAutoGrab(Handle timer)
 						if( weapon ) break;
 					}
 
-					// Reset last slot
-					if( slot == 2 ) lastSlot = 0;
-
 
 
 					// Valid item to grab.
 					if( weapon )
 					{
-						bool picked = false;
 						if( spawner )
 						{
 							// =========================
@@ -1659,8 +1661,7 @@ public Action tmrAutoGrab(Handle timer)
 							// TODO: Prototype Grenades needs to validate index is within type range otherwise a maps hammer ID will throw errors.
 							// hammer = GetEntProp(weapon, Prop_Data, "m_iHammerID");
 							// =========================
-							
-							/*
+
 							int flag = GetEntProp(weapon, Prop_Data, "m_spawnflags");
 							if( flag & (1<<3) )
 							{
@@ -1674,7 +1675,7 @@ public Action tmrAutoGrab(Handle timer)
 								else
 									AcceptEntityInput(weapon, "kill");
 							}
-							
+
 							int item = CreateEntityByName(g_Pickups[type]);
 							if( item == -1 )
 							{
@@ -1698,34 +1699,24 @@ public Action tmrAutoGrab(Handle timer)
 									EquipPlayerWeapon(bot, item);
 								}
 							}
-							*/
-							
-							if((GetEntProp(weapon, Prop_Data, "m_spawnflags") & (1 << 3)) ||
-								GetEntProp(weapon, Prop_Data, "m_itemCount") > 0)
-								picked = AcceptEntityInput(weapon, "Use", bot, weapon);
 						}
 						else
 						{
 							#if BENCHMARK
 							PrintToServer("AUTO GRAB - equip %d (%s) to %d (%N)", EntRefToEntIndex(weapon), g_Pickups[type], bot, bot);
 							#endif
-							
-							// EquipPlayerWeapon(bot, weapon);
-							picked = AcceptEntityInput(weapon, "Use", bot, weapon);
+							EquipPlayerWeapon(bot, weapon);
 						}
-						
+
 						SetNextTransfer(bot, 2.0);
-						
-						if(picked)
-						{
-							// 这个没有效果的
-							// FireEventsFootlocker(bot, EntRefToEntIndex(weapon), g_Pickups[type]);
-							
-							Vocalize(bot, type);
-							if( g_bCvarNotify && g_bTranslation && GetGameTime() > g_fBlockVocalize )
-								CPrintToChatAll("\x05%N \x01%t \x04%t", bot, "Grabbed", g_Pickups[type]);
-						}
-						
+
+						FireEventsFootlocker(bot, EntRefToEntIndex(weapon), g_Pickups[type]);
+
+						Vocalize(bot, type);
+
+						if( g_bCvarNotify && g_bTranslation && GetGameTime() > g_fBlockVocalize )
+							CPrintToChatAll("\x05%N \x01%t \x04%t", bot, "Grabbed", g_Pickups[type]);
+
 						// break;
 						return Plugin_Continue; // Prevent multiple gives in the same frame and wait until next timer firing?
 					}
@@ -1737,7 +1728,6 @@ public Action tmrAutoGrab(Handle timer)
 		if( lastBot == MaxClients )
 		{
 			lastBot = 1;
-			lastSlot = 0;
 			lastIndex = 0;
 		}
 	}
@@ -1760,7 +1750,7 @@ public Action tmrAutoGrab(Handle timer)
 // ====================================================================================================
 //					VARIOUS HELPERS
 // ====================================================================================================
-stock void FireEventsFootlocker(int client, int target, char[] sItem)
+void FireEventsFootlocker(int client, int target, char[] sItem)
 {
 	Event hEvent = CreateEvent("item_pickup", true);
 	if( hEvent != null )
@@ -1975,14 +1965,14 @@ void Vocalize(int client, int type)
 	static char sTemp[40];
 	switch( surv )
 	{
-		case 1: Format(sTemp, sizeof(sTemp),"%s", g_Coach[random]);
-		case 2: Format(sTemp, sizeof(sTemp),"%s", g_Nick[random]);
-		case 3: Format(sTemp, sizeof(sTemp),"%s", g_Ellis[random]);
-		case 4: Format(sTemp, sizeof(sTemp),"%s", g_Rochelle[random]);
-		case 5: Format(sTemp, sizeof(sTemp),"%s", g_Bill[random]);
-		case 6: Format(sTemp, sizeof(sTemp),"%s", g_Francis[random]);
-		case 7: Format(sTemp, sizeof(sTemp),"%s", g_Louis[random]);
-		case 8: Format(sTemp, sizeof(sTemp),"%s", g_Zoey[random]);
+		case 1: Format(sTemp, sizeof(sTemp), g_Coach[random]);
+		case 2: Format(sTemp, sizeof(sTemp), g_Nick[random]);
+		case 3: Format(sTemp, sizeof(sTemp), g_Ellis[random]);
+		case 4: Format(sTemp, sizeof(sTemp), g_Rochelle[random]);
+		case 5: Format(sTemp, sizeof(sTemp), g_Bill[random]);
+		case 6: Format(sTemp, sizeof(sTemp), g_Francis[random]);
+		case 7: Format(sTemp, sizeof(sTemp), g_Louis[random]);
+		case 8: Format(sTemp, sizeof(sTemp), g_Zoey[random]);
 	}
 
 	// Create scene location and call

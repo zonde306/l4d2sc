@@ -1,0 +1,62 @@
+"Games"
+{
+	"left4dead"
+	{
+		"Signatures"
+		{
+			/*
+			 *  CTerrorPlayer::OnITExpired(CTerrorPlayer *this)
+			 */
+			"CTerrorPlayer::OnITExpired"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer11OnITExpiredEv"
+				"windows"		"\xD9\x05\x2A\x2A\x2A\x2A\x56\x57\x8B\xF9\xD8\x9F\x2A\x2A\x00\x00\x8D\xB7\x2A\x2A\x00\x00\xDF\xE0\xF6\xC4\x2A\x7B\x13\x8B\x46\xF8\x8B\x10\x8D\x4E\xF8\x56\xFF\xD2\xD9\x2A\x2A\x2A\x2A\x2A\xD9\x1E\x8B\x37\x6A"
+				/* D9 05 ? ? ? ? 56 57 8B F9 D8 9F ? ? 00 00 8D B7 ? ? 00 00 DF E0 F6 C4 ? 7B 13 8B 46 F8 8B 10 8D 4E F8 56 FF D2 D9 ? ? ? ? ? D9 1E 8B 37 6A */
+				/* Search "PlayerVomitExpired" */
+			}
+
+			/*
+			 *  CTerrorPlayer::OnITExpired(CTerrorPlayer *this)
+			 */
+			"CTerrorPlayer::OnVomitedUpon"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer13OnVomitedUponEPS_b"
+				"windows"		"\x83\x2A\x2A\x53\x55\x56\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x84"
+				/* 83 ? ? 53 55 56 57 8B ? E8 ? ? ? ? 84 */
+				/* Search "PlayerVomitInFace" */
+			}
+		}
+	}
+
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			/*
+			 *  CTerrorPlayer::OnITExpired(CTerrorPlayer *this)
+			 */
+			"CTerrorPlayer::OnITExpired"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer11OnITExpiredEv"
+				"windows"		"\x56\x57\x8B\x2A\xF3\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x0F\x2E\x2A\x2A\x2A\x2A\x2A\x8D\x2A\x2A\x2A\x2A\x2A\x9F\xF6\x2A\x2A\x7B\x2A\x8B\x2A\x2A\x8B\x2A\x8D\x2A\x2A\x56\xFF\x2A\xF3\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xF3\x2A\x2A\x2A\x8B\x2A\x6A\x00"
+				/* 56 57 8B ? F3 ? ? ? ? ? ? ? 0F 2E ? ? ? ? ? 8D ? ? ? ? ? 9F F6 ? ? 7B ? 8B ? ? 8B ? 8D ? ? 56 FF ? F3 ? ? ? ? ? ? ? F3 ? ? ? 8B ? 6A 00 */
+				/* Search "PlayerVomitExpired" */
+			}
+
+			/*
+			 *  CTerrorPlayer::OnVomitedUpon(CTerrorPlayer*, bool)
+			 */
+			"CTerrorPlayer::OnVomitedUpon"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer13OnVomitedUponEPS_b"
+				"windows"		"\x55\x8B\xEC\x83\xEC\x2A\x53\x56\x57\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x84\xC0\x74\x2A\x8B\x06\x8B\x90"
+				/* 55 8B EC 83 EC ? 53 56 57 8B F1 E8 ? ? ? ? 84 C0 74 ? 8B 06 8B 90 */
+				/* Search "PlayerVomitInFace" */
+			}
+		}
+	}
+}

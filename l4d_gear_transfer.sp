@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION		"2.3"
+#define PLUGIN_VERSION		"2.4"
 
 /*====================================================================================================
 	Plugin Info:
@@ -11,6 +11,10 @@
 
 ======================================================================================================
 	Change Log:
+
+2.4 (09-Nov-2019)
+	- Fixed Molotov idle sound not stopping on transfer. Thanks to "ceasedU" for reporting.
+	- Fixed not picking up items in Survival/after round restart due to last version fixes.
 
 2.3 (09-Nov-2019)
 	- Fixed "Invalid memory access". Thanks to "Lux" for reporting.
@@ -278,6 +282,7 @@
 
 #define SOUND_BIGREWARD			"UI/BigReward.wav"			// Give
 #define SOUND_LITTLEREWARD		"UI/LittleReward.wav"		// Receive
+#define SOUND_MOLOTOV_IDLE		")weapons/molotov/fire_idle_loop_1.wav" // ")" intentional.
 
 
 
@@ -424,7 +429,7 @@ static const char g_Zoey[10][] =
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Gear Transfer",
+	name = "机器人捡起东西",
 	author = "SilverShot",
 	description = "Survivor bots can automatically pickup and give items. Players can switch, grab or give items.",
 	version = PLUGIN_VERSION,
@@ -552,6 +557,17 @@ void ResetPlugin()
 	}
 }
 
+void ResetItemArray()
+{
+	g_ListMeds.Clear();
+	g_ListNade.Clear();
+	g_ListPack.Clear();
+
+	g_TypeMeds.Clear();
+	g_TypeNade.Clear();
+	g_TypePack.Clear();
+}
+
 public void OnClientPutInServer(int client)
 {
 	if( g_bCvarAllow )
@@ -565,7 +581,7 @@ public void OnClientPutInServer(int client)
 public void OnWeaponEquip(int client, int weapon)
 {
 	static char classname[32];
-	GetEdictClassname(weapon, classname, sizeof(classname));
+	GetEntityClassname(weapon, classname, sizeof(classname));
 
 	int type = GetItemType(classname);
 	if( type == -1 )
@@ -853,6 +869,11 @@ public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 
 	ResetItemArray();
 	TempTimerToggle();
+
+	for( int i = 1; i <= MaxClients; i++ )
+	{
+		g_fNextTransfer[i] = 0.0;
+	}
 }
 
 
@@ -1206,28 +1227,32 @@ void GiveItem(int client, int target, int item, int slot, int type, int transfer
 
 		int ent_c = g_iClientItem[client][slot];
 		int ent_t = g_iClientItem[target][slot];
+
 		RemovePlayerItem(client, ent_c);
 		RemovePlayerItem(target, ent_t);
 		EquipPlayerWeapon(client, ent_t);
 		EquipPlayerWeapon(target, ent_c);
-		g_iClientItem[client][slot] = ent_t;
-		g_iClientItem[target][slot] = ent_c;
+
+		if( g_iClientType[client][slot] - 1 == TYPE_MOLO )	StopSound(ent_t, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
+		if( g_iClientType[target][slot] - 1 == TYPE_MOLO )	StopSound(ent_c, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
 	}
 	else if( transferType == METHOD_GIVE )
 	{
 		g_iClientItem[client][slot] = 0;
-		g_iClientItem[target][slot] = item;
 
 		RemovePlayerItem(client, item);
 		EquipPlayerWeapon(target, item);
+
+		if( type == TYPE_MOLO )	StopSound(item, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
 	}
 	else if( transferType == METHOD_GRAB )
 	{
 		g_iClientItem[target][slot] = 0;
-		g_iClientItem[client][slot] = item;
 
 		RemovePlayerItem(target, item);
 		EquipPlayerWeapon(client, item);
+
+		if( type == TYPE_MOLO )	StopSound(item, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
 	}
 }
 
@@ -1249,9 +1274,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 		{
 			for( int i = 0; i < MAX_TYPES; i++ )
 			{
-				if( strncmp(classname[7], g_Pickups[i][7], len > 20 ? 13 : len - 7) == 0 ) // Match after "weapon_" for string len or 13 chars: (eg "upgradepack_i").
+				if( len >= g_Lengths[i] && strncmp(classname[7], g_Pickups[i][7], g_Lengths[i] > 20 ? 13 : g_Lengths[i] - 7) == 0 ) // Match after "weapon_" for string len or 13 chars: (eg "upgradepack_i").
 				{
-					// if( len > g_Lengths[i] && classname[len - 6] == '_' ) // Match "_" from "_spawn"
 					if( len > g_Lengths[i] ) // Is "_spawn" type
 						len = i + MAX_TYPES;
 					else
@@ -1463,7 +1487,7 @@ public Action tmrAutoGive(Handle timer)
 						#endif
 
 						#if BENCHMARK
-						PrintToServer("AUTO GIVE - equip %d (%s) to %d (%N)", EntRefToEntIndex(weapon), g_Pickups[type], bot, bot);
+						PrintToServer("AUTO GIVE - equip %d (%s) from %d (%N) to %d (%N)", EntRefToEntIndex(weapon), g_Pickups[type - 1], bot, bot, target, target);
 						#endif
 
 						// break;
@@ -1663,41 +1687,16 @@ public Action tmrAutoGrab(Handle timer)
 							// =========================
 
 							int flag = GetEntProp(weapon, Prop_Data, "m_spawnflags");
-							if( flag & (1<<3) )
+							if( flag & (1 << 3) )
 							{
 								// Unlimited ammo, do nothing.
+								AcceptEntityInput(weapon, "Use", bot, weapon);
 							}
 							else
 							{
 								int iCount = GetEntProp(weapon, Prop_Data, "m_itemCount");
 								if( iCount > 1 )
-									SetEntProp(weapon, Prop_Data, "m_itemCount", iCount -1);
-								else
-									AcceptEntityInput(weapon, "kill");
-							}
-
-							int item = CreateEntityByName(g_Pickups[type]);
-							if( item == -1 )
-							{
-								LogError("Failed to create entity '%s' for %N", g_Pickups[type], bot);
-							}
-							else
-							{
-								if( !DispatchSpawn(item) )
-								{
-									LogError("Failed to dispatch '%s' for %N", g_Pickups[type], bot);
-								}
-								else
-								{
-									// =========================
-									// if( hammer ) SetEntProp(item, Prop_Data, "m_iHammerID", hammer);
-									// =========================
-
-									#if BENCHMARK
-									PrintToServer("AUTO GRAB - spawner %d (%s) to %d (%N)", EntRefToEntIndex(weapon), g_Pickups[type], bot, bot);
-									#endif
-									EquipPlayerWeapon(bot, item);
-								}
+									AcceptEntityInput(weapon, "Use", bot, weapon);
 							}
 						}
 						else
@@ -1705,13 +1704,11 @@ public Action tmrAutoGrab(Handle timer)
 							#if BENCHMARK
 							PrintToServer("AUTO GRAB - equip %d (%s) to %d (%N)", EntRefToEntIndex(weapon), g_Pickups[type], bot, bot);
 							#endif
-							EquipPlayerWeapon(bot, weapon);
+							
+							AcceptEntityInput(weapon, "Use", bot, weapon);
 						}
 
 						SetNextTransfer(bot, 2.0);
-
-						FireEventsFootlocker(bot, EntRefToEntIndex(weapon), g_Pickups[type]);
-
 						Vocalize(bot, type);
 
 						if( g_bCvarNotify && g_bTranslation && GetGameTime() > g_fBlockVocalize )
@@ -1824,17 +1821,6 @@ bool BotAllowedTransfer(int type, bool give)
 	if( give && g_iCvarGive & (1<<type-1) )		return true;
 	if( !give && g_iCvarGrab & (1<<type-1) )	return true;
 	return false;
-}
-
-void ResetItemArray()
-{
-	g_ListMeds.Clear();
-	g_ListNade.Clear();
-	g_ListPack.Clear();
-
-	g_TypeMeds.Clear();
-	g_TypeNade.Clear();
-	g_TypePack.Clear();
 }
 
 bool IsValidEntRef(int entity)

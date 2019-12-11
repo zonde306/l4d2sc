@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION 		"1.13"
+#define PLUGIN_VERSION 		"1.15"
 
 /*====================================================================================================
 	Plugin Info:
@@ -12,8 +12,17 @@
 ======================================================================================================
 	Change Log:
 
+1.15 (29-Nov-2019)
+	- Added "messages" option in the config to disable hint messages as requested by "BlackSabbarh".
+	- Fixed "preferences" option "0" not resetting grenade type when players take over bots. Thanks to "Voevoda" for reporting.
+
+1.14 (24-Nov-2019)
+	- Added Simplified Chinese translations. Thanks to "asd2323208" for providing.
+	- Fix for potential godmode zombies when using LMC.
+	- Fixed error msg: "Entity 157 (class 'pipe_bomb_projectile') reported ENTITY_CHANGE_NONE but 'm_flCreateTime' changed.".
+
 1.13 (11-Nov-2019)
-	- Added option "0" to "preferences" in the config to give stock grenades on grenade pickup.
+	- Added option "0" to "preferences" in the config to give stock grenades on pickup.
 
 1.12 (10-Nov-2019)
 	- Fixed breaking client preferences after map change due to last version fixes.
@@ -28,7 +37,7 @@
 	- Optimizations: Changed string creation to static char for faster CPU cycles. Various string comparison changes.
 	- Now only supports "Gear Transfer" plugin version 2.0 or greater to preserve random grenade type preferences.
 	- Removed 1 frame delay on weapon equip from previous version of supporting "Gear Transfer" plugin.
-	- Fixed "GrenadeMenu_Invalid" PrintToChat not replacing the colors. Thanks to "BHaType" for reporting.
+	- Fixed "GrenadeMenu_Invalid" PrintToChat not replacing thef colors. Thanks to "BHaType" for reporting.
 
 1.9 (23-Oct-2019)
 	- Fixed Freezer mode not preserving special infected render color. Thanks to "Dragokas" for reporting.
@@ -284,6 +293,7 @@ int		g_iConfigBots;												// Can bots use Prototype Grenades
 int		g_iConfigStock;												// Which grenades have their default feature.
 int		g_iConfigTypes;												// Which grenade modes are allowed.
 int		g_iConfigBinds;												// Menu or Pressing keys to change mode.
+int		g_iConfigMsgs;												// Display chat messages?
 int		g_iConfigPrefs;												// Client preferences save/load mode or give random mode.
 float	g_fConfigSurvivors;											// Survivors damage multiplier.
 float	g_fConfigSpecial;											// Special Infected damage multiplier.
@@ -544,12 +554,12 @@ public Action Timer_Register(Handle timer, any unused)
 	SC_CreateSpell("ss_pg_bomb", "高爆弹", 10, 200, "爆炸");
 	SC_CreateSpell("ss_pg_cluster", "分裂弹", 10, 200, "散布多个小型炸弹");
 	SC_CreateSpell("ss_pg_firework", "烟花弹", 10, 200, "烟花盒爆炸效果");
-	SC_CreateSpell("ss_pg_smoke", "烟雾弹", 10, 200, "在范围内遮挡视线");
+	SC_CreateSpell("ss_pg_smoke", "烟雾弹", 10, 200, "在范围内遮挡视线（对 bot 没什么卵用）");
 	SC_CreateSpell("ss_pg_hole", "引力弹", 10, 200, "将范围内的目标吸到中心");
 	SC_CreateSpell("ss_pg_flashbang", "震撼弹", 10, 200, "令范围内的目标耳鸣");
-	SC_CreateSpell("ss_pg_shield", "护卫弹", 10, 200, "在范围内的生还者伤害降低");
+	SC_CreateSpell("ss_pg_shield", "护卫弹", 10, 200, "在范围内的生还者受到伤害降低");
 	SC_CreateSpell("ss_pg_tesla", "电击弹", 10, 200, "电击范围内的目标");
-	SC_CreateSpell("ss_pg_chemical", "酸液弹", 10, 200, "创建一滩酸液腐蚀里面的目标");
+	SC_CreateSpell("ss_pg_chemical", "酸液弹", 10, 200, "创建一滩酸液腐蚀目标");
 	SC_CreateSpell("ss_pg_freeze", "冷冻弹", 10, 200, "冻结范围内的敌人");
 	SC_CreateSpell("ss_pg_medic", "治疗弹", 10, 200, "在范围内恢复生命");
 	SC_CreateSpell("ss_pg_vaporizer", "溶解弹", 10, 200, "溶解范围内的目标");
@@ -776,7 +786,7 @@ public Action Cmd_Grenade(int client, int args)
 	}
 
 	// If grenade mode not allowed to change
-	if( g_bCvarAllow == false && g_iConfigPrefs == 3 )
+	if( g_bCvarAllow == false || g_iConfigPrefs == 3 )
 	{
 		return Plugin_Handled;
 	}
@@ -956,7 +966,8 @@ void IsAllowed()
 		g_bCvarAllow = true;
 
 		AddNormalSoundHook(view_as<NormalSHook>(SoundHook));
-		HookEvent("round_end",			Event_RoundEnd,			EventHookMode_PostNoCopy);
+		HookEvent("round_end",				Event_RoundEnd,			EventHookMode_PostNoCopy);
+		// HookEvent("bot_player_replace",		Event_BotReplace);
 
 		for( int i = 1; i <= MaxClients; i++ )
 		if( IsClientInGame(i) )
@@ -974,7 +985,8 @@ void IsAllowed()
 		g_bCvarAllow = false;
 
 		RemoveNormalSoundHook(view_as<NormalSHook>(SoundHook));
-		UnhookEvent("round_end",		Event_RoundEnd,			EventHookMode_PostNoCopy);
+		UnhookEvent("round_end",			Event_RoundEnd,			EventHookMode_PostNoCopy);
+		UnhookEvent("bot_player_replace",	Event_BotReplace);
 	}
 }
 
@@ -1203,6 +1215,9 @@ void LoadDataConfig()
 		g_iConfigBinds =				hFile.GetNum("mode_switch",			3);
 		g_iConfigBinds =				Clamp(g_iConfigBinds, 				4, 1);
 
+		g_iConfigMsgs =					hFile.GetNum("messages",			1);
+		g_iConfigMsgs =					Clamp(g_iConfigMsgs, 				1, 0);
+
 		g_iConfigPrefs =				hFile.GetNum("preferences",			1);
 		g_iConfigPrefs =				Clamp(g_iConfigPrefs, 				3, 0);
 
@@ -1320,7 +1335,7 @@ public void OnWeaponEquip(int client, int weapon)
 		SetEntProp(weapon, Prop_Data, "m_iHammerID", g_iClientGrenadeType[client] + 1); // Store type
 
 		// Hints
-		if( g_bCvarAllow && !IsFakeClient(client) )
+		if( g_bCvarAllow && g_iConfigMsgs && !IsFakeClient(client) )
 		{
 			static char translation[256];
 			Format(translation, sizeof translation, "GrenadeMod_Title_%d", g_iClientGrenadeType[client]);
@@ -1494,6 +1509,12 @@ public Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_M
 // ====================================================================================================
 //					RESET PLUGIN
 // ====================================================================================================
+public void Event_BotReplace(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("player"));
+	if( client ) SetCurrentNadePref(client);
+}
+
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	ResetPlugin();
@@ -2217,6 +2238,10 @@ void Detonate_Grenade(int entity)
 
 		// Explosion start time
 		SetEntPropFloat(entity, Prop_Data, "m_flCreateTime", GetGameTime());
+
+		// Prevent error msg: "Entity 157 (class 'pipe_bomb_projectile') reported ENTITY_CHANGE_NONE but 'm_flCreateTime' changed."
+		int offset = FindDataMapInfo(entity, "m_flCreateTime");
+		ChangeEdictState(entity, offset);
 
 		// Do explode
 		Explode_Effects(client, entity, index, false);
@@ -3039,16 +3064,16 @@ void DissolveCommon(int client, int entity, int target, float fDamage)
 		if( iOverlayModel < 1 )
 			DissolveTarget(client, target);
 		else
-			DissolveTarget(client, iOverlayModel, target);
+			DissolveTarget(client, target, iOverlayModel);
 	}
 }
 
-void DissolveTarget(int client, int target, int original = 0)
+void DissolveTarget(int client, int target, int iOverlayModel = 0)
 {
 	// CreateEntityByName "env_entity_dissolver" has broken particles, this way works 100% of the time
 	float time = GetRandomFloat(0.2, 0.7);
 
-	int dissolver = SDKCall(sdkDissolveCreate, target, "", GetGameTime() + time, 2, false);
+	int dissolver = SDKCall(sdkDissolveCreate, iOverlayModel ? iOverlayModel : target, "", GetGameTime() + time, 2, false);
 	if( dissolver > MaxClients && IsValidEntity(dissolver) )
 	{
 		if( target > MaxClients )
@@ -3075,7 +3100,7 @@ void DissolveTarget(int client, int target, int original = 0)
 		if( fader != -1 )
 		{
 			static float vec[3];
-			GetEntPropVector(original ? original : target, Prop_Data, "m_vecOrigin", vec);
+			GetEntPropVector(target, Prop_Data, "m_vecOrigin", vec);
 			TeleportEntity(fader, vec, NULL_VECTOR, NULL_VECTOR);
 			DispatchSpawn(fader);
 
@@ -4022,6 +4047,12 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 			if( IsVisibleTo(vPos, vEnd) )
 			{
 				SetEntPropFloat(target, Prop_Data, "m_flCreateTime", GetGameTime());
+
+				// Does not happen here?
+				// Prevent error msg: "Entity 157 (class 'pipe_bomb_projectile') reported ENTITY_CHANGE_NONE but 'm_flCreateTime' changed."
+				// int offset = FindDataMapInfo(target, "m_flCreateTime");
+				// ChangeEdictState(target, offset);
+
 				DissolveCommon(client, entity, target, fDamage);
 				return true;
 			}

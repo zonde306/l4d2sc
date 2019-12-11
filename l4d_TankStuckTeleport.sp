@@ -569,6 +569,7 @@ public Action Timer_CheckPos(Handle timer, int UserId)
 				if (g_fMaxNonAngryDist != 0.0 && (GetDistanceToNearestClient(client) > g_fMaxNonAngryDist || g_iStuckTimes[client] >= 2)) {
 					TeleportToSurvivor(client);
 					TeleportPlayerSmoothByPreset(client);
+					PrintToConsoleAll("[警告] 由于 Tank 距离生还者过远，它被传送到了某个生还者身边。");
 				}
 				else {
 					/*
@@ -615,6 +616,7 @@ public Action Timer_Unstuck(Handle timer, int UserId)
 		else {
 			TeleportToSurvivor(client);
 			TeleportPlayerSmoothByPreset(client);
+			PrintToConsoleAll("[警告] 由于 Tank 被卡住了，传送到生还者附近");
 			g_iTimes[client] = 0;
 			return Plugin_Stop;
 		}
@@ -657,6 +659,7 @@ public Action Timer_CheckAngryTimeout(Handle timer, int UserId)
 		if (GetEntProp(client, Prop_Send, "m_zombieState") == 0) {
 			TeleportToSurvivor(client);
 			TeleportPlayerSmoothByPreset(client);
+			PrintToConsoleAll("[警告] 由于 Tank 在一定时间内没能发动攻击，被传送到了生还者附近");
 		}
 		// force angry flag to allow timer to begin check for position even if tank became angry but still not moving
 		SetEntProp(client, Prop_Send, "m_zombieState", 1);

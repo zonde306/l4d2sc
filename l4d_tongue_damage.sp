@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION 		"1.0"
+#define PLUGIN_VERSION 		"1.1"
 
 /*=======================================================================================
 	Plugin Info:
@@ -11,6 +11,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.1 (29-Nov-2019)
+	- Fixed invalid timer errors - Thanks to "BlackSabbarh" for reporting.
 
 1.0 (02-Oct-2019)
 	- Initial release.
@@ -37,7 +40,7 @@ Handle g_iTimers[MAXPLAYERS+1];
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "舌头拉人伤害",
+	name = "[L4D & L4D2] Tongue Damage",
 	author = "SilverShot",
 	description = "Control the Smokers tongue damage when pulling a Survivor.",
 	version = PLUGIN_VERSION,
@@ -218,7 +221,7 @@ public void Event_GrabStart(Event event, const char[] name, bool dontBroadcast)
 	if( client && IsClientInGame(client) )
 	{
 		delete g_iTimers[client];
-		g_iTimers[client] = CreateTimer(g_hCvarTime.FloatValue, tmrDamage, userid, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+		g_iTimers[client] = CreateTimer(g_hCvarTime.FloatValue, tmrDamage, userid, TIMER_REPEAT);
 	}
 }
 
@@ -235,7 +238,7 @@ public void Event_GrabStop(Event event, const char[] name, bool dontBroadcast)
 public Action tmrDamage(Handle timer, any client)
 {
 	client = GetClientOfUserId(client);
-	if( client && IsClientInGame(client) )
+	if( client && IsClientInGame(client) && IsPlayerAlive(client) )
 	{
 		if( g_bChoking[client] )
 			return Plugin_Continue;
@@ -259,13 +262,13 @@ void HurtEntity(int victim, int client, float damage)
 {
 	char sTemp[16];
 	int entity = CreateEntityByName("point_hurt");
-	Format(sTemp, sizeof(sTemp), "ext%d%d", EntIndexToEntRef(entity), client);
-	DispatchKeyValue(victim, "targetname", sTemp);
-	DispatchKeyValue(entity, "DamageTarget", sTemp);
+	DispatchKeyValue(victim, "targetname", "silvershot");
+	DispatchKeyValue(entity, "DamageTarget", "silvershot");
 	FloatToString(damage, sTemp, sizeof(sTemp));
 	DispatchKeyValue(entity, "Damage", sTemp);
 	DispatchKeyValue(entity, "DamageType", "4");
 	DispatchSpawn(entity);
 	AcceptEntityInput(entity, "Hurt", client > 0 ? client : -1);
+	DispatchKeyValue(victim, "targetname", "");
 	RemoveEdict(entity);
 }

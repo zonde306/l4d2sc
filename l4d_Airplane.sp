@@ -103,12 +103,8 @@
 
 #define MAXLIST 26
 #define MAXENTITIES 128
-#define USE_SIMPLECOMBAT	true
 
-#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
 #include <l4d2_simple_combat>
-#endif
-
 // ====================================================================================================
 //					VARIEBLES
 // ====================================================================================================
@@ -353,34 +349,30 @@ public void OnPluginStart()
 	HookEvent("round_end", RoundE);
 	//HookEvent("round_end", RoundE);
 	
-	cFlare 				=		CreateConVar("airdrop_flare"			, 	"1"			, "照明弹"												, FCVAR_NONE);
-	cColorFlare 		=  		CreateConVar("airdrop_flare_color"		, 	"25 25 255"	, "照明弹颜色"												, FCVAR_NONE);
-	cFlareLenght 		=  		CreateConVar("airdrop_flare_length"		, 	"75"		, "照明弹烟雾高度"								, FCVAR_NONE);
-	cFlareAplha 		=  		CreateConVar("airdrop_flare_alpha"		, 	"255"		, "照明弹烟雾透明度"									, FCVAR_NONE);
-	cTimeOpen 			= 		CreateConVar("airdrop_open_time"		, 	"1"		, "开箱时间"												, FCVAR_NONE);
-	cCountAirdrops 		= 		CreateConVar("airdrop_count_airdrops"	, 	"3"			, "空投数量"										, FCVAR_NONE);
-	cTankChance 		= 		CreateConVar("airdrop_tank_chance"		, 	"50"		, "开箱开出克几率"									, FCVAR_NONE);
-	cVocalize 			=		CreateConVar("airdrop_vocalize_chance"	, 	"40"		, "开箱说话几率"										, FCVAR_NONE);	
-	cGlowRange			=		CreateConVar("airdrop_glow_range"		, 	"500"		, "光圈范围"						, FCVAR_NONE);
-	cCustomModel		=		CreateConVar("airdrop_use_custom_model"	, 	"0"			, "是否使用降落伞模型"	, FCVAR_NONE);
-	cParachuteSpeed 	=		CreateConVar("airdrop_parachute_speed"	, 	"60.0"		, "落地速度(降落伞)"		, FCVAR_NONE);
-	cMessages 			=		CreateConVar("airdrop_enable_message"	, 	"0"			, "显示提示"										, FCVAR_NONE);
-	cAirHeight 			=		CreateConVar("airdrop_height"			, 	"400"		, "空投起始高度"											, FCVAR_NONE);
-	cRemoveCrate 		=		CreateConVar("airdrop_remove_time"		, 	"60"		, "箱子多少秒后消失"					, FCVAR_NONE);
-	cTimerPlane			=		CreateConVar("airdrop_plane_time"		, 	"999999"		, "定时自动空投间隔"									, FCVAR_NONE);
-	cItemsCount			=		CreateConVar("airdrop_count_items"		, 	"6"			, "空投物品数量"								, FCVAR_NONE);
-	cRemoveItems		=		CreateConVar("airdrop_delete_item_time"	, 	"60"		, "空投物品多少秒后消失"					, FCVAR_NONE);
+	cFlare 				=		CreateConVar("airdrop_flare"			, 	"1"			, "Flare on?"												, FCVAR_NONE);
+	cColorFlare 		=  		CreateConVar("airdrop_flare_color"		, 	"25 25 255"	, "Color flare"												, FCVAR_NONE);
+	cFlareLenght 		=  		CreateConVar("airdrop_flare_length"		, 	"75"		, "Length of smoker for flare"								, FCVAR_NONE);
+	cFlareAplha 		=  		CreateConVar("airdrop_flare_alpha"		, 	"255"		, "Transparency of smoke"									, FCVAR_NONE);
+	cTimeOpen 			= 		CreateConVar("airdrop_open_time"		, 	"2.5"		, "Open time"												, FCVAR_NONE);
+	cCountAirdrops 		= 		CreateConVar("airdrop_count_airdrops"	, 	"3"			, "Count of airdrops"										, FCVAR_NONE);
+	cTankChance 		= 		CreateConVar("airdrop_tank_chance"		, 	"50"		, "Chace airdrop of tank"									, FCVAR_NONE);
+	cVocalize 			=		CreateConVar("airdrop_vocalize_chance"	, 	"40"		, "Chance of vocalize"										, FCVAR_NONE);	
+	cGlowRange			=		CreateConVar("airdrop_glow_range"		, 	"500"		, "Glow range of airdrops (L4D2 only)"						, FCVAR_NONE);
+	cCustomModel		=		CreateConVar("airdrop_use_custom_model"	, 	"0"			, "Use customs model or not(parachute) (Left 4 Dead 1 & 2)"	, FCVAR_NONE);
+	cParachuteSpeed 	=		CreateConVar("airdrop_parachute_speed"	, 	"60.0"		, "Speed of crate (Need parachute) (Left 4 Dead 1 & 2)"		, FCVAR_NONE);
+	cMessages 			=		CreateConVar("airdrop_enable_message"	, 	"0"			, "Enable messages?"										, FCVAR_NONE);
+	cAirHeight 			=		CreateConVar("airdrop_height"			, 	"400"		, "Height of AC130"											, FCVAR_NONE);
+	cRemoveCrate 		=		CreateConVar("airdrop_remove_time"		, 	"60"		, "How many seconds crate will still live"					, FCVAR_NONE);
+	cTimerPlane			=		CreateConVar("airdrop_plane_time"		, 	"999999"		, "Timer to create AC130"									, FCVAR_NONE);
+	cItemsCount			=		CreateConVar("airdrop_count_items"		, 	"6"			, "Count of items from airdrop"								, FCVAR_NONE);
+	cRemoveItems		=		CreateConVar("airdrop_delete_item_time"	, 	"60"		, "How many seconds items will still live"					, FCVAR_NONE);
 	
 	AutoExecConfig(true, "l4d_Airplane");
 	HookConVarChange(cCustomModel, CvarChanged);
 	LoadPercents();
-	
-#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
 	CreateTimer(1.0, Timer_RegisterSimpleCombat);
-#endif
 }
 
-#if defined(USE_SIMPLECOMBAT) && USE_SIMPLECOMBAT
 public Action Timer_RegisterSimpleCombat(Handle timer, any unused)
 {
 	SC_CreateSpell("airdrop_ac130", "呼叫空投", 100, 5000, "在瞄准位置呼叫空投补给\nsm_ac130");
@@ -392,8 +384,6 @@ public void SC_OnUseSpellPost(int client, const char[] classname)
 	if(StrEqual(classname, "airdrop_ac130", false))
 		CallAirdrop(client, 0);
 }
-#endif
-
 public void CvarChanged(Handle hCvar, const char[] sOldVal, const char[] sNewVal)
 {
 	if (!IsModelPrecached("models/props_crates/supply_crate02_custom.mdl")) PrecacheModel("models/props_crates/supply_crate02_custom.mdl");
@@ -712,7 +702,7 @@ void CreateCrates(float vPos[3])
 		AcceptEntityInput(entity, "AddOutput");
 		AcceptEntityInput(entity, "FireUser1");
 		
-		if(cFlare.BoolValue || cCustomModel.BoolValue)
+		if(cFlare.IntValue || cCustomModel.IntValue)
 		{
 			for(int v = MaxClients; v < 2049; v++)
 			{
@@ -724,7 +714,7 @@ void CreateCrates(float vPos[3])
 			}
 		}
 		
-		if(cCustomModel.BoolValue)
+		if(cCustomModel.IntValue)
 		{	
 			iGravity = CreateEntityByName("prop_dynamic_override");
 			SetEntityModel(iGravity, "models/props_crates/supply_crate02_custom.mdl");
@@ -734,7 +724,7 @@ void CreateCrates(float vPos[3])
 			AcceptEntityInput(iGravity, "SetParent", entity);
 			g_iParachute[entity] = EntIndexToEntRef(iGravity);
 		}
-		
+	
 		if(cTimeOpen.IntValue > 0)
 		{
 			iTrigger = CreateEntityByName("func_button_timed");
@@ -757,11 +747,17 @@ void CreateCrates(float vPos[3])
 		TeleportEntity(iTrigger, vPos, NULL_VECTOR, NULL_VECTOR);
 		DispatchSpawn(iTrigger);
 		ActivateEntity(iTrigger);
-		AcceptEntityInput(iTrigger, "Enable");
 		
-		SetEntPropVector(iTrigger, Prop_Send, "m_vecMins", view_as<float>({-225.0, -225.0, -225.0}));
-		SetEntPropVector(iTrigger, Prop_Send, "m_vecMaxs", view_as<float>({225.0, 225.0, 225.0}));
+		// SetEntPropVector(iTrigger, Prop_Send, "m_vecMins", view_as<float>({-225.0, -225.0, -225.0}));
+		// SetEntPropVector(iTrigger, Prop_Send, "m_vecMaxs", view_as<float>({225.0, 225.0, 225.0}));
+		float mins[3] = {-225.0, -225.0, -225.0}, maxs[3] = {225.0, 225.0, 225.0};
+		GetEntPropVector(entity, Prop_Send, "m_vecMins", mins);
+		GetEntPropVector(entity, Prop_Send, "m_vecMaxs", maxs);
+		SetEntPropVector(iTrigger, Prop_Send, "m_vecMins", mins);
+		SetEntPropVector(iTrigger, Prop_Send, "m_vecMaxs", maxs);
 		
+		//HookSingleEntityOutput(iTrigger, "OnTimeUp", OnTimeUp);
+		//HookSingleEntityOutput(iTrigger, "OnPressed", OnPressed);
 		//HookSingleEntityOutput(iTrigger, "OnUnPressed", OnUnPressed);
 		SetEntityModel(iTrigger, gModeList[2]);
 		SetEntityRenderMode(iTrigger, RENDER_NONE);
@@ -776,6 +772,7 @@ void CreateCrates(float vPos[3])
 		    SetEntProp(entity, Prop_Send, "m_glowColorOverride", GetColor(sColor));
 		}
 		
+		// SetEntProp(iTrigger, Prop_Data, "m_takedamage", 0, 1);
 		SetEntProp(entity, Prop_Data, "m_takedamage", 0, 1);
 		gIndexCrate[iTrigger] = EntIndexToEntRef(entity);
 	}

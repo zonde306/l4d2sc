@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION 		"1.0"
+#define PLUGIN_VERSION 		"1.1"
 
 /*=======================================================================================
 	Plugin Info:
@@ -11,6 +11,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.1 (15-Nov-2019)
+	- Fixed multiple classnames not working for the watch command and cvars.
 
 1.0 (14-Oct-2019)
 	- Initial release.
@@ -29,6 +32,8 @@
 #define MAX_ENTS			4096
 #define LEN_CLASS			64
 
+
+
 ConVar g_hCvarFilter, g_hCvarListen;
 ArrayList g_aFilter, g_aListen, g_aWatch;
 Handle gAcceptInput;
@@ -45,6 +50,11 @@ int g_iListenInput;
 	// "USE_TOG"
 // };
 
+
+
+// ====================================================================================================
+//					PLUGIN INFO / START / END
+// ====================================================================================================
 public Plugin myinfo =
 {
 	name = "[ANY] Input Hooks - DevTools",
@@ -114,42 +124,39 @@ public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char
 
 void GetCvars()
 {
-	char sCvar[4096]; char sTemp[LEN_CLASS];
+	int pos, last;
+	char sCvar[4096];
 	g_aFilter.Clear();
 	g_aListen.Clear();
 
 	// Filter list
 	g_hCvarFilter.GetString(sCvar, sizeof(sCvar));
-	StrCat(sCvar, sizeof sCvar, ",");
-
-	int pos, last;
-
-	while( (pos = SplitString(sCvar[pos], ",", sTemp, sizeof sTemp)) != -1 )
+	if( sCvar[0] != 0 )
 	{
-		if( sTemp[0] != '\x0' )
-		{
-			g_aFilter.PushString(sTemp);
-		}
+		StrCat(sCvar, sizeof sCvar, ",");
 
-		if( pos == last ) break;
-		last = pos;
+		while( (pos = FindCharInString(sCvar[last], ',')) != -1 )
+		{
+			sCvar[pos + last] = 0;
+			g_aFilter.PushString(sCvar[last]);
+			last += pos + 1;
+		}
 	}
 
 	// Listen list
 	g_hCvarListen.GetString(sCvar, sizeof(sCvar));
-	StrCat(sCvar, sizeof sCvar, ",");
-
-	pos = 0;
-	last = 0;
-	while( (pos = SplitString(sCvar[pos], ",", sTemp, sizeof sTemp)) != -1 )
+	if( sCvar[0] != 0 )
 	{
-		if( sTemp[0] != '\x0' )
-		{
-			g_aListen.PushString(sTemp);
-		}
+		StrCat(sCvar, sizeof sCvar, ",");
 
-		if( pos == last ) break;
-		last = pos;
+		pos = 0;
+		last = 0;
+		while( (pos = FindCharInString(sCvar[last], ',')) != -1 )
+		{
+			sCvar[pos + last] = 0;
+			g_aListen.PushString(sCvar[last]);
+			last += pos + 1;
+		}
 	}
 }
 
@@ -185,22 +192,21 @@ public Action CmdWatch(int client, int args)
 	}
 
 	// Watch list
-	char sCvar[4096]; char sTemp[LEN_CLASS];
+	int pos, last;
+	char sCvar[4096];
 	GetCmdArg(1, sCvar, sizeof sCvar);
 	g_aWatch.Clear();
 
-	StrCat(sCvar, sizeof sCvar, ",");
-	int pos, last;
-
-	while( (pos = SplitString(sCvar[pos], ",", sTemp, sizeof sTemp)) != -1 )
+	if( sCvar[0] != 0 )
 	{
-		if( sTemp[0] != '\x0' )
-		{
-			g_aWatch.PushString(sTemp);
-		}
+		StrCat(sCvar, sizeof sCvar, ",");
 
-		if( pos == last ) break;
-		last = pos;
+		while( (pos = FindCharInString(sCvar[last], ',')) != -1 )
+		{
+			sCvar[pos + last] = 0;
+			g_aWatch.PushString(sCvar[last]);
+			last += pos + 1;
+		}
 	}
 
 	// Find
@@ -211,9 +217,9 @@ public Action CmdWatch(int client, int args)
 	int i = -1;
 	for( int index = 0; index < g_aWatch.Length; index++ )
 	{
-		g_aWatch.GetString(index, sTemp, sizeof sTemp);
+		g_aWatch.GetString(index, sCvar, sizeof sCvar);
 
-		while( (i = FindEntityByClassname(i, sTemp)) != INVALID_ENT_REFERENCE )
+		while( (i = FindEntityByClassname(i, sCvar)) != INVALID_ENT_REFERENCE )
 		{
 			g_iHookID[i] = DHookEntity(gAcceptInput, false, i);
 		}

@@ -9,7 +9,7 @@ new bool:bLate;
 
 public Plugin myinfo =
 {
-	name = "Fast melee fix",
+	name = "速砍修复",
 	author = "sheo",
 	description = "Fixes the bug with too fast melee attacks",
 	version = PL_VERSION,

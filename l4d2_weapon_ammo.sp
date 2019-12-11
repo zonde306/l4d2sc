@@ -186,19 +186,11 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 	if(!IsValidClient(client) || GetClientTeam(client) != 2)
 		return Plugin_Continue;
 	
-	int currentWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	if(currentWeapon < MaxClients)
-		return Plugin_Continue;
-	
-	char classname[64];
-	GetEntityClassname(currentWeapon, classname, 64);
-	int maxClip = GetClientWeaponClip(client, classname);
-	if(maxClip <= 0)
-		return Plugin_Continue;
-	
 	if(buttons & IN_USE)
 	{
-		int entity = FindUseEntity(client);
+		int entity = GetClientAimTarget(client, false);
+		if(entity <= MaxClients)
+			entity = FindUseEntity(client);
 		
 		char primaryWeaponName[64];
 		int primaryWeapon = GetPlayerWeaponSlot(client, 0);
@@ -237,6 +229,16 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 	
 	if(buttons & IN_RELOAD)
 	{
+		int currentWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+		if(currentWeapon < MaxClients)
+			return Plugin_Continue;
+		
+		char classname[64];
+		GetEntityClassname(currentWeapon, classname, 64);
+		int maxClip = GetClientWeaponClip(client, classname);
+		if(maxClip <= 0)
+			return Plugin_Continue;
+		
 		int currentClip = GetEntProp(currentWeapon, Prop_Send, "m_iClip1");
 		if(currentClip >= maxClip)
 		{
@@ -773,11 +775,11 @@ stock void InitFindEntity()
 stock int FindUseEntity(int client)
 {
 	if(g_fnFindUseEntity == null)
-		return GetClientAimTarget(client, false);
+		return -1;
 	
 	static ConVar cvUseRadius;
 	if(cvUseRadius == null)
 		cvUseRadius = FindConVar("player_use_radius");
 	
-	return SDKCall(g_fnFindUseEntity,client,cvUseRadius.FloatValue,0.0,0.0,0,false);
+	return SDKCall(g_fnFindUseEntity, client, cvUseRadius.FloatValue, 0.0, 0.0, 0, false);
 }

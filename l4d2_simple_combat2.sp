@@ -1705,14 +1705,16 @@ public void Event_RoundStart(Event event, const char[] eventName, bool dontBroad
 	
 	g_hSellSpellList.Clear();
 	SortADTArray(g_hAllSpellList, Sort_Random, Sort_Integer);
-	CreateTimer(1.0, Timer_UpdateScriptConfig);
+	// CreateTimer(1.0, Timer_UpdateScriptConfig);
 	
 	for(int i = 0; i < length; ++i)
 		g_hSellSpellList.Push(g_hAllSpellList.Get(i));
 	
+	/*
 	char difficulty[32];
 	g_hCvarDifficulty.GetString(difficulty, 32);
 	ConVarHook_OnDifficultyChanged(g_hCvarDifficulty, "", difficulty);
+	*/
 }
 
 public void Event_DoorUnlocked(Event event, const char[] eventName, bool dontBroadcast)

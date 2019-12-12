@@ -11,11 +11,11 @@ enum GameMode_t
 	GMF_SCAVENGE = (1 << 4)		// 清道夫类型
 };
 
+int g_iAllowPluginMode;
 GameMode_t g_iGameModeFlags;
 Handle g_hTimerCheckGameMode;
-ConVar g_pCvarAllow, g_pCvarAllowMode;
-int g_iAllowPluginMode;
-bool g_bAllowPlugin;
+ConVar g_pCvarAllow, g_pCvarAllowMode, g_pCvarEnableMode, g_pCvarDisableMode;
+bool g_bAllowByPlugin, g_bAllowByMode;
 
 enum()
 {
@@ -71,7 +71,7 @@ enum()
 
 stock bool IsPluginAllow()
 {
-	if(!g_bAllowPlugin)
+	if(!g_bAllowByPlugin || !g_bAllowByMode)
 		return false;
 	
 	if(!(g_iAllowPluginMode & view_as<int>(g_iGameModeFlags)))
@@ -83,13 +83,21 @@ stock bool IsPluginAllow()
 stock void InitPlugin(const char[] prefix)
 {
 	CreateConVar(tr("l4d2_%s_version", prefix), PLUGIN_VERSION, "插件版本", CVAR_FLAGS);
-	g_pCvarAllow = CreateConVar(tr("l4d2_%s_allow", prefix), "1", "是否开启插件", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarAllow = CreateConVar(tr("l4d2_%s_allow", prefix), "1", "是否开启插件(主开关)", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarAllowMode = CreateConVar(tr("l4d2_%s_allow_mode", prefix), "15", "开启插件的模式\n0=禁用.1=战役/写实.2=生存.4=对抗.8=清道夫.15=全部", CVAR_FLAGS, true, 0.0, true, 15.0);
+	g_pCvarEnableMode = CreateConVar(tr("l4d2_%s_enable_mode", prefix), "", "开启插件的模式(相对于 mp_gamemode)使用半角逗号隔开.空=全部", CVAR_FLAGS, true, 0.0, true, 15.0);
+	g_pCvarDisableMode = CreateConVar(tr("l4d2_%s_disable_mode", prefix), "", "关闭插件的模式(相对于 mp_gamemode)使用半角逗号隔开.空=没有", CVAR_FLAGS, true, 0.0, true, 15.0);
 	// HookEvent("round_start", Event_psRoundStart);
 	
 	ConVarHooked_psOnPluginState(null, "", "");
 	g_pCvarAllow.AddChangeHook(ConVarHooked_psOnPluginState);
 	g_pCvarAllowMode.AddChangeHook(ConVarHooked_psOnPluginState);
+	g_pCvarEnableMode.AddChangeHook(ConVarHooked_psOnPluginState);
+	g_pCvarDisableMode.AddChangeHook(ConVarHooked_psOnPluginState);
+	
+	ConVar gamemode = FindConVar("mp_gamemode");
+	if(gamemode)
+		gamemode.AddChangeHook(ConVarHooked_psOnGameModeUpdate);
 }
 
 stock char tr(const char[] text, any ...)
@@ -104,9 +112,55 @@ public void OnConfigsExecuted()
 	Timer_CheckGameMode(null, 0);
 }
 
+public void ConVarHooked_psOnGameModeUpdate(ConVar cvar, const char[] oldValue, const char[] newValue)
+{
+	static ConVar mp_gamemode;
+	if(!mp_gamemode)
+		mp_gamemode = FindConVar("mp_gamemode");
+	
+	g_bAllowByMode = true;
+	
+	char currentMode[24];
+	mp_gamemode.GetString(currentMode, 24);
+	
+	char enableMode[255];
+	g_pCvarEnableMode.GetString(enableMode, 255);
+	if(enableMode[0] != EOS)
+	{
+		char mode[16][24];
+		int numMode = ExplodeString(enableMode, ",", mode, 16, 24);
+		for(int i = 0; i < numMode; ++i)
+		{
+			TrimString(mode[i]);
+			if(StrEqual(mode[i], currentMode, false))
+			{
+				g_bAllowByMode = true;
+				return;
+			}
+		}
+	}
+	
+	char disableMode[255];
+	g_pCvarDisableMode.GetString(disableMode, 255);
+	if(disableMode[0] != EOS)
+	{
+		char mode[16][24];
+		int numMode = ExplodeString(disableMode, ",", mode, 16, 24);
+		for(int i = 0; i < numMode; ++i)
+		{
+			TrimString(mode[i]);
+			if(StrEqual(mode[i], currentMode, false))
+			{
+				g_bAllowByMode = false;
+				return;
+			}
+		}
+	}
+}
+
 public void ConVarHooked_psOnPluginState(ConVar cvar, const char[] oldValue, const char[] newValue)
 {
-	g_bAllowPlugin = g_pCvarAllow.BoolValue;
+	g_bAllowByPlugin = g_pCvarAllow.BoolValue;
 	g_iAllowPluginMode = g_pCvarAllowMode.IntValue;
 }
 
@@ -116,6 +170,7 @@ public void Event_psRoundStart(Event event, const char[] eventName, bool dontBro
 		KillTimer(g_hTimerCheckGameMode);
 	
 	g_hTimerCheckGameMode = CreateTimer(1.0, Timer_CheckGameMode);
+	ConVarHooked_psOnGameModeUpdate(null, "", "");
 }
 
 public Action Timer_CheckGameMode(Handle timer, any unused)

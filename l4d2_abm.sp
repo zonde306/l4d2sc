@@ -2542,13 +2542,15 @@ void SwitchTeam(int client, int onteam, char model[32]="")
 							SetConVarInt(g_cvMaxSwitches, switches);
 							return;
 						}
-
+						
+						/*
 						switch (g_model[0] != EOS)
 						{
 							case 1: Format(model, sizeof(model), "%s", g_model);
 							case 0: CleanSIName(model);
 						}
-
+						*/
+						
 						QueueUp(client, 3);
 						AddInfected(model, 1);
 						return;

@@ -1678,6 +1678,7 @@ public Action tmrAutoGrab(Handle timer)
 					// Valid item to grab.
 					if( weapon )
 					{
+						bool remove = false;
 						if( spawner )
 						{
 							// =========================
@@ -1687,16 +1688,43 @@ public Action tmrAutoGrab(Handle timer)
 							// =========================
 
 							int flag = GetEntProp(weapon, Prop_Data, "m_spawnflags");
-							if( flag & (1 << 3) )
+							if( flag & (1<<3) )
 							{
 								// Unlimited ammo, do nothing.
-								AcceptEntityInput(weapon, "Use", bot, weapon);
 							}
 							else
 							{
 								int iCount = GetEntProp(weapon, Prop_Data, "m_itemCount");
 								if( iCount > 1 )
-									AcceptEntityInput(weapon, "Use", bot, weapon);
+									SetEntProp(weapon, Prop_Data, "m_itemCount", iCount -1);
+								else
+									// AcceptEntityInput(weapon, "kill");
+									remove = true;
+							}
+
+							int item = CreateEntityByName(g_Pickups[type]);
+							if( item == -1 )
+							{
+								LogError("Failed to create entity '%s' for %N", g_Pickups[type], bot);
+							}
+							else
+							{
+								if( !DispatchSpawn(item) )
+								{
+									LogError("Failed to dispatch '%s' for %N", g_Pickups[type], bot);
+								}
+								else
+								{
+									// =========================
+									// if( hammer ) SetEntProp(item, Prop_Data, "m_iHammerID", hammer);
+									// =========================
+
+									#if BENCHMARK
+									PrintToServer("AUTO GRAB - spawner %d (%s) to %d (%N)", EntRefToEntIndex(weapon), g_Pickups[type], bot, bot);
+									#endif
+									
+									EquipPlayerWeapon(bot, item);
+								}
 							}
 						}
 						else
@@ -1705,11 +1733,15 @@ public Action tmrAutoGrab(Handle timer)
 							PrintToServer("AUTO GRAB - equip %d (%s) to %d (%N)", EntRefToEntIndex(weapon), g_Pickups[type], bot, bot);
 							#endif
 							
-							AcceptEntityInput(weapon, "Use", bot, weapon);
+							EquipPlayerWeapon(bot, weapon);
 						}
 
 						SetNextTransfer(bot, 2.0);
+						FireEventsFootlocker(bot, EntRefToEntIndex(weapon), g_Pickups[type]);
 						Vocalize(bot, type);
+						
+						if(remove)
+							AcceptEntityInput(weapon, "kill");
 
 						if( g_bCvarNotify && g_bTranslation && GetGameTime() > g_fBlockVocalize )
 							CPrintToChatAll("\x05%N \x01%t \x04%t", bot, "Grabbed", g_Pickups[type]);

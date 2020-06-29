@@ -9,7 +9,7 @@
 		}
 		"Addresses"
 		{
-			"SpamPatch_Add1"
+			"SpamPatch_Sig1"
 			{
 				"windows"
 				{
@@ -20,7 +20,7 @@
 					"signature"	"SpamPatch_Sig1"
 				}
 			}
-			"SpamPatch_Add2"
+			"SpamPatch_Sig2"
 			{
 				"windows"
 				{
@@ -31,7 +31,7 @@
 					"signature"	"SpamPatch_Sig2"
 				}
 			}
-			"SpamPatch_Add3"
+			"SpamPatch_Sig3"
 			{
 				"windows"
 				{
@@ -42,7 +42,7 @@
 					"signature"	"SpamPatch_Sig3"
 				}
 			}
-			"SpamPatch_Add4"
+			"SpamPatch_Sig4"
 			{
 				"windows"
 				{
@@ -53,7 +53,7 @@
 					"signature"	"SpamPatch_Sig4"
 				}
 			}
-			"SpamPatch_Add5"
+			"SpamPatch_Sig5"
 			{
 				"windows"
 				{
@@ -64,7 +64,7 @@
 					"signature"	"SpamPatch_Sig5"
 				}
 			}
-			"SpamPatch_Add6"
+			"SpamPatch_Sig6"
 			{
 				"windows"
 				{
@@ -75,7 +75,7 @@
 					"signature"	"SpamPatch_Sig6"
 				}
 			}
-			"SpamPatch_Add7"
+			"SpamPatch_Sig7"
 			{
 				"windows"
 				{
@@ -86,7 +86,7 @@
 					"signature"	"SpamPatch_Sig7"
 				}
 			}
-			"SpamPatch_Add8"
+			"SpamPatch_Sig8"
 			{
 				"windows"
 				{
@@ -97,7 +97,7 @@
 					"signature"	"SpamPatch_Sig8"
 				}
 			}
-			"SpamPatch_Add9"
+			"SpamPatch_Sig9"
 			{
 				"windows"
 				{
@@ -108,7 +108,7 @@
 					"signature"	"SpamPatch_Sig9"
 				}
 			}
-			"SpamPatch_Add10"
+			"SpamPatch_Sig10"
 			{
 				"windows"
 				{
@@ -119,7 +119,7 @@
 					"signature"	"SpamPatch_Sig10"
 				}
 			}
-			"SpamPatch_Add11"
+			"SpamPatch_Sig11"
 			{
 				"windows"
 				{
@@ -130,7 +130,7 @@
 					"signature"	"SpamPatch_Sig11"
 				}
 			}
-			"SpamPatch_Add12"
+			"SpamPatch_Sig12"
 			{
 				"windows"
 				{
@@ -141,7 +141,7 @@
 					"signature"	"SpamPatch_Sig12"
 				}
 			}
-			"SpamPatch_Add13"
+			"SpamPatch_Sig13"
 			{
 				"windows"
 				{
@@ -150,6 +150,94 @@
 				"linux"
 				{
 					"signature"	"SpamPatch_Sig13"
+				}
+			}
+			"SpamPatch_Sig14"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig14"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig14"
+				}
+			}
+			"SpamPatch_Sig15"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig15"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig15"
+				}
+			}
+			"SpamPatch_Sig16"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig16"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig16"
+				}
+			}
+			"SpamPatch_Sig17"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig17"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig17"
+				}
+			}
+			"SpamPatch_Sig18"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig18"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig18"
+				}
+			}
+			"SpamPatch_Sig19"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig19"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig19"
+				}
+			}
+			"SpamPatch_Sig20"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig20"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig20"
+				}
+			}
+			"SpamPatch_Sig21"
+			{
+				"windows"
+				{
+					"signature"	"SpamPatch_Sig21"
+				}
+				"linux"
+				{
+					"signature"	"SpamPatch_Sig21"
 				}
 			}
 		}
@@ -230,8 +318,56 @@
 			"SpamPatch_Sig13"
 			{
 				"library"		"server"
-				"windows"		"SCRIPT PERF WARNING"
-				"linux"			"SCRIPT PERF WARNING"
+				"windows"		"WARNING: %s at"
+				"linux"			"WARNING: %s at"
+			}
+			"SpamPatch_Sig14"
+			{
+				"library"		"server"
+				"windows"		">>>REMATCH Stats"
+				"linux"			">>>REMATCH Stats"
+			}
+			"SpamPatch_Sig15"
+			{
+				"library"		"server"
+				"windows"		">>REMATCH Stats"
+				"linux"			">>REMATCH Stats"
+			}
+			"SpamPatch_Sig16"
+			{
+				"library"		"server"
+				"windows"		"    %d players\n"
+				"linux"			"    %d players\n"
+			}
+			"SpamPatch_Sig17"
+			{
+				"library"		"server"
+				"windows"		"    %d yes\n"
+				"linux"			"    %d yes\n"
+			}
+			"SpamPatch_Sig18"
+			{
+				"library"		"server"
+				"windows"		"    %d no\n"
+				"linux"			"    %d no\n"
+			}
+			"SpamPatch_Sig19"
+			{
+				"library"		"server"
+				"windows"		"Team %d: %s\n"
+				"linux"			"Team %d: %s\n"
+			}
+			"SpamPatch_Sig20"
+			{
+				"library" 		"engine"
+				"windows"		"%s in solid list (not solid)"
+				"linux"			"%s in solid list (not solid)"
+			}
+			"SpamPatch_Sig21"
+			{
+				"library" 		"engine"
+				"windows"		"Entity %d (class '%s') reported ENTITY_CHANGE_NONE but '%s' changed."
+				"linux"			"Entity %d (class '%s') reported ENTITY_CHANGE_NONE but '%s' changed."
 			}
 		}
 	}

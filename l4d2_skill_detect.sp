@@ -1295,6 +1295,13 @@ bool: IsJockeyLeaping( jockey )
 		GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") == -1 )
 		return true;
 	
+	float vel[3];
+	GetEntPropVector(jockey, Prop_Data, "m_vecVelocity", vel ); 
+	vel[2] = 0.0;
+	
+	if(GetVectorLength(vel) >= 100.0 && GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") == -1)
+		return true;
+	
 	return false;
 }
 

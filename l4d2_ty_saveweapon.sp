@@ -451,7 +451,7 @@ void TyGiveWeapon(int client)
 		SetEntProp(client, Prop_Send, "m_isGoingToDie", 0);
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
 		
-		SetEntProp(client, Prop_Send, "m_iHealth", GetEntProp(client, Prop_Send, "m_iMaxHealth"), 1);
+		SetEntProp(client, Prop_Send, "m_iHealth", g_iWeaponInfo[client][iMaxHealth], 2);
 		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
 		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 	}
@@ -461,7 +461,7 @@ void TyGiveWeapon(int client)
 		SetEntProp(client, Prop_Send, "m_isGoingToDie", g_iWeaponInfo[client][iGoingToDie]);
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", g_iWeaponInfo[client][iThirdStrike]);
 		
-		SetEntProp(client, Prop_Send, "m_iHealth", g_iWeaponInfo[client][iHealth], 1);
+		SetEntProp(client, Prop_Send, "m_iHealth", g_iWeaponInfo[client][iHealth], 2);
 		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 1.0*g_iWeaponInfo[client][iHealthTemp]);
 		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime() - 1.0*g_iWeaponInfo[client][iHealthTime]);
 	}

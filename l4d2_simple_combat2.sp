@@ -8,8 +8,8 @@
 #define _USE_SKILL_DETECT_			// 使用 l4d2_skill_detect.smx 插件提供的 forward
 // #define _USE_PLUGIN_MAX_HEALTH_		// 使用当前插件定义的血量上限代替 m_iMaxHealth 作为标准
 // #define _USE_CONSOLE_MESSAGE_		// 当玩家获得奖励时打印控制台信息
-// #define _USE_DATABASE_SQLITE_		// 使用 SQLite 储存数据
-#define _USE_DATABASE_MYSQL_		// 使用 MySQL 储存数据
+#define _USE_DATABASE_SQLITE_		// 使用 SQLite 储存数据
+// #define _USE_DATABASE_MYSQL_		// 使用 MySQL 储存数据
 // #define _USE_DETOUR_FUNC_		// 使用 hook 伤害
 
 #if defined _USE_SKILL_DETECT_
@@ -24,11 +24,11 @@
 #include <geoip>
 #include <geoipcity>
 
-#define _SQL_CONNECT_HOST_		"45.77.135.138"
+#define _SQL_CONNECT_HOST_		""
 #define _SQL_CONNECT_PORT_		"3306"
 #define _SQL_CONNECT_DATABASE_	"source_game"
 #define _SQL_CONNECT_USER_		"srcgame"
-#define _SQL_CONNECT_PASSWORD_	"abby6382"
+#define _SQL_CONNECT_PASSWORD_	""
 #endif	// defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_MYSQL_
 
 #define PLUGIN_VERSION	"0.2"

@@ -27,8 +27,9 @@ Free Software Foundation, Inc.
 #include <sdktools>
 #include <sdkhooks>
 #include <adminmenu>
-#undef REQUIRE_EXTENSIONS
-#include <left4downtown>
+// #undef REQUIRE_EXTENSIONS
+// #include <left4downtown>
+#include <left4dhooks>
 
 #define CVAR_FLAGS FCVAR_NONE
 #define PLUGIN_VERSION "0.1.95"

@@ -1,0 +1,14 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			"ResetEntityState"
+			{
+				"linux" "@_ZN22NextBotCombatCharacter5SpawnEv"
+				"windows" "\x56\x57\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x8B\x86\x60\x1A\x00\x00"
+			}
+		}
+	}
+}

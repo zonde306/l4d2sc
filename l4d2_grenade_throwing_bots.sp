@@ -1,25 +1,22 @@
 #pragma semicolon 1
 #include <sourcemod>
 #include <sdktools>
-#include <left4downtown>
 
 bool bChill[2], bTongueOwned[MAXPLAYERS+1];
 int chosenThrower, chosenTarget, shootOrder[MAXPLAYERS+1], failedTimes[MAXPLAYERS+1],
 	lastChosen[3];
 
-float throwerPos[3], targetPos[3];
+float throwerPos[3], targetPos[3], fMobPos[3];
 ArrayList throwablesFound;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	char sGame[16];
-	GetGameFolderName(sGame, sizeof(sGame));
-	if (!StrEqual(sGame, "left4dead2", false))
+	EngineVersion test = GetEngineVersion();
+	if( test != Engine_Left4Dead2 )
 	{
 		strcopy(error, err_max, "[GTB] Plugin Supports L4D2 Only!");
 		return APLRes_SilentFailure;
 	}
-	
 	return APLRes_Success;
 }
 
@@ -28,8 +25,8 @@ public Plugin myinfo =
 	name = "机器人扔雷",
 	author = "cravenge, Edison1318, Windy Wind, Lux",
 	description = "Allows Bots To Throw Grenades Themselves.",
-	version = "1.7",
-	url = ""
+	version = "1.8",
+	url = "https://forums.alliedmods.net/showpost.php?p=2706164&postcount=123"
 };
 
 public void OnPluginStart()
@@ -191,14 +188,15 @@ public Action CheckForDanger(Handle timer)
 				chosenTarget = 0;
 				failedTimes[chosenThrower] = 0;
 				
-				bChill = true;
+				bChill[0] = true;
 				CreateTimer(7.5, FireAgain);
 				
 				return Plugin_Continue;
 			}
 			
-			if (ChangeToGrenade(chosenThrower, true, _, true) && CanBeSeen(chosenThrower, chosenTarget, 750.0))
+			if (CanBeSeen(chosenThrower, chosenTarget, 750.0))
 			{
+				ChangeToGrenade(chosenThrower, true, _, true);
 				bChill[0] = true;
 				CreateTimer(15.0, FireAgain);
 				
@@ -212,7 +210,7 @@ public Action CheckForDanger(Handle timer)
 				TeleportEntity(chosenThrower, NULL_VECTOR, fEyeAngles, NULL_VECTOR);
 				
 				shootOrder[chosenThrower] = 1;
-				CreateTimer(2.0, DelayThrow, chosenThrower);
+				CreateTimer(2.0, TankDelayThrow, chosenThrower);
 				CreateTimer(3.0, ChooseAnother);
 			}
 			else
@@ -270,6 +268,41 @@ public Action DelayThrow(Handle timer, any client)
 	return Plugin_Stop;
 }
 
+public Action CommonDelayThrow(Handle timer, any client)
+{
+	if (shootOrder[client] == 0)
+	{
+		return Plugin_Stop;
+	}
+	
+	float fEyePos[3], fTargetTrajectory[3], fEyeAngles[3];
+					
+	GetClientEyePosition(client, fEyePos);
+	MakeVectorFromPoints(fEyePos, fMobPos, fTargetTrajectory);
+	GetVectorAngles(fTargetTrajectory, fEyeAngles);
+					
+	fEyeAngles[2] += 5.0;
+	TeleportEntity(client, NULL_VECTOR, fEyeAngles, NULL_VECTOR);
+	return Plugin_Stop;
+}
+
+public Action TankDelayThrow(Handle timer, any client)
+{
+	if (shootOrder[client] == 0)
+	{
+		return Plugin_Stop;
+	}
+	
+	shootOrder[client] = 0;
+	float fEyePos[3], fTargetTrajectory[3], fEyeAngles[3];
+	GetClientEyePosition(client, fEyePos);
+	MakeVectorFromPoints(fEyePos, targetPos, fTargetTrajectory);
+	GetVectorAngles(fTargetTrajectory, fEyeAngles);
+	fEyeAngles[2] -= 7.5;
+	TeleportEntity(client, NULL_VECTOR, fEyeAngles, NULL_VECTOR);
+	return Plugin_Stop;
+}
+
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
 {
 	if (client > 0 && client <= MaxClients && IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client) && IsFakeClient(client))
@@ -283,7 +316,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			{
 				if (shootOrder[client] == 1)
 				{
-					buttons |= IN_ATTACK;
+					buttons &= IN_ATTACK;
 				}
 				else
 				{
@@ -307,19 +340,18 @@ public Action L4D2_OnFindScavengeItem(int client, int &item)
 		{
 			for (int i = 0; i < throwablesFound.Length; i++)
 			{
-				int entity = throwablesFound.Get(i);
-				if (!IsValidEntity(entity) || !HasEntProp(entity, Prop_Send, "m_vecOrigin"))
+				if (!IsValidEntity(throwablesFound.Get(i)))
 				{
 					return Plugin_Continue;
 				}
 				
-				GetEntPropVector(entity, Prop_Send, "m_vecOrigin", itemOrigin);
+				GetEntPropVector(throwablesFound.Get(i), Prop_Send, "m_vecOrigin", itemOrigin);
 				GetEntPropVector(client, Prop_Send, "m_vecOrigin", scavengerOrigin);
 				
 				float distance = GetVectorDistance(scavengerOrigin, itemOrigin);
 				if (distance < 250.0)
 				{
-					item = entity;
+					item = throwablesFound.Get(i);
 					return Plugin_Changed;
 				}
 			}
@@ -433,7 +465,6 @@ public Action ApplyCooldown(Handle timer)
 
 public Action L4D_OnSpawnMob(int &amount)
 {
-	float fMobPos[3];
 	
 	for (int i = 1; i < 2049; i++)
 	{
@@ -469,7 +500,7 @@ public Action L4D_OnSpawnMob(int &amount)
 				TeleportEntity(lastChosen[2], NULL_VECTOR, fEyeAngles, NULL_VECTOR);
 				
 				shootOrder[lastChosen[2]] = 1;
-				CreateTimer(5.0, DelayThrow, lastChosen[2]);
+				CreateTimer(5.0, CommonDelayThrow, lastChosen[2]);
 				
 				break;
 			}

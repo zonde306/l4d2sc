@@ -69,8 +69,8 @@ public OnPluginStart()
 	HookEvent("player_now_it", Event_PlayerBoomed);
 	HookEvent("boomer_near", Event_BoomerNear);
 	
-	HookEvent("create_panic_event", Event_Panic);
-	HookEvent("triggered_car_alarm", Event_AlarmCar);
+	// HookEvent("create_panic_event", Event_Panic);
+	// HookEvent("triggered_car_alarm", Event_AlarmCar);
 	
 	g_hCvarSurvivorLimit = FindConVar("survivor_limit");
 	HookConVarChange(g_hCvarSurvivorLimit, Cvar_SurvivorLimit);

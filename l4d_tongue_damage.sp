@@ -1,16 +1,27 @@
-#define PLUGIN_VERSION 		"1.1"
+#define PLUGIN_VERSION 		"1.4"
 
-/*=======================================================================================
+/*======================================================================================
 	Plugin Info:
 
 *	Name	:	[L4D & L4D2] Tongue Damage
 *	Author	:	SilverShot
 *	Descrp	:	Control the Smokers tongue damage when pulling a Survivor.
-*	Link	:	http://forums.alliedmods.net/showthread.php?t=318959
-*	Plugins	:	http://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
+*	Link	:	https://forums.alliedmods.net/showthread.php?t=318959
+*	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
 ========================================================================================
 	Change Log:
+
+1.4 (15-May-2020)
+	- Replaced "point_hurt" entity with "SDKHooks_TakeDamage" function.
+
+1.3 (10-May-2020)
+	- Extra checks to prevent "IsAllowedGameMode" throwing errors.
+	- Plugin now fixes game bug: Survivors who are pulled when not touching the ground would be stuck floating.
+	- This fix is applied to all gamemodes even when the plugin has been turned off.
+
+1.2 (01-Apr-2020)
+	- Fixed "IsAllowedGameMode" from throwing errors when the "_tog" cvar was changed before MapStart.
 
 1.1 (29-Nov-2019)
 	- Fixed invalid timer errors - Thanks to "BlackSabbarh" for reporting.
@@ -25,13 +36,15 @@
 
 #include <sourcemod>
 #include <sdktools>
+#include <sdkhooks>
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
 
+
 ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarDamage, g_hCvarTime;
-bool g_bCvarAllow;
+bool g_bCvarAllow, g_bMapStarted;
 bool g_bChoking[MAXPLAYERS+1];
-Handle g_iTimers[MAXPLAYERS+1];
+Handle g_hTimers[MAXPLAYERS+1];
 
 
 
@@ -44,7 +57,7 @@ public Plugin myinfo =
 	author = "SilverShot",
 	description = "Control the Smokers tongue damage when pulling a Survivor.",
 	version = PLUGIN_VERSION,
-	url = "http://forums.alliedmods.net/showthread.php?t=318959"
+	url = "https://forums.alliedmods.net/showthread.php?t=318959"
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -63,10 +76,10 @@ public void OnPluginStart()
 	g_hCvarAllow =			CreateConVar(	"l4d_tongue_damage_allow",			"1",				"0=Plugin off, 1=Plugin on.", CVAR_FLAGS );
 	g_hCvarModes =			CreateConVar(	"l4d_tongue_damage_modes",			"",					"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
 	g_hCvarModesOff =		CreateConVar(	"l4d_tongue_damage_modes_off",		"",					"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
-	g_hCvarModesTog =		CreateConVar(	"l4d_tongue_damage_modes_tog",		"12",				"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
+	g_hCvarModesTog =		CreateConVar(	"l4d_tongue_damage_modes_tog",		"3",				"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
 	g_hCvarDamage =			CreateConVar(	"l4d_tongue_damage_damage",			"5.0",				"How much damage to apply.", CVAR_FLAGS );
 	g_hCvarTime =			CreateConVar(	"l4d_tongue_damage_time",			"0.5",				"How often to damage players.", CVAR_FLAGS );
-	CreateConVar(							"l4d_tongue_damage_version",		PLUGIN_VERSION,		"Tongue Damage plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
+	CreateConVar(							"l4d_tongue_damage_version",		PLUGIN_VERSION,		"Tongue Damage plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,					"l4d_tongue_damage");
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
@@ -75,6 +88,8 @@ public void OnPluginStart()
 	g_hCvarModesOff.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarModesTog.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarAllow.AddChangeHook(ConVarChanged_Allow);
+
+	HookEvent("tongue_grab",		Event_GrabStart);
 }
 
 
@@ -102,7 +117,6 @@ void IsAllowed()
 		g_bCvarAllow = true;
 		HookEvent("choke_start",		Event_ChokeStart);
 		HookEvent("choke_end",			Event_ChokeStop);
-		HookEvent("tongue_grab",		Event_GrabStart);
 		HookEvent("tongue_release",		Event_GrabStop);
 	}
 
@@ -111,7 +125,6 @@ void IsAllowed()
 		g_bCvarAllow = false;
 		UnhookEvent("choke_start",		Event_ChokeStart);
 		UnhookEvent("choke_end",		Event_ChokeStop);
-		UnhookEvent("tongue_grab",		Event_GrabStart);
 		UnhookEvent("tongue_release",	Event_GrabStop);
 	}
 }
@@ -125,17 +138,24 @@ bool IsAllowedGameMode()
 	int iCvarModesTog = g_hCvarModesTog.IntValue;
 	if( iCvarModesTog != 0 )
 	{
+		if( g_bMapStarted == false )
+			return false;
+
 		g_iCurrentMode = 0;
 
 		int entity = CreateEntityByName("info_gamemode");
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		AcceptEntityInput(entity, "Kill");
+		if( entity != -1 )
+		{
+			DispatchSpawn(entity);
+			HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+			ActivateEntity(entity);
+			AcceptEntityInput(entity, "PostSpawnActivate");
+			if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+				RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+		}
 
 		if( g_iCurrentMode == 0 )
 			return false;
@@ -149,7 +169,7 @@ bool IsAllowedGameMode()
 	Format(sGameMode, sizeof(sGameMode), ",%s,", sGameMode);
 
 	g_hCvarModes.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) == -1 )
@@ -157,7 +177,7 @@ bool IsAllowedGameMode()
 	}
 
 	g_hCvarModesOff.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) != -1 )
@@ -188,13 +208,24 @@ void ResetPlugin()
 {
 	for( int i = 1; i <= MaxClients; i++ )
 	{
-		delete g_iTimers[i];
+		delete g_hTimers[i];
 	}
+}
+
+public void OnMapStart()
+{
+	g_bMapStarted = true;
 }
 
 public void OnMapEnd()
 {
+	g_bMapStarted = false;
 	ResetPlugin();
+}
+
+public void OnClientDisconnect(int client)
+{
+	delete g_hTimers[client];
 }
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
@@ -220,8 +251,16 @@ public void Event_GrabStart(Event event, const char[] name, bool dontBroadcast)
 	int client = GetClientOfUserId(userid);
 	if( client && IsClientInGame(client) )
 	{
-		delete g_iTimers[client];
-		g_iTimers[client] = CreateTimer(g_hCvarTime.FloatValue, tmrDamage, userid, TIMER_REPEAT);
+		// Fix floating bug
+		if( GetEntityFlags(client) & FL_ONGROUND == 0 )
+			SetEntityMoveType(client, MOVETYPE_WALK);
+
+		// Apply damage
+		if( g_bCvarAllow )
+		{
+			delete g_hTimers[client];
+			g_hTimers[client] = CreateTimer(g_hCvarTime.FloatValue, tmrDamage, userid, TIMER_REPEAT);
+		}
 	}
 }
 
@@ -231,7 +270,7 @@ public void Event_GrabStop(Event event, const char[] name, bool dontBroadcast)
 	int client = GetClientOfUserId(userid);
 	if( client && IsClientInGame(client) )
 	{
-		delete g_iTimers[client];
+		delete g_hTimers[client];
 	}
 }
 
@@ -254,21 +293,11 @@ public Action tmrDamage(Handle timer, any client)
 		}
 	}
 
-	g_iTimers[client] = INVALID_HANDLE;
+	g_hTimers[client] = null;
 	return Plugin_Stop;
 }
 
 void HurtEntity(int victim, int client, float damage)
 {
-	char sTemp[16];
-	int entity = CreateEntityByName("point_hurt");
-	DispatchKeyValue(victim, "targetname", "silvershot");
-	DispatchKeyValue(entity, "DamageTarget", "silvershot");
-	FloatToString(damage, sTemp, sizeof(sTemp));
-	DispatchKeyValue(entity, "Damage", sTemp);
-	DispatchKeyValue(entity, "DamageType", "4");
-	DispatchSpawn(entity);
-	AcceptEntityInput(entity, "Hurt", client > 0 ? client : -1);
-	DispatchKeyValue(victim, "targetname", "");
-	RemoveEdict(entity);
+	SDKHooks_TakeDamage(victim, client, client, damage, DMG_SLASH);
 }

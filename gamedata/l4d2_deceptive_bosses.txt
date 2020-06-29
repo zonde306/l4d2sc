@@ -1,0 +1,14 @@
+"Games"
+{
+	"left4dead2" //Sig found by BHaType
+	{
+		"Signatures"
+		{
+			"SetClass"
+			{
+				"windows" "\x55\x8B\xEC\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x83\xF8\x03\x0F\x85\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x40"
+				"linux" "@_ZN13CTerrorPlayer8SetClassE15ZombieClassType"
+			}
+		}
+	}
+}

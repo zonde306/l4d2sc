@@ -1,0 +1,106 @@
+"Games"
+{
+	"left4dead"
+	{
+		"Signatures"
+		{
+			"Infected::AttackSurvivorTeam"
+			{
+				"library"	"server"
+				"linux"	"@_ZN8Infected18AttackSurvivorTeamEv"
+				"windows"	"\x80\xB9\x99"
+				"mac"		"@_ZN8Infected18AttackSurvivorTeamEv"
+			}
+			"NextBotCreatePlayerBot<Smoker>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI6SmokerEPT_PKc"
+				"windows"	"\x83\x2A\x2A\x56\x57\x68\x20\xED"
+				"mac"		"@_Z22NextBotCreatePlayerBotI6SmokerEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Boomer>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI6BoomerEPT_PKc"
+				"windows"	"\x83\x2A\x2A\x56\x57\x68\x10"
+				"mac"		"@_Z22NextBotCreatePlayerBotI6BoomerEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Hunter>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI6HunterEPT_PKc"
+				"windows"	"\x83\x2A\x2A\x56\x57\x68\x20\x35"
+				"mac"		"@_Z22NextBotCreatePlayerBotI6HunterEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Tank>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI4TankEPT_PKc"
+				"windows"	"\x83\x2A\x2A\x56\x57\x68\x80"
+				"mac"		"@_Z22NextBotCreatePlayerBotI4TankEPT_PKc"
+			}
+		}
+	}
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			"Infected::AttackSurvivorTeam"
+			{
+				"library"	"server"
+				"linux"	"@_ZN8Infected18AttackSurvivorTeamEv"
+				"windows"	"\x56\x2A\x2A\x2A\x2A\xE1\x1C"
+				"mac"		"@_ZN8Infected18AttackSurvivorTeamEv"
+			}
+			"NextBotCreatePlayerBot<Smoker>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI6SmokerEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x30\xC2"
+				"mac"		"@_Z22NextBotCreatePlayerBotI6SmokerEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Boomer>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI6BoomerEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\xE0"
+				"mac"		"@_Z22NextBotCreatePlayerBotI6BoomerEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Hunter>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI6HunterEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x30\x4F"
+				"mac"		"@_Z22NextBotCreatePlayerBotI6HunterEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Spitter>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI7SpitterEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\xD0"
+				"mac"		"@_Z22NextBotCreatePlayerBotI7SpitterEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Jockey>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI6JockeyEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\xB0"
+				"mac"		"@_Z22NextBotCreatePlayerBotI6JockeyEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Charger>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI7ChargerEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\xC0"
+				"mac"		"@_Z22NextBotCreatePlayerBotI7ChargerEPT_PKc"
+			}
+			"NextBotCreatePlayerBot<Tank>"
+			{
+				"library"	"server"
+				"linux"	"@_Z22NextBotCreatePlayerBotI4TankEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x20"
+				"mac"		"@_Z22NextBotCreatePlayerBotI4TankEPT_PKc"
+			}
+		}
+	}
+}

@@ -1,0 +1,69 @@
+"Games"
+{
+	"#default"
+	{
+		"Addresses"
+		{
+			"CTerrorPlayer::IsInvulnerable"
+			{
+				"windows"
+				{
+					"signature"	"CTerrorPlayer::IsInvulnerable"
+				}
+				"linux"
+				{
+					"signature"	"CTerrorPlayer::IsInvulnerable"
+				}
+			}
+		}
+
+		"Signatures"
+		{
+			/*
+			 * CTerrorPlayer::IsInvulnerable(CTerrorPlayer *this)
+			 */
+			"CTerrorPlayer::IsInvulnerable"
+			{
+				"library"	"server"
+				"linux"		"@_ZNK13CTerrorPlayer14IsInvulnerableEv"
+				"windows"	"\x56\x8B\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x84\x2A\x74\x2A\xB0\x2A\x5E\xC3"
+				/* 56 8B ? 8B ? 8B ? ? ? ? ? ? ? 84 ? 74 ? B0 ? 5E C3 */
+				/* Search: "weapon_%s" for "CTerrorPlayer::RestoreWeapons", vtable down, called from "CTerrorPlayer::CanBeShoved" */
+			}
+		}
+	}
+
+	"left4dead"
+	{
+		"Offsets"
+		{
+			"byte"
+			{
+				"linux"			"8"		// 0x08
+				"windows"		"1"		// 0x01
+			}
+			"offset"
+			{
+				"linux"			"57"	// 0x39
+				"windows"		"60"	// 0x3C
+			}
+		}
+	}
+
+	"left4dead2"
+	{
+		"Offsets"
+		{
+			"byte"
+			{
+				"linux"			"115"	// 0x73
+				"windows"		"1"		// 0x01
+			}
+			"offset"
+			{
+				"linux"			"42"	// 0x2A
+				"windows"		"64"	// 0x40
+			}
+		}
+	}
+}

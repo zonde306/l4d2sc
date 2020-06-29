@@ -2,7 +2,8 @@
 #include <sourcemod>
 #include <sdktools>
 #include <regex>
-#include <left4downtown>
+// #include <left4downtown>
+#include <left4dhooks>
 
 #define PLUGIN_VERSION			"1.0"
 #define CVAR_FLAGS				FCVAR_NONE
@@ -427,6 +428,16 @@ public Action L4D2_OnChangeFinaleStage(int& finaleType, const char[] arg)
 		Event_FinalStart(null, "", false);
 }
 
+public Action L4D2_OnSendInRescueVehicle()
+{
+	Event_FinalStart(null, "", false);
+}
+
+public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
+{
+	Event_LeftStartArea(null, "", false);
+}
+
 public void Event_FinalLost(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(!IsPluginAllow())
@@ -526,7 +537,7 @@ public void Event_LeftStartArea(Event event, const char[] eventName, bool dontBr
 	
 	char current[64];
 	GetCurrentMap(current, 64);
-	if(g_hEndMapList.FindString(current) == -1 && !IsFinale())
+	if(g_hEndMapList.FindString(current) == -1 && !IsFinale() && !L4D_IsMissionFinalMap())
 		return;
 	
 	if((g_szNextMap[0] == EOS || g_szNextMapName[0] == EOS) && g_hTimerVoteStarting == null)

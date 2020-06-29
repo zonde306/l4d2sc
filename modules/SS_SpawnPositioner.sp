@@ -26,7 +26,7 @@
 #define WHITE 3
 #define PURPLE 4
 
-#include <l4d2_direct>
+// #include <l4d2_direct>
 
 new Handle:hCvarSpawnPositionerMode;
 new Handle:hCvarMaxSearchAttempts;
@@ -49,17 +49,17 @@ new laserCache;
  */
 
 SpawnPositioner_OnModuleStart() {
-	hCvarSpawnPositionerMode = CreateConVar( "ss_spawnpositioner_mode", "2", "[ 0 = disabled, 1 = Radial Reposition only, 2 = Grid Reposition with Radial fallback ]" );
+	hCvarSpawnPositionerMode = CreateConVar( "ss_spawnpositioner_mode", "2", "[ 0 = 禁用, 1 = 仅径向重新定位, 2 = 具有径向回退的网格重新定位 ]" );
 	HookConVarChange( hCvarSpawnPositionerMode, ConVarChanged:SpawnPositionerMode );
-	hCvarMaxSearchAttempts = CreateConVar( "ss_spawn_max_search_attempts", "500", "Max attempts to make per SI spawn to find an acceptable location to which to relocate them" );
-	hCvarSpawnSearchHeight = CreateConVar( "ss_spawn_search_height", "50", "Attempts to find a valid spawn location will move down from this height relative to a survivor");
-	hCvarSpawnProximityMin = CreateConVar( "ss_spawn_proximity_min", "500", "Closest an SI may spawn to a survivor", FCVAR_PLUGIN, true, 1.0 );
-	hCvarSpawnProximityMax = CreateConVar( "ss_spawn_proximity_max", "650", "Furthest an SI may spawn to a survivor", FCVAR_PLUGIN, true, float(GetConVarInt(hCvarSpawnProximityMin)) );
+	hCvarMaxSearchAttempts = CreateConVar( "ss_spawn_max_search_attempts", "500", "最大尝试使每个SI生成以找到可接受的位置来将它们重新定位" );
+	hCvarSpawnSearchHeight = CreateConVar( "ss_spawn_search_height", "50", "尝试找到有效的产卵位置将相对于幸存者从该高度向下移动");
+	hCvarSpawnProximityMin = CreateConVar( "ss_spawn_proximity_min", "500", "刷SI最近距离", FCVAR_PLUGIN, true, 1.0 );
+	hCvarSpawnProximityMax = CreateConVar( "ss_spawn_proximity_max", "650", "刷SI最远距离", FCVAR_PLUGIN, true, float(GetConVarInt(hCvarSpawnProximityMin)) );
 	// N.B. the hCvarSpawnProximityFlow___ cvars are not a lower and upper bound;
 	hCvarSpawnProximityFlowNoLOS = CreateConVar( "ss_spawn_proximity_flow_dist_no_LOS", "500", 
-									"Closest spawns by flow distance; considered when there is no LOS on survivors" );
+									"刷SI最近导航流" );
 	hCvarSpawnProximityFlowLOS = CreateConVar( "ss_spawn_proximity_flow_dist_LOS", "900", 
-									"Farthest spawns by flow distance; bounded by lowest straight line distance to survivor team" );
+									"刷SI最远导航流" );
 	HookEvent("player_spawn", OnPlayerSpawnPost, EventHookMode_PostNoCopy);
 }
 

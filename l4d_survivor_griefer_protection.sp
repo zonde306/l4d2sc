@@ -28,7 +28,7 @@ ConVar JumpAttempts, DamageAllowance, WaitTime, KickMessage, KickType;
 
 public Plugin myinfo =
 {
-	name = "[L4D/L4D2] Survivor Griefer Protection",
+	name = "防加入就黑枪跳楼",
 	author = "MasterMind420",
 	description = "Prevent Friendly Fire From Newly Connected Players For A Period Of Time",
 	version = "1.3",
@@ -39,7 +39,7 @@ public void OnPluginStart()
 {
 	WaitTime = CreateConVar("l4d_wait_time", "45", "Friendly Fire Threshold In Seconds", FCVAR_NOTIFY);
 	KickType = CreateConVar("l4d_kick_type", "1", "[1 = Immediate Kick] [2 = Vote Kick]", FCVAR_NOTIFY);
-	KickMessage = CreateConVar("l4d_kick_message", "Kicked For Griefing", "Auto Kick Message", FCVAR_NOTIFY);
+	KickMessage = CreateConVar("l4d_kick_message", "禁止捣乱", "Auto Kick Message", FCVAR_NOTIFY);
 	JumpAttempts = CreateConVar("l4d_attempts", "3", "[0 = NoKick] Attempts When Jumping Off Ledge Before Kick", FCVAR_NOTIFY);
 	DamageAllowance = CreateConVar("l4d_damage_allowance", "200.0", "[0.0 = NoKick] Amount Of Damage Allowed Before Kick", FCVAR_NOTIFY);
 

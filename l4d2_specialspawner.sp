@@ -10,7 +10,8 @@
 
 #include <sourcemod>
 #include <sdktools>
-#include <left4downtown>
+// #include <left4downtown>
+#include <left4dhooks>
 
 new Handle:hCvarReadyUpEnabled;
 new Handle:hCvarConfigName;
@@ -37,7 +38,7 @@ new Float:g_fTimeLOS[100000]; // not sure what the largest possible userid is
   
 public Plugin:myinfo = 
 {
-	name = "Special Spawner",
+	name = "刷特感",
 	author = "Tordecybombo, breezy",
 	description = "Provides customisable special infected spawing beyond vanilla coop limits",
 	version = "",
@@ -64,6 +65,7 @@ public OnPluginStart() {
 	hCvarReadyUpEnabled = CreateConVar("l4d_ready_enabled", "1", "This cvar from readyup.smx is required by server_namer.smx, but is duplicated here to avoid use of readyup.smx");
 	hCvarConfigName = CreateConVar("l4d_ready_cfg_name", "Hard Coop", "This cvar from readyup.smx is required by server_namer.smx, but is duplicated here to avoid use of readyup.smx");
 	SetConVarFlags( hCvarReadyUpEnabled, FCVAR_CHEAT ); SetConVarFlags( hCvarConfigName, FCVAR_CHEAT ); // get rid of 'symbol is assigned a value that is never used' compiler warnings
+	
 	// 	Cvars
 	SetConVarBool( FindConVar("director_spectate_specials"), true );
 	SetConVarBool( FindConVar("director_no_specials"), true ); // disable Director spawning specials naturally
@@ -80,7 +82,8 @@ public OnPluginStart() {
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_PostNoCopy);
 	// LOS tracking
 	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_PostNoCopy);
-	hCvarLineOfSightStarvationTime = CreateConVar( "ss_los_starvation_time", "7.5", "SI will be slayed after being denied LOS to survivor team for this amount of time" );
+	hCvarLineOfSightStarvationTime = CreateConVar( "ss_los_starvation_time", "7.5", "当SI看不见敌人多长时间处死" );
+	
 	// Customisation commands
 	RegConsoleCmd("sm_weight", Cmd_SetWeight, "Set spawn weights for SI classes");
 	RegConsoleCmd("sm_limit", Cmd_SetLimit, "Set individual, total and simultaneous SI spawn limits");
@@ -90,6 +93,8 @@ public OnPluginStart() {
 	// Admin commands
 	RegAdminCmd("sm_resetspawns", Cmd_ResetSpawns, ADMFLAG_RCON, "Reset by slaying all special infected and restarting the timer");
 	RegAdminCmd("sm_forcetimer", Cmd_StartSpawnTimerManually, ADMFLAG_RCON, "Manually start the spawn timer");
+	
+	AutoExecConfig(true, "l4d2_specialspawnner");
 }
 
 public OnPluginEnd() {

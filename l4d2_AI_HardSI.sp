@@ -21,7 +21,7 @@ new bool:bHasBeenShoved[MAXPLAYERS]; // shoving resets SI movement
 
 public Plugin:myinfo = 
 {
-	name = "AI: Hard SI",
+	name = "特感 AI 加强",
 	author = "Breezy",
 	description = "Improves the AI behaviour of special infected",
 	version = "1.0",
@@ -45,6 +45,7 @@ public OnPluginStart() {
 	Jockey_OnModuleStart();
 	Tank_OnModuleStart();
 	Witch_OnModuleStart();
+	AutoExecConfig(true, "l4d2_ai_hardsi");
 }
 
 public OnPluginEnd() {

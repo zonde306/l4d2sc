@@ -31,7 +31,7 @@
 #define _SQL_CONNECT_PASSWORD_	""
 #endif	// defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_MYSQL_
 
-#define PLUGIN_VERSION	"0.2"
+#define PLUGIN_VERSION	"0.3"
 #define CVAR_FLAGS		FCVAR_NONE
 
 public Plugin myinfo =
@@ -62,7 +62,7 @@ ArrayList g_hPlayerSkill[MAXPLAYERS+1], g_hAllSkillList;
 ArrayList g_hPlayerSpell[MAXPLAYERS+1], g_hAllSpellList, g_hSellSpellList;
 
 bool g_bDefenseFriendly, g_bDamageFriendly, g_bSprintAllow, g_bMenuFlush, g_bSprintAttack,
-	g_bSprintShove, g_bSprintJump, g_bHurtBonus;
+	g_bSprintShove, g_bSprintJump, g_bHurtBonus, g_bIntensity;
 
 // float g_fCombatRadius;
 float g_fCombatDelay, g_fThinkInterval, g_fSprintWalk, g_fSprintDuck, g_fSprintWater,
@@ -92,7 +92,7 @@ ConVar g_pCvarAllow, g_pCvarDefenseFactor, g_pCvarDefenseChance, g_pCvarDefenseL
 	g_pCvarTankPropExperience, g_pCvarTankPropCash, g_pCvarMenuFlush, g_pCvarWillpowerIdleRate,
 	g_pCvarWillpowerRate, g_pCvarSprintAttack, g_pCvarSprintShove, g_pCvarSprintJump,
 	g_pCvarHurtBonus, g_pCvarMaxFakeDamage, g_pCvarSlotLevel, g_pCvarSlotCost, g_pCvarSlotMax,
-	g_pCvarSkillChooseInterval, g_pCvarShowBonus, g_pCvarSqlConfig;
+	g_pCvarSkillChooseInterval, g_pCvarShowBonus, g_pCvarSqlConfig, g_pCvarIntensity;
 
 // 玩家属性
 float g_fStamina[MAXPLAYERS+1], g_fMagic[MAXPLAYERS+1], g_fWillpower[MAXPLAYERS+1];
@@ -192,12 +192,12 @@ public void OnPluginStart()
 	g_pCvarHurtBonus = CreateConVar("sc2_hurt_bonus", "1", "是否开启杀死特感根据伤害来奖励.0=只有杀死者有奖励.1=助攻者也有奖励", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarShowBonus = CreateConVar("sc2_show_bonus", "0", "是否显示奖励.0=关闭.1=显示经验.2=显示金钱.3=经验/金钱.4=显示累计", CVAR_FLAGS, true, 0.0, true, 7.0);
 	
-	g_pCvarStaminaRate = CreateConVar("sc2_stamina_combat_rate", "0.025", "战斗时每秒恢复耐力百分比", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarStaminaIdleRate = CreateConVar("sc2_stamina_safe_rate", "0.1", "非战斗时每秒恢复耐力百分比", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarMagicRate = CreateConVar("sc2_magic_combat_rate", "0.05", "战斗时每秒恢复魔力百分比", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarMagicIdleRate = CreateConVar("sc2_magic_safe_rate", "0.1", "非战斗时每秒恢复魔力百分比", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarWillpowerRate = CreateConVar("sc2_willpower_combat_rate", "0.05", "战斗时每秒恢复精力百分比", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarWillpowerIdleRate = CreateConVar("sc2_willpower_safe_rate", "0.1", "非战斗时每秒恢复精力百分比", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarStaminaRate = CreateConVar("sc2_stamina_combat_rate", "0.1", "战斗时每秒恢复耐力比率", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarStaminaIdleRate = CreateConVar("sc2_stamina_safe_rate", "0.025", "非战斗时每秒恢复耐力比率", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarMagicRate = CreateConVar("sc2_magic_combat_rate", "0.1", "战斗时每秒恢复魔力比率", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarMagicIdleRate = CreateConVar("sc2_magic_safe_rate", "0.05", "非战斗时每秒恢复魔力比率", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarWillpowerRate = CreateConVar("sc2_willpower_combat_rate", "0.1", "战斗时每秒恢复精力比率", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarWillpowerIdleRate = CreateConVar("sc2_willpower_safe_rate", "0.05", "非战斗时每秒恢复精力比率", CVAR_FLAGS, true, 0.0, true, 1.0);
 	
 	g_pCvarDefenseChance = CreateConVar("sc2_stamina_defense_chance", "1.0", "耐力抵挡伤害触发几率（1.0=100％）", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarDefenseLimit = CreateConVar("sc2_stamina_defense_limit", "2.0", "耐力至少有多少才能触发抵挡伤害", CVAR_FLAGS, true, 0.0);
@@ -224,6 +224,7 @@ public void OnPluginStart()
 	g_pCvarStandingDelay = CreateConVar("sc2_standing_delay", "3.0", "站立不动多长时间(秒)自动回血", CVAR_FLAGS, true, 0.0);
 	g_pCvarStandingRate = CreateConVar("sc2_standing_factor", "0.1", "站立回血百分比(魔力上限)", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarStandingLimit = CreateConVar("sc2_standing_limit", "10.0", "魔力至少需要多少才会启动回血", CVAR_FLAGS, true, 0.0);
+	g_pCvarIntensity = CreateConVar("sc2_intensity", "1", "在战斗状态下是否基于压力来决定恢复速度", CVAR_FLAGS, true, 0.0, true, 1.0);
 	
 	g_pCvarLevelExperience = CreateConVar("sc2_level_experience", "306", "每升一级需要多少经验值", CVAR_FLAGS, true, 1.0);
 	g_pCvarLevelPoint = CreateConVar("sc2_level_point", "1", "每升一级获得多少技能点", CVAR_FLAGS, true, 0.0);
@@ -447,6 +448,7 @@ public void OnPluginStart()
 	g_pCvarSlotMax.AddChangeHook(ConVarHook_OnValueChanged);
 	g_pCvarSlotCost.AddChangeHook(ConVarHook_OnValueChanged);
 	g_pCvarShowBonus.AddChangeHook(ConVarHook_OnValueChanged);
+	g_pCvarIntensity.AddChangeHook(ConVarHook_OnValueChanged);
 	
 #if defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_MYSQL_
 	g_pCvarCoinAlive.AddChangeHook(ConVarHook_OnValueChanged);
@@ -1636,6 +1638,7 @@ public void ConVarHook_OnValueChanged(ConVar cvar, const char[] oldValue, const 
 	g_bSprintShove = g_pCvarSprintShove.BoolValue;
 	g_bSprintJump = g_pCvarSprintJump.BoolValue;
 	g_iShowBonus = g_pCvarShowBonus.IntValue;
+	g_bIntensity = g_pCvarIntensity.BoolValue;
 }
 
 public void ConVarHook_OnDifficultyChanged(ConVar cvar, const char[] oldValue, const char[] newValue)
@@ -2965,14 +2968,18 @@ public Action Timer_OnCombatThink(Handle timer, any data)
 		{
 			if(g_bInBattle[i])
 			{
+				float intensity = 1.0;
+				if(g_bIntensity)
+					intensity = GetEntProp(i, Prop_Send, "m_clientIntensity") / 100.0;
+				
 				if(g_fStamina[i] < g_iMaxStamina[i])
-					StaminaIncrease(i, g_fCombatStamina * g_iMaxStamina[i] / g_iGameFramePerSecond);
+					StaminaIncrease(i, g_fCombatStamina * g_iMaxStamina[i] / g_iGameFramePerSecond * intensity);
 				
 				if(g_fMagic[i] < g_iMaxMagic[i])
-					MagicIncrease(i, g_fCombatMagic * g_iMaxMagic[i] / g_iGameFramePerSecond);
+					MagicIncrease(i, g_fCombatMagic * g_iMaxMagic[i] / g_iGameFramePerSecond * intensity);
 				
 				if(g_fWillpower[i] < g_iMaxWillpower[i])
-					WillpowerIncrease(i, g_fCombatWillpower * g_iMaxWillpower[i] / g_iGameFramePerSecond);
+					WillpowerIncrease(i, g_fCombatWillpower * g_iMaxWillpower[i] / g_iGameFramePerSecond * intensity);
 			}
 			else
 			{

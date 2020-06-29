@@ -12,14 +12,14 @@ new g_bHasSpawnTimerStarted = true;
 
 SpawnTimers_OnModuleStart() {
 	// Timer
-	hSpawnTimeMin = CreateConVar("ss_time_min", "12.0", "The minimum auto spawn time (seconds) for infected", FCVAR_PLUGIN, true, 0.0);
-	hSpawnTimeMax = CreateConVar("ss_time_max", "15.0", "The maximum auto spawn time (seconds) for infected", FCVAR_PLUGIN, true, 1.0);
-	hSpawnTimeMode = CreateConVar("ss_time_mode", "1", "The spawn time mode [ 0 = RANDOMIZED | 1 = INCREMENTAL | 2 = DECREMENTAL ]", FCVAR_PLUGIN, true, 0.0, true, 2.0);
+	hSpawnTimeMin = CreateConVar("ss_time_min", "12.0", "最小刷SI时间(秒)", FCVAR_PLUGIN, true, 0.0);
+	hSpawnTimeMax = CreateConVar("ss_time_max", "15.0", "最大刷SI时间(秒)", FCVAR_PLUGIN, true, 1.0);
+	hSpawnTimeMode = CreateConVar("ss_time_mode", "1", "时间选择模式 [ 0 = 随机 | 1 = 递增 | 2 = 递减 ]", FCVAR_PLUGIN, true, 0.0, true, 2.0);
 	HookConVarChange(hSpawnTimeMin, ConVarChanged:CalculateSpawnTimes);
 	HookConVarChange(hSpawnTimeMax, ConVarChanged:CalculateSpawnTimes);
 	HookConVarChange(hSpawnTimeMode, ConVarChanged:CalculateSpawnTimes);
 	// Grace period
-	hCvarIncapAllowance = CreateConVar( "ss_incap_allowance", "7", "Grace period(sec) per incapped survivor" );
+	hCvarIncapAllowance = CreateConVar( "ss_incap_allowance", "7", "有倒地幸存者时的宽限期(秒)" );
 	// sets SpawnTimeMin, SpawnTimeMax, and SpawnTimes[]
 	SetSpawnTimes(); 
 }
@@ -82,7 +82,7 @@ public Action:SpawnInfectedAuto(Handle:timer) {
 	if( numIncappedSurvivors > 0 && numIncappedSurvivors != GetConVarInt(FindConVar("survivor_limit")) ) { // grant grace period
 		new gracePeriod = numIncappedSurvivors * GetConVarInt(hCvarIncapAllowance);
 		CreateTimer( float(gracePeriod), Timer_GracePeriod, _, TIMER_FLAG_NO_MAPCHANGE );
-		Client_PrintToChatAll(true, "{G}%ds {O}grace period {N}was granted because of {G}%d {N}incapped survivor(s)", gracePeriod, numIncappedSurvivors);
+		// Client_PrintToChatAll(true, "{G}%ds {O}grace period {N}was granted because of {G}%d {N}incapped survivor(s)", gracePeriod, numIncappedSurvivors);
 	} else { // spawn immediately
 		GenerateAndExecuteSpawnQueue();
 	}

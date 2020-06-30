@@ -356,7 +356,7 @@ public OnPluginStart()
 	
 	g_msMissionEntity = CreateArray();
 	CreateTimer(1.0, Timer_RestoreDefault);
-	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup/");
+	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
 
 	RegConsoleCmd("lv", Command_Levelup, "", FCVAR_HIDDEN);
 	RegConsoleCmd("rpg", Command_Levelup, "", FCVAR_HIDDEN);
@@ -528,7 +528,7 @@ public void Event__PlayerTeam(Event event, const char[] eventName, bool dontBroa
 
 public OnMapStart()
 {
-	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup/");
+	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
 
 	NCJ_1 = false;
 	NCJ_2 = false;

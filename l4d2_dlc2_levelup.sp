@@ -1763,7 +1763,9 @@ public int MenuHandler_Respawn(Menu menu, MenuAction action, int client, int sel
 		return 0;
 	}
 
-	FirstJoinRespawn(client);
+	if(selected != 10)
+		FirstJoinRespawn(client);
+	
 	return 0;
 }
 
@@ -2639,7 +2641,9 @@ public int MenuHandler_OpenEquipment(Menu menu, MenuAction action, int client, i
 		PrintToChat(client, "\x03[提示]\x01 你获得了：%s", FormatEquip(client, j));
 	}
 
-	StatusEqmFuncC(client);
+	if(selected != 10)
+		StatusEqmFuncC(client);
+	
 	return 0;
 }
 
@@ -2676,9 +2680,10 @@ public int MenuHandler_OpenLucky(Menu menu, MenuAction action, int client, int s
 		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[提示]\x01 有人偷偷打开了天启幸运箱，本回合的天启更改为：\x04%s\x01。", g_szRoundEvent);
 	}
-
-	PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，本回合天启更改为：\x04%s\x01。", g_szRoundEvent);
-	StatusEqmFuncB(client);
+	
+	if(selected != 10)
+		StatusEqmFuncB(client);
+	
 	return 0;
 }
 
@@ -3880,12 +3885,15 @@ public void OnEntityCreated(int entity, const char[] classname)
 
 	if(StrEqual(classname, "infected", false))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
+	
+	/*
 	if(StrEqual(classname, "prop_physics", false))
 		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnPhysicsSpawned);
 	if(StrEqual(classname, "prop_car_alarm", false))
 		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnAlarmSpawned);
 	if(StrContains(classname, "_projectile", false) > 0)
 		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnProjectileSpawned);
+	*/
 }
 
 public void ZombieHook_OnSpawned(int entity)
@@ -10384,8 +10392,10 @@ public void MissileHook_OnStartTouch(int entity, int other)
 		GetEntPropString(entity, Prop_Data, "m_iClassname", classname, 64);
 
 		CreateExplosion(GetEntPropEnt(entity, Prop_Data, "m_hThrower"),
-		GetEntPropFloat(entity, Prop_Data, "m_flDamage"), origin,
-		GetEntPropFloat(entity, Prop_Data, "m_DmgRadius"), classname);
+			GetEntPropFloat(entity, Prop_Data, "m_flDamage"), origin,
+			GetEntPropFloat(entity, Prop_Data, "m_DmgRadius"), classname,
+			entity, 255.0
+		);
 
 		SDKUnhook(entity, SDKHook_StartTouchPost, MissileHook_OnStartTouch);
 		AcceptEntityInput(entity, "Kill", other, entity);
@@ -10518,7 +10528,7 @@ public bool TraceFilter_DontHitOwnerOrEntity(int entity, int contentsMask, any s
 	return (entity != self && entity != GetEntPropEnt(self, Prop_Send, "m_hOwnerEntity"));
 }
 
-stock void CreateExplosion(int attacker = -1, float damage, float origin[3], float radius, const char[] classname = "")
+stock void CreateExplosion(int attacker = -1, float damage, float origin[3], float radius, const char[] classname = "", int inflictor = -1, float force = 0.0)
 {
 	int entity = CreateEntityByName("env_explosion");
 	if(entity == -1)
@@ -10528,16 +10538,21 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 	DispatchKeyValue(entity, "iRadiusOverride", tr("%.0f", radius));
 	DispatchKeyValue(entity, "spawnflags", "6146");
 	DispatchKeyValueVector(entity, "origin", origin);
+	DispatchKeyValueFloat(entity, "DamageForce", force);
 
 	if(classname[0] != EOS)
 		DispatchKeyValue(entity, "classname", classname);
-
+	
+	SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", attacker);
+	if(inflictor > -1 && HasEntProp(entity, Prop_Data, "m_hInflictor"))
+		SetEntPropEnt(entity, Prop_Data, "m_hInflictor", inflictor);
+	if(HasEntProp(entity, Prop_Data, "m_hEntityIgnore"))
+		SetEntPropEnt(entity, Prop_Data, "m_hEntityIgnore", attacker);
+	
 	DispatchSpawn(entity);
 	ActivateEntity(entity);
 
-	SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", attacker);
-
-	AcceptEntityInput(entity, "Explode", attacker, entity);
+	AcceptEntityInput(entity, "Explode", -1, entity);
 	EmitSoundToAll("weapons/hegrenade/explode5.wav", entity, SNDCHAN_WEAPON, SNDLEVEL_SCREAMING, SND_NOFLAGS, SNDVOL_NORMAL, 100, _, origin, NULL_VECTOR, false, 0.0);
 
 	SetVariantString("OnUser1 !self:Kill::1:1");

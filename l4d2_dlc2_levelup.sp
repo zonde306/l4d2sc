@@ -3,6 +3,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <geoip>
+#include <l4d2_skill_detect>
 
 #define SOUND_Bomb					"weapons/grenade_launcher/grenadefire/grenade_launcher_explode_1.wav"
 #define SOUND_BCLAW					"animation/bombing_run_01.wav"
@@ -35,6 +36,8 @@
 #define g_flSoHPumpI		0.5
 #define g_flSoHPumpE		0.6
 #define TRACE_TOLERANCE		25.0
+
+Handle g_fnFindUseEntity = null;
 
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1) && !GetEntProp(%1, Prop_Send, "m_isGhost"))
@@ -135,6 +138,7 @@ new bool:g_bHasRetarding[MAXPLAYERS+1] = false;
 new bool:g_bCanGunShover[MAXPLAYERS+1] = false;
 // new bool:g_bCanDoubleJump[MAXPLAYERS+1] = false;
 // new bool:g_bHanFirstRelease[MAXPLAYERS+1] = false;
+float g_fMaxSpeedModify[MAXPLAYERS+1] = { 1.0, ... };
 
 enum
 {
@@ -253,6 +257,9 @@ int g_iWeaponSpeedEntity[MAXPLAYERS+1];
 float g_fWeaponSpeedUpdate[MAXPLAYERS+1];
 int g_iWeaponSpeedTotal = 0;
 
+ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
+	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued;
+
 ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hCvarBurnExpert, g_hCvarReviveHealth,
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
 	g_hCvarShovRange, g_hCvarShovTime, g_hCvarMeleeRange, g_hCvarAdrenTime, g_hCvarDefibTime, g_hCvarZombieHealth,
@@ -262,14 +269,14 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
 bool g_bRoundFirstStarting = false;
-ConVar g_pCvarKickSteamId, g_pCvarAllow;
+ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance;
 
 public Plugin:myinfo =
 {
-	name = "被控闲置修复",
+	name = "娱乐插件",
 	author = "zonde306",
-	description = "被控闲置修复，以及一些其他的东西",
-	version = "0.1",
+	description = "",
+	version = "0.2",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -283,7 +290,19 @@ public OnPluginStart()
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", CVAR_FLAGS);
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", CVAR_FLAGS);
 	cv_sndPortalFX = CreateConVar("lv_portals_soundfx","ui/pickup_misc42.wav", "读点声音文件途径", CVAR_FLAGS);
-
+	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒)，过期无法读档.0=无限", CVAR_FLAGS, true, 0.0);
+	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率", CVAR_FLAGS, true, 0.0, true, 100.0);
+	
+	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarGivePills = CreateConVar("lv_bonus_give_pills", "20", "给队友递药/针多少次才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarOtherRevived = CreateConVar("lv_bonus_revive", "15", "救起队友多少次才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarProtected = CreateConVar("lv_bonus_protect", "40", "保护队友多少次才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarSpecialKilled = CreateConVar("lv_bonus_special_kill", "30", "干掉多少特感才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarCleared = CreateConVar("lv_bonus_cleared", "10", "清理多少个区域才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次才能获得一点", CVAR_FLAGS, true, 1.0);
+	
 	AutoExecConfig(true, "l4d2_dlc2_levelup");
 	
 	g_iNextPAttO		=	FindSendPropInfo("CBaseCombatWeapon","m_flNextPrimaryAttack");
@@ -340,6 +359,7 @@ public OnPluginStart()
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup/");
 
 	RegConsoleCmd("lv", Command_Levelup, "", FCVAR_HIDDEN);
+	RegConsoleCmd("rpg", Command_Levelup, "", FCVAR_HIDDEN);
 	RegConsoleCmd("shop", Command_Shop, "", FCVAR_HIDDEN);
 	RegConsoleCmd("buy", Command_Shop, "", FCVAR_HIDDEN);
 	RegConsoleCmd("rp", Command_RandEvent, "", FCVAR_HIDDEN);
@@ -348,10 +368,10 @@ public OnPluginStart()
 	RegConsoleCmd("ld", Command_BackPoint, "", FCVAR_HIDDEN);
 	AddCommandListener(Command_Say, "say");
 	AddCommandListener(Command_Say, "say_team");
-	AddCommandListener(Command_Away, "go_away_from_keyboard");
+	// AddCommandListener(Command_Away, "go_away_from_keyboard");
 	// AddCommandListener(Command_Scripted, "scripted_user_func");
 
-	HookEvent("tank_spawn", Event_TankSpawn);
+	// HookEvent("tank_spawn", Event_TankSpawn);
 	HookEvent("pills_used", Event_PillsUsed);
 	HookEvent("heal_success", Event_HealSuccess);
 	HookEvent("player_spawn", Event_PlayerSpawn);
@@ -381,28 +401,28 @@ public OnPluginStart()
 	HookEvent("player_falldamage", Event_PlayerFallDamage);
 	HookEvent("award_earned", Event_AwardEarned);
 	HookEvent("player_complete_sacrifice", Event_PlayerSacrifice);
-	HookEvent("charger_killed", Event_ChargerKilled);
-	HookEvent("hunter_headshot", Event_HunterKilled);
+	// HookEvent("charger_killed", Event_ChargerKilled);
+	// HookEvent("hunter_headshot", Event_HunterKilled);
 	HookEvent("scavenge_match_finished", Event_VersusFinish);
 	HookEvent("versus_match_finished", Event_VersusFinish);
 	HookEvent("player_jump", Event_PlayerJump);
 	HookEvent("player_jump_apex", Event_PlayerJumpApex);
-	HookEvent("door_unlocked", Event_DoorUnlocked);
-	HookEvent("door_open", Event_DoorOpen);
-	HookEvent("door_close", Event_DoorClose);
-	HookEvent("rescue_door_open", Event_RescueDoorOpen);
-	HookEvent("success_checkpoint_button_used", Event_ButtonPressed);
-	HookEvent("witch_killed", Event_WitchKilled);
+	// HookEvent("door_unlocked", Event_DoorUnlocked);
+	// HookEvent("door_open", Event_DoorOpen);
+	// HookEvent("door_close", Event_DoorClose);
+	// HookEvent("rescue_door_open", Event_RescueDoorOpen);
+	// HookEvent("success_checkpoint_button_used", Event_ButtonPressed);
+	// HookEvent("witch_killed", Event_WitchKilled);
 	HookEvent("area_cleared", Event_AreaCleared);
-	HookEvent("vomit_bomb_tank", Event_VomitjarTank);
+	// HookEvent("vomit_bomb_tank", Event_VomitjarTank);
 	HookEvent("create_panic_event", Event_PaincEventStart);
 	HookEvent("panic_event_finished", Event_PaincEventStop);
-	HookEvent("strongman_bell_knocked_off", Event_StrongmanTrigged);
+	// HookEvent("strongman_bell_knocked_off", Event_StrongmanTrigged);
 	// HookEvent("molotov_thrown", Event_MolotovThrown);
-	HookEvent("stashwhacker_game_won", Event_StashwhackerTrigged);
-	HookEvent("scavenge_gas_can_destroyed", Event_GascanDestoryed);
+	// HookEvent("stashwhacker_game_won", Event_StashwhackerTrigged);
+	// HookEvent("scavenge_gas_can_destroyed", Event_GascanDestoryed);
 	HookEvent("survivor_rescued", Event_SurvivorRescued);
-	HookEvent("weapon_drop", Event_WeaponDropped);
+	// HookEvent("weapon_drop", Event_WeaponDropped);
 	HookEvent("ammo_pickup", Event_AmmoPickup);
 	// HookEvent("item_pickup", Event_WeaponPickuped);
 	
@@ -518,10 +538,12 @@ public OnMapStart()
 	g_ttTankKilled = 0;
 	g_iRoundEvent = 0;
 	g_szRoundEvent = "无";
-
+	g_bHasTeleportActived = false;
+	
 	for(new i = 1; i <= MaxClients; i++)
 	{
-		Initialization(i);
+		// Initialization(i);
+		ClientSaveToFileLoad(i);
 	}
 
 	/*
@@ -698,7 +720,8 @@ public OnMapEnd()
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
-		Initialization(i);
+		// Initialization(i);
+		ClientSaveToFileSave(i);
 	}
 }
 
@@ -711,7 +734,8 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
-		Initialization(i);
+		ClientSaveToFileSave(i);
+		// Initialization(i);
 		g_bHasFirstJoin[i] = false;
 		// g_bHasJumping[i] = false;
 	}
@@ -758,13 +782,14 @@ public void Event_FinaleVehicleLeaving(Event event, const char[] eventName, bool
 
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		Initialization(i);
+		// Initialization(i);
+		ClientSaveToFileSave(i);
 
-		if(IsValidAliveClient(i) && !GetEntProp(i, Prop_Send, "m_isIncapacitated"))
+		if(IsValidAliveClient(i) && !GetEntProp(i, Prop_Send, "m_isIncapacitated") && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge"))
 		{
 			GiveSkillPoint(i, count);
 
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintToChat(i, "\x03[提示]\x01 你因为救援关逃跑成功而获得 \x05%d\x01 天赋点。", count);
 		}
 	}
@@ -777,8 +802,11 @@ public Action:Event_MissionLost(Handle:event, String:event_name[], bool:dontBroa
 	g_fNextRoundEvent = 0.0;
 
 	for(new i = 1; i <= MaxClients; i++)
-		Initialization(i);
-
+	{
+		// Initialization(i);
+		ClientSaveToFileSave(i);
+	}
+	
 	RestoreConVar();
 }
 
@@ -868,6 +896,8 @@ void Initialization(int client, bool invalid = false)
 	g_iReloadWeaponEntity[client] = 0;
 	g_timerRespawn[client] = null;
 	g_fFreezeTime[client] = 0.0;
+	g_fMaxSpeedModify[client] = 1.0;
+	g_cdCanTeleport[client] = true;
 
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
 		g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
@@ -875,15 +905,20 @@ void Initialization(int client, bool invalid = false)
 
 	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
+	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
+	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 }
 
 //读档
 bool ClientSaveToFileLoad(int client)
 {
+	if(!IsValidClient(client) || IsFakeClient(client))
+		return false;
+	
 	char steamId[64];
 	GetClientAuthId(client, AuthId_SteamID64, steamId, 64, false);
-
-	if(steamId[0] == '\0' || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
+	
+	if(steamId[0] == EOS || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
 		StrEqual(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || StrEqual(steamId, "STEAM_1:0:0", false))
 	{
 		Initialization(client, true);
@@ -893,9 +928,24 @@ bool ClientSaveToFileLoad(int client)
 	if(g_kvSavePlayer[client] == null)
 	{
 		g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
-		FileToKeyValues(g_kvSavePlayer[client], tr("%s/%s.txt", g_szSavePath, steamId));
+		// FileToKeyValues(g_kvSavePlayer[client], tr("%s/%s.txt", g_szSavePath, steamId));
+		if(!g_kvSavePlayer[client].ImportFromFile(tr("%s/%s.txt", g_szSavePath, steamId)))
+			PrintToChat(client, "加载失败");
 	}
-
+	
+	int deadline = g_pCvarValidity.IntValue;
+	if(deadline > 0)
+	{
+		int current = GetTime();
+		int prev = g_kvSavePlayer[client].GetNum("deadline", 0);
+		if(prev + deadline < current)
+		{
+			Initialization(client, true);
+			PrintToServer("玩家 %N 的存档过期了", client);
+			return false;
+		}
+	}
+	
 	char name[MAX_NAME_LENGTH], ip[16], country[32], code[3];
 	GetClientName(client, name, MAX_NAME_LENGTH);
 	GetClientIP(client, ip, 16, true);
@@ -907,7 +957,7 @@ bool ClientSaveToFileLoad(int client)
 	g_kvSavePlayer[client].SetString("ip", ip);
 	g_kvSavePlayer[client].SetString("country", country);
 	g_kvSavePlayer[client].SetString("country_code", code);
-
+	
 	char steamId2[32], steamId3[32];
 	GetClientAuthId(client, AuthId_Steam2, steamId2, 64, false);
 	GetClientAuthId(client, AuthId_Steam3, steamId3, 64, false);
@@ -917,7 +967,7 @@ bool ClientSaveToFileLoad(int client)
 	g_kvSavePlayer[client].SetString("steamId_3", steamId3);
 
 	// 技能和属性
-	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", 12);
+	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", 0);
 	g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
 	g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);
 	g_clSkill_1[client] = g_kvSavePlayer[client].GetNum("skill_1", 0);
@@ -970,19 +1020,22 @@ bool ClientSaveToFileLoad(int client)
 bool ClientSaveToFileSave(int client)
 {
 	char steamId[64];
-
+	steamId[0] = EOS;
+	
 	if(IsValidClient(client))
 		GetClientAuthId(client, AuthId_SteamID64, steamId, 64, false);
 	else if(g_kvSavePlayer[client] != null)
 		g_kvSavePlayer[client].GetString("steamId_64", steamId, 64, "");
+	else
+		return false;
 
-	if(steamId[0] == '\0' || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
+	if(steamId[0] == EOS || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
 		StrEqual(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || StrEqual(steamId, "STEAM_1:0:0", false))
 		return false;
 
 	if(g_kvSavePlayer[client] == null)
 		g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
-
+	
 	char name[MAX_NAME_LENGTH], ip[16], country[32], code[3];
 	GetClientName(client, name, MAX_NAME_LENGTH);
 	GetClientIP(client, ip, 16, true);
@@ -994,6 +1047,7 @@ bool ClientSaveToFileSave(int client)
 	g_kvSavePlayer[client].SetString("ip", ip);
 	g_kvSavePlayer[client].SetString("country", country);
 	g_kvSavePlayer[client].SetString("country_code", code);
+	g_kvSavePlayer[client].SetNum("deadline", GetTime());
 
 	// 技能和属性
 	g_kvSavePlayer[client].SetNum("skill_point", g_clSkillPoint[client]);
@@ -1039,7 +1093,8 @@ bool ClientSaveToFileSave(int client)
 
 	// 保存到文件
 	g_kvSavePlayer[client].Rewind();
-	g_kvSavePlayer[client].ExportToFile(tr("%s/%s.txt", g_szSavePath, steamId));
+	if(!g_kvSavePlayer[client].ExportToFile(tr("%s/%s.txt", g_szSavePath, steamId)))
+		PrintToChat(client, "保存失败");
 
 	return true;
 }
@@ -1114,7 +1169,7 @@ public Action:StatusSelectMenuFuncDD(client)
 	TeleportEntity(client, cung_cdSaveCount[client][g_cdSaveCount[client]], NULL_VECTOR, NULL_VECTOR);
 	ShowParticle(cung_cdSaveCount[client][g_cdSaveCount[client]], "electrical_arc_01_system", 5.0);
 	PrintToChat(client, "*读取最新存点成功.你现有存点:%d.",(g_cdSaveCount[client] + 1));
-	CreateTimer(30.0, Event_Dudian, client);
+	CreateTimer(30.0, Event_Dudian, client, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Handled;
 }
 
@@ -1152,7 +1207,7 @@ public Action:StatusSelectMenuFuncSC(client)
 	TeleportEntity(client, cung_cdSaveCount[client][g_cdSaveCount[client]], NULL_VECTOR, NULL_VECTOR);
 	ShowParticle(cung_cdSaveCount[client][g_cdSaveCount[client]], "electrical_arc_01_system", 5.0);
 	PrintToChat(client, "*读取上一存点成功.你现有存点:%d.",(g_cdSaveCount[client] + 1));
-	CreateTimer(30.0, Event_Dudian, client);
+	CreateTimer(30.0, Event_Dudian, client, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Handled;
 }
 
@@ -1168,6 +1223,7 @@ void StatusSelectMenuFuncCS(int client)
 	menu.SetTitle("========= 全体传送 =========");
 	menu.DrawText("确定将所有生还者传送到身边？");
 	menu.DrawText(tr("需要 2 点，现有 %d 点", g_clSkillPoint[client]));
+	menu.DrawText("警告：传送导致队友死亡会受到惩罚");
 	menu.DrawItem("是");
 	menu.DrawItem("否");
 	menu.DrawItem("", ITEMDRAW_NOTEXT);
@@ -1231,7 +1287,7 @@ public int MenuHandler_TeamTeleport(Menu menu, MenuAction action, int client, in
 		CreateTimer(5.0, Timer_TeamTeleport, data);
 		StatusChooseMenuFunc(client);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]\x05 %N\x04使用了\x03全员传送\x04,\x035秒后\x04所有队友将会传送到他身边开会...", client);
 	}
 
@@ -1256,7 +1312,7 @@ public Action Timer_TeamTeleport(Handle timer, any data)
 
 	if(!IsValidAliveClient(client))
 	{
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]\x04 由于 \x05%N\x04 已经挂了，本次传送失败！", client);
 		return Plugin_Continue;
 	}
@@ -1311,7 +1367,7 @@ public Action Timer_TeamTeleportCheck(Handle timer, any client)
 
 	if(g_stFallDamageKilled > 0)
 	{
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]\x04由于OP发现了 \x05%N\x04 之前恶意使用全员传送,扣除了他\x05天赋点两点\x04作为警告.", client);
 
 		GiveSkillPoint(client, -2);
@@ -1322,6 +1378,7 @@ public Action Timer_TeamTeleportCheck(Handle timer, any client)
 	return Plugin_Stop;
 }
 
+/*
 public Action OnClientCommand(int client, int argc)
 {
 	if(!IsValidClient(client))
@@ -1343,6 +1400,7 @@ public Action OnClientCommand(int client, int argc)
 
 	return Plugin_Continue;
 }
+*/
 
 stock void PrintToLeft(int client, const char[] text, any ...)
 {
@@ -1406,7 +1464,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 	char sayText[255];
 	GetCmdArg(1, sayText, 255);
 
-	if(g_pCvarAllow.IntValue)
+	if(g_pCvarAllow.BoolValue)
 	{
 		if(StrEqual(sayText, "lv", false))
 		{
@@ -1416,7 +1474,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 
 		if(StrEqual(sayText, "buy", false) || StrEqual(sayText, "shop", false))
 		{
-			StatusSelectMenuFuncBuy(client);
+			StatusSelectMenuFuncBuy(client, false);
 			return Plugin_Handled;
 		}
 
@@ -1463,7 +1521,7 @@ public Action:Command_Levelup(client, args)
 public Action:Command_Shop(client, args)
 {
 	if(IsValidClient(client))
-		StatusSelectMenuFuncBuy(client);
+		StatusSelectMenuFuncBuy(client, false);
 	return Plugin_Handled;
 }
 
@@ -1542,7 +1600,7 @@ public bool OnClientConnect(int client, char[] kickMessage, int msglen)
 		char steamId[64];
 		GetClientAuthId(client, AuthId_Steam2, steamId, 64, false);
 
-		if(steamId[0] == '\0' || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
+		if(steamId[0] == EOS || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
 			StrEqual(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || StrEqual(steamId, "STEAM_1:0:0", false))
 		{
 			FormatEx(kickMessage, msglen, "你的 SteamID 无效\n%s\n请更换或升级破解补丁", steamId);
@@ -1709,27 +1767,27 @@ public int MenuHandler_Respawn(Menu menu, MenuAction action, int client, int sel
 	return 0;
 }
 
-void StatusSelectMenuFuncBuy(int client)
+void StatusSelectMenuFuncBuy(int client, bool back = true)
 {
 	Menu menu = CreateMenu(MenuHandler_Shop);
-	menu.SetTitle("========= 商店菜单 =========\n全部两块，点到即售（现有 %d 点）", g_clSkillPoint[client]);
+	menu.SetTitle("========= 商店菜单 =========\n全部一块，点到即售（现有 %d 点）", g_clSkillPoint[client]);
 
-	menu.AddItem("smg_mp5 katana", "冲锋枪 + 武士刀");
-	menu.AddItem("shotgun_chrome pistol_magnum", "单喷 + 马格南");
+	menu.AddItem("smg_silenced katana", "冲锋枪(消音) + 武士刀");
+	menu.AddItem("shotgun_chrome pistol_magnum", "单喷(二代) + 马格南");
 	menu.AddItem("defibrillator ammo", "电击器 + 补充弹药");
-	menu.AddItem("pipe_bomb pain_pills", "土雷 + 药丸");
-	menu.AddItem("molotov adrenaline", "火瓶 + 针筒");
+	menu.AddItem("pipe_bomb adrenaline", "土雷 + 针筒");
+	menu.AddItem("molotov pain_pills", "火瓶 + 药丸");
 	menu.AddItem("vomitjar upgradepack_incendiary", "胆汁 + 燃烧子弹包");
-	menu.AddItem("rifle_sg552 crowbar", "步枪 + 物理学圣剑");
-	menu.AddItem("autoshotgun pistol pistol", "连喷 + 俩手枪");
-	menu.AddItem("sniper_awp machete", "狙稽枪 + 砍刀");
-	menu.AddItem("rifle_m60 chainsaw", "机枪 + 电锯");
+	menu.AddItem("rifle_sg552 crowbar", "步枪(SG552) + 物理学圣剑");
+	menu.AddItem("autoshotgun pistol pistol", "连喷(一代) + 俩手枪");
+	menu.AddItem("sniper_awp machete", "狙稽枪(AWP) + 砍刀");
+	menu.AddItem("rifle_m60 chainsaw", "机枪(M60) + 电锯");
 	menu.AddItem("grenade_launcher pistol", "榴弹 + 小手枪");
 	menu.AddItem("first_aid_kit", "医疗包");
 	// menu.AddItem("health", "回血");
 
 	menu.ExitButton = true;
-	menu.ExitBackButton = true;
+	menu.ExitBackButton = back;
 	menu.Display(client, MENU_TIME_FOREVER);
 }
 
@@ -1747,17 +1805,17 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 	if(action != MenuAction_Select)
 		return 0;
 
-	if(g_clSkillPoint[client] < 2)
+	if(g_clSkillPoint[client] < 1)
 	{
 		PrintToChat(client, "\x03[提示]\x01 你的钱不够。");
-		StatusSelectMenuFuncBuy(client);
+		StatusSelectMenuFuncBuy(client, menu.ExitBackButton);
 		return 0;
 	}
 
 	if(!IsPlayerAlive(client))
 	{
 		PrintToChat(client, "\x03[提示]\x01 你已经死了。");
-		StatusSelectMenuFuncBuy(client);
+		StatusSelectMenuFuncBuy(client, menu.ExitBackButton);
 		return 0;
 	}
 
@@ -1766,15 +1824,15 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 	int count = ExplodeString(info, " ", item, 4, 32);
 	for(int i = 0; i < count; ++i)
 	{
-		if(item[i][0] == '\0')
+		if(item[i][0] == EOS)
 			continue;
-
+		
 		CheatCommand(client, "give", item[i]);
 	}
 
-	GiveSkillPoint(client, -2);
+	GiveSkillPoint(client, -1);
 	PrintToChat(client, "\x03[提示]\x01 完成。");
-	StatusSelectMenuFuncBuy(client);
+	StatusSelectMenuFuncBuy(client, menu.ExitBackButton);
 	return 0;
 }
 
@@ -2497,7 +2555,7 @@ stock Panel CreateConfirmPanel(const char[] title, const char[] text = "", any .
 	Panel menu = CreatePanel();
 	menu.SetTitle(title);
 
-	if(text[0] != '\0')
+	if(text[0] != EOS)
 	{
 		char line[1024];
 		VFormat(line, 1024, text, 3);
@@ -2522,7 +2580,7 @@ stock Menu CreateConfirmMenu(const char[] title, MenuHandler handler, const char
 	Menu menu = CreateMenu(handler);
 
 	char line[1024] = "";
-	if(text[0] != '\0')
+	if(text[0] != EOS)
 		VFormat(line, 1024, text, 5);
 
 	menu.SetTitle("%s\n%s", title, line);
@@ -2615,7 +2673,7 @@ public int MenuHandler_OpenLucky(Menu menu, MenuAction action, int client, int s
 		GiveSkillPoint(client, -1);
 		StartRoundEvent();
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[提示]\x01 有人偷偷打开了天启幸运箱，本回合的天启更改为：\x04%s\x01。", g_szRoundEvent);
 	}
 
@@ -2773,6 +2831,7 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 				}
 				if((g_clSkill_1[client] & SKL_1_MaxHealth)) clienthp += 50;
 				SetEntProp(client, Prop_Data, "m_iMaxHealth", clienthp);
+				
 				new clientsp = 100;
 				for(new i = 0;i < 4;i ++)
 				{
@@ -2782,7 +2841,9 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 					}
 				}
 				if((g_clSkill_1[client] & SKL_1_Movement)) clientsp += 10;
-				SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
+				// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
+				g_fMaxSpeedModify[client] = ((clientsp + 100) / 200.0);
+				
 				new Chance = 0;
 				if((g_clSkill_1[client] & SKL_1_DmgExtra)) Chance += 5;
 				if((g_clSkill_4[client] & SKL_4_DmgExtra)) Chance += 10;
@@ -2839,6 +2900,7 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 				}
 				if((g_clSkill_1[client] & SKL_1_MaxHealth)) clienthp += 50;
 				SetEntProp(client, Prop_Data, "m_iMaxHealth", clienthp);
+				
 				new clientsp = 100;
 				for(new i = 0;i < 4;i ++)
 				{
@@ -2848,7 +2910,9 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 					}
 				}
 				if((g_clSkill_1[client] & SKL_1_Movement)) clientsp += 10;
-				SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
+				// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
+				g_fMaxSpeedModify[client] = ((clientsp + 100) / 200.0);
+				
 				new Chance = 0;
 				if((g_clSkill_1[client] & SKL_1_DmgExtra)) Chance += 5;
 				if((g_clSkill_4[client] & SKL_4_DmgExtra)) Chance += 10;
@@ -3347,28 +3411,28 @@ void StatusSelectMenuFuncRP(int clientId)
 
 			g_bHasRPActive = true;
 			g_bIsRPActived[clientId] = true;
-			CreateTimer(40.0, Event_RP, clientId);
-			CreateTimer(90.0, Client_RP, clientId);
+			CreateTimer(40.0, Event_RP, clientId, TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(90.0, Client_RP, clientId, TIMER_FLAG_NO_MAPCHANGE);
 
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintToChatAll("\x03[\x05提示\x03]%N\x04激活了人品事件,怒气值\x05+2\x04,等待\x03[\x0540\x03]\x04秒后人品事件发生!", clientId);
 			else
 				PrintToChat(clientId, "\x03[提示]\x01 你启动了人品事件，等待 \x0540\x01 秒后发生一些事情。");
 		}
 		else if(g_bHasRPActive)
 		{
-			// if(g_pCvarAllow.IntValue)
+			// if(g_pCvarAllow.BoolValue)
 			PrintToChat(clientId, "\x03[\x05提示\x03]\x04人品事件已经激活,等待\x03[\x0540\x03]\x04秒后才能重新激活!");
 		}
 		else
 		{
-			// if(g_pCvarAllow.IntValue)
+			// if(g_pCvarAllow.BoolValue)
 			PrintToChat(clientId, "\x03[\x05提示\x03]\x04你丫的当刷人品是吃饭啊,刷过了就要等\x03[\x0590\x03]\x04秒后才能再刷!");
 		}
 	}
 	else
 	{
-		// if(g_pCvarAllow.IntValue)
+		// if(g_pCvarAllow.BoolValue)
 		PrintToChat(clientId, "\x03[\x05提示\x03]\x04你不是活着的生还者,无法激活人品事件!");
 	}
 }
@@ -3701,7 +3765,7 @@ stock void SpawnCommonZombie(const char[] zombieName, float position[3], const c
 
 	TeleportEntity(g_iZombieSpawner, position, NULL_VECTOR, NULL_VECTOR);
 
-	if(targetName[0] != '\0')
+	if(targetName[0] != EOS)
 		SetVariantString(tr("%s,%s", zombieName, targetName));
 	else
 		SetVariantString(zombieName);
@@ -4339,7 +4403,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 					Charge(victim, attacker);
 			}
 			
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
 		}
 		
@@ -4355,7 +4419,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 			damage += extraChanceDamage / 10.0;
 			
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage / 10, extraDamage / 5);
 		}
 		
@@ -4578,7 +4642,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 				GetClientAbsOrigin(victim, entpos);
 				EmitSoundToAll(SOUND_BCLAW, victim);
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					LittleFlower(entpos, EXPLODE);
 
 				if((g_clSkill_3[attacker] & SKL_3_Kickback))
@@ -4592,7 +4656,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 					ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 					// PrintToChat(attacker,"\x03【\x05提示\x03】\x04主武器触发\x03暴击\x04,追加伤害\x03%d\x04!!",extradmg);
 
-					if(g_pCvarAllow.IntValue)
+					if(g_pCvarAllow.BoolValue)
 					{
 						// PrintToChat(attacker, "\x03[提示]\x01 主武器触发 \x04暴击\x01，伤害增加：\x05%d\x01", extradmg);
 						// PrintHintText(attacker, "暴击伤害：%d", extradmg);
@@ -4667,7 +4731,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",attacker);
 							else
 								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员恢复满血）\x01。");
@@ -4676,7 +4740,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 						{
 							NCJ_1 = true;
 							NCJ_ON = true;
-							CreateTimer(40.0, Timer_NCJ1);
+							CreateTimer(40.0, Timer_NCJ1, 0, TIMER_FLAG_NO_MAPCHANGE);
 							for (new i = 1; i <= MaxClients; i++)
 							{
 								if(IsClientInGame(i) && IsPlayerAlive(i))
@@ -4687,7 +4751,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",attacker);
 							else
 								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+100,持续40秒）\x01。");
@@ -4711,7 +4775,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",attacker);
 							else
 								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04智者之教诲\x05（全员天赋点+1）\x01。");
@@ -4735,7 +4799,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",attacker);
 							else
 								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（特感全员受到2500伤害）\x01。");
@@ -4760,7 +4824,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",attacker);
 							else
 								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（全员兴奋,持续50秒）\x01。");
@@ -4769,7 +4833,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 						{
 							NCJ_2 = true;
 							NCJ_ON = true;
-							CreateTimer(60.0, Timer_NCJ2);
+							CreateTimer(60.0, Timer_NCJ2, 0, TIMER_FLAG_NO_MAPCHANGE);
 							for (new i = 1; i <= MaxClients; i++)
 							{
 								if(IsClientInGame(i) && IsPlayerAlive(i))
@@ -4781,7 +4845,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 							}
 							SetEntProp(attacker,Prop_Send,"m_iHealth",(GetEntProp(attacker,Prop_Send,"m_iHealth") / 2));
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x04.",attacker);
 							else
 								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04背水一战\x05（全员获得无限燃烧子弹,持续60秒）\x01。");
@@ -4790,7 +4854,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 						{
 							NCJ_3 = true;
 							NCJ_ON = true;
-							CreateTimer(75.0, Timer_NCJ3);
+							CreateTimer(75.0, Timer_NCJ3, 0, TIMER_FLAG_NO_MAPCHANGE);
 							for (new i = 1; i <= MaxClients; i++)
 							{
 								if(IsClientInGame(i) && IsPlayerAlive(i))
@@ -4801,7 +4865,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",attacker);
 							else
 								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血天赋,持续75秒）\x01。");
@@ -4856,7 +4920,7 @@ public Action:SSJ4_DMG(Handle:timer, any:client)
 		{
 			ClientCommand(client, "play \"level/timer_bell.wav\"");
 
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintToChat(client,"\x03[\x05提示\x03]\x04你使用\x03坚韧\x04天赋随机恢复\x03%d\x04HP!",hp);
 		}
 	}
@@ -4983,7 +5047,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 		}
 		else if(team == TEAM_INFECTED)
 		{
-			if(GetRandomInt(0, 100) <= 11)
+			if(GetRandomInt(1, 100) <= g_pCvarGiftChance.IntValue)
 			{
 				// 特感死亡掉落物品
 				switch(GetRandomInt(1, 6))
@@ -5004,7 +5068,8 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 			}
 		}
 
-		Initialization(victim);
+		// Initialization(victim);
+		ClientSaveToFileSave(victim);
 	}
 
 	if(IsValidClient(attacker))
@@ -5018,11 +5083,11 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				EmitSoundToClient(attacker,g_soundLevel);
 				if(!IsFakeClient(attacker)) PrintToChat(attacker, "\x03[\x05提示\x03]\x04你使用了\x03热血\x04天赋兴奋14秒!");
 			}
-			if(!IsFakeClient(attacker) && ++g_ttSpecialKilled[attacker] > 19)
+			if(!IsFakeClient(attacker) && ++g_ttSpecialKilled[attacker] >= g_pCvarSpecialKilled.IntValue)
 			{
 
 				GiveSkillPoint(attacker, 1);
-				g_ttSpecialKilled[attacker] -= 20;
+				g_ttSpecialKilled[attacker] -= g_pCvarSpecialKilled.IntValue;
 				PrintToChat(attacker, "\x03[\x05提示\x03]\x04你多次杀死特感获得额外的天赋点一点!输入\x03!lv\x04查看!");
 			}
 		}
@@ -5145,7 +5210,7 @@ void RewardPicker(int client)
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员恢复满血\x01");
@@ -5154,7 +5219,7 @@ void RewardPicker(int client)
 						{
 							NCJ_1 = true;
 							NCJ_ON = true;
-							CreateTimer(40.0, Timer_NCJ1);
+							CreateTimer(40.0, Timer_NCJ1, TIMER_FLAG_NO_MAPCHANGE);
 							for (new i = 1; i <= MaxClients; i++)
 							{
 								if(IsClientInGame(i) && IsPlayerAlive(i))
@@ -5164,7 +5229,7 @@ void RewardPicker(int client)
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员暴击率+100,持续40秒\x01");
@@ -5188,7 +5253,7 @@ void RewardPicker(int client)
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员天赋点+1\x01");
@@ -5211,7 +5276,7 @@ void RewardPicker(int client)
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04特感全员受到2500伤害\x01");
@@ -5235,7 +5300,7 @@ void RewardPicker(int client)
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员兴奋,持续50秒\x01");
@@ -5244,7 +5309,7 @@ void RewardPicker(int client)
 						{
 							NCJ_2 = true;
 							NCJ_ON = true;
-							CreateTimer(60.0, Timer_NCJ2);
+							CreateTimer(60.0, Timer_NCJ2, TIMER_FLAG_NO_MAPCHANGE);
 							for (new i = 1; i <= MaxClients; i++)
 							{
 								if(IsClientInGame(i) && IsPlayerAlive(i))
@@ -5255,7 +5320,7 @@ void RewardPicker(int client)
 							}
 							SetEntProp(client,Prop_Send,"m_iHealth",(GetEntProp(client,Prop_Send,"m_iHealth") / 2));
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限高爆子弹,持续60秒\x04.",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04自身HP减半,全员获得无限高爆子弹,持续60秒\x01");
@@ -5264,7 +5329,7 @@ void RewardPicker(int client)
 						{
 							NCJ_3 = true;
 							NCJ_ON = true;
-							CreateTimer(75.0, Timer_NCJ3);
+							CreateTimer(75.0, Timer_NCJ3, TIMER_FLAG_NO_MAPCHANGE);
 							for (new i = 1; i <= MaxClients; i++)
 							{
 								if(IsClientInGame(i) && IsPlayerAlive(i))
@@ -5274,7 +5339,7 @@ void RewardPicker(int client)
 								}
 							}
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员获得嗜血天赋,持续75秒\x01");
@@ -5287,7 +5352,7 @@ void RewardPicker(int client)
 					g_clAngryPoint[client] += 30;
 					if(g_iRoundEvent == 10) g_clAngryPoint[client] += 30;
 
-					if(g_pCvarAllow.IntValue)
+					if(g_pCvarAllow.BoolValue)
 						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+40\x04.",client);
 					else
 						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，怒气值＋40");
@@ -5297,14 +5362,14 @@ void RewardPicker(int client)
 			{
 				if(g_iRoundEvent == 0)
 				{
-					if(g_pCvarAllow.IntValue)
+					if(g_pCvarAllow.BoolValue)
 						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,结果发现是一个空箱子...",client);
 					else
 						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，但是里面什么也没有。");
 				}
 				else if(GetRandomInt(0, 1))
 				{
-					if(g_pCvarAllow.IntValue)
+					if(g_pCvarAllow.BoolValue)
 						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 尝试打开天启幸运箱,箱子蠢蠢欲动,可惜还是没打开...",client);
 					else
 						PrintToChat(client, "\x03[提示]\x01 你尝试打开箱子，但是失败了。");
@@ -5314,7 +5379,7 @@ void RewardPicker(int client)
 					EmitSoundToClient( client, REWARD_SOUND );
 					StartRoundEvent();
 
-					if(g_pCvarAllow.IntValue)
+					if(g_pCvarAllow.BoolValue)
 						PrintToChatAll("\x03[提示]\x01 玩家 \x04%N\x01 打开了幸运箱，本回合天启更改为：\x05%s\x01。", client, g_szRoundEvent);
 					else
 						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，本回合天启更改为：\x05%s\x01。", g_szRoundEvent);
@@ -5345,14 +5410,14 @@ void RewardPicker(int client)
 							TeleportEntity(client, vec, NULL_VECTOR, NULL_VECTOR);
 							EmitSoundToClient( client, REWARD_SOUND );
 
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,原来是任意门,\x03被随机传送到一个队友身旁\x04.",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，原来是任意门，\x04被传送到了队友身边\x01。");
 						}
 						else
 						{
-							if(g_pCvarAllow.IntValue)
+							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,结果发现是一个空箱子...",client);
 							else
 								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，但里面是空的。");
@@ -5364,7 +5429,7 @@ void RewardPicker(int client)
 						if(g_iRoundEvent == 10) g_clAngryPoint[client] += 20;
 						EmitSoundToClient( client, REWARD_SOUND );
 
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+20\x04.",client);
 						else
 							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04怒气值+20\x01。");
@@ -5374,7 +5439,7 @@ void RewardPicker(int client)
 						CheatCommand(client, "give", "ammo");
 						EmitSoundToClient( client, REWARD_SOUND );
 
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03弹药得到了补充\x04.",client);
 						else
 							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04弹药得到了补充\x01。");
@@ -5387,7 +5452,7 @@ void RewardPicker(int client)
 						CheatCommand(client, "give", "defibrillator");
 						EmitSoundToClient( client, REWARD_SOUND );
 
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03发现了大量物品\x04.",client);
 						else
 							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04发现了大量物品\x01。");
@@ -5398,7 +5463,7 @@ void RewardPicker(int client)
 						// ServerCommand("sm_freeze \"%N\" \"30\"",client);
 						FreezePlayer(client, 30.0);
 
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,原来里面藏着一颗冰冻弹,\x03被冰冻30秒\x04.",client);
 						else
 							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04被冰冻30秒\x01。");
@@ -5426,7 +5491,7 @@ void RewardPicker(int client)
 						event.SetString("weapon", "");
 						event.Fire(false);
 
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
 						else
 							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04被里面的玩具拳击倒了\x01。");
@@ -5444,7 +5509,7 @@ void RewardPicker(int client)
 			{
 				EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03随机获得一件装备\x04.",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，捡到了一个\x04奇怪的东西\x01。");
@@ -5453,7 +5518,7 @@ void RewardPicker(int client)
 				{
 					GiveSkillPoint(client, 2);
 
-					if(g_pCvarAllow.IntValue)
+					if(g_pCvarAllow.BoolValue)
 						PrintToChat(client, "\x03[提示]\x01 由于你的天赋点是负数，获得装备改成了获得天赋点。");
 				}
 				else
@@ -5462,12 +5527,12 @@ void RewardPicker(int client)
 
 					if(j == -1)
 					{
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
 					}
 					else
 					{
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, j));
 					}
 				}
@@ -5480,7 +5545,7 @@ void RewardPicker(int client)
 				}
 				EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03恢复满血\x04.",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04恢复满血\x01。");
@@ -5491,7 +5556,7 @@ void RewardPicker(int client)
 				GiveSkillPoint(client, 1);
 				EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03获得天赋点一点\x04.",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04获得天赋点一点\x01。");
@@ -5502,7 +5567,7 @@ void RewardPicker(int client)
 				if(g_iRoundEvent == 10) g_clAngryPoint[client] += 10;
 				EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+10\x04.",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04怒气值+10\x01。");
@@ -5512,7 +5577,7 @@ void RewardPicker(int client)
 				CheatCommand(client, "give", "ammo");
 				EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03弹药得到了补充\x04.",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04弹药得到了补充\x01。");
@@ -5525,7 +5590,7 @@ void RewardPicker(int client)
 				CheatCommand(client, "give", "first_aid_kit");
 				EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03发现了大量物品\x04.",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04发现了大量物品\x01。");
@@ -5536,7 +5601,7 @@ void RewardPicker(int client)
 				// ServerCommand("sm_freeze \"%N\" \"30\"",client);
 				FreezePlayer(client, 30.0);
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,原来里面藏着一颗冰冻弹,\x03被冰冻30秒\x04.",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，原来里面藏着一颗冰冻弹，\x04被冰冻30秒\x01。");
@@ -5564,7 +5629,7 @@ void RewardPicker(int client)
 				event.SetString("weapon", "");
 				event.Fire(false);
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04被里面的玩具拳击倒了\x01。");
@@ -5667,7 +5732,7 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 
 	CreateTimer(0.1, Timer_TankDeath, data);
 
-	if(g_ttTankKilled == 1)
+	if(g_ttTankKilled == 1 || g_iRoundEvent == 0)
 		CreateTimer(5.0, Round_Random_Event);
 
 	return Plugin_Handled;
@@ -5675,17 +5740,17 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 
 public Action:Round_Random_Event(Handle:timer, any:data)
 {
+	if(!g_pCvarAllow.BoolValue)
+		return Plugin_Continue;
+	
 	RestoreConVar();
-
+	
 	char buffer[64];
 	StartRoundEvent(_, buffer, sizeof(buffer));
-
-	if(g_pCvarAllow.IntValue)
-	{
-		PrintToChatAll("\x03[\x05提示\x03]\x04回合首只坦克死亡触发\x03天启事件\x04...");
-		PrintToChatAll("\x03[提示]\x01 本回合天启：\x04%s\x05（%s）\x01。", g_szRoundEvent, buffer);
-	}
-
+	
+	PrintToChatAll("\x03[\x05提示\x03]\x04回合首只坦克死亡触发\x03天启事件\x04...");
+	PrintToChatAll("\x03[提示]\x01 本回合天启：\x04%s\x05（%s）\x01。", g_szRoundEvent, buffer);
+	
 	for(int i = 1; i <= MaxClients; ++i)
 	{
 		if(!IsValidAliveClient(i) || IsFakeClient(i))
@@ -5695,6 +5760,7 @@ public Action:Round_Random_Event(Handle:timer, any:data)
 	}
 
 	PrintToServer("本回合天启事件：%s丨%s", g_szRoundEvent, buffer);
+	return Plugin_Continue;
 }
 
 public Action:Timer_TankDeath(Handle:timer, any:data)
@@ -5714,13 +5780,13 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 		if(IsPlayerAlive(attacker))
 			AttachParticle(attacker, "achieved", 3.0);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(attacker, "\x03[提示]\x01 你因为单挑坦克而获得 \x051\x01 天赋点。");
 	}
 
 	if(g_ttTankKilled >= 4)
 	{
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]\x04由于本关卡坦克死亡数已超过3只,将不再补血,生还者也将无法获得任何奖励!");
 		return Plugin_Continue;
 	}
@@ -5749,37 +5815,36 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 			}
 		}
 		*/
-
+		
 		if(GetClientTeam(i) == 2 && !IsFakeClient(i))
 		{
-			// if(IsPlayerAlive(i)) AttachParticle(i, "achieved", 9.0);
-
 			CreateTimer(1.0, AutoMenuOpen, i);
 			EmitSoundToClient(i,g_soundLevel);
 			new chance = GetRandomInt(1, 7);
 			if(chance < 6)
 			{
-
 				GiveSkillPoint(i, 1);
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChat(i,"\x03[\x05提示\x03]\x04坦克死亡你随机获得天赋点\x031\x04点!");
 
 				if(melee)
 				{
 					GiveSkillPoint(i, 1);
 
-					if(g_pCvarAllow.IntValue)
+					if(g_pCvarAllow.BoolValue)
 						PrintToChat(i, "\x03[提示]\x01 因为坦克是被刀死的，你额外获得 \x051\x01 天赋点。");
 				}
 			}
 			else
 			{
+				if(IsPlayerAlive(i)) AttachParticle(i, "achieved", 9.0);
+				
 				if(g_clSkillPoint[i] < 0)
 				{
 					GiveSkillPoint(i, 2);
 
-					if(g_pCvarAllow.IntValue)
+					if(g_pCvarAllow.BoolValue)
 						PrintToChat(i, "\x03[提示]\x01 由于你的天赋点是负数，获得装备改成了获得天赋点。");
 				}
 				else
@@ -5789,12 +5854,12 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 					{
 						GiveSkillPoint(i, 2);
 
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChat(i,"\x03[\x05提示\x03]\x04坦克死亡你随机获得天赋点\x032\x04点!");
 					}
 					else
 					{
-						if(g_pCvarAllow.IntValue)
+						if(g_pCvarAllow.BoolValue)
 							PrintToChat(i, "\x03[提示]\x01 获得装备：%s", FormatEquip(i, j));
 					}
 				}
@@ -5955,12 +6020,12 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	if(!IsFakeClient(client) && subject != client)
 	{
 		g_ttDefibUsed[client] ++;
-		if(g_ttDefibUsed[client] > 4)
+		if(g_ttDefibUsed[client] >= g_pCvarDefibUsed.IntValue)
 		{
 			GiveSkillPoint(client, 1);
-			g_ttDefibUsed[client] -= 5;
+			g_ttDefibUsed[client] -= g_pCvarDefibUsed.IntValue;
 
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintToChat(client, "\x03[\x05提示\x03]\x04 你因为多次给队友 电击/打包 而获得了 \x051\x01 天赋点。");
 		}
 	}
@@ -6006,8 +6071,10 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		SetEntProp(subject, Prop_Data, "m_afButtonDisabled", 0);
 		SetEntProp(subject, Prop_Data, "m_afButtonForced", 0);
 	}
-
+	
+	// 挂边不算（挂边可以是故意的）
 	if (WasLedgeHang) return;
+	
 	new extrahp = 0;
 	if((g_clSkill_1[subject] & SKL_1_ReviveHealth))
 	{
@@ -6051,13 +6118,13 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	if(!IsFakeClient(client) && client != subject)
 	{
 		g_ttOtherRevived[client] ++;
-		if(g_ttOtherRevived[client] > 11)
+		if(g_ttOtherRevived[client] >= g_pCvarOtherRevived.IntValue)
 		{
 
 			GiveSkillPoint(client, 1);
-			g_ttOtherRevived[client] -= 12;
+			g_ttOtherRevived[client] -= g_pCvarOtherRevived.IntValue;
 
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintToChat(client, "\x03[\x05提示\x03]\x04 你多次拉起队友获得了 \x051\x01 天赋点。");
 		}
 	}
@@ -6070,35 +6137,35 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			{
 				CheatCommand(client, "give", "adrenaline");
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03肾上腺素\x04!");
 			}
 			case 1:
 			{
 				CheatCommand(client, "give", "pain_pills");
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03止痛药\x04!");
 			}
 			case 2:
 			{
 				CheatCommand(client, "give", "molotov");
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03燃烧瓶\x04!");
 			}
 			case 3:
 			{
 				CheatCommand(client, "upgrade_add", "EXPLOSIVE_AMMO");
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03爆炸子弹\x04!");
 			}
 			case 4:
 			{
 				CheatCommand(client, "give", "defibrillator");
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03电击器\x04!");
 			}
 			case 5:
@@ -6106,7 +6173,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 
 				GiveSkillPoint(client, 1);
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03天赋点一点\x04!");
 			}
 		}
@@ -6133,13 +6200,13 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	{
 		// 保护队友
 		g_ttProtected[client] += 1;
-		if(g_ttProtected[client] >= 30)
+		if(g_ttProtected[client] >= g_pCvarProtected.IntValue)
 		{
-			g_ttProtected[client] -= 30;
+			g_ttProtected[client] -= g_pCvarProtected.IntValue;
 
 			GiveSkillPoint(client, 1);
 
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintToChat(client, "\x03[提示]\x01 你因为多次保护队友获得 \x051\x01 天赋点。");
 		}
 	}
@@ -6148,13 +6215,13 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	{
 		// 给队友递药
 		g_ttGivePills[client] += 1;
-		if(g_ttGivePills[client] > 20)
+		if(g_ttGivePills[client] > g_pCvarGivePills.IntValue)
 		{
-			g_ttGivePills[client] -= 20;
+			g_ttGivePills[client] -= g_pCvarGivePills.IntValue;
 
 			GiveSkillPoint(client, 1);
 
-			if(g_pCvarAllow.IntValue)
+			if(g_pCvarAllow.BoolValue)
 				PrintToChat(client, "\x03[提示]\x01 你因为多次给队友递药获得 \x051\x01 天赋点。");
 		}
 	}
@@ -6162,28 +6229,38 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	if(award == 69)
 	{
 		// 给队友递针
+		// 这里并不去触发检查
 		g_ttGivePills[client] += 1;
 	}
 
 	if(award == 76)
 	{
 		// 把队友从特感的控制中救出
-		g_ttOtherRevived[client] += 1;
+		// g_ttOtherRevived[client] += 1;
+		if(++g_ttRescued[client] >= g_pCvarRescued.IntValue)
+		{
+			GiveSkillPoint(client, 1);
+			g_ttRescued[client] -= g_pCvarRescued.IntValue;
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChat(client, "\x03[提示]\x01 你因为营救队友而获得了 \x051\x01 天赋点。");
+		}
 	}
 
 	if(award == 80)
 	{
 		// 开门复活队友
-		g_ttOtherRevived[client] += 1;
+		// 这里并不去触发检查
+		// g_ttOtherRevived[client] += 1;
+		// g_ttRescued[client] += 1;
 	}
 
 	if(award == 81)
 	{
 		// 克局过后没有死亡
-
 		GiveSkillPoint(client, 1);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为克局过后没有死亡获得 \x051\x01 天赋点。");
 	}
 
@@ -6193,7 +6270,7 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 
 		GiveSkillPoint(client, -3);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为干掉队友而失去了 \x053\x01 天赋点。");
 	}
 
@@ -6203,7 +6280,7 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 
 		GiveSkillPoint(client, -1);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为放倒队友而失去了 \x051\x01 天赋点。");
 	}
 
@@ -6230,11 +6307,189 @@ public void Event_PlayerSacrifice(Event event, const char[] eventName, bool dont
 	{
 		GiveSkillPoint(client, count);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为救援关牺牲而获得 \x05%d\x01 天赋点。", count);
 	}
 }
 
+public int OnSkeet(int survivor, int hunter)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为空爆 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnSkeetMelee(int survivor, int hunter)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为近战秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnSkeetMeleeHurt(int survivor, int hunter)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为近战秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnSkeetGL(int survivor, int hunter)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为榴弹秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnSkeetSniper(int survivor, int hunter)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为狙击秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnSkeetSniperHurt(int survivor, int hunter)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为狙击秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnChargerLevel(int survivor, int charger)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为近战秒 \x04Charger\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnChargerLevelHurt(int survivor, int charger)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为近战砍死 \x04Charger\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnWitchCrown(int survivor, int damage)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为秒 \x04Witch\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnWitchCrownHurt(int survivor, int damage, int chipDamage)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	GiveSkillPoint(survivor, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为引秒 \x04Witch\x01 而获得 \x051\x01 天赋点。");
+	return 0;
+}
+
+public int OnBunnyHopStreak(int survivor, int streak, float maxVelocity)
+{
+	if(!IsValidClient(survivor) || IsFakeClient(survivor))
+		return 0;
+	
+	if(streak < 10 || maxVelocity <= 220)
+		return 0;
+	
+	GiveSkillPoint(survivor, streak / 5);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(survivor, "\x03[提示]\x01 你因为连跳 \x04%d\x01 次而获得 \x05%d\x01 天赋点。", streak, streak / 10);
+	return 0;
+}
+
+public int OnHunterHighPounce(int hunter, int survivor, int actualDamage, float calculatedDamage, float height, bool reportedHigh)
+{
+	if(!IsValidClient(hunter) || IsFakeClient(hunter))
+		return 0;
+	
+	if(actualDamage < 15 || height < 300)
+		return 0;
+	
+	GiveSkillPoint(hunter, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(hunter, "\x03[提示]\x01 你因为高扑造成 \x04%d\x01 伤害而获得 \x051\x01 天赋点。", actualDamage);
+	return 0;
+}
+
+public int OnJockeyHighPounce(int jockey, int victim, float height, bool reportedHigh)
+{
+	if(!IsValidClient(jockey) || IsFakeClient(jockey))
+		return 0;
+	
+	if(height < 300)
+		return 0;
+	
+	GiveSkillPoint(jockey, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(jockey, "\x03[提示]\x01 你因为空投骑脸高度 \x04%d\x01 高度而获得 \x051\x01 天赋点。", height);
+	return 0;
+}
+
+public int OnDeathCharge(int charger, int survivor, float height, float distance, bool wasCarried)
+{
+	if(!IsValidClient(charger) || IsFakeClient(charger))
+		return 0;
+	
+	GiveSkillPoint(charger, 1);
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(charger, "\x03[提示]\x01 你因为冲锋秒人 \x04%d\x01 高度而获得 \x051\x01 天赋点。", height);
+	return 0;
+}
+
+/*
 public void Event_ChargerKilled(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int victim = GetClientOfUserId(event.GetInt("userid"));
@@ -6244,11 +6499,10 @@ public void Event_ChargerKilled(Event event, const char[] eventName, bool dontBr
 
 	if(!IsValidAliveClient(attacker) || !IsValidClient(victim) || !melee || !charging)
 		return;
-
-
+	
 	GiveSkillPoint(attacker, 1);
-
-	if(g_pCvarAllow.IntValue)
+	
+	if(g_pCvarAllow.BoolValue)
 		PrintToChat(attacker, "\x03[提示]\x01 你因为 \x04近战秒牛\x01 而获得 \x051\x01 天赋点。");
 }
 
@@ -6280,12 +6534,12 @@ public void Event_HunterKilled(Event event, const char[] eventName, bool dontBro
 	if(GetVectorDistance(position, endpos, false) < 32.0)
 		return;
 
-
 	GiveSkillPoint(attacker, 1);
 
-	if(g_pCvarAllow.IntValue)
+	if(g_pCvarAllow.BoolValue)
 		PrintToChat(attacker, "\x03[提示]\x01 你因为空爆 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
 }
+*/
 
 public bool TraceFilter_NonPlayerOtherAny(int entity, int mask, any other)
 {
@@ -6302,7 +6556,7 @@ public void Event_VersusFinish(Event event, const char[] eventName, bool dontBro
 
 		GiveSkillPoint(i, 3);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(i, "\x03[提示]\x01 你因为 对抗/清道夫 胜利而获得 \x053\x01 天赋点。");
 	}
 }
@@ -6314,13 +6568,13 @@ public void Event_InfectedDeath(Event event, const char[] eventName, bool dontBr
 		return;
 
 	g_ttCommonKilled[client]++;
-	if(g_ttCommonKilled[client] >= 200)
+	if(g_ttCommonKilled[client] >= g_pCvarCommonKilled.IntValue)
 	{
-		g_ttCommonKilled[client] -= 200;
+		g_ttCommonKilled[client] -= g_pCvarCommonKilled.IntValue;
 
 		GiveSkillPoint(client, 1);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为杀死一些普感而获得 \x051\x01 天赋点。");
 	}
 }
@@ -6367,7 +6621,7 @@ public void Event_RoundWin(Event event, const char[] eventName, bool dontBroadca
 
 		GiveSkillPoint(i, 1);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(i, "\x03[提示]\x01 你因为过关时还活着获得了 \x051\x01 天赋点。");
 	}
 }
@@ -6482,17 +6736,18 @@ public void Event_RescueDoorOpen(Event event, const char[] eventName, bool dontB
 
 	if(isEmpty)
 	*/
-
+	
+	/*
 	if(g_ttRescued[client] <= 0)
 	{
 		// 没有队友被营救
 		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 打开了一个空的复活门。", client);
 	}
-	else if(g_ttRescued[client] >= 3)
+	else */if(g_ttRescued[client] >= 3)
 	{
 		GiveSkillPoint(client, 1);
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为开门复活队友而获得了 \x051\x01 天赋点。");
 	}
 
@@ -6518,7 +6773,7 @@ public void Event_WitchKilled(Event event, const char[] eventName, bool dontBroa
 
 	GiveSkillPoint(client, 1);
 
-	if(g_pCvarAllow.IntValue)
+	if(g_pCvarAllow.BoolValue)
 		PrintToChat(client, "\x03[提示]\x01 你因为秒妹成功而获得 \x051\x01 天赋点。");
 }
 
@@ -6529,13 +6784,13 @@ public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroa
 	if(!IsValidAliveClient(client) || area <= 0)
 		return;
 
-	if(++g_ttCleared[client] >= 10)
+	if(++g_ttCleared[client] >= g_pCvarCleared.IntValue)
 	{
 
 		GiveSkillPoint(client, 1);
-		g_ttCleared[client] -= 10;
+		g_ttCleared[client] -= g_pCvarCleared.IntValue;
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为把一些地方的僵尸清干净而获得 \x051\x01 天赋点。");
 	}
 }
@@ -6557,7 +6812,7 @@ public void Event_PaincEventStart(Event event, const char[] eventName, bool dont
 
 	g_bIsPaincEvent = true;
 	g_bIsPaincIncap = false;
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 搞了一波尸潮。", client);
+	// PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 搞了一波尸潮。", client);
 }
 
 public void Event_PaincEventStop(Event event, const char[] eventName, bool dontBroadcast)
@@ -6573,11 +6828,11 @@ public void Event_PaincEventStop(Event event, const char[] eventName, bool dontB
 			if(!IsValidAliveClient(i) || IsFakeClient(i) || GetClientTeam(i) != 2)
 				continue;
 
-			if(++g_ttPaincEvent[i] >= 5)
+			if(++g_ttPaincEvent[i] >= g_pCvarPaincEvent.IntValue)
 			{
-				g_ttPaincEvent[i] -= 5;
+				g_ttPaincEvent[i] -= g_pCvarPaincEvent.IntValue;
 
-				if(g_pCvarAllow.IntValue)
+				if(g_pCvarAllow.BoolValue)
 					PrintToChat(i, "\x03[提示]\x01 你因为好几波尸潮没倒地或死亡而获得 \x051\x01 天赋点。");
 			}
 		}
@@ -6714,7 +6969,7 @@ public Action Timer_OnPropPickup(Handle timer, any data)
 	pack.ReadString(weaponName, 64);
 
 	delete pack;
-	if(!IsValidAliveClient(client) || weaponName[0] == '\0')
+	if(!IsValidAliveClient(client) || weaponName[0] == EOS)
 		return Plugin_Continue;
 
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
@@ -6761,7 +7016,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 		return;
 
 	int newTeam = event.GetInt("team");
-	// int oldTeam = event.GetInt("oldteam");
+	int oldTeam = event.GetInt("oldteam");
 
 	// 当玩家切换到观察者或者离开游戏时停止正在播放的音乐
 	if(disconnect || newTeam <= 1)
@@ -6771,12 +7026,12 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 		return;
 	}
 
-	if(newTeam > 1 && g_pCvarAllow.IntValue)
+	if(newTeam > 1 && g_pCvarAllow.BoolValue)
 	{
 		char steamId[64];
 		GetClientAuthId(client, AuthId_Steam2, steamId, 64, false);
 
-		if(steamId[0] == '\0' || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
+		if(steamId[0] == EOS || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
 			StrEqual(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || StrEqual(steamId, "STEAM_1:0:0", false))
 		{
 			PrintToChat(client, "\x03[警告]\x01 你的 SteamID 无效，将不提供保存功能！");
@@ -6790,8 +7045,11 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	{
 		SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0);
 		SetEntProp(client, Prop_Data, "m_afButtonForced", 0);
+		
+		if(oldTeam <= 1 && newTeam >= 2)
+			ClientSaveToFileLoad(client);
 	}
-
+	
 	// Initialization(client);
 	g_iJumpFlags[client] = JF_None;
 	g_bCanGunShover[client] = true;
@@ -6851,14 +7109,11 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		if(g_clCurEquip[client][i] > -1)
 			maxSpeed += g_eqmSpeed[client][g_clCurEquip[client][i]];
 	}
-
-	static ConVar sv_movespeed;
-	if(sv_movespeed == null)
-		sv_movespeed = FindConVar("survivor_speed");
-
-	SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", maxSpeed / 100.0);
-	SetEntPropFloat(client, Prop_Data, "m_flMaxspeed", sv_movespeed.FloatValue * maxSpeed / 100.0);
-
+	
+	// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", maxSpeed / 100.0);
+	// SetEntPropFloat(client, Prop_Data, "m_flMaxspeed", g_cvMaxSpeed.FloatValue * maxSpeed / 100.0);
+	g_fMaxSpeedModify[client] = maxSpeed / 100.0;
+	
 	int gravity = 100;
 	if((g_clSkill_1[client] & SKL_1_Gravity))
 		gravity -= 20;
@@ -6881,11 +7136,27 @@ void RegPlayerHook(int client, bool fullHealth = false)
 
 	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
+	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
+	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKHook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
+	SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
+	SDKHook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 
 	SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0);
 	SetEntProp(client, Prop_Data, "m_afButtonForced", 0);
+}
+
+public void PlayerHook_OnPreThink(int client)
+{
+	// 移动速度，比 m_flLaggedMovementValue 好（不会更改跳跃速度）
+	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", GetEntPropFloat(client, Prop_Send, "m_flMaxspeed") * g_fMaxSpeedModify[client]);
+}
+
+public int PlayerHook_OnGetMaxHealth(int client)
+{
+	// 修复 100 血无法打包
+	return GetEntProp(client, Prop_Data, "m_iMaxHealth");
 }
 
 int GetMaxHealth(int client)
@@ -6942,7 +7213,7 @@ public Action:TankEventEnd1(Handle:timer)
 {
 	SetConVarString(g_hCvarGodMode, "0");
 
-	if(g_pCvarAllow.IntValue)
+	if(g_pCvarAllow.BoolValue)
 		PrintToChatAll("\x03[\x05提示\x03]【无敌人类】\x04事件结束.");
 }
 
@@ -6950,7 +7221,7 @@ public Action:TankEventEnd2(Handle:timer)
 {
 	SetConVarString(g_hCvarGravity, "800");
 
-	if(g_pCvarAllow.IntValue)
+	if(g_pCvarAllow.BoolValue)
 		PrintToChatAll("\x03[\x05提示\x03]【重力变异】\x04事件结束.");
 }
 
@@ -6958,7 +7229,7 @@ public Action:TankEventEnd3(Handle:timer)
 {
 	SetConVarString(g_hCvarLimpHealth, "40");
 
-	if(g_pCvarAllow.IntValue)
+	if(g_pCvarAllow.BoolValue)
 		PrintToChatAll("\x03[\x05提示\x03]【减速诅咒】\x04事件结束.");
 }
 
@@ -6966,7 +7237,7 @@ public Action:TankEventEnd4(Handle:timer)
 {
 	SetConVarString(g_hCvarInfinite, "0");
 
-	if(g_pCvarAllow.IntValue)
+	if(g_pCvarAllow.BoolValue)
 		PrintToChatAll("\x03[\x05提示\x03]【无限子弹】\x04事件结束.");
 }
 
@@ -6976,7 +7247,7 @@ public Action:TankEventEnd5(Handle:timer)
 	{
 		SetConVarString(g_hCvarMeleeRange, "75");
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]【剑气技能】\x04事件结束.");
 	}
 }
@@ -6987,7 +7258,7 @@ public Action:TankEventEnd7(Handle:timer)
 	{
 		SetConVarString(g_hCvarDuckSpeed, "75");
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]【蹲坑神速】\x04事件结束.");
 	}
 }
@@ -6998,7 +7269,7 @@ public Action:TankEventEnd8(Handle:timer)
 	{
 		SetConVarString(g_hCvarReviveTime, "5");
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]【疾速救援】\x04事件结束.");
 	}
 }
@@ -7009,7 +7280,7 @@ public Action:TankEventEnd9(Handle:timer)
 	{
 		SetConVarString(g_hCvarMedicalTime, "5");
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]【疾速医疗】\x04事件结束.");
 	}
 }
@@ -7020,7 +7291,7 @@ public Action:TankEventEndx1(Handle:timer)
 	{
 		SetConVarString(g_hCvarAdrenTime, "15");
 
-		if(g_pCvarAllow.IntValue)
+		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]【极度兴奋】\x04事件结束.");
 	}
 }
@@ -7306,7 +7577,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		if(g_clSkill_1[client] & SKL_1_MagnumInf)
 		{
 			// 手枪无限子弹
-			if(classname[13] == '\0')
+			if(classname[13] == EOS)
 			{
 				if(GetEntProp(weapon, Prop_Send, "m_hasDualWeapons"))
 				{
@@ -8180,6 +8451,39 @@ stock bool IsInfectedThirdPerson(int iClient)
 	return false;
 }
 
+stock void InitFindEntity()
+{
+	new Handle:gConf = LoadGameConfigFile("upgradepackfix");
+	if(gConf == null)
+		return;
+	
+	StartPrepSDKCall(SDKCall_Player);
+	PrepSDKCall_SetFromConf(gConf, SDKConf_Signature, "CTerrorPlayer::FindUseEntity");
+	PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData,SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_Bool,SDKPass_Plain);
+	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity,SDKPass_Pointer);
+	g_fnFindUseEntity = EndPrepSDKCall();
+	
+	CloseHandle(gConf);
+}
+
+stock int FindUseEntity(int client, float radius = 0.0)
+{
+	if(g_fnFindUseEntity == null)
+		InitFindEntity();
+	if(g_fnFindUseEntity == null)
+		return -1;
+	
+	static ConVar cvUseRadius;
+	if(cvUseRadius == null)
+		cvUseRadius = FindConVar("player_use_radius");
+	
+	return SDKCall(g_fnFindUseEntity, client, (radius > 0.0 ? radius : cvUseRadius.FloatValue), 0.0, 0.0, 0, false);
+}
+
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon,
 	int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
@@ -8221,7 +8525,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			//(目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
 			TE_SetupBeamRingPoint(pos, 2.0, 500.0, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, newcolor1, 0, 0);
 			TE_SendToAll();
-			CreateTimer(15.0, Timer_GunShovedReset, client);
+			CreateTimer(15.0, Timer_GunShovedReset, client, TIMER_FLAG_NO_MAPCHANGE);
 		}
 
 		int weaponId = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
@@ -8290,6 +8594,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if((g_clSkill_3[client] & SKL_3_MoreAmmo) && (buttons & IN_USE) && IsValidEntity(weaponId))
 		{
 			int entity = GetClientAimTarget(client, false);
+			if(!IsValidEntity(entity) || !IsValidEdict(entity))
+				entity = FindUseEntity(client);
+			
 			if(IsValidEntity(entity) && IsValidEdict(entity))
 			{
 				char className[64];
@@ -8896,7 +9203,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 				SetConVarString(g_hCvarGodMode, "1");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【无敌人类】\x04所有生还者无敌40秒!", client);
-				CreateTimer(40.0, TankEventEnd1);
+				CreateTimer(40.0, TankEventEnd1, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 6:
 			{
@@ -8907,7 +9214,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 				SetConVarString(g_hCvarGravity, "3000");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,触发事件:\x03【超强重力】\x04令生还者无法跳跃30秒!", client);
-				CreateTimer(30.0, TankEventEnd2);
+				CreateTimer(30.0, TankEventEnd2, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 7:
 			{
@@ -8918,7 +9225,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 				SetConVarString(g_hCvarLimpHealth, "1000");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,触发事件:\x03【减速诅咒】\x04令所有生还者速度变慢30秒!", client);
-				CreateTimer(30.0, TankEventEnd3);
+				CreateTimer(30.0, TankEventEnd3, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 8:
 			{
@@ -8929,7 +9236,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 				SetConVarString(g_hCvarInfinite, "1");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【无限子弹】\x04所有生还者子弹无限40秒!", client);
-				CreateTimer(40.0, TankEventEnd4);
+				CreateTimer(40.0, TankEventEnd4, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 9:
 			{
@@ -8940,7 +9247,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 				SetConVarString(g_hCvarGravity, "200");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【重力解除】\x04令生还者自由飞翔30秒!", client);
-				CreateTimer(30.0, TankEventEnd2);
+				CreateTimer(30.0, TankEventEnd2, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 10:
 			{
@@ -8951,7 +9258,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 				SetConVarString(g_hCvarMeleeRange, "2000");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【剑气技能】\x04生还者近战攻击范围超远40秒!", client);
-				CreateTimer(40.0, TankEventEnd5);
+				CreateTimer(40.0, TankEventEnd5, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 11:
 			{
@@ -8980,7 +9287,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 				SetConVarString(g_hCvarDuckSpeed, "300");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【蹲坑神速】\x04生还者蹲下速度加快40秒!", client);
-				CreateTimer(40.0, TankEventEnd7);
+				CreateTimer(40.0, TankEventEnd7, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 13:
 			{
@@ -8993,8 +9300,8 @@ public Action:Event_RP(Handle:timer, any:client)
 				SetConVarString(g_hCvarMedicalTime, "2");
 				PrintToChatAll("\x03[\x05RP\x03 %N\x04人品大爆发,触发双重事件:\x03【疾速救援】\x04减少救人时间40秒!", client);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发双重事件:\x03【疾速医疗】\x04减少打包时间40秒!", client);
-				CreateTimer(40.0, TankEventEnd8);
-				CreateTimer(40.0, TankEventEnd9);
+				CreateTimer(40.0, TankEventEnd8, 0, TIMER_FLAG_NO_MAPCHANGE);
+				CreateTimer(40.0, TankEventEnd9, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 14:
 			{
@@ -9011,7 +9318,7 @@ public Action:Event_RP(Handle:timer, any:client)
 					}
 				}
 				SetConVarString(g_hCvarAdrenTime, "30");
-				CreateTimer(40.0, TankEventEndx1);
+				CreateTimer(40.0, TankEventEndx1, 0, TIMER_FLAG_NO_MAPCHANGE);
 				PrintToChatAll("\x03[\x05RP\x03 %N\x04人品大爆发,触发事件:\x03【极度兴奋】\x0440秒内打上肾上腺激素可以兴奋30秒!", client);
 			}
 			case 15:
@@ -9438,7 +9745,10 @@ public Action:Event_RP(Handle:timer, any:client)
 					}
 				}
 				ClientCommand(client, "play \"ambient/animal/crow_1.wav\"");
-				SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
+				
+				// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
+				g_fMaxSpeedModify[client] = ((clientsp + 100) / 200.0);
+				
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04练功走火入魔,丧失掉所有\x03一级\x04天赋技能,大家一起默哀三分钟...", client);
 			}
 			case 48:
@@ -10219,7 +10529,7 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 	DispatchKeyValue(entity, "spawnflags", "6146");
 	DispatchKeyValueVector(entity, "origin", origin);
 
-	if(classname[0] != '\0')
+	if(classname[0] != EOS)
 		DispatchKeyValue(entity, "classname", classname);
 
 	DispatchSpawn(entity);
@@ -10566,7 +10876,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 		}
 
 		default:
-			buffer[0] = '\0';
+			buffer[0] = EOS;
 	}
 
 	if(len >= 32)

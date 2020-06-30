@@ -9,14 +9,15 @@
 #include <sourcemod>
 #include <sdktools>
 #include <adt_array>
-#include <left4downtown>
+// #include <left4downtown>
+#include <left4dhooks>
 #include "includes/hardcoop_util.sp"
 
 // Bibliography: "[L4D2] Defib using bots" by "DeathChaos25"
 
 public Plugin:myinfo = 
 {
-	name = "AI: Targeting",
+	name = "机器人选择目标",
 	author = "Breezy",
 	description = "Controls the survivor targeting behaviour of special infected",
 	version = "1.0",
@@ -162,7 +163,7 @@ AttackTarget(client) {
 			new String:clientName[MAX_NAME_LENGTH];
 			if (IsBotInfected(client) && GetClientName(client, clientName, sizeof(clientName)) ) {
 				if (StrContains(clientName, "dummy", false) == -1) { // naming convention used in 'special_infected_wave_spawner.smx'
-					ScriptCommand("CommandABot({cmd=%i,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", CMD_ATTACK, botID, targetID); // attack
+					ScriptCommand2(client, "CommandABot({cmd=%i,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", CMD_ATTACK, botID, targetID); // attack
 				}
 			}				
 		}			
@@ -175,10 +176,35 @@ AttackTarget(client) {
 
 ***********************************************************************************************************************************************************************************/
 
-ScriptCommand(const String:arguments[], any:...) {
+stock bool CheatCommand2(int client = 0, const char[] command, const char[] arguments = "", any ...)
+{
+	char fmt[1024];
+	VFormat(fmt, 1024, arguments, 4);
+
+	int cmdFlags = GetCommandFlags(command);
+	SetCommandFlags(command, cmdFlags & ~FCVAR_CHEAT);
+
+	if(IsValidClient(client))
+	{
+		int adminFlags = GetUserFlagBits(client);
+		SetUserFlagBits(client, ADMFLAG_ROOT);
+		FakeClientCommand(client, "%s \"%s\"", command, fmt);
+		SetUserFlagBits(client, adminFlags);
+	}
+	else
+	{
+		ServerCommand("%s \"%s\"", command, fmt);
+	}
+
+	SetCommandFlags(command, cmdFlags);
+
+	return true;
+}
+
+ScriptCommand2(bot, const String:arguments[], any:...) {
 	new String:vscript[PLATFORM_MAX_PATH];
 	VFormat(vscript, sizeof(vscript), arguments, 2);
-	CheatCommand("script", vscript);
+	CheatCommand2(bot, "script", vscript);
 }
 
 // @return: true if client is a survivor that is not dead/incapacitated nor pinned by an SI

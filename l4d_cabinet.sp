@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION		"1.7"
+#define PLUGIN_VERSION		"1.10"
 
 /*======================================================================================
 	Plugin Info:
@@ -6,11 +6,24 @@
 *	Name	:	[L4D & L4D2] Health Cabinet
 *	Author	:	SilverShot
 *	Descrp	:	Auto-Spawns Health Cabinets.
-*	Link	:	http://forums.alliedmods.net/showthread.php?t=175154
-*	Plugins	:	http://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
+*	Link	:	https://forums.alliedmods.net/showthread.php?t=175154
+*	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
 ========================================================================================
 	Change Log:
+
+1.10 (10-May-2020)
+	- Various changes to tidy up code.
+
+1.9 (29-Apr-2020)
+	- Extra checks to prevent "IsAllowedGameMode" throwing errors.
+	- Fixed rare invalid handle errors.
+
+1.8 (01-Apr-2020)
+	- Fixed "IsAllowedGameMode" from throwing errors when the "_tog" cvar was changed before MapStart.
+
+1.7.1 (03-Jul-2019)
+	- Fixed minor memory leak when saving or creating a temporary cabinet.
 
 1.7 (05-May-2018)
 	- Converted plugin source to the latest syntax utilizing methodmaps. Requires SourceMod 1.8 or newer.
@@ -77,25 +90,32 @@
 
 #define MODEL_CABINET		"models/props_interiors/medicalcabinet02.mdl"
 
+
 ConVar g_hCvarAllow, g_hCvarGlow, g_hCvarGlowCol, g_hCvarMPGameMode, g_hCvarMax, g_hCvarMin, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarRandom, g_hCvarSpawn1, g_hCvarSpawn2, g_hCvarSpawn3, g_hCvarSpawn4;
 Handle g_hTimerStart;
 Menu g_hMenuAng, g_hMenuPos;
 int g_iCabinetItems[MAX_ALLOWED][4], g_iCabinetRandom[MAX_ALLOWED], g_iCabinetType[MAX_ALLOWED][4], g_iCfgIndex[MAX_ALLOWED], g_iCount, g_iCvarGlow, g_iCvarGlowCol, g_iCvarMax, g_iCvarMin, g_iCvarRandom, g_iCvarSpawn1, g_iCvarSpawn2, g_iCvarSpawn3, g_iCvarSpawn4, g_iEntities[MAX_ALLOWED], g_iOrder, g_iPlayerSpawn, g_iRoundStart, g_iSpawned[MAX_ALLOWED];
-bool g_bCvarAllow, g_bGlow, g_bLeft4Dead2, g_bLoaded;
+bool g_bCvarAllow, g_bMapStarted, g_bLeft4Dead2, g_bLoaded, g_bGlow;
 float g_vCabinetAng[MAX_ALLOWED][3], g_vCabinetPos[MAX_ALLOWED][3];
 
+
+
+// ====================================================================================================
+//					PLUGIN INFO / START / END
+// ====================================================================================================
 public Plugin myinfo =
 {
-	name = "医疗柜",
+	name = "医疗箱",
 	author = "SilverShot",
 	description = "Auto-Spawns Health Cabinets.",
 	version = PLUGIN_VERSION,
-	url = "http://forums.alliedmods.net/showthread.php?t=175154"
+	url = "https://forums.alliedmods.net/showthread.php?t=175154"
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	EngineVersion test = GetEngineVersion();
+
 	if( test == Engine_Left4Dead ) g_bLeft4Dead2 = false;
 	else if( test == Engine_Left4Dead2 ) g_bLeft4Dead2 = true;
 	else
@@ -104,31 +124,28 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 		return APLRes_SilentFailure;
 	}
 
-	// if( late )
-		// g_iMapStarted = 1;
-
 	return APLRes_Success;
 }
 
 public void OnPluginStart()
 {
-	g_hCvarAllow = CreateConVar(		"l4d_cabinet_allow",			"1",			"是否开启插件.", CVAR_FLAGS);
-	g_hCvarModes =	CreateConVar(		"l4d_cabinet_modes",			"",				"开启插件的模式.", CVAR_FLAGS);
-	g_hCvarModesOff =	CreateConVar(	"l4d_cabinet_modes_off",		"",				"关闭插件的模式.", CVAR_FLAGS );
-	g_hCvarModesTog = CreateConVar(		"l4d_cabinet_modes_tog",		"0",			"开启插件的模式. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. 数字相加.", CVAR_FLAGS );
+	g_hCvarAllow = CreateConVar(		"l4d_cabinet_allow",			"1",			"0=Plugin off, 1=Plugin on.", CVAR_FLAGS);
+	g_hCvarModes =	CreateConVar(		"l4d_cabinet_modes",			"",				"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS);
+	g_hCvarModesOff =	CreateConVar(	"l4d_cabinet_modes_off",		"",				"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
+	g_hCvarModesTog = CreateConVar(		"l4d_cabinet_modes_tog",		"0",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
 	if( g_bLeft4Dead2 == true )
 	{
-		g_hCvarGlow = CreateConVar(		"l4d_cabinet_glow",				"0",			"医疗柜的光圈范围.0=关闭", CVAR_FLAGS);
-		g_hCvarGlowCol = CreateConVar(	"l4d_cabinet_glow_color",		"255 0 0",		"医疗柜的光圈颜色.", CVAR_FLAGS );
+		g_hCvarGlow = CreateConVar(		"l4d_cabinet_glow",				"150",			"0=Off. Range the cabinet glows.", CVAR_FLAGS);
+		g_hCvarGlowCol = CreateConVar(	"l4d_cabinet_glow_color",		"255 0 0",		"0=Default glow color. Three values between 0-255 separated by spaces. RGB Color255 - Red Green Blue.", CVAR_FLAGS );
 	}
-	g_hCvarMax = CreateConVar(			"l4d_cabinet_max",				"4",			"最大刷物品数量.", CVAR_FLAGS, true, 0.0, true, 4.0);
-	g_hCvarMin = CreateConVar(			"l4d_cabinet_min",				"1",			"最小刷物品数量.", CVAR_FLAGS, true, 0.0, true, 4.0);
-	g_hCvarRandom =	CreateConVar(		"l4d_cabinet_random",			"2",			"随机加载多少个医疗柜.-1=全部", CVAR_FLAGS);
-	g_hCvarSpawn3 =	CreateConVar(		"l4d_cabinet_spawn_adren",		"80",			"医疗柜出现 adrenaline 的几率.", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_hCvarSpawn4 =	CreateConVar(		"l4d_cabinet_spawn_defib",		"10",			"医疗柜出现 defibrillator 的几率.", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_hCvarSpawn1 =	CreateConVar(		"l4d_cabinet_spawn_first",		"30",			"医疗柜出现 first aid kit 的几率.", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_hCvarSpawn2 =	CreateConVar(		"l4d_cabinet_spawn_pills",		"100",			"医疗柜出现 pain pills 的几率.", CVAR_FLAGS, true, 0.0, true, 100.0);
-	CreateConVar(						"l4d_cabinet_version",			PLUGIN_VERSION,	"插件版本.", CVAR_FLAGS|FCVAR_DONTRECORD);
+	g_hCvarMax = CreateConVar(			"l4d_cabinet_max",				"4",			"Maximum number of items.", CVAR_FLAGS, true, 0.0, true, 4.0);
+	g_hCvarMin = CreateConVar(			"l4d_cabinet_min",				"0",			"Minimum number of items.", CVAR_FLAGS, true, 0.0, true, 4.0);
+	g_hCvarRandom =	CreateConVar(		"l4d_cabinet_random",			"2",			"-1=All, 0=Off, other value randomly spawns that many Cabinets from the config.", CVAR_FLAGS);
+	g_hCvarSpawn3 =	CreateConVar(		"l4d_cabinet_spawn_adren",		"80",			"Chance out of 100 to spawn adrenaline.", CVAR_FLAGS, true, 0.0, true, 100.0);
+	g_hCvarSpawn4 =	CreateConVar(		"l4d_cabinet_spawn_defib",		"10",			"Chance out of 100 to spawn defibrillators.", CVAR_FLAGS, true, 0.0, true, 100.0);
+	g_hCvarSpawn1 =	CreateConVar(		"l4d_cabinet_spawn_first",		"30",			"Chance out of 100 to spawn first aid kits.", CVAR_FLAGS, true, 0.0, true, 100.0);
+	g_hCvarSpawn2 =	CreateConVar(		"l4d_cabinet_spawn_pills",		"100",			"Chance out of 100 to spawn pain pills.", CVAR_FLAGS, true, 0.0, true, 100.0);
+	CreateConVar(						"l4d_cabinet_version",			PLUGIN_VERSION,	"Health Cabinet plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,				"l4d_cabinet");
 
 
@@ -152,26 +169,14 @@ public void OnPluginStart()
 	g_hCvarSpawn4.AddChangeHook(ConVarChanged_Cvars);
 
 
-	RegAdminCmd(		"sm_cabinet",			CmdCabinet,			ADMFLAG_ROOT,	"Spawns a temporary Health Cabinet at your crosshair.  Usage: sm_cabinetsave <first> <pills> <adren> <defib>.");
-	RegAdminCmd(		"sm_cabinetsave",		CmdCabinetSave,		ADMFLAG_ROOT, 	"Spawns a Health Cabinet at your crosshair and saves to config. Usage: sm_cabinetsave <first> <pills> <adren> <defib>.");
-	RegAdminCmd(		"sm_cabinetlist",		CmdCabinetList,		ADMFLAG_ROOT, 	"Displays a list of Health Cabinets spawned by the plugin and their locations.");
-	if( g_bLeft4Dead2 == true )
-		RegAdminCmd(	"sm_cabinetglow",		CmdCabinetGlow,		ADMFLAG_ROOT, 	"Toggle to enable glow on all cabinets to see where they are placed.");
-	RegAdminCmd(		"sm_cabinettele",		CmdCabinetTele,		ADMFLAG_ROOT, 	"Teleport to a cabinet (Usage: sm_cabinettele <index: 1 to MAX_CABINETS>).");
-	RegAdminCmd(		"sm_cabinetdel",		CmdCabinetDelete,	ADMFLAG_ROOT, 	"Removes the Health Cabinet you are aiming at and deletes from the config if saved.");
-	RegAdminCmd(		"sm_cabinetclear",		CmdCabinetClear,	ADMFLAG_ROOT, 	"Removes all Health Cabinets from the current map.");
-	RegAdminCmd(		"sm_cabinetwipe",		CmdCabinetWipe,		ADMFLAG_ROOT, 	"Removes all Health Cabinets from the current map and deletes them from the config.");
-	RegAdminCmd(		"sm_cabinetang",		CmdCabinetAng,		ADMFLAG_ROOT, 	"Displays a menu to adjust the cabinet angles your crosshair is over.");
-	RegAdminCmd(		"sm_cabinetpos",		CmdCabinetPos,		ADMFLAG_ROOT, 	"Displays a menu to adjust the cabinet origin your crosshair is over.");
-	
 	RegAdminCmd(		"sm_ylx",			CmdCabinet,			ADMFLAG_ROOT,	"Spawns a temporary Health Cabinet at your crosshair.  Usage: sm_cabinetsave <first> <pills> <adren> <defib>.");
 	RegAdminCmd(		"sm_ylxbc",		CmdCabinetSave,		ADMFLAG_ROOT, 	"Spawns a Health Cabinet at your crosshair and saves to config. Usage: sm_cabinetsave <first> <pills> <adren> <defib>.");
 	RegAdminCmd(		"sm_ylxlb",		CmdCabinetList,		ADMFLAG_ROOT, 	"Displays a list of Health Cabinets spawned by the plugin and their locations.");
-	if( g_bLeft4Dead2 == true )
+	if( g_bLeft4Dead2 )
 		RegAdminCmd(	"sm_ylxgh",		CmdCabinetGlow,		ADMFLAG_ROOT, 	"Toggle to enable glow on all cabinets to see where they are placed.");
 	RegAdminCmd(		"sm_ylxcs",		CmdCabinetTele,		ADMFLAG_ROOT, 	"Teleport to a cabinet (Usage: sm_cabinettele <index: 1 to MAX_CABINETS>).");
 	RegAdminCmd(		"sm_ylxsc",		CmdCabinetDelete,	ADMFLAG_ROOT, 	"Removes the Health Cabinet you are aiming at and deletes from the config if saved.");
-	RegAdminCmd(		"sm_ylxqc",		CmdCabinetClear,	ADMFLAG_ROOT, 	"Removes all Health Cabinets from the current map.");
+	RegAdminCmd(		"sm_ylxql",		CmdCabinetClear,	ADMFLAG_ROOT, 	"Removes all Health Cabinets from the current map.");
 	RegAdminCmd(		"sm_ylxcc",		CmdCabinetWipe,		ADMFLAG_ROOT, 	"Removes all Health Cabinets from the current map and deletes them from the config.");
 	RegAdminCmd(		"sm_ylxjd",		CmdCabinetAng,		ADMFLAG_ROOT, 	"Displays a menu to adjust the cabinet angles your crosshair is over.");
 	RegAdminCmd(		"sm_ylxwz",		CmdCabinetPos,		ADMFLAG_ROOT, 	"Displays a menu to adjust the cabinet origin your crosshair is over.");
@@ -184,6 +189,7 @@ public void OnPluginEnd()
 
 public void OnMapStart()
 {
+	g_bMapStarted = true;
 	g_iOrder = 0;
 	g_iCount = 0;
 	PrecacheModel(MODEL_CABINET, true);
@@ -191,6 +197,7 @@ public void OnMapStart()
 
 public void OnMapEnd()
 {
+	g_bMapStarted = false;
 	g_iOrder = 0;
 	g_iCount = 0;
 	ResetPlugin();
@@ -206,6 +213,8 @@ void ResetPlugin()
 	{
 		DeleteEntity(i);
 	}
+
+	delete g_hTimerStart;
 }
 
 void DeleteEntity(int index)
@@ -218,7 +227,7 @@ void DeleteEntity(int index)
 	if( IsValidEntRef(entity) )
 		AcceptEntityInput(entity, "Kill");
 
-	for( int i = 0; i < 4; i++ )
+	for( int i = 0; i < sizeof(g_iCabinetItems[]); i++ )
 	{
 		entity = g_iCabinetItems[index][i];
 		g_iCabinetItems[index][i] = 0;
@@ -263,11 +272,11 @@ int GetColor(ConVar hCvar)
 	char sTemp[12];
 	hCvar.GetString(sTemp, sizeof(sTemp));
 
-	if( strcmp(sTemp, "") == 0 )
+	if( sTemp[0] == 0 )
 		return 0;
 
 	char sColors[3][4];
-	int color = ExplodeString(sTemp, " ", sColors, 3, 4);
+	int color = ExplodeString(sTemp, " ", sColors, sizeof(sColors), sizeof(sColors[]));
 
 	if( color != 3 )
 		return 0;
@@ -315,10 +324,7 @@ void IsAllowed()
 		ResetPlugin();
 		UnhookEvents();
 
-		if( g_hTimerStart != null )
-		{
-			delete g_hTimerStart;
-		}
+		delete g_hTimerStart;
 	}
 }
 
@@ -331,17 +337,24 @@ bool IsAllowedGameMode()
 	int iCvarModesTog = g_hCvarModesTog.IntValue;
 	if( iCvarModesTog != 0 )
 	{
+		if( g_bMapStarted == false )
+			return false;
+
 		g_iCurrentMode = 0;
 
 		int entity = CreateEntityByName("info_gamemode");
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		AcceptEntityInput(entity, "Kill");
+		if( IsValidEntity(entity) )
+		{
+			DispatchSpawn(entity);
+			HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+			ActivateEntity(entity);
+			AcceptEntityInput(entity, "PostSpawnActivate");
+			if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+				RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+		}
 
 		if( g_iCurrentMode == 0 )
 			return false;
@@ -355,7 +368,7 @@ bool IsAllowedGameMode()
 	Format(sGameMode, sizeof(sGameMode), ",%s,", sGameMode);
 
 	g_hCvarModes.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) == -1 )
@@ -363,7 +376,7 @@ bool IsAllowedGameMode()
 	}
 
 	g_hCvarModesOff.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) != -1 )
@@ -441,14 +454,18 @@ public Action tmrStart(Handle timer)
 		g_iCurrentMode = 0;
 
 		int entity = CreateEntityByName("info_gamemode");
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		AcceptEntityInput(entity, "Kill");
+		if( IsValidEntity(entity) )
+		{
+			DispatchSpawn(entity);
+			HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+			ActivateEntity(entity);
+			AcceptEntityInput(entity, "PostSpawnActivate");
+			if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+				RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+		}
 
 		if( g_iCurrentMode != 4 && g_iCurrentMode != 8 )
 		{
@@ -482,7 +499,7 @@ void LoadCabinets()
 	g_iCount = 0;
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 		return;
 
@@ -533,7 +550,7 @@ void LoadCabinets()
 	}
 
 	// Get the cabinets origins and spawn
-	char sTemp[10];
+	char sTemp[4];
 	float vPos[3], vAng[3];
 	int type1, type2, type3, type4;
 
@@ -594,11 +611,8 @@ int SetupCabinet(int client, float vAng[3] = NULL_VECTOR, float vPos[3] = NULL_V
 
 		return SpawnCabinet(vAng, vPos, type1, type2, type3, type4);
 	}
-	else
-	{
-		delete trace;
-	}
 
+	delete trace;
 	return -1;
 }
 
@@ -624,7 +638,6 @@ int SpawnCabinet(float vAng[3], float vPos[3], int type1, int type2, int type3, 
 
 	if( index == -1 ) return -1;
 
-
 	int entity = CreateEntityByName("prop_health_cabinet");
 	g_iEntities[index] = EntIndexToEntRef(entity);
 	g_iCfgIndex[index] = cfgindex;
@@ -648,24 +661,9 @@ int SpawnCabinet(float vAng[3], float vPos[3], int type1, int type2, int type3, 
 		SetEntProp(entity, Prop_Send, "m_nGlowRangeMin", 1);
 	}
 
-	// HookSingleEntityOutput(entity, "OnAnimationDone", OnAnimationDone, true);
-	CreateTimer(9.0 + GetRandomInt(0, 9), Timer_AutoSpawnItems, entity);
+	HookSingleEntityOutput(entity, "OnAnimationDone", OnAnimationDone, true);
 
 	return index;
-}
-
-public Action Timer_AutoSpawnItems(Handle timer, any entity)
-{
-	if(!IsValidEntity(entity))
-		return Plugin_Continue;
-	
-	char classname[64];
-	GetEntityClassname(entity, classname, 64);
-	if(!StrEqual(classname, "prop_health_cabinet", false))
-		return Plugin_Continue;
-	
-	SpawnItems(entity);
-	return Plugin_Continue;
 }
 
 public void OnAnimationDone(const char[] output, int entity, int activator, float delay)
@@ -697,19 +695,11 @@ void SpawnItems(int entity)
 		}
 	}
 
-	if( index == -1 )
-	{
-		return;
-	}
-
+	if( index == -1 ) return;
 
 	UnhookSingleEntityOutput(entity, "OnAnimationDone", OnAnimationDone);
 
-	if( g_iSpawned[index] == 1 )
-	{
-		return;
-	}
-
+	if( g_iSpawned[index] == 1 ) return;
 	g_iSpawned[index] = 1;
 
 	int random;
@@ -745,8 +735,7 @@ void SpawnItems(int entity)
 	}
 
 
-	if( random == 0 )
-		return;
+	if( random == 0 ) return;
 
 	int type1 = g_iCabinetType[index][0];
 	if( type1 == -1 ) type1 = g_iCvarSpawn1;
@@ -794,14 +783,14 @@ void SpawnItems(int entity)
 			selected = g_iCabinetType[index][i] + 5;
 		}
 
-		if( selected == 1 )
-			entity = CreateEntityByName("weapon_first_aid_kit");
-		else if( selected == 2 )
-			entity = CreateEntityByName("weapon_pain_pills");
-		else if( selected == 3 )
-			entity = CreateEntityByName("weapon_adrenaline");
-		else if( selected == 4 )
-			entity = CreateEntityByName("weapon_defibrillator");
+		switch( selected )
+		{
+			case 1:		entity = CreateEntityByName("weapon_first_aid_kit");
+			case 2:		entity = CreateEntityByName("weapon_pain_pills");
+			case 3:		entity = CreateEntityByName("weapon_adrenaline");
+			case 4:		entity = CreateEntityByName("weapon_defibrillator");
+		}
+
 		DispatchKeyValue(entity, "solid", "0");
 		DispatchKeyValue(entity, "disableshadows", "1");
 
@@ -880,7 +869,7 @@ public Action CmdCabinet(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Health Cabinet] Commands may only be used in-game on a dedicated server.");
+		ReplyToCommand(client, "[Health Cabinet] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
@@ -940,12 +929,12 @@ public Action CmdCabinetSave(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Health Cabinet] Commands may only be used in-game on a dedicated server.");
+		ReplyToCommand(client, "[Health Cabinet] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		File hCfg = OpenFile(sPath, "w");
@@ -979,16 +968,15 @@ public Action CmdCabinetSave(int client, int args)
 		return Plugin_Handled;
 	}
 
+	char sTemp[4];
 	int type1 = -1, type2 = -1, type3 = -1, type4 = -1;
 	if( args == 1 )
 	{
-		char sTemp[4];
 		GetCmdArg(1, sTemp, sizeof(sTemp));
 		type1 = StringToInt(sTemp);
 	}
 	else if( args == 2 )
 	{
-		char sTemp[4];
 		GetCmdArg(1, sTemp, sizeof(sTemp));
 		type1 = StringToInt(sTemp);
 		GetCmdArg(2, sTemp, sizeof(sTemp));
@@ -996,7 +984,6 @@ public Action CmdCabinetSave(int client, int args)
 	}
 	else if( args == 3 )
 	{
-		char sTemp[4];
 		GetCmdArg(1, sTemp, sizeof(sTemp));
 		type1 = StringToInt(sTemp);
 		GetCmdArg(2, sTemp, sizeof(sTemp));
@@ -1006,7 +993,6 @@ public Action CmdCabinetSave(int client, int args)
 	}
 	else if( args == 4 )
 	{
-		char sTemp[4];
 		GetCmdArg(1, sTemp, sizeof(sTemp));
 		type1 = StringToInt(sTemp);
 		GetCmdArg(2, sTemp, sizeof(sTemp));
@@ -1029,22 +1015,16 @@ public Action CmdCabinetSave(int client, int args)
 	iCount++;
 	hFile.SetNum("num", iCount);
 
-	char sTemp[10];
-
 	IntToString(iCount, sTemp, sizeof(sTemp));
 	if( hFile.JumpToKey(sTemp, true) )
 	{
 		hFile.SetVector("angle", vAng);
 		hFile.SetVector("origin", vPos);
 
-		if( type1 != -1 )
-			hFile.SetNum("adren", type1);
-		if( type2 != -1 )
-			hFile.SetNum("defib", type2);
-		if( type3 != -1 )
-			hFile.SetNum("first", type3);
-		if( type4 != -1 )
-			hFile.SetNum("pills", type4);
+		if( type1 != -1 )		hFile.SetNum("adren", type1);
+		if( type2 != -1 )		hFile.SetNum("defib", type2);
+		if( type3 != -1 )		hFile.SetNum("first", type3);
+		if( type4 != -1 )		hFile.SetNum("pills", type4);
 
 		// Save cfg
 		hFile.Rewind();
@@ -1133,14 +1113,14 @@ public Action CmdCabinetTele(int client, int args)
 {
 	if( !client )
 	{
-		ReplyToCommand(client, "[Health Cabinet] Commands may only be used in-game on a dedicated server.");
+		ReplyToCommand(client, "[Health Cabinet] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
 	if( args == 1 )
 	{
 		char arg[16];
-		GetCmdArg(1, arg, 16);
+		GetCmdArg(1, arg, sizeof(arg));
 		int index = StringToInt(arg) - 1;
 		if( index > -1 && index < MAX_ALLOWED && IsValidEntRef(g_iEntities[index]) )
 		{
@@ -1174,7 +1154,7 @@ public Action CmdCabinetDelete(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Health Cabinet] Commands may only be used in-game on a dedicated server.");
+		ReplyToCommand(client, "[Health Cabinet] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
@@ -1204,7 +1184,7 @@ public Action CmdCabinetDelete(int client, int args)
 
 	// Load config
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		PrintToChat(client, "%sWarning: Cannot find the Health Cabinet config (\x05%s\x01).", CHAT_TAG, CONFIG_SPAWNS);
@@ -1239,7 +1219,7 @@ public Action CmdCabinetDelete(int client, int args)
 	}
 
 	bool bMove;
-	char sTemp[16];
+	char sTemp[4];
 
 	// Move the other entries down
 	for( int i = cfgindex; i <= iCount; i++ )
@@ -1322,12 +1302,12 @@ public Action CmdCabinetWipe(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Health Cabinet] Commands may only be used in-game on a dedicated server.");
+		ReplyToCommand(client, "[Health Cabinet] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		PrintToChat(client, "%sError: Cannot find the Health Cabinet config (\x05%s\x01).", CHAT_TAG, sPath);
@@ -1375,7 +1355,7 @@ public Action CmdCabinetAng(int client, int args)
 {
 	if( !client )
 	{
-		ReplyToCommand(client, "[Health Cabinet] Commands may only be used in-game on a dedicated server.");
+		ReplyToCommand(client, "[Health Cabinet] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
@@ -1418,12 +1398,15 @@ void SetAngle(int client, int index)
 			{
 				GetEntPropVector(entity, Prop_Send, "m_angRotation", vAng);
 
-				if( index == 0 ) vAng[0] += 5.0;
-				else if( index == 1 ) vAng[1] += 5.0;
-				else if( index == 2 ) vAng[2] += 5.0;
-				else if( index == 3 ) vAng[0] -= 5.0;
-				else if( index == 4 ) vAng[1] -= 5.0;
-				else if( index == 5 ) vAng[2] -= 5.0;
+				switch( index )
+				{
+					case 0: vAng[0] += 5.0;
+					case 1: vAng[1] += 5.0;
+					case 2: vAng[2] += 5.0;
+					case 3: vAng[0] -= 5.0;
+					case 4: vAng[1] -= 5.0;
+					case 5: vAng[2] -= 5.0;
+				}
 
 				TeleportEntity(entity, NULL_VECTOR, vAng, NULL_VECTOR);
 
@@ -1441,7 +1424,7 @@ public Action CmdCabinetPos(int client, int args)
 {
 	if( !client )
 	{
-		ReplyToCommand(client, "[Health Cabinet] Commands may only be used in-game on a dedicated server.");
+		ReplyToCommand(client, "[Health Cabinet] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
@@ -1484,12 +1467,15 @@ void SetOrigin(int client, int index)
 			{
 				GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vPos);
 
-				if( index == 0 ) vPos[0] += 0.5;
-				else if( index == 1 ) vPos[1] += 0.5;
-				else if( index == 2 ) vPos[2] += 0.5;
-				else if( index == 3 ) vPos[0] -= 0.5;
-				else if( index == 4 ) vPos[1] -= 0.5;
-				else if( index == 5 ) vPos[2] -= 0.5;
+				switch( index )
+				{
+					case 0: vPos[0] += 0.5;
+					case 1: vPos[1] += 0.5;
+					case 2: vPos[2] += 0.5;
+					case 3: vPos[0] -= 0.5;
+					case 4: vPos[1] -= 0.5;
+					case 5: vPos[2] -= 0.5;
+				}
 
 				TeleportEntity(entity, vPos, NULL_VECTOR, NULL_VECTOR);
 
@@ -1525,7 +1511,7 @@ void SaveData(int client)
 
 	// Load config
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		PrintToChat(client, "%sError: Cannot find the cabinet config (\x05%s\x01).", CHAT_TAG, CONFIG_SPAWNS);
@@ -1542,7 +1528,7 @@ void SaveData(int client)
 
 	// Check for current map in the config
 	char sMap[64];
-	GetCurrentMap(sMap, 64);
+	GetCurrentMap(sMap, sizeof(sMap));
 
 	if( !hFile.JumpToKey(sMap) )
 	{
@@ -1552,7 +1538,7 @@ void SaveData(int client)
 	}
 
 	float vAng[3], vPos[3];
-	char sTemp[32];
+	char sTemp[4];
 	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vPos);
 	GetEntPropVector(entity, Prop_Send, "m_angRotation", vAng);
 

@@ -141,10 +141,13 @@ public void OnClientDisconnect(int client)
 	if(!IsPluginAllow() || IsFakeClient(client))
 		return;
 	
-	RequestFrame(CheckEmptyServer);
-	
 	if(g_bHasFinaleRescue && !g_bHasVoteSkipOuttro[client])
 		Command_SkipOuttro(client, "SkipOuttro", 0);
+}
+
+public void OnClientDisconnect_Post(int client)
+{
+	RequestFrame(CheckEmptyServer, client);
 }
 
 public void OnClientConnected(int client)
@@ -160,22 +163,19 @@ public void OnClientConnected(int client)
 	}
 }
 
-public void CheckEmptyServer(any unused)
+public void CheckEmptyServer(any client)
 {
 	if(!g_pCvarIdleChange.BoolValue)
 		return;
 	
 	for(int i = 1; i <= MaxClients; ++i)
-	{
-		if(!IsValidClient(i) || IsFakeClient(i))
-			continue;
-		
-		return;
-	}
+		if(i != client && IsClientConnected(i) && !IsFakeClient(i))
+			return;
 	
 	if(g_hTimerIdleChange == null)
 		g_hTimerIdleChange = CreateTimer(g_pCvarIdleDelay.FloatValue, Timer_ChangeLevelEmpty);
 	
+	g_iRoundLosted = 0;
 	PrintToServer("server is empty...");
 }
 

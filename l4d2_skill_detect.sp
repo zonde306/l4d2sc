@@ -1284,16 +1284,21 @@ public Action:L4D_OnShovedBySurvivor(attacker, victim, const Float:vector[3])
 
 bool: IsJockeyLeaping( jockey )
 {
+	if(GetEntProp(jockey, Prop_Send, "m_zombieClass") != ZC_JOCKEY)
+		return false;
+	
 	new abilityEnt = GetEntPropEnt( jockey, Prop_Send, "m_customAbility" );
 	if ( IsValidEntity(abilityEnt) && HasEntProp(abilityEnt, Prop_Send, "m_isLeaping") &&
 		GetEntProp(abilityEnt, Prop_Send, "m_isLeaping") )
 		return true;
 	
+	/*
 	new Float:time = GetGameTime();
 	if ( IsValidEntity(abilityEnt) && HasEntProp(abilityEnt, Prop_Send, "m_timestamp") &&
 		GetEntPropFloat(abilityEnt, Prop_Send, "m_timestamp") <= time &&
 		GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") == -1 )
 		return true;
+	*/
 	
 	float vel[3];
 	GetEntPropVector(jockey, Prop_Data, "m_vecVelocity", vel ); 

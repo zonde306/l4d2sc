@@ -63,6 +63,20 @@ public void Event_RoundEnd(Event event, const char[] eventName, bool dontBroadca
 	g_iMissionLost = 0;
 }
 
+public void OnClientDisconnect_Post(int client)
+{
+	RequestFrame(CheckEmptyServer, client);
+}
+
+public void CheckEmptyServer(any client)
+{
+	for(int i = 1; i <= MaxClients; ++i)
+		if(i != client && IsClientConnected(i) && !IsFakeClient(i))
+			return;
+	
+	g_iMissionLost = 0;
+}
+
 public void Event_MissionLost(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(!IsPluginAllow())

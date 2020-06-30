@@ -1,16 +1,34 @@
-#define PLUGIN_VERSION 		"1.10.3"
+#define PLUGIN_VERSION 		"1.15"
 
-/*=======================================================================================
+/*======================================================================================
 	Plugin Info:
 
 *	Name	:	[L4D2] Footlocker Spawner
 *	Author	:	SilverShot
 *	Descrp	:	Auto-spawn footlockers on round start.
-*	Link	:	http://forums.alliedmods.net/showthread.php?t=157183
-*	Plugins	:	http://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
+*	Link	:	https://forums.alliedmods.net/showthread.php?t=157183
+*	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
 ========================================================================================
 	Change Log:
+
+1.15 (10-May-2020)
+	- Various changes to tidy up code.
+
+1.14 (12-Apr-2020)
+	- Extra checks to prevent "IsAllowedGameMode" throwing errors.
+
+1.13 (01-Apr-2020)
+	- Fixed "IsAllowedGameMode" from throwing errors when the "_tog" cvar was changed before MapStart.
+
+1.12 (14-Mar-2020)
+	- Fixed invalid entity error. Thanks to "sxslmk" for reporting.
+
+1.11 (04-Mar-2020)
+	- Fixed potential server hanging/crashing on map change with the error:
+		"Host_Error: SV_CreatePacketEntities: GetEntServerClass failed for ent 2."
+	- This was caused by spawning the "info_gamemode" entity in OnMapStart. Fixed by adding a 0.1 delay.
+	- Thanks to "Xanaguy" and "sxslmk" for reporting.
 
 1.10.3 (14-Aug-2018)
 	- Another fix attempt for incorrect items spawning, tested on coop/versus/hard rain.
@@ -90,10 +108,10 @@
 	If I have used your code and not credited you, please let me know.
 
 *	Thanks to"Zuko & McFlurry" for "[L4D2] Weapon/Zombie Spawner" - Modified the SetTeleportEndPoint()
-	http://forums.alliedmods.net/showthread.php?t=109659
+	https://forums.alliedmods.net/showthread.php?t=109659
 
 *	Thanks to "Boikinov" for "[L4D] Left FORT Dead builder" - RotateYaw function to rotate the footlockers
-	http://forums.alliedmods.net/showthread.php?t=93716
+	https://forums.alliedmods.net/showthread.php?t=93716
 
 ======================================================================================*/
 
@@ -104,7 +122,7 @@
 #include <sdktools>
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
-#define CHAT_TAG			"\x04[\x05FL\x04] \x01"
+#define CHAT_TAG			"\x04[\x05Footlocker Spawner\x04] \x01"
 #define CHAT_USAGE			"Usage: <type: 1=Molotov, 2=Pipebomb, 4=Vomitjar, 8=Adrenaline, 16=Pain Pills, 32=Fireworks crate> <count, 0=infinite>"
 #define CONFIG_SPAWNS		"data/l4d2_footlocker.cfg"
 #define MAX_FOOTLOCKERS		20
@@ -120,7 +138,7 @@
 ConVar g_hCvarAllow, g_hCvarGlow, g_hCvarGlowCol, g_hCvarHint, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarRandom, g_hCvarTimed, g_hCvarTotal, g_hCvarTypes, g_hCvarVoca, g_hCvarWitch;
 
 Menu g_hMenuAng, g_hMenuPos;
-bool g_bCvarAllow, g_bGlow, g_bLoaded;
+bool g_bCvarAllow, g_bMapStarted, g_bGlow, g_bLoaded;
 int g_iCvarGlow, g_iCvarGlowCol, g_iCvarHint, g_iCvarRandom, g_iCvarTimed, g_iCvarTotal, g_iCvarTypes, g_iPlayerSpawn, g_iRoundStart, g_iFootlockerCount, g_iFootlockers[MAX_FOOTLOCKERS][MAX_ENT_STORE], g_iLockerIndex[MAX_FOOTLOCKERS], g_iTotal[MAX_FOOTLOCKERS], g_iType[MAX_FOOTLOCKERS], g_iWitch[MAX_FOOTLOCKERS];
 float g_vItemAngles[MAX_FOOTLOCKERS][3], g_vItemOrigin[MAX_FOOTLOCKERS][3];
 
@@ -128,7 +146,6 @@ float g_vItemAngles[MAX_FOOTLOCKERS][3], g_vItemOrigin[MAX_FOOTLOCKERS][3];
 int g_iSpawnSaveData1[MAX_FOOTLOCKERS][3];		// [0] = Locker index (relative to cfg), [1] = Open/Closed, [2] = Item Type
 int g_iSpawnSaveData2[MAX_FOOTLOCKERS][3];		// c4m1 = g_iSpawnSaveData1. c4m2 = g_iSpawnSaveData2
 int g_iSpawnSaveMap;							// 0 = Normal plugin behaviour. 1-4 = Hard Rain. 6 = Versus respawn.
-
 
 enum ()
 {
@@ -166,11 +183,11 @@ static char g_sWeapons[5][] =
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "补给箱",
+	name = "[L4D2] Footlocker",
 	author = "SilverShot",
 	description = "Auto-spawn footlockers on round start.",
 	version = PLUGIN_VERSION,
-	url = "http://forums.alliedmods.net/showthread.php?t=157183"
+	url = "https://forums.alliedmods.net/showthread.php?t=157183"
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -186,20 +203,20 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart()
 {
-	g_hCvarAllow =		CreateConVar(	"l4d2_footlocker_allow",		"1",			"是否开启插件.", CVAR_FLAGS);
-	g_hCvarGlow =		CreateConVar(	"l4d2_footlocker_glow",			"0",			"补给箱光圈范围.0=关闭", CVAR_FLAGS );
-	g_hCvarGlowCol =	CreateConVar(	"l4d2_footlocker_glow_color",	"0 255 0",		"补给箱光圈颜色.", CVAR_FLAGS );
-	g_hCvarHint =		CreateConVar(	"l4d2_footlocker_hint",			"0",			"补给箱开启提示.", CVAR_FLAGS );
-	g_hCvarModes =		CreateConVar(	"l4d2_footlocker_modes",		"",				"开启插件的模式.", CVAR_FLAGS );
-	g_hCvarModesOff =	CreateConVar(	"l4d2_footlocker_modes_off",	"",				"关闭插件的模式.", CVAR_FLAGS );
-	g_hCvarModesTog =	CreateConVar(	"l4d2_footlocker_modes_tog",	"0",			"开启插件的模式. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. 数字相加.", CVAR_FLAGS );
-	g_hCvarRandom =		CreateConVar(	"l4d2_footlocker_random",		"3",			"随机读取补给箱的数量.-1=全部", CVAR_FLAGS );
-	g_hCvarTimed =		CreateConVar(	"l4d2_footlocker_timed",		"1",			"补给箱开启时间.", CVAR_FLAGS, true, 0.0, true, 20.0 );
-	g_hCvarTotal =		CreateConVar(	"l4d2_footlocker_total",		"0",			"补给箱物品数量.0=无限", CVAR_FLAGS, true, 0.0, true, 100.0 );
-	g_hCvarTypes =		CreateConVar(	"l4d2_footlocker_types",		"63",			"补给箱可以刷出的东西. 1=Molotov, 2=Pipebomb, 4=Vomitjar, 8=Adrenaline, 16=Pain Pills, 32=Fireworks crate. 63=All.", CVAR_FLAGS );
-	g_hCvarVoca =		CreateConVar(	"l4d2_footlocker_vocalize",		"1",			"补给箱开启语音.", CVAR_FLAGS );
-	g_hCvarWitch =		CreateConVar(	"l4d2_footlocker_witch",		"0",			"补给箱刷 Witch 几率.", CVAR_FLAGS );
-	CreateConVar(						"l4d2_footlocker_version",		PLUGIN_VERSION, "插件版本.", CVAR_FLAGS|FCVAR_DONTRECORD);
+	g_hCvarAllow =		CreateConVar(	"l4d2_footlocker_allow",		"1",			"0=Plugin off, 1=Plugin on.", CVAR_FLAGS);
+	g_hCvarGlow =		CreateConVar(	"l4d2_footlocker_glow",			"100",			"0=Off. Any other value is the range at which the glow will turn on.", CVAR_FLAGS );
+	g_hCvarGlowCol =	CreateConVar(	"l4d2_footlocker_glow_color",	"0 255 0",		"0=Default glow color. Three values between 0-255 separated by spaces. RGB Color255 - Red Green Blue.", CVAR_FLAGS );
+	g_hCvarHint =		CreateConVar(	"l4d2_footlocker_hint",			"1",			"0=Off. 1=Notify to all players in chat who opened the Footlocker.", CVAR_FLAGS );
+	g_hCvarModes =		CreateConVar(	"l4d2_footlocker_modes",		"",				"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
+	g_hCvarModesOff =	CreateConVar(	"l4d2_footlocker_modes_off",	"",				"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
+	g_hCvarModesTog =	CreateConVar(	"l4d2_footlocker_modes_tog",	"0",			"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
+	g_hCvarRandom =		CreateConVar(	"l4d2_footlocker_random",		"3",			"-1=All, 0=Off, Randomly select this many footlockers to spawn from the maps config.", CVAR_FLAGS );
+	g_hCvarTimed =		CreateConVar(	"l4d2_footlocker_timed",		"1",			"0=Off. How many seconds it takes to open a footlocker.", CVAR_FLAGS, true, 0.0, true, 20.0 );
+	g_hCvarTotal =		CreateConVar(	"l4d2_footlocker_total",		"0",			"How many items can be taken from the locker before it's empty. 0 = Infinite.", CVAR_FLAGS, true, 0.0, true, 100.0 );
+	g_hCvarTypes =		CreateConVar(	"l4d2_footlocker_types",		"63",			"Which items can spawn. 1=Molotov, 2=Pipebomb, 4=Vomitjar, 8=Adrenaline, 16=Pain Pills, 32=Fireworks crate. 63=All.", CVAR_FLAGS );
+	g_hCvarVoca =		CreateConVar(	"l4d2_footlocker_vocalize",		"1",			"Allows survivors to vocalize when they see a footlocker and open it.", CVAR_FLAGS );
+	g_hCvarWitch =		CreateConVar(	"l4d2_footlocker_witch",		"100",			"0=Off, 1/cvar value. The chance of a footlocker containing a witch.", CVAR_FLAGS );
+	CreateConVar(						"l4d2_footlocker_version",		PLUGIN_VERSION, "Footlocker plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,				"l4d2_footlocker");
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
@@ -226,17 +243,6 @@ public void OnPluginStart()
 	RegAdminCmd("sm_lockertele",	CmdLockerTele,		ADMFLAG_ROOT, 	"Teleport to a footlocker (Usage: sm_lockertele <index: 1 to MAX_FOOTLOCKERS>).");
 	RegAdminCmd("sm_lockerang",		CmdLockerAng,		ADMFLAG_ROOT, 	"Displays a menu to adjust the footlocker angles your crosshair is over.");
 	RegAdminCmd("sm_lockerpos",		CmdLockerPos,		ADMFLAG_ROOT, 	"Displays a menu to adjust the footlocker origin your crosshair is over.");
-	
-	RegAdminCmd("sm_bjx",		CmdLockerTemp,		ADMFLAG_ROOT, 	"Spawns a temporary footlocker at your crosshair.");
-	RegAdminCmd("sm_bjxbc",	CmdLockerSave,		ADMFLAG_ROOT, 	"Spawns a footlocker at your crosshair and saves to config. Uses cvar defaults when no arguments.");
-	RegAdminCmd("sm_bjxsc",		CmdLockerDelete,	ADMFLAG_ROOT, 	"Removes the footlocker your crosshair is pointing at.");
-	RegAdminCmd("sm_bjxql",	CmdLockerClear,		ADMFLAG_ROOT, 	"Removes the footlockers from the current map only.");
-	RegAdminCmd("sm_bjxcc",	CmdLockerWipe,		ADMFLAG_ROOT, 	"Removes all footlockers from the current map and deletes them from the config.");
-	RegAdminCmd("sm_bjxgh",	CmdLockerGlow,		ADMFLAG_ROOT, 	"Toggle to enable glow on all footlockers to see where they are placed.");
-	RegAdminCmd("sm_bjxlb",	CmdLockerList,		ADMFLAG_ROOT, 	"Display a list footlocker positions and the number of footlockers.");
-	RegAdminCmd("sm_bjxcs",	CmdLockerTele,		ADMFLAG_ROOT, 	"Teleport to a footlocker (Usage: sm_lockertele <index: 1 to MAX_FOOTLOCKERS>).");
-	RegAdminCmd("sm_bjxjd",		CmdLockerAng,		ADMFLAG_ROOT, 	"Displays a menu to adjust the footlocker angles your crosshair is over.");
-	RegAdminCmd("sm_bjxwz",		CmdLockerPos,		ADMFLAG_ROOT, 	"Displays a menu to adjust the footlocker origin your crosshair is over.");
 }
 
 public void OnPluginEnd()
@@ -247,6 +253,8 @@ public void OnPluginEnd()
 int g_iCurrentMode;
 public void OnMapStart()
 {
+	g_bMapStarted = true;
+
 	PrecacheSound(SOUND_OPEN);
 	PrecacheModel(MODEL_LOCKER);
 	PrecacheModel(MODEL_LOCKER2);
@@ -255,6 +263,11 @@ public void OnMapStart()
 	for( int i = 0; i < 6; i++ )
 		PrecacheModel(g_sItems[i]);
 
+	CreateTimer(0.1, TimerDelayCheck);
+}
+
+public Action TimerDelayCheck(Handle timer)
+{
 	SpawnGameMode();
 
 	// Versus/Scavenge
@@ -264,8 +277,8 @@ public void OnMapStart()
 	} else {
 		// HardRain: Save locker position
 		char sMap[6];
-		GetCurrentMap(sMap, 6);
-		if( sMap[0] == 'c' && sMap[1] == '4' && sMap[2] == 'm' && sMap[4] == '_' )
+		GetCurrentMap(sMap, sizeof(sMap));
+		if( strncmp(sMap, "c4m_", 4) == 0 )
 		{
 			g_iSpawnSaveMap = StringToInt(sMap[3]);
 		}
@@ -317,11 +330,11 @@ int GetColor(ConVar hCvar)
 	char sTemp[12];
 	hCvar.GetString(sTemp, sizeof(sTemp));
 
-	if( strcmp(sTemp, "") == 0 )
+	if( sTemp[0] == 0 )
 		return 0;
 
 	char sColors[3][4];
-	int color = ExplodeString(sTemp, " ", sColors, 3, 4);
+	int color = ExplodeString(sTemp, " ", sColors, sizeof(sColors), sizeof(sColors[]));
 
 	if( color != 3 )
 		return 0;
@@ -369,14 +382,18 @@ void IsAllowed()
 void SpawnGameMode()
 {
 	int entity = CreateEntityByName("info_gamemode");
-	DispatchSpawn(entity);
-	HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-	HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-	HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-	HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-	ActivateEntity(entity);
-	AcceptEntityInput(entity, "PostSpawnActivate");
-	AcceptEntityInput(entity, "Kill");
+	if( entity != -1 )
+	{
+		DispatchSpawn(entity);
+		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+		ActivateEntity(entity);
+		AcceptEntityInput(entity, "PostSpawnActivate");
+		if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+			RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+	}
 }
 
 bool IsAllowedGameMode()
@@ -387,6 +404,9 @@ bool IsAllowedGameMode()
 	int iCvarModesTog = g_hCvarModesTog.IntValue;
 	if( iCvarModesTog != 0 )
 	{
+		if( g_bMapStarted == false )
+			return false;
+
 		g_iCurrentMode = 0;
 
 		SpawnGameMode();
@@ -403,7 +423,7 @@ bool IsAllowedGameMode()
 	Format(sGameMode, sizeof(sGameMode), ",%s,", sGameMode);
 
 	g_hCvarModes.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) == -1 )
@@ -411,7 +431,7 @@ bool IsAllowedGameMode()
 	}
 
 	g_hCvarModesOff.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) != -1 )
@@ -458,6 +478,8 @@ void UnhookEvents()
 
 public void OnMapEnd()
 {
+	g_bMapStarted = false;
+
 	ResetPlugin();
 
 	// Versus, reset.
@@ -470,9 +492,9 @@ public void OnMapEnd()
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
+	// Reset on coop/survival
 	if( g_iCurrentMode == 1 || g_iCurrentMode == 2 )
 	{
-		// Reset on coop/survival
 		if( g_iSpawnSaveMap < 2 )
 			g_iSpawnSaveMap = 0;
 	// Versus, starting 2nd round.
@@ -509,13 +531,12 @@ public Action tmrStart(Handle timer)
 // ====================================================================================================
 void LoadFootlockers()
 {
-	if( g_bLoaded ) return;
+	if( g_bLoaded || g_iCvarRandom == 0 ) return;
 
-	if( g_iCvarRandom == 0 ) return;
 	int iRandom = g_iCvarRandom;
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 		return;
 
@@ -529,7 +550,7 @@ void LoadFootlockers()
 
 	// Check for current map in the config
 	char sMap[64];
-	GetCurrentMap(sMap, 64);
+	GetCurrentMap(sMap, sizeof(sMap));
 
 	if( !hFile.JumpToKey(sMap) )
 	{
@@ -590,7 +611,7 @@ void LoadFootlockers()
 	}
 
 	// Get the footlocker origins and spawn
-	char sTemp[10];
+	char sTemp[4];
 	float vPos[3], vAng[3];
 	int index, iTotal, iType;
 
@@ -1261,7 +1282,9 @@ int g_iClientPickup[MAXPLAYERS+1];
 public void Event_ItemPickup(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	if( client && IsFakeClient(client) )
+	if( !client || !IsClientInGame(client) ) return;
+
+	if( IsFakeClient(client) )
 	{
 		g_iClientPickup[client] = 1;
 		return;
@@ -1342,7 +1365,7 @@ void DupeItem(int entity, int index)
 
 // Modified from:
 // [Tech Demo] L4D2 Vocalize ANYTHING
-// http://forums.alliedmods.net/showthread.php?t=122270
+// https://forums.alliedmods.net/showthread.php?t=122270
 // author = "AtomicStryker"
 // ======================================================================================
 //					VOCALIZE
@@ -1352,35 +1375,45 @@ void VocalizeScene(int client)
 	int iMin = 1, iMax, iRandom;
 	char sTemp[48];
 	GetEntPropString(client, Prop_Data, "m_ModelName", sTemp, sizeof(sTemp));
-	FormatEx(sTemp, sizeof(sTemp), sTemp[26]); // get the model name only
-	ReplaceStringEx(sTemp, sizeof(sTemp), ".mdl", "");
 
-	if( sTemp[0] == 'c' )			// Coach
-		{ iMin = 3; iMax = 5; }
-	else if( sTemp[0] == 'g' )		// Gambler
-		iMax = 6;
-	else if( sTemp[0] == 'm' && sTemp[1] == 'e' ) // Mechanic
+	switch( sTemp[29] )
 	{
-		iRandom = GetRandomInt(0, 2);
-		if( iRandom ) // Avoid number 6 because he says "empty"
-			iRandom = GetRandomInt(2, 5);
-		else
-			iRandom = GetRandomInt(7, 9);
+		case 'c':		// Coach
+		{
+			iMin = 3;
+			iMax = 5;
+		}
+		case 'b':		// Gambler
+		{
+			iMax = 6;
+		}
+		case 'h':		// Mechanic
+		{
+			iRandom = GetRandomInt(0, 2);
+			if( iRandom ) // Avoid number 6 because he says "empty"
+				iRandom = GetRandomInt(2, 5);
+			else
+				iRandom = GetRandomInt(7, 9);
+		}
+		case 'd':		// Producer
+		{
+			iRandom = GetRandomInt(0, 1);
+			if( iRandom ) // Avoid number 3 because she says "empty"
+				iRandom = GetRandomInt(1, 2);
+			else
+				iRandom = GetRandomInt(4, 5);
+		}
+		default:
+		{
+			return;
+		}
 	}
-	else if( sTemp[0] == 'p' )		// Producer
-	{
-		iRandom = GetRandomInt(0, 1);
-		if( iRandom ) // Avoid number 3 because she says "empty"
-			iRandom = GetRandomInt(1, 2);
-		else
-			iRandom = GetRandomInt(4, 5);
-	}
-	else
-		return;
+
+	ReplaceStringEx(sTemp, sizeof(sTemp), ".mdl", "");
 
 	if( iMax )
 		iRandom = GetRandomInt(iMin, iMax);
-	Format(sTemp, sizeof(sTemp), "scenes/%s/dlc1_footlocker0%d.vcd", sTemp, iRandom);
+	Format(sTemp, sizeof(sTemp), "scenes/%s/dlc1_footlocker0%d.vcd", sTemp[26], iRandom);
 
 	int tempent = CreateEntityByName("instanced_scripted_scene");
 	DispatchKeyValue(tempent, "SceneFile", sTemp);
@@ -1401,7 +1434,7 @@ public Action CmdLockerTemp(int client, int args)
 {
 	if( !client )
 	{
-		ReplyToCommand(client, "[Footlocker] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Footlocker] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 	else if( g_iFootlockerCount >= MAX_FOOTLOCKERS )
@@ -1449,7 +1482,7 @@ public Action CmdLockerSave(int client, int args)
 {
 	if( !client )
 	{
-		ReplyToCommand(client, "[Footlocker] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Footlocker] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 	else if( g_iFootlockerCount >= MAX_FOOTLOCKERS )
@@ -1459,7 +1492,7 @@ public Action CmdLockerSave(int client, int args)
 	}
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		File hCfg = OpenFile(sPath, "w");
@@ -1476,7 +1509,7 @@ public Action CmdLockerSave(int client, int args)
 
 	// Check for current map in the config
 	char sMap[64];
-	GetCurrentMap(sMap, 64);
+	GetCurrentMap(sMap, sizeof(sMap));
 	if( !hFile.JumpToKey(sMap, true) )
 	{
 		PrintToChat(client, "%sError: Failed to add map to footlocker spawn config.", CHAT_TAG);
@@ -1507,7 +1540,7 @@ public Action CmdLockerSave(int client, int args)
 	hFile.SetNum("num", iCount);
 
 	// Save angle / origin
-	char sTemp[10], sBuff[4];
+	char sTemp[4], sBuff[4];
 
 	IntToString(iCount, sTemp, sizeof(sTemp));
 	if( hFile.JumpToKey(sTemp, true) )
@@ -1518,7 +1551,7 @@ public Action CmdLockerSave(int client, int args)
 		int num1, num2;
 		if( args == 1 )
 		{
-			GetCmdArg(1, sBuff, 4);
+			GetCmdArg(1, sBuff, sizeof(sBuff));
 			num1 = StringToInt(sBuff);
 			hFile.SetNum("types", num1);
 			CreateLocker(vPos, vAng, num1, g_iCvarTotal, _, iCount);
@@ -1526,8 +1559,8 @@ public Action CmdLockerSave(int client, int args)
 		else if( args == 2 )
 		{
 			char sBuff2[4];
-			GetCmdArg(1, sBuff, 4);
-			GetCmdArg(2, sBuff2, 4);
+			GetCmdArg(1, sBuff, sizeof(sBuff));
+			GetCmdArg(2, sBuff2, sizeof(sBuff2));
 			num1 = StringToInt(sBuff);
 			num2 = StringToInt(sBuff2);
 			hFile.SetNum("types", num1);
@@ -1567,7 +1600,7 @@ public Action CmdLockerDelete(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Footlocker] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Footlocker] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
@@ -1613,7 +1646,7 @@ public Action CmdLockerDelete(int client, int args)
 
 	// Load config
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		PrintToChat(client, "%sError: Cannot find the footlocker config (\x05%s\x01).", CHAT_TAG, CONFIG_SPAWNS);
@@ -1630,7 +1663,7 @@ public Action CmdLockerDelete(int client, int args)
 
 	// Check for current map in the config
 	char sMap[64];
-	GetCurrentMap(sMap, 64);
+	GetCurrentMap(sMap, sizeof(sMap));
 
 	if( !hFile.JumpToKey(sMap) )
 	{
@@ -1648,8 +1681,7 @@ public Action CmdLockerDelete(int client, int args)
 	}
 
 	bool bMove;
-	char sTemp[10];
-
+	char sTemp[4];
 
 	// Move the other entries down
 	for( int i = cfgindex; i <= iCount; i++ )
@@ -1705,12 +1737,12 @@ public Action CmdLockerWipe(int client, int args)
 {
 	if( !client )
 	{
-		ReplyToCommand(client, "[Footlocker] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Footlocker] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		PrintToChat(client, "%sError: Cannot find the footlocker config (\x05%s\x01).", CHAT_TAG, sPath);
@@ -1728,7 +1760,7 @@ public Action CmdLockerWipe(int client, int args)
 
 	// Check for current map in the config
 	char sMap[64];
-	GetCurrentMap(sMap, 64);
+	GetCurrentMap(sMap, sizeof(sMap));
 
 	if( !hFile.JumpToKey(sMap, false) )
 	{
@@ -1756,7 +1788,7 @@ public Action CmdLockerClear(int client, int args)
 {
 	if( !client )
 	{
-		ReplyToCommand(client, "[Footlocker] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Footlocker] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
@@ -1828,8 +1860,8 @@ public Action CmdLockerTele(int client, int args)
 	if( args == 1 )
 	{
 		float vPos[3];
-		char arg[16];
-		GetCmdArg(1, arg, 16);
+		char arg[4];
+		GetCmdArg(1, arg, sizeof(arg));
 		int index = StringToInt(arg) - 1;
 		if( index > 0 && IsValidEntRef(g_iFootlockers[index][0]) )
 		{
@@ -1896,12 +1928,15 @@ void SetAngle(int client, int index)
 					entity = g_iFootlockers[i][0];
 					GetEntPropVector(entity, Prop_Send, "m_angRotation", vAng);
 
-					if( index == 0 ) vAng[0] += 5.0;
-					else if( index == 1 ) vAng[1] += 5.0;
-					else if( index == 2 ) vAng[2] += 5.0;
-					else if( index == 3 ) vAng[0] -= 5.0;
-					else if( index == 4 ) vAng[1] -= 5.0;
-					else if( index == 5 ) vAng[2] -= 5.0;
+					switch( index )
+					{
+						case 0: vAng[0] += 5.0;
+						case 1: vAng[1] += 5.0;
+						case 2: vAng[2] += 5.0;
+						case 3: vAng[0] -= 5.0;
+						case 4: vAng[1] -= 5.0;
+						case 5: vAng[2] -= 5.0;
+					}
 
 					TeleportEntity(entity, NULL_VECTOR, vAng, NULL_VECTOR);
 
@@ -1960,12 +1995,15 @@ void SetOrigin(int client, int index)
 					entity = g_iFootlockers[i][0];
 					GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vPos);
 
-					if( index == 0 ) vPos[0] += 0.5;
-					else if( index == 1 ) vPos[1] += 0.5;
-					else if( index == 2 ) vPos[2] += 0.5;
-					else if( index == 3 ) vPos[0] -= 0.5;
-					else if( index == 4 ) vPos[1] -= 0.5;
-					else if( index == 5 ) vPos[2] -= 0.5;
+					switch( index )
+					{
+						case 0: vPos[0] += 0.5;
+						case 1: vPos[1] += 0.5;
+						case 2: vPos[2] += 0.5;
+						case 3: vPos[0] -= 0.5;
+						case 4: vPos[1] -= 0.5;
+						case 5: vPos[2] -= 0.5;
+					}
 
 					TeleportEntity(entity, vPos, NULL_VECTOR, NULL_VECTOR);
 
@@ -2008,7 +2046,7 @@ void SaveData(int client)
 
 	// Load config
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		PrintToChat(client, "%sError: Cannot find the footlocker config (\x05%s\x01).", CHAT_TAG, CONFIG_SPAWNS);
@@ -2025,7 +2063,7 @@ void SaveData(int client)
 
 	// Check for current map in the config
 	char sMap[64];
-	GetCurrentMap(sMap, 64);
+	GetCurrentMap(sMap, sizeof(sMap));
 
 	if( !hFile.JumpToKey(sMap) )
 	{
@@ -2035,7 +2073,7 @@ void SaveData(int client)
 	}
 
 	float vAng[3], vPos[3];
-	char sTemp[32];
+	char sTemp[4];
 	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vPos);
 	GetEntPropVector(entity, Prop_Send, "m_angRotation", vAng);
 
@@ -2157,7 +2195,7 @@ bool SetTeleportEndPoint(int client, float vPos[3], float vAng[3])
 
 	Handle trace = TR_TraceRayFilterEx(vPos, vAng, MASK_SHOT, RayType_Infinite, _TraceFilter);
 
-	if(TR_DidHit(trace))
+	if( TR_DidHit(trace) )
 	{
 		float vNorm[3];
 		float degrees = vAng[1];
@@ -2186,6 +2224,7 @@ bool SetTeleportEndPoint(int client, float vPos[3], float vAng[3])
 		delete trace;
 		return false;
 	}
+
 	delete trace;
 	return true;
 }
@@ -2240,7 +2279,7 @@ float GetAngleBetweenVectors(const float vector1[3], const float vector2[3], con
 	float degree = ArcCosine( GetVectorDotProduct( vector1_n, vector2_n ) ) * 57.29577951;   // 180/Pi
 	GetVectorCrossProduct( vector1_n, vector2_n, cross );
 
-	if ( GetVectorDotProduct( cross, direction_n ) < 0.0 )
+	if( GetVectorDotProduct( cross, direction_n ) < 0.0 )
 		degree *= -1.0;
 
 	return degree;

@@ -968,8 +968,10 @@ bool ClientSaveToFileLoad(int client)
 
 	// 技能和属性
 	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", 0);
-	g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
-	g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);
+	// g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
+	g_clAngryPoint[client] = 0;
+	// g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);
+	g_clAngryMode[client] = 0;
 	g_clSkill_1[client] = g_kvSavePlayer[client].GetNum("skill_1", 0);
 	g_clSkill_2[client] = g_kvSavePlayer[client].GetNum("skill_2", 0);
 	g_clSkill_3[client] = g_kvSavePlayer[client].GetNum("skill_3", 0);
@@ -3657,7 +3659,7 @@ public void OnGameFrame()
 
 			if(g_iRoundEvent == 11)
 			{
-				CheatCommandEx(randPlayer, "z_spawn_old", "witch auto");
+				CheatCommandEx(randPlayer, "z_spawn_old", "witch auto area");
 				PrintToServer("玩家 %N 刷出了一只 Witch", randPlayer);
 				g_fNextRoundEvent = curTime + 120.0;
 			}
@@ -4098,12 +4100,6 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 	if (!client || !IsClientInGame(client) || !IsClientConnected(client) || GetClientTeam(client) != 2)
 		return;
 
-	if(!IsFakeClient(client))
-	{
-		SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0);
-		SetEntProp(client, Prop_Data, "m_afButtonForced", 0);
-	}
-
 	if ((g_clSkill_2[client] & SKL_2_SlefHelp))
 	{
 		new chance = GetRandomInt(1,4);
@@ -4360,18 +4356,20 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	return Plugin_Continue;
 }
 
-public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
+public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	bool attackPlayer = IsValidClient(attacker);
 
-	if(!IsValidClient(attacker) || !IsValidClient(victim))
-		return Plugin_Continue;
+	if(!IsValidClient(victim))
+		return;
 
 	decl String:weapon[64];
 	GetEventString(event, "weapon", weapon, sizeof(weapon));
 	new dmg = GetEventInt(event, "dmg_health");
-	if ((StrEqual(weapon, "tank_claw") || StrEqual(weapon, "tank_rock")) && GetClientTeam(victim) == 2 && !GetEntProp(victim, Prop_Send, "m_isIncapacitated"))
+	if (attackPlayer && (StrEqual(weapon, "tank_claw") || StrEqual(weapon, "tank_rock")) &&
+		GetClientTeam(victim) == 2 && !GetEntProp(victim, Prop_Send, "m_isIncapacitated"))
 	{
 		/*
 		new RandomIce = GetRandomInt(0, 5);
@@ -4423,7 +4421,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 		}
 	}
 
-	if (GetClientTeam(victim) == TEAM_INFECTED && GetClientTeam(attacker) == 2)
+	if (attackPlayer && GetClientTeam(victim) == TEAM_INFECTED && GetClientTeam(attacker) == 2)
 	{
 		if(GetEntProp(victim, Prop_Send, "m_zombieClass") == 8)
 		{
@@ -4499,17 +4497,50 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 				// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+5);
 				AddHealth(attacker, 5);
 			}
-			g_clAngryPoint[attacker] ++;
-			if(g_iRoundEvent == 10) g_clAngryPoint[attacker] ++;
-			if(g_clAngryPoint[attacker] >= 100 && !NCJ_ON)
+		}
+	}
+	else if(attackPlayer && GetClientTeam(victim) == 2 && GetClientTeam(attacker) == 3 && IsPlayerAlive(attacker) &&
+		GetEntProp(victim, Prop_Send, "m_isIncapacitated") && IsSurvivorHeld(victim))
+	{
+		int zombieType = GetEntProp(attacker, Prop_Send, "m_zombieClass");
+		if((g_clSkill_2[victim] & SKL_2_Defensive) && (zombieType == ZC_HUNTER || zombieType == ZC_SMOKER ||
+			zombieType == ZC_JOCKEY || zombieType == ZC_CHARGER || zombieType == ZC_TANK))
+		{
+			// 推开控制者
+			Charge(attacker, victim);
+		}
+	}
+	
+	int dmg_type = event.GetInt("type");
+	int attackerId = event.GetInt("attackerentid");
+	if(GetClientTeam(victim) == 2 && !(dmg_type & (DMG_FALL|DMG_BURN|DMG_BLAST|DMG_BLAST|DMG_SHOCK|DMG_DROWN|DMG_SLOWBURN)))
+	{
+		bool isInfected = (attackPlayer && GetClientTeam(attacker) == 3);
+		if(!isInfected && attackerId > 0 && IsValidEntity(attackerId) && IsValidEdict(attackerId))
+		{
+			static char classname[64];
+			GetEntityClassname(attackerId, classname, 64);
+			isInfected = (StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false));
+		}
+		
+		if(isInfected)
+		{
+			if(GetEntProp(victim, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
+				g_clAngryPoint[victim] += (dmg > 3 ? 3 : dmg);
+			else
+				g_clAngryPoint[victim] += (dmg > 10 ? 10 : dmg);
+			
+			if(g_iRoundEvent == 10) g_clAngryPoint[victim] ++;
+			
+			if(g_clAngryPoint[victim] >= 100 && !NCJ_ON)
 			{
-				g_clAngryPoint[attacker] -= 100;
+				g_clAngryPoint[victim] -= 100;
 				new bool:ExpAdd = false;
 				for(new i = 0;i < 4;i ++)
 				{
-					if(g_clCurEquip[attacker][i] != -1)
+					if(g_clCurEquip[victim][i] != -1)
 					{
-						if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 3)
+						if(g_eqmEffects[victim][g_clCurEquip[victim][i]] == 3)
 						{
 							ExpAdd = true;
 							break;
@@ -4518,12 +4549,12 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 				}
 				if(ExpAdd)
 				{
-					g_clAngryPoint[attacker] += 10;
-					if(g_iRoundEvent == 10) g_clAngryPoint[attacker] += 10;
+					g_clAngryPoint[victim] += 10;
+					if(g_iRoundEvent == 10) g_clAngryPoint[victim] += 10;
 				}
 
-				int team = GetClientTeam(attacker);
-				switch(g_clAngryMode[attacker])
+				int team = GetClientTeam(victim);
+				switch(g_clAngryMode[victim])
 				{
 					case 1:
 					{
@@ -4537,52 +4568,58 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 								}
 							}
 						}
-						for (new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i))
+						
+						if(g_pCvarAllow.BoolValue)
+							for (new i = 1; i <= MaxClients; i++)
 							{
-								// EmitSoundToAll(SOUND_GOOD, i);
-								// EmitSoundToAll(SOUND_GOOD, i);
-								ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
+								if(IsClientInGame(i) && IsPlayerAlive(i))
+								{
+									// EmitSoundToAll(SOUND_GOOD, i);
+									// EmitSoundToAll(SOUND_GOOD, i);
+									ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
+								}
 							}
-						}
 
 						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",attacker);
+							PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",victim);
 						else
-							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员恢复满血）\x01。");
+							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员恢复满血）\x01。");
 					}
 					case 2:
 					{
 						NCJ_1 = true;
 						NCJ_ON = true;
 						CreateTimer(40.0, Timer_NCJ1, 0, TIMER_FLAG_NO_MAPCHANGE);
-						for (new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i))
-							{
-								// EmitSoundToAll(g_soundLevel, i);
-								// EmitSoundToAll(g_soundLevel, i);
-								ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
-							}
-						}
-
+						
 						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",attacker);
+							for (new i = 1; i <= MaxClients; i++)
+							{
+								if(IsClientInGame(i) && IsPlayerAlive(i))
+								{
+									// EmitSoundToAll(g_soundLevel, i);
+									// EmitSoundToAll(g_soundLevel, i);
+									ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
+								}
+							}
+						
+						if(g_pCvarAllow.BoolValue)
+							PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",victim);
 						else
-							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+100,持续40秒）\x01。");
+							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+100,持续40秒）\x01。");
 					}
 					case 3:
 					{
-						for (new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i))
+						if(g_pCvarAllow.BoolValue)
+							for (new i = 1; i <= MaxClients; i++)
 							{
-								// EmitSoundToAll(SOUND_GOOD, i);
-								// EmitSoundToAll(SOUND_GOOD, i);
-								ClientCommand(i, "play \"ui/pickup_secret01.wav\"");
+								if(IsClientInGame(i) && IsPlayerAlive(i))
+								{
+									// EmitSoundToAll(SOUND_GOOD, i);
+									// EmitSoundToAll(SOUND_GOOD, i);
+									ClientCommand(i, "play \"ui/pickup_secret01.wav\"");
+								}
 							}
-						}
+						
 						for(new i = 1; i <= MaxClients; i++)
 						{
 							if(IsClientConnected(i) && !IsFakeClient(i) && GetClientTeam(i) == team)
@@ -4590,47 +4627,51 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 								GiveSkillPoint(i, 1);
 							}
 						}
-
+						
 						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",attacker);
+							PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",victim);
 						else
-							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04智者之教诲\x05（全员天赋点+1）\x01。");
+							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04智者之教诲\x05（全员天赋点+1）\x01。");
 					}
 					case 4:
 					{
-						for (new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i))
+						if(g_pCvarAllow.BoolValue)
+							for (new i = 1; i <= MaxClients; i++)
 							{
-								// EmitSoundToAll(SOUND_BCLAW, i);
-								// EmitSoundToAll(SOUND_BCLAW, i);
-								ClientCommand(i, "play \"level/bell_normal.wav\"");
+								if(IsClientInGame(i) && IsPlayerAlive(i))
+								{
+									// EmitSoundToAll(SOUND_BCLAW, i);
+									// EmitSoundToAll(SOUND_BCLAW, i);
+									ClientCommand(i, "play \"level/bell_normal.wav\"");
+								}
 							}
-						}
+						
 						for(new i = 1; i <= MaxClients; i++)
 						{
 							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) != team)
 							{
-								DealDamage(attacker,i,2500);
+								DealDamage(victim,i,2500);
 							}
 						}
 
 						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",attacker);
+							PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",victim);
 						else
-							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（特感全员受到2500伤害）\x01。");
+							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（特感全员受到2500伤害）\x01。");
 					}
 					case 5:
 					{
-						for (new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i))
+						if(g_pCvarAllow.BoolValue)
+							for (new i = 1; i <= MaxClients; i++)
 							{
-								// EmitSoundToAll(g_soundLevel, i);
-								// EmitSoundToAll(g_soundLevel, i);
-								ClientCommand(i, "play \"level/gnomeftw.wav\"");
+								if(IsClientInGame(i) && IsPlayerAlive(i))
+								{
+									// EmitSoundToAll(g_soundLevel, i);
+									// EmitSoundToAll(g_soundLevel, i);
+									ClientCommand(i, "play \"level/gnomeftw.wav\"");
+								}
 							}
-						}
+						
 						for(new i = 1; i <= MaxClients; i++)
 						{
 							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
@@ -4642,30 +4683,33 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 						}
 
 						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",attacker);
+							PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",victim);
 						else
-							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（全员兴奋,持续50秒）\x01。");
+							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（全员兴奋,持续50秒）\x01。");
 					}
 					case 6:
 					{
 						NCJ_2 = true;
 						NCJ_ON = true;
 						CreateTimer(60.0, Timer_NCJ2, 0, TIMER_FLAG_NO_MAPCHANGE);
-						for (new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i))
+						
+						if(g_pCvarAllow.BoolValue)
+							for (new i = 1; i <= MaxClients; i++)
 							{
-								// EmitSoundToAll(g_soundLevel, i);
-								// EmitSoundToAll(g_soundLevel, i);
-								ClientCommand(i, "play \"level/scoreregular.wav\"");
+								if(IsClientInGame(i) && IsPlayerAlive(i))
+								{
+									// EmitSoundToAll(g_soundLevel, i);
+									// EmitSoundToAll(g_soundLevel, i);
+									ClientCommand(i, "play \"level/scoreregular.wav\"");
+								}
 							}
-						}
-						SetEntProp(attacker,Prop_Send,"m_iHealth",(GetEntProp(attacker,Prop_Send,"m_iHealth") / 2));
+						
+						SetEntProp(victim,Prop_Send,"m_iHealth",(GetEntProp(victim,Prop_Send,"m_iHealth") / 2));
 
 						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x04.",attacker);
+							PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x04.",victim);
 						else
-							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04背水一战\x05（全员获得无限燃烧子弹,持续60秒）\x01。");
+							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04背水一战\x05（全员获得无限燃烧子弹,持续60秒）\x01。");
 					}
 					case 7:
 					{
@@ -4683,27 +4727,14 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 						}
 
 						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",attacker);
+							PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",victim);
 						else
-							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血天赋,持续75秒）\x01。");
+							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血天赋,持续75秒）\x01。");
 					}
 				}
 			}
 		}
 	}
-	else if(GetClientTeam(victim) == 2 && GetClientTeam(attacker) == 3 && IsPlayerAlive(attacker) &&
-		GetEntProp(victim, Prop_Send, "m_isIncapacitated") && IsSurvivorHeld(victim))
-	{
-		int zombieType = GetEntProp(attacker, Prop_Send, "m_zombieClass");
-		if((g_clSkill_2[victim] & SKL_2_Defensive) && (zombieType == ZC_HUNTER || zombieType == ZC_SMOKER ||
-			zombieType == ZC_JOCKEY || zombieType == ZC_CHARGER || zombieType == ZC_TANK))
-		{
-			// 推开控制者
-			Charge(attacker, victim);
-		}
-	}
-	
-	return Plugin_Continue;
 }
 
 public Action:Timer_NCJ1(Handle:timer, any:client)
@@ -5172,7 +5203,7 @@ void RewardPicker(int client)
 					if(g_iRoundEvent == 10) g_clAngryPoint[client] += 30;
 
 					if(g_pCvarAllow.BoolValue)
-						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+40\x04.",client);
+						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+30\x04.",client);
 					else
 						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，怒气值＋40");
 				}
@@ -5860,12 +5891,6 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 
 	RegPlayerHook(subject, false);
 
-	if(!IsFakeClient(subject))
-	{
-		SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0);
-		SetEntProp(client, Prop_Data, "m_afButtonForced", 0);
-	}
-
 	if(g_iRoundEvent == 19)
 	{
 		static ConVar cv_respawnhealth;
@@ -5888,12 +5913,6 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	if (!client || !IsClientInGame(client)) return;
 	if (!subject || !IsClientInGame(subject)) return;
 
-	if(!IsFakeClient(subject))
-	{
-		SetEntProp(subject, Prop_Data, "m_afButtonDisabled", 0);
-		SetEntProp(subject, Prop_Data, "m_afButtonForced", 0);
-	}
-	
 	// 挂边不算（挂边可以是故意的）
 	if (WasLedgeHang) return;
 	
@@ -6607,7 +6626,7 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 		SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", RoundToZero(GetDefaultClip(weapon) * 1.5));
 }
 
-void PrintToChatTeam(int team, const char[] text, any ...)
+stock void PrintToChatTeam(int team, const char[] text, any ...)
 {
 	char buffer[255];
 	VFormat(buffer, 255, text, 3);
@@ -6657,9 +6676,6 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 
 	if(!IsFakeClient(client))
 	{
-		SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0);
-		SetEntProp(client, Prop_Data, "m_afButtonForced", 0);
-		
 		if(oldTeam <= 1 && newTeam >= 2)
 			ClientSaveToFileLoad(client);
 	}
@@ -6756,9 +6772,6 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
 	SDKHook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
-
-	SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0);
-	SetEntProp(client, Prop_Data, "m_afButtonForced", 0);
 }
 
 public void PlayerHook_OnPreThink(int client)
@@ -7020,12 +7033,6 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 			// PrintToLeft(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
 			// PrintToChat(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
 		}
-	}
-
-	if(!IsFakeClient(iCid))
-	{
-		SetEntProp(iCid, Prop_Data, "m_afButtonDisabled", 0);
-		SetEntProp(iCid, Prop_Data, "m_afButtonForced", 0);
 	}
 }
 

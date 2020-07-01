@@ -247,8 +247,6 @@ new bool:NCJ_ON = false;
 
 #define SLOT_NUM		20
 
-ArrayList g_msMissionEntity;
-
 #define REWARD_SOUND	"ui/pickup_guitarriff10.wav"
 int g_iBulletFired[MAXPLAYERS+1];
 
@@ -282,26 +280,26 @@ public Plugin:myinfo =
 
 public OnPluginStart()
 {
-	g_pCvarAllow = CreateConVar("lv_enable", "1", "是否开启插件", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_Cvarautomenu = CreateConVar("lv_automenu", "0", "是否在需要时候自动弹出天赋技能选单", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarKickSteamId = CreateConVar("lv_autokick", "0", "是否禁止 SteamID 不正确的玩家加入", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarAllow = CreateConVar("lv_enable", "1", "是否开启插件", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_Cvarautomenu = CreateConVar("lv_automenu", "1", "是否在需要时候自动弹出天赋技能选单", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarKickSteamId = CreateConVar("lv_autokick", "0", "是否禁止 SteamID 不正确的玩家加入", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
-	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", CVAR_FLAGS);
-	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", CVAR_FLAGS);
-	cv_sndPortalFX = CreateConVar("lv_portals_soundfx","ui/pickup_misc42.wav", "读点声音文件途径", CVAR_FLAGS);
-	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒)，过期无法读档.0=无限", CVAR_FLAGS, true, 0.0);
-	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率", CVAR_FLAGS, true, 0.0, true, 100.0);
+	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
+	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
+	cv_sndPortalFX = CreateConVar("lv_portals_soundfx","ui/pickup_misc42.wav", "读点声音文件途径", FCVAR_NONE);
+	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒)，过期无法读档.0=无限", FCVAR_NONE, true, 0.0);
+	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率", FCVAR_NONE, true, 0.0, true, 100.0);
 	
-	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感才能获得一点", CVAR_FLAGS, true, 1.0);
-	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友才能获得一点", CVAR_FLAGS, true, 1.0);
-	g_pCvarGivePills = CreateConVar("lv_bonus_give_pills", "20", "给队友递药/针多少次才能获得一点", CVAR_FLAGS, true, 1.0);
-	g_pCvarOtherRevived = CreateConVar("lv_bonus_revive", "15", "救起队友多少次才能获得一点", CVAR_FLAGS, true, 1.0);
-	g_pCvarProtected = CreateConVar("lv_bonus_protect", "40", "保护队友多少次才能获得一点", CVAR_FLAGS, true, 1.0);
-	g_pCvarSpecialKilled = CreateConVar("lv_bonus_special_kill", "30", "干掉多少特感才能获得一点", CVAR_FLAGS, true, 1.0);
-	g_pCvarCleared = CreateConVar("lv_bonus_cleared", "10", "清理多少个区域才能获得一点", CVAR_FLAGS, true, 1.0);
-	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮才能获得一点", CVAR_FLAGS, true, 1.0);
-	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次才能获得一点", CVAR_FLAGS, true, 1.0);
+	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarGivePills = CreateConVar("lv_bonus_give_pills", "20", "给队友递药/针多少次才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarOtherRevived = CreateConVar("lv_bonus_revive", "15", "救起队友多少次才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarProtected = CreateConVar("lv_bonus_protect", "40", "保护队友多少次才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarSpecialKilled = CreateConVar("lv_bonus_special_kill", "30", "干掉多少特感才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarCleared = CreateConVar("lv_bonus_cleared", "10", "清理多少个区域才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次才能获得一点", FCVAR_NONE, true, 1.0);
 	
 	AutoExecConfig(true, "l4d2_dlc2_levelup");
 	
@@ -354,7 +352,6 @@ public OnPluginStart()
 	HookConVarChange(g_hCvarZombieHealth, ConVarChaged_ZombieHealth);
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
 	
-	g_msMissionEntity = CreateArray();
 	CreateTimer(1.0, Timer_RestoreDefault);
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
 
@@ -424,7 +421,8 @@ public OnPluginStart()
 	HookEvent("survivor_rescued", Event_SurvivorRescued);
 	// HookEvent("weapon_drop", Event_WeaponDropped);
 	HookEvent("ammo_pickup", Event_AmmoPickup);
-	// HookEvent("item_pickup", Event_WeaponPickuped);
+	HookEvent("item_pickup", Event_WeaponPickuped);
+	HookEvent("upgrade_pack_added", Event_UpgradePickup);
 	
 	// 检查第一回合用
 	HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -492,15 +490,15 @@ public void Event__PlayerSpawnFirst(Event event, const char[] eventName, bool do
 	
 	g_bRoundFirstStarting = true;
 	PrintToServer("玩家 %N 出现在战役第一关", client);
-	CheatCommand(client, "script", "::WeaponAmmo_AntiReload<-false");
-	CheatCommand(client, "script", "::WeaponInfo.WeaponData={}");
-	CheatCommand(client, "script", "::DamageLimit_IncapRelease<-false");
-	CheatCommand(client, "script", "::WeaponAmmo_Enable<-false");
-	CheatCommand(client, "script", "::DamageLimit_CommonIgnore<-false");
-	CheatCommand(client, "script", "::FriendlyFire_Enable<-false");
-	CheatCommand(client, "script", "::ShotgunSndFix_Enable<-false");
-	CheatCommand(client, "script", "::DifficultyBanalce_MinIntensity<-1");
-	CheatCommand(client, "script", "::DamageLimit_RealHealthValue<--1");
+	// CheatCommand(client, "script", "::WeaponAmmo_AntiReload<-false");
+	// CheatCommand(client, "script", "::WeaponInfo.WeaponData={}");
+	// CheatCommand(client, "script", "::DamageLimit_IncapRelease<-false");
+	// CheatCommand(client, "script", "::WeaponAmmo_Enable<-false");
+	// CheatCommand(client, "script", "::DamageLimit_CommonIgnore<-false");
+	// CheatCommand(client, "script", "::FriendlyFire_Enable<-false");
+	// CheatCommand(client, "script", "::ShotgunSndFix_Enable<-false");
+	// CheatCommand(client, "script", "::DifficultyBanalce_MinIntensity<-1");
+	// CheatCommand(client, "script", "::DamageLimit_RealHealthValue<--1");
 }
 
 public void Event__PlayerTeam(Event event, const char[] eventName, bool dontBroadcast)
@@ -515,15 +513,15 @@ public void Event__PlayerTeam(Event event, const char[] eventName, bool dontBroa
 	
 	g_bRoundFirstStarting = true;
 	PrintToServer("玩家 %N 出现在第一回合。", client);
-	CheatCommand(client, "script", "::WeaponAmmo_AntiReload<-false");
-	CheatCommand(client, "script", "::WeaponInfo.WeaponData={}");
-	CheatCommand(client, "script", "::DamageLimit_IncapRelease<-false");
-	CheatCommand(client, "script", "::WeaponAmmo_Enable<-false");
-	CheatCommand(client, "script", "::DamageLimit_CommonIgnore<-false");
-	CheatCommand(client, "script", "::FriendlyFire_Enable<-false");
-	CheatCommand(client, "script", "::ShotgunSndFix_Enable<-false");
-	CheatCommand(client, "script", "::DifficultyBanalce_MinIntensity<-1");
-	CheatCommand(client, "script", "::DamageLimit_RealHealthValue<--1");
+	// CheatCommand(client, "script", "::WeaponAmmo_AntiReload<-false");
+	// CheatCommand(client, "script", "::WeaponInfo.WeaponData={}");
+	// CheatCommand(client, "script", "::DamageLimit_IncapRelease<-false");
+	// CheatCommand(client, "script", "::WeaponAmmo_Enable<-false");
+	// CheatCommand(client, "script", "::DamageLimit_CommonIgnore<-false");
+	// CheatCommand(client, "script", "::FriendlyFire_Enable<-false");
+	// CheatCommand(client, "script", "::ShotgunSndFix_Enable<-false");
+	// CheatCommand(client, "script", "::DifficultyBanalce_MinIntensity<-1");
+	// CheatCommand(client, "script", "::DamageLimit_RealHealthValue<--1");
 }
 
 public OnMapStart()
@@ -691,24 +689,26 @@ void RestoreConVar()
 	g_hCvarAccele.IntValue = 10;
 	g_hCvarCollide.IntValue = 0;
 	g_hCvarVelocity.IntValue = 3500;
-
+	
+	/*
 	for(int i = 1; i <= MaxClients; ++i)
 	{
 		if(!IsValidClient(i))
 			continue;
 
 		PrintToServer("需要玩家 %N 调整配置。", i);
-		CheatCommand(i, "script", "::WeaponAmmo_AntiReload<-false");
-		CheatCommand(i, "script", "::WeaponInfo.WeaponData={}");
-		CheatCommand(i, "script", "::DamageLimit_IncapRelease<-false");
-		CheatCommand(i, "script", "::WeaponAmmo_Enable<-false");
-		CheatCommand(i, "script", "::DamageLimit_CommonIgnore<-false");
-		CheatCommand(i, "script", "::FriendlyFire_Enable<-false");
-		CheatCommand(i, "script", "::ShotgunSndFix_Enable<-false");
-		CheatCommand(i, "script", "::DifficultyBanalce_MinIntensity<-1");
-		CheatCommand(i, "script", "::DamageLimit_RealHealthValue<--1");
+		// CheatCommand(i, "script", "::WeaponAmmo_AntiReload<-false");
+		// CheatCommand(i, "script", "::WeaponInfo.WeaponData={}");
+		// CheatCommand(i, "script", "::DamageLimit_IncapRelease<-false");
+		// CheatCommand(i, "script", "::WeaponAmmo_Enable<-false");
+		// CheatCommand(i, "script", "::DamageLimit_CommonIgnore<-false");
+		// CheatCommand(i, "script", "::FriendlyFire_Enable<-false");
+		// CheatCommand(i, "script", "::ShotgunSndFix_Enable<-false");
+		// CheatCommand(i, "script", "::DifficultyBanalce_MinIntensity<-1");
+		// CheatCommand(i, "script", "::DamageLimit_RealHealthValue<--1");
 		break;
 	}
+	*/
 }
 
 public OnMapEnd()
@@ -1466,7 +1466,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 
 	if(g_pCvarAllow.BoolValue)
 	{
-		if(StrEqual(sayText, "lv", false))
+		if(StrEqual(sayText, "lv", false) || StrEqual(sayText, "rpg", false))
 		{
 			StatusChooseMenuFunc(client);
 			return Plugin_Handled;
@@ -1928,8 +1928,8 @@ void StatusSelectMenuFuncA(int client)
 	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("自愈-倒地被救起恢复HP+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("凶狠-主武器暴击率+5",(g_clSkill_1[client]&SKL_1_DmgExtra)));
 	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("手控-手枪无限子弹不用换弹夹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
-	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("轻盈-你可以跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
-	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("谨慎-免疫队友和自己的伤害",(g_clSkill_1[client]&SKL_1_Firendly)));
+	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("轻盈-你可以跳得更高(重力降低)",(g_clSkill_1[client]&SKL_1_Gravity)));
+	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("谨慎-免疫来自队友和自己的伤害",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("手速-半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(可以抵挡部分伤害)",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
@@ -2009,14 +2009,14 @@ void StatusSelectMenuFuncE(int client)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 五级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("烈火-主武器1/2几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("碎骨-主武器1/2几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("冰封-主武器击中特感减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("烈火-主武器1/3几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("碎骨-主武器1/3几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("冰封-主武器击中特感有几率减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_DmgExtra), mps("狂暴-牺牲暴击伤害大大增加暴击率",(g_clSkill_5[client]&SKL_5_DmgExtra)));
-	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("嗜血-主武器击中特感时速度增加并吸血",(g_clSkill_5[client]&SKL_5_Vampire)));
+	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("嗜血-主武器击中特感时有几率速度增加并吸血",(g_clSkill_5[client]&SKL_5_Vampire)));
 	menu.AddItem(tr("5_%d",SKL_5_InfAmmo), mps("节省-主武器开枪时有1/3几率获得子弹",(g_clSkill_5[client]&SKL_5_InfAmmo)));
-	menu.AddItem(tr("5_%d",SKL_5_OneInfected), mps("精准-主武器可以一枪杀死普感",(g_clSkill_5[client]&SKL_5_OneInfected)));
-	menu.AddItem(tr("5_%d",SKL_5_Missiles), mps("爆发-榴弹发射器爆炸伤害和范围增加",(g_clSkill_5[client]&SKL_5_Missiles)));
+	menu.AddItem(tr("5_%d",SKL_5_OneInfected), mps("精准-主武器1/4几率可以一枪杀死普感",(g_clSkill_5[client]&SKL_5_OneInfected)));
+	menu.AddItem(tr("5_%d",SKL_5_Missiles), mps("爆发-榴弹发射器爆炸伤害增加且可以导致僵直",(g_clSkill_5[client]&SKL_5_Missiles)));
 	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("持久-冲锋枪一次性射出25发子弹后消耗改为备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
 
 	menu.ExitButton = true;
@@ -3619,7 +3619,7 @@ public void OnGameFrame()
 				// EmitSoundToClient(client, g_soundLevel);
 
 				ClientCommand(i, "play \"%s\"", g_soundLevel);
-				PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03无敌\x04在 14 秒以内不会受到伤害。");
+				PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03无敌\x04在 14 秒以内不会受到伤害（掉落伤害除外）。");
 			}
 			else if(g_ctGodMode[i] < 0.0 && g_ctGodMode[i] >= -curTime)
 			{
@@ -3670,34 +3670,34 @@ public void OnGameFrame()
 					switch(randNumber)
 					{
 						case 1:
-							CheatCommandEx(randPlayer, "z_spawn_old", "smoker auto");
+							CheatCommandEx(randPlayer, "z_spawn_old", "smoker auto area");
 						case 2:
-							CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto");
+							CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto area");
 						case 3:
-							CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto");
+							CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto area");
 						case 4:
-							CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto");
+							CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto area");
 						case 5:
-							CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto");
+							CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto area");
 						case 6:
-							CheatCommandEx(randPlayer, "z_spawn_old", "charger auto");
+							CheatCommandEx(randPlayer, "z_spawn_old", "charger auto area");
 					}
 				}
 
-				CheatCommand(randPlayer, "script", "::DifficultyBanalce_MinIntensity<-0");
+				// CheatCommand(randPlayer, "script", "::DifficultyBanalce_MinIntensity<-0");
 				PrintToServer("玩家 %N 刷出了 8 只特感", randPlayer);
 				g_fNextRoundEvent = curTime + 40.0;
 			}
 			else if(g_iRoundEvent == 15)
 			{
-				CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto");
-				CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto");
+				CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto area");
+				CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto area");
 				PrintToServer("玩家 %N 刷出了一只 Boomer 和 Spitter", randPlayer);
 				g_fNextRoundEvent = curTime + 30.0;
 			}
 			else if(g_iRoundEvent == 16)
 			{
-				CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto");
+				CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto area");
 				PrintToServer("玩家 %N 刷出了一只 Hunter", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
 			}
@@ -3713,7 +3713,7 @@ public void OnGameFrame()
 			}
 			else if(g_iRoundEvent == 18)
 			{
-				CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto");
+				CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto area");
 				PrintToServer("玩家 %N 刷出了一只 Jockey", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
 			}
@@ -3743,24 +3743,7 @@ public void OnGameFrame()
 		}
 	}
 	*/
-
-	// 跟踪导弹思考
-	{
-		static float nextTime;
-		if(nextTime <= curTime)
-		{
-			nextTime = curTime + 0.1;
-			int maxCount = g_msMissionEntity.Length;
-			for(int i = 0; i < maxCount; ++i)
-			{
-				if(!MissileThink(g_msMissionEntity.Get(i)))
-				{
-					g_msMissionEntity.Erase(i);
-					break;
-				}
-			}
-		}
-	}
+	
 }
 
 stock void SpawnCommonZombie(const char[] zombieName, float position[3], const char[] targetName = "")
@@ -3844,7 +3827,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		// 无敌模式伤害免疫
 		return Plugin_Handled;
 	}
-
+	
 	if(IsValidClient(attacker) && GetClientTeam(attacker) == GetClientTeam(victim) &&
 		((g_clSkill_1[attacker] & SKL_1_Firendly) || (g_clSkill_1[victim] & SKL_1_Firendly)))
 	{
@@ -3874,7 +3857,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 			}
 		}
 	}
-
+	
 	return Plugin_Continue;
 }
 
@@ -3883,17 +3866,11 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if(entity <= MaxClients || entity > 2048)
 		return;
 
-	if(StrEqual(classname, "infected", false))
+	if(StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false) || StrEqual(classname, "tank_rock", false))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
-	/*
-	if(StrEqual(classname, "prop_physics", false))
-		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnPhysicsSpawned);
-	if(StrEqual(classname, "prop_car_alarm", false))
-		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnAlarmSpawned);
 	if(StrContains(classname, "_projectile", false) > 0)
 		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnProjectileSpawned);
-	*/
 }
 
 public void ZombieHook_OnSpawned(int entity)
@@ -3903,25 +3880,6 @@ public void ZombieHook_OnSpawned(int entity)
 	// SDKHook(entity, SDKHook_OnTakeDamage, ZombieHook_OnTakeDamage);
 }
 
-public void EntityHook_OnPhysicsSpawned(int entity)
-{
-	SDKUnhook(entity, SDKHook_SpawnPost, EntityHook_OnPhysicsSpawned);
-
-	if(GetEntProp(entity, Prop_Send, "m_isCarryable"))
-	{
-		char model[255];
-		GetEntPropString(entity, Prop_Data, "m_ModelName", model, 255);
-		if(StrEqual(model, "models/props_junk/gascan001a.mdl", false))
-			HookSingleEntityOutput(entity, "OnTakeDamage", GascanHook_OnTakeDamage, false);
-		else if(StrEqual(model, "models/props_junk/propanecanister001a.mdl", false))
-			HookSingleEntityOutput(entity, "OnTakeDamage", PropanetankHook_OnTakeDamage, false);
-		else if(StrEqual(model, "models/props_junk/explosive_box001.mdl", false))
-			HookSingleEntityOutput(entity, "OnTakeDamage", FireworkHook_OnTakeDamage, false);
-		else if(StrEqual(model, "models/props_equipment/oxygentank01.mdl", false))
-			HookSingleEntityOutput(entity, "OnTakeDamage", OxyanetankHook_OnTakeDamage, false);
-	}
-}
-
 public void EntityHook_OnProjectileSpawned(int entity)
 {
 	SDKUnhook(entity, SDKHook_SpawnPost, EntityHook_OnProjectileSpawned);
@@ -3929,149 +3887,18 @@ public void EntityHook_OnProjectileSpawned(int entity)
 	int client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
 	if(!IsValidAliveClient(client))
 		return;
-
-	char classname[64];
+	
+	static char classname[64];
 	GetEntityClassname(entity, classname, 64);
-	if(StrEqual(classname, "molotov_projectile", false))
-		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 扔了一个燃烧瓶。", client);
-	else if(StrEqual(classname, "pipe_bomb_projectile", false))
-		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 扔了一个土制炸弹。", client);
-	else if(StrEqual(classname, "vomitjar_projectile", false))
-		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 扔了一罐胆汁。", client);
-	else if(g_clSkill_5[client] & SKL_5_Missiles)
+	if(g_clSkill_5[client] & SKL_5_Missiles)
 	{
 		if(StrEqual(classname, "grenade_launcher_projectile", false) ||
 			StrEqual(classname, "spitter_projectile", false))
 		{
 			// 把它变成跟踪的
-			CreateMissiles(client, _, _, _, _, entity);
+			CreateMissiles(client, entity);
 		}
 	}
-}
-
-int g_iAlarmTrigged[4096];
-public void EntityHook_OnAlarmSpawned(int entity)
-{
-	SDKUnhook(entity, SDKHook_SpawnPost, EntityHook_OnAlarmSpawned);
-	g_iAlarmTrigged[entity] = 0;
-
-	HookSingleEntityOutput(entity, "OnCarAlarmChirpStart", AlarmHook_OnChirpStart, true);
-	HookSingleEntityOutput(entity, "OnCarAlarmChirpEnd", AlarmHook_OnChirpStop, true);
-	HookSingleEntityOutput(entity, "OnTakeDamage", AlarmHook_OnTakeDamage, false);
-	SDKHookEx(entity, SDKHook_StartTouchPost, AlarmHook_OnTouchPost);
-}
-
-public void AlarmHook_OnTouchPost(int entity, int other)
-{
-	if(!IsValidEntity(entity) || !IsValidAliveClient(other) || GetClientTeam(other) != 2 ||
-		IsFakeClient(other))
-		return;
-
-	// 触碰触发警报
-	g_iAlarmTrigged[entity] = 1;
-}
-
-public void AlarmHook_OnTakeDamage(const char[] output, int caller, int activator, float delay)
-{
-	if(!IsValidEntity(caller) || !IsValidAliveClient(activator) || GetClientTeam(activator) != 2 ||
-		IsFakeClient(activator))
-		return;
-
-	// 攻击触发警报
-	g_iAlarmTrigged[caller] = 2;
-}
-
-public void AlarmHook_OnChirpStart(const char[] output, int caller, int activator, float delay)
-{
-	if(!IsValidEntity(caller) || !IsValidAliveClient(activator) || GetClientTeam(activator) != 2)
-		return;
-
-	if(g_iAlarmTrigged[caller] == 1)
-		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 触碰了警报车。", activator);
-	else if(g_iAlarmTrigged[caller] == 2)
-		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 攻击了警报车。", activator);
-
-	// 警报车可能可以触发多次
-	// 所以不在这里取消 Hook
-}
-
-public void AlarmHook_OnChirpStop(const char[] output, int caller, int activator, float delay)
-{
-	if(!IsValidEntity(caller))
-		return;
-
-	// 警报车一般是一次性的
-	g_iAlarmTrigged[caller] = 0;
-	UnhookSingleEntityOutput(caller, "OnTakeDamage", AlarmHook_OnTakeDamage);
-	SDKUnhook(caller, SDKHook_StartTouchPost, AlarmHook_OnTouchPost);
-}
-
-public void GascanHook_OnTakeDamage(const char[] output, int caller, int activator, float delay)
-{
-	if(!IsValidEntity(caller) || !IsValidEdict(caller) || !IsValidClient(activator))
-		return;
-
-	if(GetEntProp(caller, Prop_Send, "m_nSkin") == 0)
-		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 点燃了红色的油桶。", activator);
-	else
-		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 点燃了黄色的油桶。", activator);
-}
-
-public void PropanetankHook_OnTakeDamage(const char[] output, int caller, int activator, float delay)
-{
-	if(!IsValidEntity(caller) || !IsValidEdict(caller) || !IsValidClient(activator))
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 点燃了煤气罐。", activator);
-}
-
-public void FireworkHook_OnTakeDamage(const char[] output, int caller, int activator, float delay)
-{
-	if(!IsValidEntity(caller) || !IsValidEdict(caller) || !IsValidClient(activator))
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 点燃了烟花盒。", activator);
-}
-
-public void OxyanetankHook_OnTakeDamage(const char[] output, int caller, int activator, float delay)
-{
-	if(!IsValidEntity(caller) || !IsValidEdict(caller) || !IsValidClient(activator))
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 点燃了氧气瓶。", activator);
-}
-
-public Action ZombieHook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
-	int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
-{
-	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 ||
-		!IsValidEntity(weapon) || IsFakeClient(attacker) || GetClientTeam(attacker) != 2)
-		return Plugin_Continue;
-
-	char classname[64];
-	GetEntityClassname(victim, classname, 64);
-	if(!StrEqual(classname, "infected", false))
-		return Plugin_Continue;
-	
-	GetEdictClassname(weapon, classname, 64);
-
-	if((g_clSkill_5[attacker] & SKL_5_OneInfected) && (damagetype & DMG_BULLET) &&
-		(StrContains(classname, "smg", false) != -1 || StrContains(classname, "shotgun", false) != -1 ||
-		StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1))
-	{
-		/*
-		static ConVar cv_zombie;
-		if(cv_zombie == null)
-			cv_zombie = FindConVar("z_health");
-		*/
-		
-		// 一枪杀死普感
-		damage = float(g_iCommonHealth);
-		// PrintToChat(attacker, "OnTakeDamage %.2f", damage);
-		return Plugin_Changed;
-	}
-
-	return Plugin_Continue;
 }
 
 public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
@@ -4080,13 +3907,12 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 ||
 		IsFakeClient(attacker) || GetClientTeam(attacker) != 2)
 		return Plugin_Continue;
-
-	char className[64];
-	GetEntityClassname(victim, className, 64);
-	if(!StrEqual(className, "infected", false))
-		return Plugin_Continue;
 	
-	if((g_clSkill_5[attacker] & SKL_5_OneInfected) && (damagetype & DMG_BULLET) && ammotype > 2 && ammotype < 12)
+	static char victimName[64];
+	GetEntityClassname(victim, victimName, 64);
+	
+	if(StrEqual(victimName, "infected", false) && (g_clSkill_5[attacker] & SKL_5_OneInfected) &&
+		(damagetype & DMG_BULLET) && ammotype > 2 && ammotype < 12 && !GetRandomInt(0, 3))
 	{
 		/*
 		static ConVar cv_zombie;
@@ -4096,12 +3922,90 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		
 		// 一枪杀死普感
 		ammotype = 6;
-		damage = g_iCommonHealth * 4.0;
+		damage = g_iCommonHealth * 4.0;	// 写专伤害只有 1/4，所以这里需要 x4
 		// PrintToChat(attacker, "TraceAttack %.2f", damage);
 		return Plugin_Changed;
 	}
-
-	return Plugin_Continue;
+	
+	int chance = 0;
+	int extraDamage = 0;
+	int extraChanceDamage = GetRandomInt(50, 100);
+	
+	// 技能和事件的几率加成
+	if(g_clSkill_1[attacker] & SKL_1_DmgExtra)
+		chance += 5;
+	if(g_clSkill_4[attacker] & SKL_4_DmgExtra)
+		chance += 10;
+	if(NCJ_1)
+		chance += 100;
+	
+	for(int i = 0; i < 4; ++i)
+	{
+		if(g_clCurEquip[attacker][i] == -1)
+			continue;
+		
+		// 强化后的装备
+		if(g_eqmUpgrade[attacker][g_clCurEquip[attacker][i]] > 0)
+			chance += g_eqmUpgrade[attacker][g_clCurEquip[attacker][i]];
+		
+		// 装备附加技能
+		if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 8)
+			chance += 5;
+		
+		// 装备前缀
+		if(g_eqmPrefix[attacker][g_clCurEquip[attacker][i]] == 5)
+			chance += 2;
+		
+		// 装备伤害
+		if(g_eqmDamage[attacker][g_clCurEquip[attacker][i]] > 0)
+			extraDamage += g_eqmDamage[attacker][g_clCurEquip[attacker][i]];
+		
+		// 暴击伤害加成
+		if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 6)
+			extraChanceDamage += GetRandomInt(50, 200);
+	}
+	
+	if(g_clSkill_5[attacker] & SKL_5_DmgExtra)
+		chance += chance / 3 + 25;
+	
+	if(g_clSkill_4[attacker] & SKL_4_MoreDmgExtra)
+		extraChanceDamage += GetRandomInt(50, 200);
+	
+	if(g_clSkill_5[attacker] & SKL_5_DmgExtra)
+		extraChanceDamage = extraChanceDamage / 3 + GetRandomInt(10, 30);
+	
+	// 忽略非主武器的攻击
+	if(ammotype <= 2 || ammotype >= 12 || !(damagetype & DMG_BULLET))
+		return Plugin_Continue;
+	
+	// 狙击枪伤害增加
+	if(ammotype == 10 && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
+	{
+		static char className[64];
+		if(IsValidEntity(inflictor) && IsValidEdict(inflictor))
+		{
+			GetEntityClassname(inflictor, className, 64);
+			if(StrEqual(className, "weapon_sniper_awp", false))
+				damage *= 3;
+			else if(StrEqual(className, "weapon_sniper_scout", false))
+				damage *= 2;
+		}
+	}
+	
+	if(GetRandomInt(1, 1000) <= chance)
+	{
+		ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
+		damage += float(extraChanceDamage);
+		
+		if(g_pCvarAllow.BoolValue)
+		{
+			// PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
+			PrintCenterText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
+		}
+	}
+	
+	damage += float(extraDamage);
+	return Plugin_Changed;
 }
 
 public Action:EventRevive(Handle:Timer, any:client)
@@ -4180,7 +4084,8 @@ public Action:Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadc
 		if(ExtraSp)
 		{
 			// SDKCall(sdkAdrenaline, client, 30.0);
-			CheatCommand(client, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%f)", GetClientUserId(client), 30.0);
+			// CheatCommand(client, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), 30);
+			L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), 30);
 		}
 	}
 }
@@ -4302,7 +4207,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 	if(g_iRoundEvent == 14)
 	{
 		SetEntProp(client, Prop_Data, "m_iHealth", 1);
-		SDKHooks_TakeDamage(client, 0, 0, 666.0, DMG_FALL);
+		SDKHooks_TakeDamage(client, 0, attacker, 666.0, DMG_FALL);
 	}
 }
 
@@ -4376,6 +4281,24 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	// 生还者攻击特感
 	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)
 	{
+		// 榴弹伤害增加
+		if(g_clSkill_5[attacker] & SKL_5_Missiles)
+		{
+			static char classname[17];
+			GetEdictClassname(inflictor, classname, sizeof(classname));
+			if(strcmp(classname, "grenade_launcher") == 0)
+			{
+				float vPos[3];
+				GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
+				
+				// CheatCommand(attacker, "script", "GetPlayerFromUserID(%d).Stagger(Vector(%f,%f,%f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
+				L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(%.0f,%.0f,%.0f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
+				
+				damage *= 5;
+				return Plugin_Changed;
+			}
+		}
+		
 		// 忽略非主武器的攻击
 		if(ammotype <= 2 || ammotype >= 12 || !(damagetype & DMG_BULLET))
 			return Plugin_Continue;
@@ -4383,15 +4306,14 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		// 狙击枪伤害增加
 		if(ammotype == 10 && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
 		{
-			char className[64];
-			int weapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
-			if(IsValidEntity(weapon) && IsValidEdict(weapon))
+			static char className[64];
+			if(IsValidEntity(inflictor) && IsValidEdict(inflictor))
 			{
-				GetEntityClassname(weapon, className, 64);
+				GetEntityClassname(inflictor, className, 64);
 				if(StrEqual(className, "weapon_sniper_awp", false))
-					damage = 350.0;
+					damage *= 3;
 				else if(StrEqual(className, "weapon_sniper_scout", false))
-					damage = 180.0;
+					damage *= 2;
 			}
 		}
 		
@@ -4533,7 +4455,7 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 			|| StrEqual(weapon, "hunting_rifle") || StrEqual(weapon, "pumpshotgun") || StrEqual(weapon, "shotgun_chrome")
 			|| StrEqual(weapon, "grenade_launcher") || StrEqual(weapon, "rifle_desert"))
 		{
-			if ((g_clSkill_5[attacker] & SKL_5_RetardBullet))
+			if ((g_clSkill_5[attacker] & SKL_5_RetardBullet) && !GetRandomInt(0, 2))
 			{
 				if (!g_bHasRetarding[victim])
 				{
@@ -4543,10 +4465,10 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 					EmitAmbientSound(SOUND_FREEZE, vec, victim, SNDLEVEL_RAIDSIREN);
 					g_fOldMovement[victim] = GetEntPropFloat(victim, Prop_Data, "m_flLaggedMovementValue");
 					SetEntPropFloat(victim, Prop_Data, "m_flLaggedMovementValue", g_fOldMovement[victim] * 0.55);
-					CreateTimer(2.0, Timer_StopRetard, victim);
+					CreateTimer(1.0, Timer_StopRetard, victim);
 				}
 			}
-			if ((g_clSkill_5[attacker] & SKL_5_Vampire) || NCJ_3)
+			if (((g_clSkill_5[attacker] & SKL_5_Vampire) || NCJ_3) && !GetRandomInt(0, 2))
 			{
 				// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+1);
 				AddHealth(attacker, 1);
@@ -4556,331 +4478,217 @@ public Action:Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroad
 					g_bHasVampire[attacker] = true;
 					g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Data, "m_flLaggedMovementValue");
 					SetEntPropFloat(attacker, Prop_Data, "m_flLaggedMovementValue", g_fOldMovement[attacker] * 0.95);
-					CreateTimer(2.0, Timer_StopVampire, attacker);
+					CreateTimer(1.0, Timer_StopVampire, attacker);
 				}
 			}
 			
-			/*
-			new eqmdmg = 0;
+			new bool:ExtraLife = false;
 			for(new i = 0;i < 4;i ++)
 			{
 				if(g_clCurEquip[attacker][i] != -1)
 				{
-					eqmdmg += g_eqmDamage[attacker][g_clCurEquip[attacker][i]];
-				}
-			}
-			eqmdmg /= 2;
-			if(g_tkSkillType[victim] == 7) eqmdmg /= 2;
-			if(eqmdmg) DealDamage(attacker, victim, eqmdmg, 0);
-			
-			new Random = GetRandomInt(1, 1000);
-			new Chance = 0;
-			if((g_clSkill_1[attacker] & SKL_1_DmgExtra)) Chance += 5;
-			if((g_clSkill_4[attacker] & SKL_4_DmgExtra)) Chance += 10;
-			new bool:ExtraAdd = false;
-			for(new i = 0;i < 4;i ++)
-			{
-				if(g_clCurEquip[attacker][i] != -1)
-				{
-					Chance += g_eqmUpgrade[attacker][g_clCurEquip[attacker][i]];
-				}
-			}
-			for(new i = 0;i < 4;i ++)
-			{
-				if(g_clCurEquip[attacker][i] != -1)
-				{
-					if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 8)
+					if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 12)
 					{
-						ExtraAdd = true;
+						ExtraLife = true;
 						break;
 					}
 				}
 			}
-			if(ExtraAdd) Chance += 5;
-			if(NCJ_1) Chance += 100;
-			new bool:ExpUp = false;
-			if((g_clSkill_5[attacker] & SKL_5_DmgExtra))
+			if (ExtraLife)
 			{
-				new bool:CanLost = false;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[attacker][i] == -1)
-					{
-						CanLost = true;
-						break;
-					}
-					else if(g_eqmPrefix[attacker][g_clCurEquip[attacker][i]] != 5)
-					{
-						CanLost = true;
-						break;
-					}
-				}
-				if(!CanLost)
-				{
-					ExpUp = true;
-				}
+				// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+5);
+				AddHealth(attacker, 5);
 			}
-			if(ExpUp)
+			g_clAngryPoint[attacker] ++;
+			if(g_iRoundEvent == 10) g_clAngryPoint[attacker] ++;
+			if(g_clAngryPoint[attacker] >= 100 && !NCJ_ON)
 			{
-				Chance += Chance / 3;
-				Chance += 25;
-			}
-			if(g_tkSkillType[victim] > 2) Chance /= 2;
-			
-			if(Random <= Chance)
-			{
-				new Float:entpos[3];
-				new extradmg = GetRandomInt(50,100);
-				new bool:ExtraD = false;
+				g_clAngryPoint[attacker] -= 100;
+				new bool:ExpAdd = false;
 				for(new i = 0;i < 4;i ++)
 				{
 					if(g_clCurEquip[attacker][i] != -1)
 					{
-						if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 6)
+						if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 3)
 						{
-							ExtraD = true;
+							ExpAdd = true;
 							break;
 						}
 					}
 				}
-				if(ExtraD) extradmg += GetRandomInt(50,200);
-				if((g_clSkill_4[attacker] & SKL_4_MoreDmgExtra)) extradmg += GetRandomInt(50,200);
-				if(ExpUp) extradmg = extradmg / 3 + GetRandomInt(10,30);
-				if(g_tkSkillType[victim] > 6) extradmg = extradmg / 3 + GetRandomInt(10,30);
-				GetClientAbsOrigin(victim, entpos);
-				EmitSoundToAll(SOUND_BCLAW, victim);
-
-				if(g_pCvarAllow.BoolValue)
-					LittleFlower(entpos, EXPLODE);
-
-				if((g_clSkill_3[attacker] & SKL_3_Kickback))
+				if(ExpAdd)
 				{
-					new RanChance = 2;
-					if(g_tkSkillType[victim] > 6) RanChance ++;
-					if(GetRandomInt(1,4) > RanChance) Charge(victim, attacker);
+					g_clAngryPoint[attacker] += 10;
+					if(g_iRoundEvent == 10) g_clAngryPoint[attacker] += 10;
 				}
-				if(!IsFakeClient(attacker))
-				{
-					ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
-					// PrintToChat(attacker,"\x03【\x05提示\x03】\x04主武器触发\x03暴击\x04,追加伤害\x03%d\x04!!",extradmg);
 
-					if(g_pCvarAllow.BoolValue)
+				int team = GetClientTeam(attacker);
+				switch(g_clAngryMode[attacker])
+				{
+					case 1:
 					{
-						// PrintToChat(attacker, "\x03[提示]\x01 主武器触发 \x04暴击\x01，伤害增加：\x05%d\x01", extradmg);
-						// PrintHintText(attacker, "暴击伤害：%d", extradmg);
-						PrintCenterText(attacker, "暴击伤害：%d", extradmg);
+						for(new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
+							{
+								if((GetEntProp(i,Prop_Send,"m_iHealth") < GetEntProp(i,Prop_Send,"m_iMaxHealth")) || GetEntProp(i, Prop_Send, "m_isIncapacitated"))
+								{
+									CheatCommand(i, "give", "health");
+								}
+							}
+						}
+						for (new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i))
+							{
+								// EmitSoundToAll(SOUND_GOOD, i);
+								// EmitSoundToAll(SOUND_GOOD, i);
+								ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
+							}
+						}
+
+						if(g_pCvarAllow.BoolValue)
+							PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",attacker);
+						else
+							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员恢复满血）\x01。");
+					}
+					case 2:
+					{
+						NCJ_1 = true;
+						NCJ_ON = true;
+						CreateTimer(40.0, Timer_NCJ1, 0, TIMER_FLAG_NO_MAPCHANGE);
+						for (new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i))
+							{
+								// EmitSoundToAll(g_soundLevel, i);
+								// EmitSoundToAll(g_soundLevel, i);
+								ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
+							}
+						}
+
+						if(g_pCvarAllow.BoolValue)
+							PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",attacker);
+						else
+							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+100,持续40秒）\x01。");
+					}
+					case 3:
+					{
+						for (new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i))
+							{
+								// EmitSoundToAll(SOUND_GOOD, i);
+								// EmitSoundToAll(SOUND_GOOD, i);
+								ClientCommand(i, "play \"ui/pickup_secret01.wav\"");
+							}
+						}
+						for(new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientConnected(i) && !IsFakeClient(i) && GetClientTeam(i) == team)
+							{
+								GiveSkillPoint(i, 1);
+							}
+						}
+
+						if(g_pCvarAllow.BoolValue)
+							PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",attacker);
+						else
+							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04智者之教诲\x05（全员天赋点+1）\x01。");
+					}
+					case 4:
+					{
+						for (new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i))
+							{
+								// EmitSoundToAll(SOUND_BCLAW, i);
+								// EmitSoundToAll(SOUND_BCLAW, i);
+								ClientCommand(i, "play \"level/bell_normal.wav\"");
+							}
+						}
+						for(new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) != team)
+							{
+								DealDamage(attacker,i,2500);
+							}
+						}
+
+						if(g_pCvarAllow.BoolValue)
+							PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",attacker);
+						else
+							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（特感全员受到2500伤害）\x01。");
+					}
+					case 5:
+					{
+						for (new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i))
+							{
+								// EmitSoundToAll(g_soundLevel, i);
+								// EmitSoundToAll(g_soundLevel, i);
+								ClientCommand(i, "play \"level/gnomeftw.wav\"");
+							}
+						}
+						for(new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
+							{
+								// SDKCall(sdkAdrenaline, i, 50.0);
+								// CheatCommand(i, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
+								L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
+							}
+						}
+
+						if(g_pCvarAllow.BoolValue)
+							PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",attacker);
+						else
+							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（全员兴奋,持续50秒）\x01。");
+					}
+					case 6:
+					{
+						NCJ_2 = true;
+						NCJ_ON = true;
+						CreateTimer(60.0, Timer_NCJ2, 0, TIMER_FLAG_NO_MAPCHANGE);
+						for (new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i))
+							{
+								// EmitSoundToAll(g_soundLevel, i);
+								// EmitSoundToAll(g_soundLevel, i);
+								ClientCommand(i, "play \"level/scoreregular.wav\"");
+							}
+						}
+						SetEntProp(attacker,Prop_Send,"m_iHealth",(GetEntProp(attacker,Prop_Send,"m_iHealth") / 2));
+
+						if(g_pCvarAllow.BoolValue)
+							PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x04.",attacker);
+						else
+							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04背水一战\x05（全员获得无限燃烧子弹,持续60秒）\x01。");
+					}
+					case 7:
+					{
+						NCJ_3 = true;
+						NCJ_ON = true;
+						CreateTimer(75.0, Timer_NCJ3, 0, TIMER_FLAG_NO_MAPCHANGE);
+						for (new i = 1; i <= MaxClients; i++)
+						{
+							if(IsClientInGame(i) && IsPlayerAlive(i))
+							{
+								// EmitSoundToAll(g_soundLevel, i);
+								// EmitSoundToAll(g_soundLevel, i);
+								ClientCommand(i, "play \"level/scoreregular.wav\"");
+							}
+						}
+
+						if(g_pCvarAllow.BoolValue)
+							PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",attacker);
+						else
+							PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血天赋,持续75秒）\x01。");
 					}
 				}
-				DealDamage(attacker, victim, extradmg, 0);
-				*/
-				
-				new bool:ExtraLife = false;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[attacker][i] != -1)
-					{
-						if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 12)
-						{
-							ExtraLife = true;
-							break;
-						}
-					}
-				}
-				if (ExtraLife)
-				{
-					// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+5);
-					AddHealth(attacker, 5);
-				}
-				g_clAngryPoint[attacker] ++;
-				if(g_iRoundEvent == 10) g_clAngryPoint[attacker] ++;
-				if(g_clAngryPoint[attacker] >= 100 && !NCJ_ON)
-				{
-					g_clAngryPoint[attacker] -= 100;
-					new bool:ExpAdd = false;
-					for(new i = 0;i < 4;i ++)
-					{
-						if(g_clCurEquip[attacker][i] != -1)
-						{
-							if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 3)
-							{
-								ExpAdd = true;
-								break;
-							}
-						}
-					}
-					if(ExpAdd)
-					{
-						g_clAngryPoint[attacker] += 10;
-						if(g_iRoundEvent == 10) g_clAngryPoint[attacker] += 10;
-					}
-
-					int team = GetClientTeam(attacker);
-					switch(g_clAngryMode[attacker])
-					{
-						case 1:
-						{
-							for(new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
-								{
-									if((GetEntProp(i,Prop_Send,"m_iHealth") < GetEntProp(i,Prop_Send,"m_iMaxHealth")) || GetEntProp(i, Prop_Send, "m_isIncapacitated"))
-									{
-										CheatCommand(i, "give", "health");
-									}
-								}
-							}
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(SOUND_GOOD, i);
-									// EmitSoundToAll(SOUND_GOOD, i);
-									ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",attacker);
-							else
-								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员恢复满血）\x01。");
-						}
-						case 2:
-						{
-							NCJ_1 = true;
-							NCJ_ON = true;
-							CreateTimer(40.0, Timer_NCJ1, 0, TIMER_FLAG_NO_MAPCHANGE);
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(g_soundLevel, i);
-									// EmitSoundToAll(g_soundLevel, i);
-									ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",attacker);
-							else
-								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+100,持续40秒）\x01。");
-						}
-						case 3:
-						{
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(SOUND_GOOD, i);
-									// EmitSoundToAll(SOUND_GOOD, i);
-									ClientCommand(i, "play \"ui/pickup_secret01.wav\"");
-								}
-							}
-							for(new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientConnected(i) && !IsFakeClient(i) && GetClientTeam(i) == team)
-								{
-									GiveSkillPoint(i, 1);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",attacker);
-							else
-								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04智者之教诲\x05（全员天赋点+1）\x01。");
-						}
-						case 4:
-						{
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(SOUND_BCLAW, i);
-									// EmitSoundToAll(SOUND_BCLAW, i);
-									ClientCommand(i, "play \"level/bell_normal.wav\"");
-								}
-							}
-							for(new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) != team)
-								{
-									DealDamage(attacker,i,2500);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",attacker);
-							else
-								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（特感全员受到2500伤害）\x01。");
-						}
-						case 5:
-						{
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(g_soundLevel, i);
-									// EmitSoundToAll(g_soundLevel, i);
-									ClientCommand(i, "play \"level/gnomeftw.wav\"");
-								}
-							}
-							for(new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
-								{
-									// SDKCall(sdkAdrenaline, i, 50.0);
-									CheatCommand(i, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%f)", GetClientUserId(i), 50.0);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",attacker);
-							else
-								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（全员兴奋,持续50秒）\x01。");
-						}
-						case 6:
-						{
-							NCJ_2 = true;
-							NCJ_ON = true;
-							CreateTimer(60.0, Timer_NCJ2, 0, TIMER_FLAG_NO_MAPCHANGE);
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(g_soundLevel, i);
-									// EmitSoundToAll(g_soundLevel, i);
-									ClientCommand(i, "play \"level/scoreregular.wav\"");
-								}
-							}
-							SetEntProp(attacker,Prop_Send,"m_iHealth",(GetEntProp(attacker,Prop_Send,"m_iHealth") / 2));
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x04.",attacker);
-							else
-								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04背水一战\x05（全员获得无限燃烧子弹,持续60秒）\x01。");
-						}
-						case 7:
-						{
-							NCJ_3 = true;
-							NCJ_ON = true;
-							CreateTimer(75.0, Timer_NCJ3, 0, TIMER_FLAG_NO_MAPCHANGE);
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(g_soundLevel, i);
-									// EmitSoundToAll(g_soundLevel, i);
-									ClientCommand(i, "play \"level/scoreregular.wav\"");
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",attacker);
-							else
-								PrintToChat(attacker, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血天赋,持续75秒）\x01。");
-						}
-					}
-				}
-			// }
+			}
 		}
 	}
 	else if(GetClientTeam(victim) == 2 && GetClientTeam(attacker) == 3 && IsPlayerAlive(attacker) &&
@@ -5087,7 +4895,9 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 			if((g_clSkill_2[attacker] & SKL_2_Excited) && !GetRandomInt(0, 3))
 			{
 				// SDKCall(sdkAdrenaline, attacker, 14.0);
-				CheatCommand(victim, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%f)", GetClientUserId(attacker), 14.0);
+				// CheatCommand(attacker, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(attacker), 14);
+				L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(attacker), 14);
+				
 				EmitSoundToClient(attacker,g_soundLevel);
 				if(!IsFakeClient(attacker)) PrintToChat(attacker, "\x03[\x05提示\x03]\x04你使用了\x03热血\x04天赋兴奋14秒!");
 			}
@@ -5304,7 +5114,8 @@ void RewardPicker(int client)
 								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
 								{
 									// SDKCall(sdkAdrenaline, i, 50.0);
-									CheatCommand(client, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%f)", GetClientUserId(i), 50.0);
+									// CheatCommand(i, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
+									L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
 								}
 							}
 
@@ -5498,7 +5309,12 @@ void RewardPicker(int client)
 						event.SetInt("type", 0);
 						event.SetString("weapon", "");
 						event.Fire(false);
-
+						
+						// 修复倒地没武器
+						int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+						if(weapon <= MaxClients)
+							CheatCommand(client, "give", "pistol");
+						
 						if(g_pCvarAllow.BoolValue)
 							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
 						else
@@ -5617,7 +5433,7 @@ void RewardPicker(int client)
 			case 7:
 			{
 				EmitSoundToClient(client,SOUND_BAD);
-
+				
 				Event event = CreateEvent("player_incapacitated_start");
 				event.SetInt("userid", GetClientUserId(client));
 				event.SetInt("attacker", 0);
@@ -5625,10 +5441,10 @@ void RewardPicker(int client)
 				event.SetInt("type", 0);
 				event.SetString("weapon", "");
 				event.Fire(false);
-
+				
 				SetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
 				SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
-
+				
 				event = CreateEvent("player_incapacitated");
 				event.SetInt("userid", GetClientUserId(client));
 				event.SetInt("attacker", 0);
@@ -5636,7 +5452,12 @@ void RewardPicker(int client)
 				event.SetInt("type", 0);
 				event.SetString("weapon", "");
 				event.Fire(false);
-
+				
+				// 修复倒地没武器
+				int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+				if(weapon <= MaxClients)
+					CheatCommand(client, "give", "pistol");
+				
 				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
 				else
@@ -5693,7 +5514,9 @@ public Action:Timer_RespawnPlayer(Handle:timer, any:client)
 		else
 		{
 			// SDKCall(hRoundRespawn, client);
-			CheatCommand(client, "script", "GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(client));
+			// CheatCommand(client, "script", "GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(client));
+			L4D2_RunScript("GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(client));
+			
 			// PrintToChatAll("\x03[\x05提示\x03]\x04玩家\x03%s\x04顺利复活.", playername);
 			PrintToChat(client, "\x03[提示]\x01 复活完毕。");
 			ClientCommand(client, "play \"ui/helpful_event_1.wav\"");
@@ -5708,18 +5531,6 @@ public Action:Timer_RespawnPlayer(Handle:timer, any:client)
 	}
 }
 
-public Action:Event_TankSpawn(Handle:event, const String:name[], bool:dontBroadcast)
-{
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-	if(!IsValidClient(client))
-		return;
-
-	SetVariantString("max_health 8000");
-	AcceptEntityInput(client, "AddOutput");
-	SetVariantString("health 8000");
-	AcceptEntityInput(client, "AddOutput");
-}
-
 public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroadcast)
 {
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
@@ -5731,18 +5542,21 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 	bool melee = GetEventBool(event, "melee_only");
 
 	g_tkSkillType[client] = 0;
-	g_ttTankKilled ++;
+	
+	if(g_pCvarAllow.BoolValue)
+	{
+		g_ttTankKilled ++;
+		DataPack data = CreateDataPack();
+		data.WriteCell(attacker);
+		data.WriteCell(solo);
+		data.WriteCell(melee);
 
-	DataPack data = CreateDataPack();
-	data.WriteCell(attacker);
-	data.WriteCell(solo);
-	data.WriteCell(melee);
+		CreateTimer(0.1, Timer_TankDeath, data);
 
-	CreateTimer(0.1, Timer_TankDeath, data);
-
-	if(g_ttTankKilled == 1 || g_iRoundEvent == 0)
-		CreateTimer(5.0, Round_Random_Event);
-
+		if(g_ttTankKilled == 1 || g_iRoundEvent == 0)
+			CreateTimer(5.0, Round_Random_Event);
+	}
+	
 	return Plugin_Handled;
 }
 
@@ -6121,7 +5935,8 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	if(ExtraSp)
 	{
 		// SDKCall(sdkAdrenaline, subject, 15.0);
-		CheatCommand(client, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%f)", GetClientUserId(subject), 15.0);
+		// CheatCommand(subject, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
+		L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
 	}
 	if(!IsFakeClient(client) && client != subject)
 	{
@@ -6164,10 +5979,10 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			}
 			case 3:
 			{
-				CheatCommand(client, "upgrade_add", "EXPLOSIVE_AMMO");
+				CheatCommand(client, "upgrade_add", "INCENDIARY_AMMO");
 
 				if(g_pCvarAllow.BoolValue)
-					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03爆炸子弹\x04!");
+					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03燃烧子弹\x04!");
 			}
 			case 4:
 			{
@@ -6178,7 +5993,6 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			}
 			case 5:
 			{
-
 				GiveSkillPoint(client, 1);
 
 				if(g_pCvarAllow.BoolValue)
@@ -6266,10 +6080,10 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	if(award == 81)
 	{
 		// 克局过后没有死亡
-		GiveSkillPoint(client, 1);
+		// GiveSkillPoint(client, 1);
 
-		if(g_pCvarAllow.BoolValue)
-			PrintToChat(client, "\x03[提示]\x01 你因为克局过后没有死亡获得 \x051\x01 天赋点。");
+		// if(g_pCvarAllow.BoolValue)
+			// PrintToChat(client, "\x03[提示]\x01 你因为克局过后没有死亡获得 \x051\x01 天赋点。");
 	}
 
 	if(award == 84)
@@ -6344,6 +6158,7 @@ public int OnSkeetMelee(int survivor, int hunter)
 	return 0;
 }
 
+/*
 public int OnSkeetMeleeHurt(int survivor, int hunter)
 {
 	if(!IsValidClient(survivor) || IsFakeClient(survivor))
@@ -6355,6 +6170,7 @@ public int OnSkeetMeleeHurt(int survivor, int hunter)
 		PrintToChat(survivor, "\x03[提示]\x01 你因为近战秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
 	return 0;
 }
+*/
 
 public int OnSkeetGL(int survivor, int hunter)
 {
@@ -6380,6 +6196,7 @@ public int OnSkeetSniper(int survivor, int hunter)
 	return 0;
 }
 
+/*
 public int OnSkeetSniperHurt(int survivor, int hunter)
 {
 	if(!IsValidClient(survivor) || IsFakeClient(survivor))
@@ -6391,6 +6208,7 @@ public int OnSkeetSniperHurt(int survivor, int hunter)
 		PrintToChat(survivor, "\x03[提示]\x01 你因为狙击秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
 	return 0;
 }
+*/
 
 public int OnChargerLevel(int survivor, int charger)
 {
@@ -6404,6 +6222,7 @@ public int OnChargerLevel(int survivor, int charger)
 	return 0;
 }
 
+/*
 public int OnChargerLevelHurt(int survivor, int charger)
 {
 	if(!IsValidClient(survivor) || IsFakeClient(survivor))
@@ -6415,6 +6234,7 @@ public int OnChargerLevelHurt(int survivor, int charger)
 		PrintToChat(survivor, "\x03[提示]\x01 你因为近战砍死 \x04Charger\x01 而获得 \x051\x01 天赋点。");
 	return 0;
 }
+*/
 
 public int OnWitchCrown(int survivor, int damage)
 {
@@ -6497,58 +6317,6 @@ public int OnDeathCharge(int charger, int survivor, float height, float distance
 	return 0;
 }
 
-/*
-public void Event_ChargerKilled(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int victim = GetClientOfUserId(event.GetInt("userid"));
-	int attacker = GetClientOfUserId(event.GetInt("attacker"));
-	bool melee = event.GetBool("melee");
-	bool charging = event.GetBool("charging");
-
-	if(!IsValidAliveClient(attacker) || !IsValidClient(victim) || !melee || !charging)
-		return;
-	
-	GiveSkillPoint(attacker, 1);
-	
-	if(g_pCvarAllow.BoolValue)
-		PrintToChat(attacker, "\x03[提示]\x01 你因为 \x04近战秒牛\x01 而获得 \x051\x01 天赋点。");
-}
-
-public void Event_HunterKilled(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int attacker = GetClientOfUserId(event.GetInt("userid"));
-	int victim = GetClientOfUserId(event.GetInt("hunteruserid"));
-	bool lunging = event.GetBool("islunging");
-
-	if(!IsValidAliveClient(attacker) || !IsValidClient(victim) || !lunging ||
-		GetEntProp(victim, Prop_Data, "m_iHealth") > 0)
-		return;
-
-	float position[3], endpos[3];
-	GetClientAbsOrigin(victim, position);
-
-	Handle trace = TR_TraceRayFilterEx(position, Float:{90.0, 0.0, 0.0}, MASK_PLAYERSOLID, RayType_Infinite,
-		TraceFilter_NonPlayerOtherAny, victim);
-
-	if(TR_DidHit(trace))
-		TR_GetEndPosition(endpos, trace);
-	else
-		endpos[0] = endpos[1] = endpos[2] = 0.0;
-	trace.Close();
-
-	if(endpos[0] == 0.0 && endpos[1] == 0.0 && endpos[2] == 0.0)
-		return;
-
-	if(GetVectorDistance(position, endpos, false) < 32.0)
-		return;
-
-	GiveSkillPoint(attacker, 1);
-
-	if(g_pCvarAllow.BoolValue)
-		PrintToChat(attacker, "\x03[提示]\x01 你因为空爆 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
-}
-*/
-
 public bool TraceFilter_NonPlayerOtherAny(int entity, int mask, any other)
 {
 	return (entity > MaxClients && entity != other);
@@ -6593,17 +6361,17 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	int victim = event.GetInt("entityid");
 	int damage = event.GetInt("amount");
 	int type = event.GetInt("type");
-
+	
 	if(!IsValidAliveClient(client) || !IsValidEntity(victim) || damage <= 0 || !(type & DMG_BULLET) ||
-		!(g_clSkill_5[client] & SKL_5_OneInfected))
+		!(g_clSkill_5[client] & SKL_5_OneInfected) || GetRandomInt(0, 3))
 		return;
-
-	char classname[64];
+	
+	static char classname[64];
 	GetEdictClassname(victim, classname, 64);
 	int weapon = GetEntProp(client, Prop_Send, "m_hActiveWeapon");
 	if(!StrEqual(classname, "infected", false) || !IsValidEntity(weapon))
 		return;
-
+	
 	GetEdictClassname(weapon, classname, 64);
 	if(StrContains(classname, "smg", false) != -1 || StrContains(classname, "rifle", false) != -1 ||
 		StrContains(classname, "sniper", false) != -1 || StrContains(classname, "shotgun", false) != -1)
@@ -6674,117 +6442,6 @@ public void Event_PlayerJump(Event event, const char[] eventName, bool dontBroad
 	// PrintCenterText(client, "起跳 %d", !!(g_iJumpFlags[client] & JF_CanBunnyHop));
 }
 
-public void Event_DoorUnlocked(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	bool checkpoint = event.GetBool("checkpoint");
-	if(!IsValidAliveClient(client) || !checkpoint)
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 尝试打开安全门。", client);
-}
-
-public void Event_DoorOpen(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	bool checkpoint = event.GetBool("checkpoint");
-	bool closed = event.GetBool("closed");
-	if(!IsValidAliveClient(client) || !checkpoint || !closed)
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 打开了安全门。", client);
-}
-
-public void Event_DoorClose(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	bool checkpoint = event.GetBool("checkpoint");
-	if(!IsValidAliveClient(client) || !checkpoint)
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 关闭了安全门。", client);
-}
-
-public void Event_RescueDoorOpen(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	int door = event.GetInt("entindex");
-	if(!IsValidAliveClient(client) || !IsValidEntity(door) || GetClientTeam(client) != 2)
-		return;
-
-	ConVar cv_rescue;
-	if(cv_rescue == null)
-		cv_rescue = FindConVar("sv_rescue_disabled");
-	if(cv_rescue.IntValue == 0)
-		return;
-
-	/*
-	bool isEmpty = true;
-	float origin[3], position[3];
-	int entity = -1, subject = -1;
-	GetEntPropVector(door, Prop_Send, "m_vecOrigin", origin);
-
-	// 检查复活门里是否有需要救援的玩家
-	while((entity = FindEntityByClassname(entity, "info_survivor_rescue")) > MaxClients)
-	{
-		if(!IsValidEntity(entity) || !IsValidEdict(entity))
-			continue;
-
-		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", position);
-		if(GetVectorDistance(position, origin, false) > 100.0)
-			continue;
-
-		subject = GetEntPropEnt(entity, Prop_Send, "m_survivor");
-		if(!IsValidClient(subject) || IsPlayerAlive(subject) || GetClientTeam(subject) != 2)
-			continue;
-
-		isEmpty = false;
-		break;
-	}
-
-	if(isEmpty)
-	*/
-	
-	/*
-	if(g_ttRescued[client] <= 0)
-	{
-		// 没有队友被营救
-		PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 打开了一个空的复活门。", client);
-	}
-	else */if(g_ttRescued[client] >= 3)
-	{
-		GiveSkillPoint(client, 1);
-
-		if(g_pCvarAllow.BoolValue)
-			PrintToChat(client, "\x03[提示]\x01 你因为开门复活队友而获得了 \x051\x01 天赋点。");
-	}
-
-	g_ttRescued[client] = 0;
-}
-
-public void Event_ButtonPressed(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsValidAliveClient(client))
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 启动了机关。", client);
-}
-
-public void Event_WitchKilled(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	bool oneshot = event.GetBool("oneshot");
-	if(!IsValidAliveClient(client) || !oneshot)
-		return;
-
-
-	GiveSkillPoint(client, 1);
-
-	if(g_pCvarAllow.BoolValue)
-		PrintToChat(client, "\x03[提示]\x01 你因为秒妹成功而获得 \x051\x01 天赋点。");
-}
-
 public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -6801,15 +6458,6 @@ public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroa
 		if(g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为把一些地方的僵尸清干净而获得 \x051\x01 天赋点。");
 	}
-}
-
-public void Event_VomitjarTank(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsValidAliveClient(client))
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 对 \x04Tank\x01 丢了胆汁。", client);
 }
 
 public void Event_PaincEventStart(Event event, const char[] eventName, bool dontBroadcast)
@@ -6849,38 +6497,6 @@ public void Event_PaincEventStop(Event event, const char[] eventName, bool dontB
 	g_bIsPaincIncap = false;
 }
 
-public void Event_StrongmanTrigged(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsValidAliveClient(client))
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 打飞了警报铃。", client);
-}
-
-public void Event_StashwhackerTrigged(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsValidAliveClient(client))
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 因为玩打地鼠触发了警报。", client);
-}
-
-public void Event_MolotovThrown(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsValidAliveClient(client))
-		return;
-
-	PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 投掷了火瓶。", client);
-}
-
-public void Event_GascanDestoryed(Event event, const char[] eventName, bool dontBroadcast)
-{
-	PrintToChatTeam(2, "\x03[提示]\x01 有一个油桶被口水点了。");
-}
-
 public void Event_SurvivorRescued(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("rescuer"));
@@ -6903,48 +6519,52 @@ public void Event_SurvivorRescued(Event event, const char[] eventName, bool dont
 	}
 }
 
+public void UpdateWeaponAmmo(any data)
+{
+	DataPack pack = view_as<DataPack>(data);
+	pack.Reset();
+	
+	int client = pack.ReadCell();
+	
+	static char classname[64], className[64];
+	pack.ReadString(classname, 64);
+	
+	bool fullClip = pack.ReadCell();
+	
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon > MaxClients && IsValidEntity(weapon))
+		GetEntityClassname(weapon, className, 64);
+	if(weapon < MaxClients || !IsValidEntity(weapon) || !StrEqual(className, classname, false))
+		GetEntityClassname((weapon = GetPlayerWeaponSlot(client, 1)), className, 64);
+	if(weapon < MaxClients || !IsValidEntity(weapon) || !StrEqual(className, classname, false))
+		return;
+	
+	if(fullClip && (g_clSkill_4[client] & SKL_4_ClipSize))
+		SetEntProp(weapon, Prop_Send, "m_iClip1", RoundToZero(GetDefaultClip(weapon) * 1.5));
+	
+	AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+}
+
 public void Event_AmmoPickup(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidAliveClient(client))
 		return;
-
+	
 	int weapon = GetPlayerWeaponSlot(client, 0);
 	if(!IsValidEntity(weapon))
 		return;
-
-	AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
-}
-
-public void Event_WeaponDropped(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	int entity = event.GetInt("propid");
-	if(!IsValidClient(client) || IsValidEntity(entity))
-		return;
-
+	
 	char classname[64];
-	event.GetString("item", classname, 64);
-	if(StrEqual(classname, "gascan", false))
-	{
-		UnhookSingleEntityOutput(entity, "OnTakeDamage", GascanHook_OnTakeDamage);
-		HookSingleEntityOutput(entity, "OnTakeDamage", GascanHook_OnTakeDamage, false);
-	}
-	else if(StrEqual(classname, "propanetank", false))
-	{
-		UnhookSingleEntityOutput(entity, "OnTakeDamage", PropanetankHook_OnTakeDamage);
-		HookSingleEntityOutput(entity, "OnTakeDamage", PropanetankHook_OnTakeDamage, false);
-	}
-	else if(StrEqual(classname, "firework_crate", false))
-	{
-		UnhookSingleEntityOutput(entity, "OnTakeDamage", FireworkHook_OnTakeDamage);
-		HookSingleEntityOutput(entity, "OnTakeDamage", FireworkHook_OnTakeDamage, false);
-	}
-	else if(StrEqual(classname, "oxygentank", false))
-	{
-		UnhookSingleEntityOutput(entity, "OnTakeDamage", OxyanetankHook_OnTakeDamage);
-		HookSingleEntityOutput(entity, "OnTakeDamage", OxyanetankHook_OnTakeDamage, false);
-	}
+	GetEntityClassname(weapon, classname, 64);
+	
+	DataPack data = CreateDataPack();
+	data.WriteCell(client);
+	data.WriteString(classname);
+	data.WriteCell(false);
+	
+	// AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+	RequestFrame(UpdateWeaponAmmo, data);
 }
 
 public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontBroadcast)
@@ -6952,53 +6572,39 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidAliveClient(client))
 		return;
-
+	
 	char classname[64];
 	event.GetString("item", classname, 64);
-	if(StrEqual(classname, "gascan", false) || StrEqual(classname, "propanetank", false) ||
-		StrEqual(classname, "firework_crate", false) || StrEqual(classname, "oxygentank", false))
-	{
-		DataPack data = CreateDataPack();
-		data.WriteCell(client);
-		data.WriteString(classname);
-
-		CreateTimer(0.1, Timer_OnPropPickup, data);
-	}
+	Format(classname, 64, "weapon_%s", classname);
+	
+	DataPack data = CreateDataPack();
+	data.WriteCell(client);
+	data.WriteString(classname);
+	data.WriteCell(false);
+	
+	RequestFrame(UpdateWeaponAmmo, data);
 }
 
-public Action Timer_OnPropPickup(Handle timer, any data)
+public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBroadcast)
 {
-	DataPack pack = view_as<DataPack>(data);
-	pack.Reset();
-
-	int client = pack.ReadCell();
-
-	char weaponName[64];
-	pack.ReadString(weaponName, 64);
-
-	delete pack;
-	if(!IsValidAliveClient(client) || weaponName[0] == EOS)
-		return Plugin_Continue;
-
-	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	if(!IsValidEntity(weapon))
-		return Plugin_Continue;
-
-	char className[64];
-	GetEntityClassname(weapon, className, 64);
-	if(StrContains(className, weaponName, false) == -1)
-		return Plugin_Continue;
-
-	if(StrEqual(weaponName, "gascan", false))
-		UnhookSingleEntityOutput(weapon, "OnTakeDamage", GascanHook_OnTakeDamage);
-	else if(StrEqual(weaponName, "propanetank", false))
-		UnhookSingleEntityOutput(weapon, "OnTakeDamage", PropanetankHook_OnTakeDamage);
-	else if(StrEqual(weaponName, "firework_crate", false))
-		UnhookSingleEntityOutput(weapon, "OnTakeDamage", FireworkHook_OnTakeDamage);
-	else if(StrEqual(weaponName, "oxygentank", false))
-		UnhookSingleEntityOutput(weapon, "OnTakeDamage", OxyanetankHook_OnTakeDamage);
-
-	return Plugin_Continue;
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	int upgradePack = event.GetInt("upgradeid");
+	if(!IsValidAliveClient(client) || upgradePack < MaxClients || !IsValidEntity(upgradePack))
+		return;
+	
+	char upgradeName[64];
+	GetEntityClassname(upgradePack, upgradeName, 64);
+	if(!StrEqual(upgradeName, "upgrade_ammo_incendiary", false) &&
+		!StrEqual(upgradeName, "upgrade_ammo_explosive", false))
+		return;
+	
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		return;
+	
+	// 希望不会冲突吧
+	if(g_clSkill_4[client] & SKL_4_ClipSize)
+		SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", RoundToZero(GetDefaultClip(weapon) * 1.5));
 }
 
 void PrintToChatTeam(int team, const char[] text, any ...)
@@ -7410,9 +7016,9 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 		if(IsValidEntity(weapon))
 		{
 			// 检查换子弹
-			HookPlayerReload(iCid, RoundToNearest(GetDefaultClip(weapon) * 1.5));
-			// PrintToLeft(iCid, "开始换弹夹：%d", RoundToNearest(GetDefaultClip(weapon) * 1.5));
-			// PrintToChat(iCid, "开始换弹夹：%d", RoundToNearest(GetDefaultClip(weapon) * 1.5));
+			HookPlayerReload(iCid, RoundToZero(GetDefaultClip(weapon) * 1.5));
+			// PrintToLeft(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
+			// PrintToChat(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
 		}
 	}
 
@@ -7505,6 +7111,31 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			}
 			else
 			{
+				int rn = GetRandomInt(0, 2);
+				int flag = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec", 1) & ~3;
+				switch(rn)
+				{
+					case 1:
+					{
+						if(g_clSkill_5[client] & SKL_5_FireBullet)
+						{
+							// 随机燃烧子弹
+							SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flag | 1);
+							SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", 1);
+						}
+					}
+					case 2:
+					{
+						if(g_clSkill_5[client] & SKL_5_ExpBullet)
+						{
+							// 随机高爆子弹
+							SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flag | 2);
+							SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", 1);
+						}
+					}
+				}
+				
+				/*
 				if(GetRandomInt(0, 1))
 				{
 					if(g_clSkill_5[client] & SKL_5_FireBullet)
@@ -7523,6 +7154,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 						SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", 1);
 					}
 				}
+				*/
 			}
 			/*
 			else if(g_clSkill_5[client] & SKL_5_ExpBullet)
@@ -7994,7 +7626,7 @@ public Action:SoH_ShotgunEnd (Handle:timer, Handle:hPack)
 		return Plugin_Stop;
 	}
 
-	if (GetEntData(iEntid,g_iShotRelStateO)==0)
+	if (GetEntData(iEntid,g_iShotRelStateO)==0 || GetEntProp(iEntid, Prop_Send, "m_bInReload", 1) == 0)
 	{
 		SetEntDataFloat(iEntid, g_iPlayRateO, 1.0, true);
 
@@ -8002,6 +7634,7 @@ public Action:SoH_ShotgunEnd (Handle:timer, Handle:hPack)
 		SetEntDataFloat(iCid,	g_iNextAttO,	flTime,	true);
 		SetEntDataFloat(iEntid,	g_iTimeIdleO,	flTime,	true);
 		SetEntDataFloat(iEntid,	g_iNextPAttO,	flTime,	true);
+		SetEntPropFloat(iEntid, Prop_Send, "m_flTimeWeaponIdle", flTime - 0.2);
 
 		KillTimer(timer);
 		CloseHandle(hPack);
@@ -8027,7 +7660,7 @@ public Action:SoH_ShotgunEndCock (Handle:timer, any:hPack)
 		return Plugin_Stop;
 	}
 
-	if (GetEntData(iEntid,g_iShotRelStateO)==0)
+	if (GetEntData(iEntid,g_iShotRelStateO)==0 || GetEntProp(iEntid, Prop_Send, "m_bInReload", 1) == 0)
 	{
 		SetEntDataFloat(iEntid, g_iPlayRateO, 1.0, true);
 
@@ -8035,6 +7668,7 @@ public Action:SoH_ShotgunEndCock (Handle:timer, any:hPack)
 		SetEntDataFloat(iCid,	g_iNextAttO,	flTime,	true);
 		SetEntDataFloat(iEntid,	g_iTimeIdleO,	flTime,	true);
 		SetEntDataFloat(iEntid,	g_iNextPAttO,	flTime,	true);
+		SetEntPropFloat(iEntid, Prop_Send, "m_flTimeWeaponIdle", flTime - 1.0);
 
 		KillTimer(timer);
 		CloseHandle(hPack);
@@ -8970,6 +8604,25 @@ stock bool CheatCommandEx(int client = 0, const char[] command, const char[] arg
 	return true;
 }
 
+stock void L4D2_RunScript(char[] sCode, any ...)
+{
+	static int iScriptLogic = INVALID_ENT_REFERENCE;
+	if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+	{
+		iScriptLogic = EntIndexToEntRef(CreateEntityByName("logic_script"));
+		if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+			SetFailState("Could not create 'logic_script'");
+		
+		DispatchSpawn(iScriptLogic);
+	}
+	
+	static char sBuffer[8192];
+	VFormat(sBuffer, sizeof(sBuffer), sCode, 2);
+	
+	SetVariantString(sBuffer);
+	AcceptEntityInput(iScriptLogic, "RunScriptCode");
+}
+
 stock void SetWeaponSpeed(int weapon, float speed)
 {
 	if(g_iWeaponSpeedTotal > MAXPLAYERS)
@@ -9417,11 +9070,12 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				CheatCommand(client, "z_spawn_old", "boomer");
-				CheatCommand(client, "z_spawn_old", "boomer");
-				CheatCommand(client, "z_spawn_old", "boomer");
-				CheatCommand(client, "z_spawn_old", "boomer");
-				CheatCommand(client, "script", "GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
+				CheatCommand(client, "z_spawn_old", "boomer auto area");
+				CheatCommand(client, "z_spawn_old", "boomer auto area");
+				CheatCommand(client, "z_spawn_old", "boomer auto area");
+				CheatCommand(client, "z_spawn_old", "boomer auto area");
+				// CheatCommand(client, "script", "GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
+				L4D2_RunScript("GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,OP特赠BOOMER胆汁一口.", client);
 			}
 			case 22:
@@ -10159,7 +9813,8 @@ stock RevivePlayer(iTarget)
 			SetEntProp(iTarget, Prop_Send, "m_bIsOnThirdStrike", 1);
 		*/
 
-		CheatCommand(iTarget, "script", "GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(iTarget));
+		// CheatCommand(iTarget, "script", "GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(iTarget));
+		L4D2_RunScript("GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(iTarget));
 	}
 }
 
@@ -10195,13 +9850,13 @@ Charge(target, sender)
 
 	if(target == sender)
 	{
-		CheatCommand(target, "script", "GetPlayerFromUserID(%d).Stagger(Vector(0,0,0))",
-			GetClientUserId(target));
+		// CheatCommand(target, "script", "GetPlayerFromUserID(%d).Stagger(Vector(0,0,0))", GetClientUserId(target));
+		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(0,0,0))", GetClientUserId(target));
 	}
 	else
 	{
-		CheatCommand(target, "script", "GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())",
-			GetClientUserId(target), GetClientUserId(sender));
+		// CheatCommand(target, "script", "GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(sender));
+		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(sender));
 	}
 }
 
@@ -10334,193 +9989,13 @@ stock void CreateHideMotd(int client, const char[] url = "about:blank", const ch
 }
 
 // 创建一个跟踪导弹
-stock int CreateMissiles(int client, float damage = 25.0, float radius = 100.0, float power = 500.0, int mode = 2, int entity = -1)
+stock int CreateMissiles(int client, int entity)
 {
 	if(!IsValidAliveClient(client))
 		return -1;
-
-	float eyePosition[3], eyeAngles[3], velocity[3];
-	GetClientEyePosition(client, eyePosition);
-	GetClientEyeAngles(client, eyeAngles);
-	GetAngleVectors(eyeAngles, velocity, NULL_VECTOR, NULL_VECTOR);
-	ScaleVector(velocity, power);
-
-	if(entity == -1)
-		entity = CreateEntityByName("grenade_launcher_projectile");
-	if(entity == -1)
-		return -1;
-
-	DispatchKeyValueVector(entity, "origin", eyePosition);
-	DispatchKeyValueVector(entity, "angles", eyeAngles);
-	DispatchKeyValue(entity, "solid", "6");
-	DispatchKeyValue(entity, "classname", "env_missiles");
-
-	SetEntPropEnt(entity, Prop_Data, "m_hThrower", client);
-	SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", client);
-	SetEntProp(entity, Prop_Data, "m_bIsLive", 1);
-	SetEntProp(entity, Prop_Send, "m_iTeamNum", GetClientTeam(client));
-	SetEntProp(entity, Prop_Send, "m_Gender", mode);
-	SetEntPropFloat(entity, Prop_Data, "m_flDamage", damage);
-	SetEntPropFloat(entity, Prop_Data, "m_DmgRadius", radius);
-	SetEntPropFloat(entity, Prop_Send, "m_flElasticity", 0.0);
-	// SetEntPropVector(entity, Prop_Data, "m_vecAngVelocity", Float:{0.0, 0.0, 200.0});
-	SetEntPropVector(entity, Prop_Send, "m_vInitialVelocity", velocity);
-	SetEntPropVector(entity, Prop_Send, "m_vecMins", Float:{-2.5, -2.5, -2.5});
-	SetEntPropVector(entity, Prop_Send, "m_vecMaxs", Float:{2.5, 2.5, 2.5});
-	SetEntityMoveType(entity, MOVETYPE_FLY);
-	DispatchSpawn(entity);
-
-	g_msMissionEntity.Push(entity);
-	EmitSoundToAll("weapons/grenade_launcher/grenadefire/grenade_launcher_fire_1.wav", entity, SNDCHAN_WEAPON, SNDLEVEL_TRAFFIC, SND_NOFLAGS, SNDVOL_NORMAL, 100, _, eyePosition, NULL_VECTOR, false, 0.0);
-	SDKHookEx(entity, SDKHook_StartTouchPost, MissileHook_OnStartTouch);
-
+	
+	CheatCommand(client, "make_missile", "%d", entity);
 	return entity;
-}
-
-public void MissileHook_OnStartTouch(int entity, int other)
-{
-	if(!IsValidEntity(entity))
-		return;
-
-	if(other <= 0 || GetEntProp(other, Prop_Data, "m_nSolidType") != 0 ||
-		!(GetEntProp(other, Prop_Data, "m_usSolidFlags") & 0x0004))
-	{
-		float origin[3];
-		GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
-
-		char classname[64];
-		GetEntPropString(entity, Prop_Data, "m_iClassname", classname, 64);
-
-		CreateExplosion(GetEntPropEnt(entity, Prop_Data, "m_hThrower"),
-			GetEntPropFloat(entity, Prop_Data, "m_flDamage"), origin,
-			GetEntPropFloat(entity, Prop_Data, "m_DmgRadius"), classname,
-			entity, 255.0
-		);
-
-		SDKUnhook(entity, SDKHook_StartTouchPost, MissileHook_OnStartTouch);
-		AcceptEntityInput(entity, "Kill", other, entity);
-	}
-}
-
-bool MissileThink(int entity)
-{
-	if(!IsValidEntity(entity) || !IsValidEdict(entity))
-		return false;
-
-	char classname[64];
-	GetEntPropString(entity, Prop_Data, "m_iClassname", classname, 64);
-	if(!StrEqual(classname, "env_missiles", false))
-	{
-		SDKUnhook(entity, SDKHook_StartTouchPost, MissileHook_OnStartTouch);
-		return false;
-	}
-
-	float velocity[3];
-	GetEntPropVector(entity, Prop_Send, "m_vecVelocity", velocity);
-	if(velocity[0] == 0.0 && velocity[1] == 0.0 && velocity[2] == 0.0)
-	{
-		MissileHook_OnStartTouch(entity, 0);
-		return false;
-	}
-
-	float origin[3], target[3], minDistance = 3000.0;
-	int mode = GetEntProp(entity, Prop_Send, "m_Gender");
-	int owner = GetEntPropEnt(entity, Prop_Data, "m_hThrower");
-	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", origin);
-
-	if(mode == 1)
-	{
-		int enemy = -1;
-		float distance;
-		Handle trace = null;
-		int team = GetEntProp(entity, Prop_Send, "m_iTeamNum");
-		for(int i = 0; i <= MaxClients; ++i)
-		{
-			if(!IsValidAliveClient(i) || GetClientTeam(i) == team)
-				continue;
-
-			GetClientAbsOrigin(i, target);
-
-			/*
-			trace = TR_TraceHullFilterEx(origin, target, Float:{-2.5, -2.5, -2.5}, Float:{2.5, 2.5, 2.5},
-				MASK_PLAYERSOLID, TraceFilter_DontHitOwnerOrEntity, entity);
-
-			if(TR_DidHit(trace) && TR_GetEntityIndex(trace) == i)
-			{
-				TR_GetEndPosition(target, trace);
-				distance = GetVectorDistance(origin, target);
-				if(distance < minDistance)
-				{
-					minDistance = distance;
-					enemy = i;
-				}
-			}
-			*/
-
-			trace = TR_TraceRayFilterEx(origin, target, MASK_PLAYERSOLID, RayType_EndPoint,
-				TraceFilter_DontHitOwnerOrEntity, entity);
-			if(TR_DidHit(trace) && TR_GetEntityIndex(trace) == i)
-			{
-				TR_GetEndPosition(target, trace);
-				distance = GetVectorDistance(origin, target);
-				if(distance < minDistance)
-				{
-					minDistance = distance;
-					enemy = i;
-				}
-			}
-
-			trace.Close();
-		}
-
-		if(IsValidAliveClient(enemy))
-		{
-			GetClientEyePosition(enemy, target);
-			MakeVectorFromPoints(origin, target, velocity);
-
-			if(IsValidClient(owner) && !IsFakeClient(owner))
-				PrintToLeft(owner, "导弹目标：\n%N", enemy);
-		}
-		else
-		{
-			// 找不到敌人
-			return true;
-		}
-	}
-	else if(mode == 2)
-	{
-		if(IsValidAliveClient(owner))
-		{
-			GetClientEyePosition(owner, target);
-			GetClientEyeAngles(owner, velocity);
-
-			Handle trace = TR_TraceRayFilterEx(target, velocity, MASK_PLAYERSOLID, RayType_Infinite,
-				TraceFilter_DontHitOwnerOrEntity, entity);
-
-			if(TR_DidHit(trace))
-				TR_GetEndPosition(target, trace);
-			trace.Close();
-
-			minDistance = GetVectorDistance(origin, target);
-			MakeVectorFromPoints(origin, target, velocity);
-		}
-	}
-
-	GetEntPropVector(entity, Prop_Send, "m_vecVelocity", target);
-	if(minDistance > 100.0)
-	{
-		NormalizeVector(velocity, velocity);
-		NormalizeVector(target, target);
-		ScaleVector(velocity, 0.5);
-		AddVectors(velocity, target, velocity);
-	}
-
-	NormalizeVector(velocity, velocity);
-	ScaleVector(velocity, 500.0);
-	GetVectorAngles(velocity, target);
-	TeleportEntity(entity, NULL_VECTOR, target, velocity);
-
-	return true;
 }
 
 public bool TraceFilter_DontHitOwnerOrEntity(int entity, int contentsMask, any self)

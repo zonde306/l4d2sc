@@ -52,8 +52,8 @@ public void OnPluginStart()
 	ConVars[11] = CreateConVar("sm_chat_log_rtf_format", "0", "记录模式.0=txt.1=rtf", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	ConVars[12] = CreateConVar("sm_chat_log_console", "1", "记录控制台", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	ConVars[13] = CreateConVar("sm_chat_log_folder", "chat", "文件名", FCVAR_NOTIFY);
-	ConVars[14] = CreateConVar("sm_chat_log_connect", "1", "是否记录玩家连接", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	ConVars[15] = CreateConVar("sm_chat_log_map", "1", "是否记录换图", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	ConVars[14] = CreateConVar("sm_chat_log_connect", "0", "是否记录玩家连接", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	ConVars[15] = CreateConVar("sm_chat_log_map", "0", "是否记录换图", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 		
 	for (int i = 0; i < sizeof(ConVars); i++)
 	{

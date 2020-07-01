@@ -2,7 +2,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
-#include <l4d2_simple_combat>
+// #include <l4d2_simple_combat>
 
 #define PLUGIN_VERSION			"0.2"
 #include "modules/l4d2ps.sp"
@@ -16,16 +16,15 @@ public Plugin myinfo =
 	url = ""
 };
 
-enum MissileInfo_t
-{
-	MissileEntity,
-	MissileEnemy,
-	MissileOwner,
-	Float:MissileStartTime,
-	Float:MissileTime,
-	MissileType,
-	MissileFlags,
-};
+enum struct MissileInfo_t {
+	int MissileEntity;
+	int MissileEnemy;
+	int MissileOwner;
+	float MissileStartTime;
+	float MissileTime;
+	int MissileType;
+	int MissileFlags;
+}
 
 // 拖尾颜色
 #define COLOR_MOLOTOV			{255, 0, 0, 255}
@@ -83,8 +82,10 @@ public void OnPluginStart()
 	g_pCvarFollow.AddChangeHook(ConVarHooked_OnSettingUpdated);
 	
 	g_hArrayEnemyList = CreateArray();
-	g_hArrayMissileList = CreateArray(MissileInfo_t);
+	g_hArrayMissileList = CreateArray(sizeof(MissileInfo_t));
 	g_iOffsetVelocity = FindSendPropInfo("CBasePlayer", "m_vecVelocity[0]");
+	
+	RegConsoleCmd("make_missile", Cmd_DebugMakeMissile, "", FCVAR_HIDDEN|FCVAR_CHEAT);
 	
 	// 要不 Hook 这些函数来检查销毁？
 	Handle file = LoadGameConfigFile("l4d2_grenade_missile");
@@ -115,14 +116,16 @@ public void OnPluginStart()
 		g_pfnGrenadeTouch = null;
 	}
 	
-	CreateTimer(1.0, Timer_SkillRegister);
+	// CreateTimer(1.0, Timer_SkillRegister);
 }
 
+/*
 public Action Timer_SkillRegister(Handle timer, any unused)
 {
 	SC_CreateSkill("gm_track", "跟踪榴弹", 0, "榴弹可以跟踪敌人/跟随准星");
 	return Plugin_Continue;
 }
+*/
 
 public void OnMapStart()
 {
@@ -153,14 +156,14 @@ public void Event_RoundEnd(Event event, const char[] eventName, bool dontBroadca
 	g_bRoundStarted = false;
 	
 	// int entity = -1;
-	new data[MissileInfo_t];
+	MissileInfo_t data;
 	int maxLength = g_hArrayMissileList.Length;
 	for(int i = 0; i < maxLength; ++i)
 	{
-		g_hArrayMissileList.GetArray(i, data, MissileInfo_t);
-		SDKUnhook(data[MissileEntity], SDKHook_SpawnPost, SDKHooked_ProjectileSpawned);
-		SDKUnhook(data[MissileEntity], SDKHook_Think, SDKHooked_ProjectileThinking);
-		SDKUnhook(data[MissileEntity], SDKHook_StartTouchPost, SDKHooked_ProjectileTouching);
+		g_hArrayMissileList.GetArray(i, data, sizeof(data));
+		SDKUnhook(data.MissileEntity, SDKHook_SpawnPost, SDKHooked_ProjectileSpawned);
+		SDKUnhook(data.MissileEntity, SDKHook_Think, SDKHooked_ProjectileThinking);
+		SDKUnhook(data.MissileEntity, SDKHook_StartTouchPost, SDKHooked_ProjectileTouching);
 	}
 	
 	g_hArrayEnemyList.Clear();
@@ -263,7 +266,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 	}
 	else if(StrEqual("grenade_launcher_projectile", classname, false))
 	{
-		if(g_pCvarAllowGrenade.BoolValue || SC_IsClientHaveSkill(client, "gm_track"))
+		if(g_pCvarAllowGrenade.BoolValue/* || SC_IsClientHaveSkill(client, "gm_track")*/)
 			SDKHook(entity, SDKHook_SpawnPost, SDKHooked_ProjectileSpawned);
 		
 		if(g_pCvarTrailGrenade.BoolValue)
@@ -293,10 +296,22 @@ public void OnEntityDestroyed(int entity)
 		g_hArrayMissileList.Erase(index);
 }
 
-public void SDKHooked_ProjectileSpawned(int entity)
+public Action Cmd_DebugMakeMissile(int client, int argc)
 {
-	SDKUnhook(entity, SDKHook_SpawnPost, SDKHooked_ProjectileSpawned);
+	if(argc < 1)
+		return Plugin_Handled;
 	
+	char args[64];
+	GetCmdArg(1, args, 64);
+	int entity = StringToInt(args);
+	if(entity > 0)
+		CreateMissile(entity);
+	
+	return Plugin_Handled;
+}
+
+void CreateMissile(int entity)
+{
 	int client = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
 	if(!IsValidClient(client) || GetClientTeam(client) != 2)
 		client = GetEntPropEnt(entity, Prop_Data, "m_hThrower");
@@ -310,39 +325,45 @@ public void SDKHooked_ProjectileSpawned(int entity)
 	PrintToChatAll("[DBG] 玩家 %N 发射了 %s 导弹 (%d)", client, classname, entity);
 #endif
 	
-	new data[MissileInfo_t];
-	data[MissileEntity] = entity;
-	data[MissileOwner] = client;
-	data[MissileEnemy] = -1;
-	data[MissileStartTime] = GetGameTime() + 0.1;
-	data[MissileTime] = GetGameTime();
-	data[MissileFlags] = g_iShotFlags[client];
+	MissileInfo_t data;
+	data.MissileEntity = entity;
+	data.MissileOwner = client;
+	data.MissileEnemy = -1;
+	data.MissileStartTime = GetGameTime() + 0.1;
+	data.MissileTime = GetGameTime();
+	data.MissileFlags = g_iShotFlags[client];
 	
 	if(StrEqual("molotov_projectile", classname, false))
-		data[MissileType] = 1;
+		data.MissileType = 1;
 	else if(StrEqual("pipe_bomb_projectile", classname, false))
-		data[MissileType] = 2;
+		data.MissileType = 2;
 	else if(StrEqual("vomitjar_projectile", classname, false))
-		data[MissileType] = 3;
+		data.MissileType = 3;
 	else if(StrEqual("grenade_launcher_projectile", classname, false))
-		data[MissileType] = 4;
+		data.MissileType = 4;
 	else
-		data[MissileType] = 0;
+		data.MissileType = 0;
 	
 	SetEntityGravity(entity, 0.01);
-	g_hArrayMissileList.PushArray(data, MissileInfo_t);
+	g_hArrayMissileList.PushArray(data, sizeof(data));
 	// SDKHook(entity, SDKHook_Think, SDKHooked_ProjectileThinking);
 	SDKHook(entity, SDKHook_StartTouchPost, SDKHooked_ProjectileTouching);
 }
 
+public void SDKHooked_ProjectileSpawned(int entity)
+{
+	SDKUnhook(entity, SDKHook_SpawnPost, SDKHooked_ProjectileSpawned);
+	CreateMissile(entity);
+}
+
 int FindGrenade(int entity)
 {
-	new data[MissileInfo_t];
+	MissileInfo_t data;
 	int maxLength = g_hArrayMissileList.Length;
 	for(int i = 0; i < maxLength; ++i)
 	{
-		g_hArrayMissileList.GetArray(i, data, MissileInfo_t);
-		if(data[MissileEntity] == entity)
+		g_hArrayMissileList.GetArray(i, data, sizeof(data));
+		if(data.MissileEntity == entity)
 			return i;
 	}
 	
@@ -358,13 +379,13 @@ public void SDKHooked_ProjectileTouching(int entity, int toucher)
 	if(index == -1)
 		return;
 	
-	new data[MissileInfo_t];
-	g_hArrayMissileList.GetArray(index, data, MissileInfo_t);
+	MissileInfo_t data;
+	g_hArrayMissileList.GetArray(index, data, sizeof(data));
 	g_hArrayMissileList.Erase(index);
 	
 	// 强制引爆手榴弹
 	// 榴弹发射器的榴弹会自己引爆的
-	switch(data[MissileType])
+	switch(data.MissileType)
 	{
 		case 1:
 		{
@@ -415,14 +436,14 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 	if(!IsValidClient(client) || GetClientTeam(client) != 2)
 		return Plugin_Continue;
 	
-	new data[MissileInfo_t];
+	MissileInfo_t data;
 	int maxLength = g_hArrayMissileList.Length;
 	UpdateEnemyList();
 	
 	for(int i = 0; i < maxLength; ++i)
 	{
-		g_hArrayMissileList.GetArray(i, data, MissileInfo_t);
-		if(data[MissileOwner] != client)
+		g_hArrayMissileList.GetArray(i, data, sizeof(data));
+		if(data.MissileOwner != client)
 			continue;
 		
 		TrackMissile(i);
@@ -433,42 +454,42 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 
 void TrackMissile(int index)
 {
-	new data[MissileInfo_t];
-	g_hArrayMissileList.GetArray(index, data, MissileInfo_t);
+	MissileInfo_t data;
+	g_hArrayMissileList.GetArray(index, data, sizeof(data));
 	
 	float time = GetGameTime();
-	float duration = time - data[MissileTime];
+	float duration = time - data.MissileTime;
 	if(duration > 1.0)
 		duration = 1.0;
 	else if(duration < 0.01)
 		duration = 0.01;
 	
 	float pos[3], ang[3], vel[3];
-	int entity = data[MissileEntity];
+	int entity = data.MissileEntity;
 	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", pos);
 	GetEntPropVector(entity, Prop_Send, "m_angRotation", ang);
 	
 	float moveToPos[3], moveToDir[3];
-	int owner = data[MissileOwner];
+	int owner = data.MissileOwner;
 	int enemy = GetBestTarget(index, pos, ang);
-	if(enemy > -1 && CanTrackEnemy(owner, enemy, data[MissileFlags]))
+	if(enemy > -1 && CanTrackEnemy(owner, enemy, data.MissileFlags))
 	{
 		// 跟随敌人
 		GetEnemyPostion(enemy, moveToPos);
 	}
-	else if(CanTrackCrosshair(owner, data[MissileFlags]) && (!g_bIsQE2 || data[MissileType] != 4))
+	else if(CanTrackCrosshair(owner, data.MissileFlags) && (!g_bIsQE2 || data.MissileType != 4))
 	{
 		// 跟随准星
 		GetClientEyePosition(owner, moveToPos);
 		GetClientEyeAngles(owner, moveToDir);
-		GetRayEndPosition(moveToPos, moveToDir, moveToPos, data[MissileOwner]);
+		GetRayEndPosition(moveToPos, moveToDir, moveToPos, data.MissileOwner);
 	}
 	else
 	{
 		// 什么也不做，让它自然移动
-		data[MissileTime] = time;
-		data[MissileEnemy] = -1;
-		g_hArrayMissileList.SetArray(index, data, MissileInfo_t);
+		data.MissileTime = time;
+		data.MissileEnemy = -1;
+		g_hArrayMissileList.SetArray(index, data, sizeof(data));
 		return;
 	}
 	
@@ -481,7 +502,7 @@ void TrackMissile(int index)
 	AddVectors(vel, moveToDir, moveToDir);
 	
 	// 给一个初始向上的速度，防止瞄准地面时无法跟踪
-	if(data[MissileStartTime] > time)
+	if(data.MissileStartTime > time)
 	{
 		static float up[3];
 		if(up[2] == 0.0)
@@ -505,7 +526,7 @@ void TrackMissile(int index)
 	TeleportEntity(entity, NULL_VECTOR, ang, vel);
 	
 #if defined PLUGIN_DEBUG
-	if(enemy > 0 && data[MissileEnemy] != enemy)
+	if(enemy > 0 && data.MissileEnemy != enemy)
 	{
 		char classname[64];
 		if(enemy <= MaxClients)
@@ -518,9 +539,9 @@ void TrackMissile(int index)
 	}
 #endif
 	
-	data[MissileTime] = time;
-	data[MissileEnemy] = enemy;
-	g_hArrayMissileList.SetArray(index, data, MissileInfo_t);
+	data.MissileTime = time;
+	data.MissileEnemy = enemy;
+	g_hArrayMissileList.SetArray(index, data, sizeof(data));
 }
 
 void GetRayEndPosition(float origin[3], float angles[3], float output[3], int ignore = -1)
@@ -536,8 +557,8 @@ void GetRayEndPosition(float origin[3], float angles[3], float output[3], int ig
 
 int GetBestTarget(int index, float gunPos[3], float gunAng[3])
 {
-	new data[MissileInfo_t];
-	g_hArrayMissileList.GetArray(index, data, MissileInfo_t);
+	MissileInfo_t data;
+	g_hArrayMissileList.GetArray(index, data, sizeof(data));
 	
 	int entity = -1;
 	Handle trace = null;
@@ -545,7 +566,7 @@ int GetBestTarget(int index, float gunPos[3], float gunAng[3])
 	
 	/*
 	trace = TR_TraceRayFilterEx(gunPos, gunAng, MASK_SHOT, RayType_Infinite,
-		TraceRayFilter_NoHitSelf, data[MissileEntity]);
+		TraceRayFilter_NoHitSelf, data.MissileEntity);
 	
 	if(TR_DidHit(trace))
 		entity = TR_GetEntityIndex(trace);
@@ -585,7 +606,7 @@ int GetBestTarget(int index, float gunPos[3], float gunAng[3])
 			continue;
 		
 		trace = TR_TraceRayFilterEx(gunPos, endPos, MASK_SHOT, RayType_EndPoint,
-			TraceRayFilter_NoHitSelf, data[MissileEntity]);
+			TraceRayFilter_NoHitSelf, data.MissileEntity);
 		
 		if(TR_DidHit(trace))
 			hitTarget = TR_GetEntityIndex(trace);

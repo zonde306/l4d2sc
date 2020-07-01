@@ -11,7 +11,7 @@
 
 public Plugin myinfo = 
 {
-	name = "Edict Overflow Prevention", 
+	name = "实体字典溢出保护", 
 	author = "SM9 (xCoderx)", 
 	version = PLUGIN_VERSION, 
 	url = "www.fragdeluxe.com"
@@ -40,6 +40,8 @@ public void OnEntityCreated(int iEntity)
 }
 
 public Action OnEntitySpawn(int iEntity) {
-	AcceptEntityInput(iEntity, "Kill");
+	// AcceptEntityInput(iEntity, "Kill");
+	if(IsValidEntity(iEntity) && IsValidEdict(iEntity))
+		RemoveEntity(iEntity);
 	return Plugin_Handled;
 }

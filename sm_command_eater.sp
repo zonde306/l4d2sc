@@ -518,7 +518,7 @@ Action ProcessSayChat(int client, bool bTeamChat)
 				
 				for (int i = 1; i <= MaxClients; i++)
 					if (IsClientInGame(i) && GetClientTeam(i) == iTeam)
-						PrintToChat(i, "\x01(team) \x03%N :\x01  %s", client, message);
+						PrintToChat(i, "\x01(队伍) \x03%N :\x01  %s", client, message);
 			}
 			else {
 				PrintToChatAll("\x03%N :\x01  %s", client, message);

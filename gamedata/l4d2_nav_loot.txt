@@ -11,6 +11,11 @@
 					"signature" "TheNavAreas" 
 					"read" "428"
 				}
+				"windows"
+				{
+					"signature" "TheNavAreas" 
+					"read" "1235"
+				}
 				"read" "0"
 			}
 			"TheCount"
@@ -20,6 +25,11 @@
 					"signature" "TheCount" 
 					"read" "18"
 				}
+				"windows"
+				{
+					"signature" "TheCount" 
+					"read" "70"
+				}
 			}
 		}
 		"Signatures"
@@ -27,10 +37,17 @@
 			"TheNavAreas"
 			{
 				"linux"		"@_ZN8CNavArea10SpliceEditEPS_"
+				"windows" "\x55\x8B\xEC\x83\xEC\x38\x53\x8B\x5D\x08\xF3\x0F\x10\x6B\x10"
 			}
 			"TheCount"
 			{
 				"linux"		"@_ZL19nav_update_lightingRK8CCommand"
+				"windows"		"\x55\x8B\xEC\x8B\x45\x08\x57\x33\xFF\x83\x38\x02"
+			}
+			"SurvivorBot::IsReachable"
+			{
+				"linux"		"@_ZNK11SurvivorBot11IsReachableERK6Vector"
+				"windows"		"\x55\x8B\xEC\xD9\x05\x2A\x2A\x2A\x2A\x8B\x45\x08"
 			}
 		}
 	}

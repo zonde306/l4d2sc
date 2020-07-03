@@ -69,6 +69,7 @@ enum()
 	SKL_2_SlefHelp = 128,
 	SKL_2_Defensive = 256,
 	SKL_2_DoubleJump = 512,
+	SKL_2_ProtectiveSuit = 1024,
 
 	SKL_3_Sacrifice = 1,
 	SKL_3_Respawn = 2,
@@ -118,6 +119,7 @@ new g_iTimeIdleO		= -1;
 new g_iActiveWO			= -1;
 new g_iViewModelO		= -1;
 int g_iVelocityO		= -1;
+int g_iBileTimestamp	= -1;
 new g_clSkillPoint[MAXPLAYERS+1] = 0;
 new g_ttDefibUsed[MAXPLAYERS+1] = 0;
 new g_ttOtherRevived[MAXPLAYERS+1] = 0;
@@ -262,7 +264,8 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
 	g_hCvarShovRange, g_hCvarShovTime, g_hCvarMeleeRange, g_hCvarAdrenTime, g_hCvarDefibTime, g_hCvarZombieHealth,
 	g_hCvarIncapCount, g_hCvarPaincEvent, g_hCvarLimitSmoker, g_hCvarLimitBoomer, g_hCvarLimitHunter, g_hCvarLimitSpitter,
-	g_hCvarLimitJockey, g_hCvarLimitCharger, g_hCvarLimitSpecial, g_hCvarAccele, g_hCvarCollide, g_hCvarVelocity;
+	g_hCvarLimitJockey, g_hCvarLimitCharger, g_hCvarLimitSpecial, g_hCvarAccele, g_hCvarCollide, g_hCvarVelocity,
+	g_hCvarFirstAidMaxHeal, g_hCvarPainPillsMaxHeal;
 
 int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
@@ -316,6 +319,7 @@ public OnPluginStart()
 	g_iViewModelO		=	FindSendPropInfo("CTerrorPlayer","m_hViewModel");
 	propinfoghost		=	FindSendPropInfo("CTerrorPlayer", "m_isGhost");
 	g_iVelocityO		=	FindSendPropInfo("CBasePlayer", "m_vecVelocity[0]");
+	g_iBileTimestamp	=	FindSendPropInfo("CTerrorPlayer", "m_itTimer") + FindSendPropInfo("DT_CountdownTimer", "m_timestamp");
 
 	g_hCvarGodMode = FindConVar("god");
 	// g_hCvarInfinite = FindConVar("sv_infinite_ammo");
@@ -338,7 +342,7 @@ public OnPluginStart()
 	g_hCvarZombieHealth = FindConVar("z_health");
 	g_hCvarIncapCount = FindConVar("survivor_max_incapacitated_count");
 	g_hCvarPaincEvent = FindConVar("director_panic_forever");
-	g_hCvarLimitSpecial = FindConVar("survival_max_specials");
+	g_hCvarLimitSpecial = FindConVar("z_max_player_zombies");
 	g_hCvarLimitSmoker = FindConVar("survival_max_smokers");
 	g_hCvarLimitBoomer = FindConVar("survival_max_boomers");
 	g_hCvarLimitHunter = FindConVar("survival_max_hunters");
@@ -348,6 +352,8 @@ public OnPluginStart()
 	g_hCvarAccele = FindConVar("sv_airaccelerate");
 	g_hCvarCollide = FindConVar("sv_bounce");
 	g_hCvarVelocity = FindConVar("sv_maxvelocity");
+	g_hCvarFirstAidMaxHeal = FindConVar("first_aid_kit_max_heal");
+	g_hCvarPainPillsMaxHeal = FindConVar("pain_pills_health_threshold");
 
 	HookConVarChange(g_hCvarZombieHealth, ConVarChaged_ZombieHealth);
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
@@ -423,6 +429,7 @@ public OnPluginStart()
 	HookEvent("ammo_pickup", Event_AmmoPickup);
 	HookEvent("item_pickup", Event_WeaponPickuped);
 	HookEvent("upgrade_pack_added", Event_UpgradePickup);
+	HookEvent("player_now_it", Event_PlayerHitByVomit);
 	
 	// 检查第一回合用
 	HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -1774,7 +1781,7 @@ public int MenuHandler_Respawn(Menu menu, MenuAction action, int client, int sel
 void StatusSelectMenuFuncBuy(int client, bool back = true)
 {
 	Menu menu = CreateMenu(MenuHandler_Shop);
-	menu.SetTitle("========= 商店菜单 =========\n全部一块，点到即售（现有 %d 点）", g_clSkillPoint[client]);
+	menu.SetTitle("========= 商店菜单 =========\n全部两块，点到即售（现有 %d 点）", g_clSkillPoint[client]);
 
 	menu.AddItem("smg_silenced katana", "冲锋枪(消音) + 武士刀");
 	menu.AddItem("shotgun_chrome pistol_magnum", "单喷(二代) + 马格南");
@@ -1809,7 +1816,7 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 	if(action != MenuAction_Select)
 		return 0;
 
-	if(g_clSkillPoint[client] < 1)
+	if(g_clSkillPoint[client] < 2)
 	{
 		PrintToChat(client, "\x03[提示]\x01 你的钱不够。");
 		StatusSelectMenuFuncBuy(client, menu.ExitBackButton);
@@ -1834,7 +1841,7 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 		CheatCommand(client, "give", item[i]);
 	}
 
-	GiveSkillPoint(client, -1);
+	GiveSkillPoint(client, -2);
 	PrintToChat(client, "\x03[提示]\x01 完成。");
 	StatusSelectMenuFuncBuy(client, menu.ExitBackButton);
 	return 0;
@@ -1956,6 +1963,7 @@ void StatusSelectMenuFuncB(int client)
 	menu.AddItem(tr("2_%d",SKL_2_SlefHelp), mps("顽强-倒地时1/4几率自救",(g_clSkill_2[client]&SKL_2_SlefHelp)));
 	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("自守-倒地被控自动推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("踏空-在空中按跳跃可以再次起跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
+	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("防化服-受到胆汁影响时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2213,7 +2221,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 	}
 
 	RegPlayerHook(client);
-	PrintToChat(client, "\x03[提示]\x01 技能获得：%s", display);
+	PrintToChat(client, "\x03[提示]\x01 技能获得：%s。", display);
 	PrintToServer("玩家 %N 选择了 %s", client, display);
 	return 0;
 }
@@ -2335,7 +2343,8 @@ public int MenuHandler_CancelSkill(Menu menu, MenuAction action, int client, int
 				StatusSelectMenuFuncE(client);
 		}
 	}
-
+	
+	RegPlayerHook(client);
 	return 0;
 }
 
@@ -6544,6 +6553,8 @@ public void UpdateWeaponAmmo(any data)
 	pack.Reset();
 	
 	int client = pack.ReadCell();
+	if(!IsValidAliveClient(client))
+		return;
 	
 	static char classname[64], className[64];
 	pack.ReadString(classname, 64);
@@ -6624,6 +6635,28 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	// 希望不会冲突吧
 	if(g_clSkill_4[client] & SKL_4_ClipSize)
 		SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", RoundToZero(GetDefaultClip(weapon) * 1.5));
+}
+
+public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	if(g_clSkill_2[client] & SKL_2_ProtectiveSuit)
+		RequestFrame(UpdateVomitDuration, client);
+}
+
+void UpdateVomitDuration(any client)
+{
+	if(!IsValidAliveClient(client))
+		return;
+	
+	static ConVar cv_bile_duration;
+	if(cv_bile_duration == null)
+		cv_bile_duration = FindConVar("survivor_it_duration");
+	
+	SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + cv_bile_duration.FloatValue, true);
 }
 
 stock void PrintToChatTeam(int team, const char[] text, any ...)
@@ -6772,6 +6805,18 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
 	SDKHook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
+	
+	if(GetClientTeam(client) == 2)
+	{
+		// 超过就会出 bug
+		if(maxHealth > 1268)
+			maxHealth = 1268;
+		
+		if(maxHealth > g_hCvarFirstAidMaxHeal.IntValue)
+			g_hCvarFirstAidMaxHeal.IntValue = maxHealth;
+		if(maxHealth > g_hCvarPainPillsMaxHeal.IntValue)
+			g_hCvarPainPillsMaxHeal.IntValue = maxHealth;
+	}
 }
 
 public void PlayerHook_OnPreThink(int client)
@@ -7892,7 +7937,10 @@ stock bool AddAmmo(int client, int amount, int ammoType, bool noSound = false, b
 			}
 		}
 	}
-
+	
+	if(maxAmmo > 999)
+		maxAmmo = 999;
+	
 	int oldAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
 	int newAmmo = oldAmmo + amount;
 	if(newAmmo < 0)

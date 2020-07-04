@@ -270,7 +270,7 @@ public Action DelayThrow(Handle timer, any client)
 
 public Action CommonDelayThrow(Handle timer, any client)
 {
-	if (shootOrder[client] == 0)
+	if (shootOrder[client] == 0 || !IsClientInGame(client))
 	{
 		return Plugin_Stop;
 	}

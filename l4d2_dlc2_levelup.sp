@@ -6660,7 +6660,7 @@ void UpdateVomitDuration(any client)
 	// int itOffset = FindDataMapInfo(client, "m_itTimer", type);
 	
 	// PrintToChat(client, "m_itTimer = %d, m_timestamp = %d", FindSendPropInfo("CTerrorPlayer", "m_itTimer"), FindSendPropInfo("DT_CountdownTimer", "m_timestamp"));
-	SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + cv_bile_duration.FloatValue, true);
+	SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + (cv_bile_duration.FloatValue / 2), true);
 	// SetEntPropFloat(client, Prop_Send, "m_itTimer", GetGameTime() + (cv_bile_duration.FloatValue / 2), 2);
 }
 
@@ -7426,7 +7426,7 @@ public void PlayerHook_OnReloadThink(int client)
 
 				// 将霰弹枪的弹夹还原，并且取消已经填装的子弹，以开始新的填装
 				SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponOldClip[client]);
-				SetEntProp(weapon, Prop_Send, "m_shellsInserted", 0);
+				// SetEntProp(weapon, Prop_Send, "m_shellsInserted", 0);
 				g_iReloadWeaponClip[client] -= g_iReloadWeaponOldClip[client];
 				if(g_iReloadWeaponClip[client] > ammo)
 					g_iReloadWeaponClip[client] = ammo;
@@ -7454,6 +7454,14 @@ public void PlayerHook_OnReloadThink(int client)
 			// 霰弹枪填装完毕
 			PlayerHook_OnReloadStopped(client, weapon);
 			// PrintHintText(client, "填装弹药完成");
+			
+			// 修复卡壳问题
+			float time = GetGameTime() + 0.3;
+			if(GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") > time)
+				SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
+			if(GetEntPropFloat(client, Prop_Send, "m_flNextAttack") > time)
+				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
+			SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time - 0.3);
 		}
 		else if(GetEntProp(weapon, Prop_Send, "m_iClip1") > g_iReloadWeaponOldClip[client] || ammo <= 0)
 		{

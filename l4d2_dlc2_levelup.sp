@@ -1359,7 +1359,7 @@ public void Event_PlayerFallDamage(Event event, const char[] eventName, bool don
 	if(!IsValidClient(client) || damage <= 0.0)
 		return;
 
-	if(damage >= GetEntProp(client, Prop_Data, "m_iHealth") + GetEntPropFloat(client, Prop_Send, "m_healthBuffer"))
+	if(damage >= GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client))
 	{
 		++g_stFallDamageKilled;
 		PrintToServer("玩家 %N 因为被传送而摔倒了", client);
@@ -3576,9 +3576,9 @@ public void OnGameFrame()
 				int maxHealth = GetEntProp(i, Prop_Data, "m_iMaxHealth");
 				int health = GetEntProp(i, Prop_Data, "m_iHealth");
 
-				float buffer = GetEntPropFloat(i, Prop_Send, "m_healthBuffer");
+				int buffer = GetPlayerTempHealth(i);
 				if(team == 3)
-					buffer = 0.0;
+					buffer = 0;
 
 				if(health + buffer >= maxHealth)
 				{
@@ -3674,7 +3674,7 @@ public void OnGameFrame()
 			if(g_iRoundEvent == 11)
 			{
 				CheatCommandEx(randPlayer, "z_spawn_old", "witch auto area");
-				PrintToServer("玩家 %N 刷出了一只 Witch", randPlayer);
+				// PrintToServer("玩家 %N 刷出了一只 Witch", randPlayer);
 				g_fNextRoundEvent = curTime + 120.0;
 			}
 			else if(g_iRoundEvent == 13)
@@ -3701,20 +3701,23 @@ public void OnGameFrame()
 				}
 
 				// CheatCommand(randPlayer, "script", "::DifficultyBanalce_MinIntensity<-0");
-				PrintToServer("玩家 %N 刷出了 8 只特感", randPlayer);
+				// PrintToServer("玩家 %N 刷出了 8 只特感", randPlayer);
 				g_fNextRoundEvent = curTime + 40.0;
 			}
 			else if(g_iRoundEvent == 15)
 			{
 				CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto area");
 				CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto area");
-				PrintToServer("玩家 %N 刷出了一只 Boomer 和 Spitter", randPlayer);
+				CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto area");
+				CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto area");
+				// PrintToServer("玩家 %N 刷出了一只 Boomer 和 Spitter", randPlayer);
 				g_fNextRoundEvent = curTime + 30.0;
 			}
 			else if(g_iRoundEvent == 16)
 			{
 				CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto area");
-				PrintToServer("玩家 %N 刷出了一只 Hunter", randPlayer);
+				CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto area");
+				// PrintToServer("玩家 %N 刷出了一只 Hunter", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
 			}
 			else if(g_iRoundEvent == 17)
@@ -3724,13 +3727,14 @@ public void OnGameFrame()
 				float position[3];
 				GetClientEyeAiming(randPlayer, position);
 				SpawnCommonZombie("common_male_fallen_survivor", position);
-				PrintToServer("玩家 %N 刷出了一只 带补给的僵尸", randPlayer);
+				// PrintToServer("玩家 %N 刷出了一只 带补给的僵尸", randPlayer);
 				g_fNextRoundEvent = curTime + 90.0;
 			}
 			else if(g_iRoundEvent == 18)
 			{
 				CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto area");
-				PrintToServer("玩家 %N 刷出了一只 Jockey", randPlayer);
+				CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto area");
+				// PrintToServer("玩家 %N 刷出了一只 Jockey", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
 			}
 		}
@@ -4035,13 +4039,16 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	int subject = GetClientOfUserId(event.GetInt("subject"));
 	int health = event.GetInt("health_restored");
 
+	/*
 	static ConVar cv_percent;
 	if(cv_percent == null)
 		cv_percent = FindConVar("first_aid_heal_percent");
+	*/
 
 	if(!IsValidAliveClient(client) || !IsValidAliveClient(subject))
 		return;
-
+	
+	/*
 	int maxHealth = GetEntProp(subject, Prop_Send, "m_iMaxHealth");
 	int lossHealth = maxHealth - GetEntProp(subject, Prop_Data, "m_iHealth") + health;
 	int lastHealth = maxHealth - lossHealth;
@@ -4066,6 +4073,7 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 		// SetVariantInt(999);
 		// AcceptEntityInput(subject, "SetHealth", client, subject);
 	}
+	*/
 
 	if(!IsFakeClient(client) && client != subject && health >= 50)
 		g_ttDefibUsed[client] += 1;
@@ -4121,7 +4129,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		{
 			CreateTimer(3.0, EventRevive, client);
 			if(!IsFakeClient(client))
-				PrintToChat(client, "\x03[\x05提示\x03]\x04你成功使用\x03顽强\x04天赋,3秒后倒地自救!");
+				PrintToChat(client, "\x03[\x05提示\x03]\x04你成功使用\x03顽强\x04天赋,3秒后倒地自救(如果那时没被控)!");
 		}
 	}
 
@@ -4928,6 +4936,8 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 					PrintToChat(victim, "\x03[提示]\x01 你使用天赋 \x04转生\x01 失败。");
 				}
 			}
+			
+			g_bIsPaincIncap = true;
 		}
 		else if(team == TEAM_INFECTED)
 		{
@@ -5381,6 +5391,7 @@ void RewardPicker(int client)
 
 						SetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
 						SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
+						// SetEntProp(client, Prop_Send, "m_iMaxHealth", cv_incaphealth.IntValue);
 
 						event = CreateEvent("player_incapacitated");
 						event.SetInt("userid", GetClientUserId(client));
@@ -5446,6 +5457,7 @@ void RewardPicker(int client)
 				if((GetEntProp(client,Prop_Send,"m_iHealth") < GetEntProp(client,Prop_Send,"m_iMaxHealth")) || GetEntProp(client, Prop_Send, "m_isIncapacitated"))
 				{
 					CheatCommand(client, "give", "health");
+					SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
 				}
 				EmitSoundToClient( client, REWARD_SOUND );
 
@@ -5942,6 +5954,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 
 	if(g_iRoundEvent == 19)
 	{
+		/*
 		static ConVar cv_respawnhealth;
 		if(cv_respawnhealth == null)
 			cv_respawnhealth = FindConVar("z_survivor_respawn_health");
@@ -5949,6 +5962,12 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 		SetEntProp(client, Prop_Data, "m_iHealth", 1);
 		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", cv_respawnhealth.FloatValue - 1.0);
 		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		*/
+		
+		int newHealth = GetEntProp(subject, Prop_Data, "m_iHealth");
+		SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", newHealth - 1.0);
+		SetEntPropFloat(subject, Prop_Send, "m_healthBufferTime", GetGameTime());
+		SetEntProp(subject, Prop_Data, "m_iHealth", 1);
 	}
 
 	return Plugin_Continue;
@@ -6557,7 +6576,7 @@ public void Event_PaincEventStop(Event event, const char[] eventName, bool dontB
 				g_ttPaincEvent[i] -= g_pCvarPaincEvent.IntValue;
 
 				if(g_pCvarAllow.BoolValue)
-					PrintToChat(i, "\x03[提示]\x01 你因为好几波尸潮没倒地或死亡而获得 \x051\x01 天赋点。");
+					PrintToChat(i, "\x03[提示]\x01 你因为好几波尸潮没有人倒地或死亡而获得 \x051\x01 天赋点。");
 			}
 		}
 	}
@@ -6577,13 +6596,20 @@ public void Event_SurvivorRescued(Event event, const char[] eventName, bool dont
 
 	if(g_iRoundEvent == 19)
 	{
+		/*
 		static ConVar cv_respawnhealth;
 		if(cv_respawnhealth == null)
 			cv_respawnhealth = FindConVar("z_survivor_respawn_health");
-
+		
 		SetEntProp(client, Prop_Data, "m_iHealth", 1);
 		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", cv_respawnhealth.FloatValue - 1.0);
 		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		*/
+		
+		int newHealth = GetEntProp(subject, Prop_Data, "m_iHealth");
+		SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", newHealth - 1.0);
+		SetEntPropFloat(subject, Prop_Send, "m_healthBufferTime", GetGameTime());
+		SetEntProp(subject, Prop_Data, "m_iHealth", 1);
 	}
 }
 
@@ -7798,9 +7824,9 @@ stock bool AddHealth(int client, int amount, bool limit = true)
 	int health = GetEntProp(client, Prop_Data, "m_iHealth");
 	int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
 
-	if(team == 2)
+	if(team == 2 && !GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
 	{
-		float buffer = GetEntPropFloat(client, Prop_Send, "m_healthBuffer");
+		float buffer = GetPlayerTempHealth(client) * 1.0;
 		buffer += amount;
 		if(limit)
 		{
@@ -9162,7 +9188,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				SetEntProp(client,Prop_Send,"m_iHealth", 1000);
 				SetEntPropFloat(client,Prop_Send,"m_healthBuffer", 0.0);
 				PerformGlow(client, 3, 4713783, GetRandomInt(-32767,32767) * 128);
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04成功练成了葵花宝典,生命值上升了1000.", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04成功练成了葵花宝典,生命值上升为1000.", client);
 			}
 			case 20:
 			{
@@ -9249,6 +9275,7 @@ public Action:Event_RP(Handle:timer, any:client)
 						if((GetEntProp(i,Prop_Send,"m_iHealth") < GetEntProp(i,Prop_Send,"m_iMaxHealth")) || GetEntProp(i, Prop_Send, "m_isIncapacitated"))
 						{
 							CheatCommand(i, "give", "health");
+							SetEntPropFloat(i, Prop_Send, "m_healthBuffer", 0.0);
 						}
 					}
 				}
@@ -10153,10 +10180,15 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 
 int GetPlayerTempHealth(int client)
 {
+	/*
+	if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
+		return 0;
+	*/
+	
 	ConVar painPillsDecayCvar;
 	if (painPillsDecayCvar == null)
 		painPillsDecayCvar = FindConVar("pain_pills_decay_rate");
-
+	
 	int tempHealth = RoundToCeil(
 		GetEntPropFloat(client, Prop_Send, "m_healthBuffer") -
 		((GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_healthBufferTime")) *
@@ -10457,14 +10489,14 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			g_iRoundEvent = 15;
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "感染季节");
-			FormatEx(buffer, sizeof(buffer), "每隔30秒刷1只Boomer和Spitter");
+			FormatEx(buffer, sizeof(buffer), "每隔30秒刷两对Boomer和Spitter");
 		}
 		case 15:
 		{
 			g_iRoundEvent = 16;
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "狩猎盛宴");
-			FormatEx(buffer, sizeof(buffer), "每隔20秒刷1只Hunter");
+			FormatEx(buffer, sizeof(buffer), "每隔20秒刷两只Hunter");
 		}
 		case 16:
 		{
@@ -10478,13 +10510,27 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			g_iRoundEvent = 18;
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "乘骑派对");
-			FormatEx(buffer, sizeof(buffer), "每隔20秒刷1只Jockey");
+			FormatEx(buffer, sizeof(buffer), "每隔20秒刷两只Jockey");
 		}
 		case 18:
 		{
 			g_iRoundEvent = 19;
+			for(int i = 1; i <= MaxClients; ++i)
+			{
+				if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
+					continue;
+				
+				if(GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
+					continue;
+				
+				int health = GetEntProp(i, Prop_Data, "m_iHealth") + GetPlayerTempHealth(i) - 1;
+				SetEntPropFloat(i, Prop_Send, "m_healthBuffer", health * 1.0);
+				SetEntPropFloat(i, Prop_Send, "m_healthBufferTime", GetGameTime());
+				SetEntProp(i, Prop_Data, "m_iHealth", 1);
+			}
+			
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "血流不止");
-			FormatEx(buffer, sizeof(buffer), "打包电击复活血量改为虚血");
+			FormatEx(buffer, sizeof(buffer), "打包/电击/复活血量改为虚血");
 		}
 		case 19:
 		{

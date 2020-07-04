@@ -280,7 +280,7 @@ public void Event_PlayerDisconnect(Event event, const char[] eventName, bool don
 	PrintToChatAll(buffer);
 	
 	buffer[0] = EOS;
-	if(mode & 32)
+	if((mode & 32) && StrContains(reason, "Kick", false) == -1)
 	{
 		FormatEx(buffer, 255, "\x05原因:\x01 %s", reason);
 		PrintToChatAll(buffer);

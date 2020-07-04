@@ -9,11 +9,11 @@
 #define UNINITIALISED -1
 
 // Settings upon load
-new Handle:hSILimitServerCap;
-new Handle:hSILimit;
-new Handle:hSpawnWeights[NUM_TYPES_INFECTED], Handle:hScaleWeights;
-new Handle:hSpawnLimits[NUM_TYPES_INFECTED];
-new Handle:hSpawnSize;
+ConVar hSILimitServerCap;
+ConVar hSILimit;
+ConVar hSpawnWeights[NUM_TYPES_INFECTED], hScaleWeights;
+ConVar hSpawnLimits[NUM_TYPES_INFECTED];
+ConVar hSpawnSize;
 
 // Customised settings; cache
 new SILimitCache = UNINITIALISED;

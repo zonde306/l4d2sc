@@ -1,7 +1,7 @@
 new Handle:hSpawnTimer;
-new Handle:hSpawnTimeMode;
-new Handle:hSpawnTimeMin;
-new Handle:hSpawnTimeMax;
+ConVar hSpawnTimeMode;
+ConVar hSpawnTimeMin;
+ConVar hSpawnTimeMax;
 
 new Handle:hCvarIncapAllowance;
 
@@ -45,6 +45,14 @@ StartCustomSpawnTimer(Float:time) {
 
 //special infected spawn timer based on time modes
 StartSpawnTimer() {
+	// 	Cvars
+	SetConVarBool( FindConVar("director_spectate_specials"), true );
+	SetConVarBool( FindConVar("director_no_specials"), true ); // disable Director spawning specials naturally
+	SetConVarInt( FindConVar("z_safe_spawn_range"), 0 );
+	SetConVarInt( FindConVar("z_spawn_safety_range"), 0 );
+	//SetConVarInt( FindConVar("z_spawn_range"), 750 ); // default 1500 (potentially very far from survivors) is remedied if SpawnPositioner module is active 
+	SetConVarInt( FindConVar("z_discard_range"), 1250 ); // discard zombies farther away than this	
+	
 	//prevent multiple timer instances
 	EndSpawnTimer();
 	//only start spawn timer if plugin is enabled
@@ -140,7 +148,7 @@ public CalculateSpawnTimes() {
 	new Float:fSpawnTimeMin = GetConVarFloat(hSpawnTimeMin);
 	new Float:fSpawnTimeMax = GetConVarFloat(hSpawnTimeMax);
 	if( iSILimit > 1 && GetConVarInt(hSpawnTimeMode) > 0 ) {
-		new Float:unit = ( (fSpawnTimeMax - fSpawnTimeMin) / (iSILimit - 1) );
+		new Float:unit = FloatAbs( (fSpawnTimeMax - fSpawnTimeMin) / (iSILimit - 1) );
 		switch( GetConVarInt(hSpawnTimeMode) ) {
 			case 1: { // incremental spawn time mode			
 				SpawnTimes[0] = fSpawnTimeMin;

@@ -3408,9 +3408,11 @@ public bool: ChargeTraceFilter (entity, contentsMask)
 
 stock PrintDebug(debuglevel, const String:Message[], any:... )
 {
+	/*
 	decl String:DebugBuff[256];
 	VFormat(DebugBuff, sizeof(DebugBuff), Message, 3);
 	LogMessage(DebugBuff);
+	*/
 }
 stock bool: IsWitch(entity)
 {

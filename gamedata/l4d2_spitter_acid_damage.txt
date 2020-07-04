@@ -7,7 +7,7 @@
 			"CInsectSwarm::CanHarm"
 			{
 				"signature"		"CInsectSwarm::CanHarm"
-				"callconv"		"stdcall"
+				"callconv"		"thiscall"
 				"return"		"int"
 				"this"			"ignore"
 				"arguments"

@@ -66,13 +66,6 @@ public OnPluginStart() {
 	hCvarConfigName = CreateConVar("l4d_ready_cfg_name", "Hard Coop", "This cvar from readyup.smx is required by server_namer.smx, but is duplicated here to avoid use of readyup.smx");
 	SetConVarFlags( hCvarReadyUpEnabled, FCVAR_CHEAT ); SetConVarFlags( hCvarConfigName, FCVAR_CHEAT ); // get rid of 'symbol is assigned a value that is never used' compiler warnings
 	
-	// 	Cvars
-	SetConVarBool( FindConVar("director_spectate_specials"), true );
-	SetConVarBool( FindConVar("director_no_specials"), true ); // disable Director spawning specials naturally
-	SetConVarInt( FindConVar("z_safe_spawn_range"), 0 );
-	SetConVarInt( FindConVar("z_spawn_safety_range"), 0 );
-	//SetConVarInt( FindConVar("z_spawn_range"), 750 ); // default 1500 (potentially very far from survivors) is remedied if SpawnPositioner module is active 
-	SetConVarInt( FindConVar("z_discard_range"), 1250 ); // discard zombies farther away than this	
 	// Resetting at the end of rounds
 	HookEvent("mission_lost", EventHook:OnRoundOver, EventHookMode_PostNoCopy);
 	HookEvent("map_transition", EventHook:OnRoundOver, EventHookMode_PostNoCopy);
@@ -125,6 +118,7 @@ public OnConfigsExecuted() {
 
 public Action:L4D_OnFirstSurvivorLeftSafeArea(client) { 
 	// Disable for PvP modes
+	/*
 	decl String:gameMode[16];
 	GetConVarString(FindConVar("mp_gamemode"), gameMode, sizeof(gameMode));
 	if( StrContains(gameMode, "versus", false) != -1 || StrContains(gameMode, "scavenge", false) != -1 ) {
@@ -133,7 +127,78 @@ public Action:L4D_OnFirstSurvivorLeftSafeArea(client) {
 		g_bHasSpawnTimerStarted = false;
 		StartSpawnTimer();
 	}
+	*/
 	
+	int entity = CreateEntityByName("info_gamemode");
+	if(!IsValidEntity(entity))
+	{
+		decl String:gameMode[16];
+		GetConVarString(FindConVar("mp_gamemode"), gameMode, sizeof(gameMode));
+		if( StrContains(gameMode, "versus", false) != -1 || StrContains(gameMode, "scavenge", false) != -1 ) {
+			SetFailState("Plugin does not support PvP modes");
+		} else if( StrContains(gameMode, "survival", false) == -1 ) { // would otherwise cause spawns in survival before button is pressed
+			g_bHasSpawnTimerStarted = false;
+			StartSpawnTimer();
+		}
+		return Plugin_Continue;
+	}
+	
+	DispatchSpawn(entity);
+	HookSingleEntityOutput(entity, "OnCoop", OnGamemodeCoop, true);
+	// HookSingleEntityOutput(entity, "OnSurvival", OnGamemodeCoop, true);
+	HookSingleEntityOutput(entity, "OnVersus", OnGamemodeVersus, true);
+	HookSingleEntityOutput(entity, "OnScavenge", OnGamemodeVersus, true);
+	ActivateEntity(entity);
+	AcceptEntityInput(entity, "PostSpawnActivate");
+	if(IsValidEntity(entity))
+		RemoveEntity(entity);
+	
+	return Plugin_Continue;
+}
+
+public void OnGamemodeCoop(const char[] output, int caller, int activator, float delay)
+{
+	g_bHasSpawnTimerStarted = false;
+	StartSpawnTimer();
+}
+
+public void OnGamemodeVersus(const char[] output, int caller, int activator, float delay)
+{
+	ResetConVar( FindConVar("director_spectate_specials") );
+	ResetConVar( FindConVar("director_no_specials") ); // Disable Director spawning specials naturally
+	ResetConVar( FindConVar("z_safe_spawn_range") );
+	ResetConVar( FindConVar("z_spawn_safety_range") );
+	ResetConVar( FindConVar("z_spawn_range") );
+	ResetConVar( FindConVar("z_discard_range") );
+}
+
+// 突变模式兼容
+public Action L4D_OnGetScriptValueInt(const char[] key, int &retVal)
+{
+	if(StrEqual(key, "MaxSpecials", false) || StrEqual(key, "cm_MaxSpecials", false))
+	{
+		hSILimit.IntValue = retVal;
+		hSILimitServerCap.IntValue = retVal * 2;
+	}
+	else if(StrEqual(key, "BoomerLimit", false))
+		hSpawnLimits[SI_BOOMER].IntValue = retVal;
+	else if(StrEqual(key, "SmokerLimit", false))
+		hSpawnLimits[SI_SMOKER].IntValue = retVal;
+	else if(StrEqual(key, "HunterLimit", false))
+		hSpawnLimits[SI_HUNTER].IntValue = retVal;
+	else if(StrEqual(key, "ChargerLimit", false))
+		hSpawnLimits[SI_CHARGER].IntValue = retVal;
+	else if(StrEqual(key, "SpitterLimit", false))
+		hSpawnLimits[SI_SPITTER].IntValue = retVal;
+	else if(StrEqual(key, "JockeyLimit", false))
+		hSpawnLimits[SI_JOCKEY].IntValue = retVal;
+	else if(StrEqual(key, "cm_SpecialRespawnInterval", false))
+	{
+		hSpawnTimeMin.IntValue = retVal;
+		hSpawnTimeMax.IntValue = retVal + 5;
+	}
+	
+	return Plugin_Continue;
 }
 
 public OnSurvivalRoundStart() {

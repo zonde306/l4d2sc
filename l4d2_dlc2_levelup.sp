@@ -319,7 +319,7 @@ public OnPluginStart()
 	g_iViewModelO		=	FindSendPropInfo("CTerrorPlayer","m_hViewModel");
 	propinfoghost		=	FindSendPropInfo("CTerrorPlayer", "m_isGhost");
 	g_iVelocityO		=	FindSendPropInfo("CBasePlayer", "m_vecVelocity[0]");
-	g_iBileTimestamp	=	FindSendPropInfo("CTerrorPlayer", "m_itTimer") + FindSendPropInfo("DT_CountdownTimer", "m_timestamp");
+	g_iBileTimestamp	=	FindSendPropInfo("CTerrorPlayer", "m_itTimer") + 8;
 
 	g_hCvarGodMode = FindConVar("god");
 	// g_hCvarInfinite = FindConVar("sv_infinite_ammo");
@@ -936,8 +936,7 @@ bool ClientSaveToFileLoad(int client)
 	{
 		g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
 		// FileToKeyValues(g_kvSavePlayer[client], tr("%s/%s.txt", g_szSavePath, steamId));
-		if(!g_kvSavePlayer[client].ImportFromFile(tr("%s/%s.txt", g_szSavePath, steamId)))
-			PrintToChat(client, "加载失败");
+		g_kvSavePlayer[client].ImportFromFile(tr("%s/%s.txt", g_szSavePath, steamId));
 	}
 	
 	int deadline = g_pCvarValidity.IntValue;
@@ -1102,8 +1101,7 @@ bool ClientSaveToFileSave(int client)
 
 	// 保存到文件
 	g_kvSavePlayer[client].Rewind();
-	if(!g_kvSavePlayer[client].ExportToFile(tr("%s/%s.txt", g_szSavePath, steamId)))
-		PrintToChat(client, "保存失败");
+	g_kvSavePlayer[client].ExportToFile(tr("%s/%s.txt", g_szSavePath, steamId));
 
 	return true;
 }
@@ -4946,7 +4944,9 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 
 				GiveSkillPoint(attacker, 1);
 				g_ttSpecialKilled[attacker] -= g_pCvarSpecialKilled.IntValue;
-				PrintToChat(attacker, "\x03[\x05提示\x03]\x04你多次杀死特感获得额外的天赋点一点!输入\x03!lv\x04查看!");
+				
+				if(g_pCvarAllow.BoolValue)
+					PrintToChat(attacker, "\x03[\x05提示\x03]\x04你多次杀死特感获得额外的天赋点一点!输入\x03!lv\x04查看!");
 			}
 		}
 	}
@@ -6656,7 +6656,12 @@ void UpdateVomitDuration(any client)
 	if(cv_bile_duration == null)
 		cv_bile_duration = FindConVar("survivor_it_duration");
 	
+	// PropFieldType type = PropField_Unsupported;
+	// int itOffset = FindDataMapInfo(client, "m_itTimer", type);
+	
+	// PrintToChat(client, "m_itTimer = %d, m_timestamp = %d", FindSendPropInfo("CTerrorPlayer", "m_itTimer"), FindSendPropInfo("DT_CountdownTimer", "m_timestamp"));
 	SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + cv_bile_duration.FloatValue, true);
+	// SetEntPropFloat(client, Prop_Send, "m_itTimer", GetGameTime() + (cv_bile_duration.FloatValue / 2), 2);
 }
 
 stock void PrintToChatTeam(int team, const char[] text, any ...)

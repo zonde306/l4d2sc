@@ -206,6 +206,19 @@ public OnSurvivalRoundStart() {
 	StartSpawnTimer();
 }
 
+public void OnClientDisconnect_Post(int client)
+{
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(i == client || !IsClientConnected(i) || IsFakeClient(i))
+			continue;
+		
+		return;
+	}
+	
+	EndSpawnTimer();
+}
+
 public OnRoundOver() {
 	EndSpawnTimer();
 }

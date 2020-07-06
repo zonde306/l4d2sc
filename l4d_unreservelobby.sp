@@ -17,6 +17,7 @@
 
 ConVar cvarGameMode;
 ConVar cvarUnreserve;
+ConVar cvarUnreserveEmpty;
 
 public Plugin myinfo = 
 {
@@ -35,6 +36,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_removelobby", Command_Unreserve, ADMFLAG_BAN, "sm_unreserve - manually force removes the lobby reservation");
 
 	cvarUnreserve = CreateConVar("l4d_unreserve_full", "1", "服务器满的时候自动删除大厅预定", FCVAR_NOTIFY);
+	cvarUnreserveEmpty = CreateConVar("l4d_unreserve_empty", "1", "服务器空的时候自动删除大厅预定", FCVAR_NOTIFY);
 	CreateConVar("l4d_unreserve_version", UNRESERVE_VERSION, "插件版本.", FCVAR_NOTIFY);
 	AutoExecConfig(true, "l4d_unreservelobby");
 
@@ -91,6 +93,22 @@ public void OnClientPutInServer(int client)
 		//PrintToChatAll("[SM] A full lobby has connected, automatically unreserving the server.");
 		L4D_LobbyUnreserve();
 	}
+}
+
+public void OnClientDisconnect_Post(int client)
+{
+	if(!cvarUnreserveEmpty.BoolValue)
+		return;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(i == client || !IsClientConnected(i) || IsFakeClient(i))
+			continue;
+		
+		return;
+	}
+	
+	L4D_LobbyUnreserve();
 }
 
 public Action Command_Unreserve(int client, int args)

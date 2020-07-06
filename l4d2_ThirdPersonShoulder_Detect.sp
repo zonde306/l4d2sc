@@ -4,11 +4,11 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_VERSION "1.5.2"
+#define PLUGIN_VERSION "1.5.3"
 
 public Plugin myinfo =
 {
-	name = "第三人称检测",
+	name = "第三人称检测API",
 	author = "MasterMind420 & Lux",
 	description = "Detects thirdpersonshoulder command for other plugins to use",
 	version = PLUGIN_VERSION,
@@ -27,6 +27,7 @@ Handle g_hOnThirdPersonChanged = INVALID_HANDLE;
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	g_hOnThirdPersonChanged = CreateGlobalForward("TP_OnThirdPersonChanged", ET_Event, Param_Cell, Param_Cell);
+	RegPluginLibrary("ThirdPersonShoulder_Detect");
 	return APLRes_Success;
 }
 

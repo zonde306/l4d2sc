@@ -306,43 +306,52 @@ RepositionRadial( userid, survivorTarget ) {
 		new Float:survivorPos[3];
 		new Float:rayEnd[3];
 		new Float:spawnPos[3] = {-1.0, -1.0, -1.0};
-		for( new i = 0; i < GetConVarInt(hCvarMaxSearchAttempts); i++ ) {		
-			// Fire a ray at a random angle around the survivor
-			GetClientAbsOrigin(survivorTarget, survivorPos); 
-			new Float:spawnSearchAngle = GetRandomFloat(0.0, 2.0 * PI);
-			rayEnd[0] = survivorPos[0] + Sine(spawnSearchAngle) * GetConVarInt(hCvarSpawnProximityMin);
-			rayEnd[1] = survivorPos[1] + Cosine(spawnSearchAngle) * GetConVarInt(hCvarSpawnProximityMin);
-			rayEnd[2] = survivorPos[2] + GetConVarInt(hCvarSpawnSearchHeight);
-			// Search down the vertical column from the ray's' endpoint for a valid spawn position
-			new Float:direction[3];
-			direction[PITCH] = MAX_ANGLE; // straight down
-			direction[YAW] = 0.0;
-			direction[ROLL] = 0.0;
-			TR_TraceRay( rayEnd, direction, MASK_ALL, RayType_Infinite );
-			if( TR_DidHit() ) {
-				new Float:traceImpact[3];
-				TR_GetEndPosition( traceImpact );
-				spawnPos = traceImpact;
-				spawnPos[COORD_Z] += NAV_MESH_HEIGHT; // from testing I presume the SI cannot spawn on the floor itself
-				if( IsOnValidMesh(spawnPos) && !IsPlayerStuck(spawnPos, client) && GetSurvivorProximity(spawnPos) > GetConVarInt(hCvarSpawnProximityMin) ) {
+		
+		if(!repositionSuccess) {
+			repositionSuccess = L4D_GetRandomPZSpawnPosition(client, GetEntProp(client, Prop_Send, "m_zombieClass"), GetConVarInt(hCvarMaxSearchAttempts), spawnPos);
+			if(repositionSuccess)
+				TeleportEntity( client, spawnPos, NULL_VECTOR, NULL_VECTOR ); 
+		}
+		
+		if(!repositionSuccess) {
+			for( new i = 0; i < GetConVarInt(hCvarMaxSearchAttempts); i++ ) {		
+				// Fire a ray at a random angle around the survivor
+				GetClientAbsOrigin(survivorTarget, survivorPos); 
+				new Float:spawnSearchAngle = GetRandomFloat(0.0, 2.0 * PI);
+				rayEnd[0] = survivorPos[0] + Sine(spawnSearchAngle) * GetConVarInt(hCvarSpawnProximityMin);
+				rayEnd[1] = survivorPos[1] + Cosine(spawnSearchAngle) * GetConVarInt(hCvarSpawnProximityMin);
+				rayEnd[2] = survivorPos[2] + GetConVarInt(hCvarSpawnSearchHeight);
+				// Search down the vertical column from the ray's' endpoint for a valid spawn position
+				new Float:direction[3];
+				direction[PITCH] = MAX_ANGLE; // straight down
+				direction[YAW] = 0.0;
+				direction[ROLL] = 0.0;
+				TR_TraceRay( rayEnd, direction, MASK_ALL, RayType_Infinite );
+				if( TR_DidHit() ) {
+					new Float:traceImpact[3];
+					TR_GetEndPosition( traceImpact );
+					spawnPos = traceImpact;
+					spawnPos[COORD_Z] += NAV_MESH_HEIGHT; // from testing I presume the SI cannot spawn on the floor itself
+					if( IsOnValidMesh(spawnPos) && !IsPlayerStuck(spawnPos, client) && GetSurvivorProximity(spawnPos) > GetConVarInt(hCvarSpawnProximityMin) ) {
+							
+							#if DEBUG_POSITIONER
+								LogMessage("[SS] ( %d attempts ) Found a valid RADIAL SPAWN position for userid '%d'", i, userid );
+								DrawBeam( survivorPos, rayEnd, VALID_MESH );
+								DrawBeam( rayEnd, spawnPos, VALID_MESH ); 
+							#endif
+							
+						TeleportEntity( client, spawnPos, NULL_VECTOR, NULL_VECTOR ); 
+						repositionSuccess = true;
+						break;
 						
-						#if DEBUG_POSITIONER
-							LogMessage("[SS] ( %d attempts ) Found a valid RADIAL SPAWN position for userid '%d'", i, userid );
-							DrawBeam( survivorPos, rayEnd, VALID_MESH );
-							DrawBeam( rayEnd, spawnPos, VALID_MESH ); 
-						#endif
-						
-					TeleportEntity( client, spawnPos, NULL_VECTOR, NULL_VECTOR ); 
-					repositionSuccess = true;
-					break;
+					} else {
 					
-				} else {
-				
-						#if DEBUG_POSITIONER
-							DrawBeam( survivorPos, rayEnd, INVALID_MESH );
-							DrawBeam( rayEnd, spawnPos, WHITE ); 
-						#endif
-						
+							#if DEBUG_POSITIONER
+								DrawBeam( survivorPos, rayEnd, INVALID_MESH );
+								DrawBeam( rayEnd, spawnPos, WHITE ); 
+							#endif
+							
+					}
 				}
 			}
 		}

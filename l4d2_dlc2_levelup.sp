@@ -5,6 +5,7 @@
 #include <geoip>
 #include <l4d2_skill_detect>
 #include <left4dhooks>
+#include <l4d_info_editor>
 
 #define SOUND_Bomb					"weapons/grenade_launcher/grenadefire/grenade_launcher_explode_1.wav"
 #define SOUND_BCLAW					"animation/bombing_run_01.wav"
@@ -39,6 +40,7 @@
 #define TRACE_TOLERANCE		25.0
 
 Handle g_fnFindUseEntity = null;
+StringMap g_WeaponClipSize;
 
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1) && !GetEntProp(%1, Prop_Send, "m_isGhost"))
@@ -59,6 +61,7 @@ enum()
 	SKL_1_RapidFire = 128,
 	SKL_1_Armor = 256,
 	SKL_1_NoRecoil = 512,
+	SKL_1_KeepClip = 1024,
 
 	SKL_2_Chainsaw = 1,
 	SKL_2_Excited = 2,
@@ -196,6 +199,7 @@ new g_HaloSprite;
 int g_iReloadWeaponEntity[MAXPLAYERS+1];
 int g_iReloadWeaponClip[MAXPLAYERS+1];
 int g_iReloadWeaponOldClip[MAXPLAYERS+1];
+int g_iReloadWeaponKeepClip[MAXPLAYERS+1];
 
 //装备附加
 new g_iRoundEvent = 0;
@@ -278,7 +282,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "0.2",
+	version = "1.0.0",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -358,6 +362,7 @@ public OnPluginStart()
 
 	HookConVarChange(g_hCvarZombieHealth, ConVarChaged_ZombieHealth);
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
+	g_WeaponClipSize = new StringMap();
 	
 	CreateTimer(1.0, Timer_RestoreDefault);
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
@@ -900,6 +905,7 @@ void Initialization(int client, bool invalid = false)
 	g_tkSkillType[client] = 0;
 	g_iBulletFired[client] = 0;
 	g_iReloadWeaponOldClip[client] = 0;
+	g_iReloadWeaponKeepClip[client] = 0;
 	g_iReloadWeaponClip[client] = 0;
 	g_iReloadWeaponEntity[client] = 0;
 	g_timerRespawn[client] = null;
@@ -1941,6 +1947,7 @@ void StatusSelectMenuFuncA(int client)
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("手速-半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(限量，抵挡部分伤害，就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器无后坐力(可能无效)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
+	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("保守-武器换弹夹时保留原弹夹(就像CS一样)",(g_clSkill_1[client]&SKL_1_KeepClip)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -7086,6 +7093,13 @@ public Action:Superman(Handle:timer, any:client)
 	if(!IsFakeClient(client)) PrintToChat(client, "\x03[\x05提示\x03]\x04无敌能力失效.");
 }
 
+public void OnGetWeaponsInfo(int pThis, const char[] classname)
+{
+	static char value[64];
+	InfoEditor_GetString(pThis, "clip_size", value, 64);
+	g_WeaponClipSize.SetValue(classname, StringToInt(value));
+}
+
 int GetDefaultClip(int weapon)
 {
 	if(!IsValidEntity(weapon) || !IsValidEdict(weapon))
@@ -7093,7 +7107,11 @@ int GetDefaultClip(int weapon)
 
 	char className[64];
 	GetEntityClassname(weapon, className, 64);
-
+	
+	int clip = -1;
+	if(g_WeaponClipSize.GetValue(className, clip) && clip > 0)
+		return clip;
+	
 	if(StrContains(className, "smg", false) != -1 || StrEqual(className, "weapon_rifle", false) ||
 		StrEqual(className, "weapon_rifle_sg552", false))
 		return 50;
@@ -7145,7 +7163,22 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 
 	if ((g_clSkill_4[iCid] & SKL_4_FastReload))
 		SoH_OnReload(iCid);
-
+	
+	if((g_clSkill_1[iCid] & SKL_1_KeepClip) && g_iReloadWeaponKeepClip[iCid] > 0)
+	{
+		int weapon = GetEntPropEnt(iCid, Prop_Send, "m_hActiveWeapon");
+		int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
+		// PrintToChat(iCid, "clip size: %d", clip);
+		
+		if(clip == 0)
+		{
+			int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+			SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponKeepClip[iCid]);
+			SetEntProp(iCid, Prop_Send, "m_iAmmo", GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType) - g_iReloadWeaponKeepClip[iCid], _, ammoType);
+			g_iReloadWeaponKeepClip[iCid] = 0;
+		}
+	}
+	
 	if((g_clSkill_4[iCid] & SKL_4_ClipSize))
 	{
 		int weapon = GetEntPropEnt(iCid, Prop_Send, "m_hActiveWeapon");
@@ -7406,7 +7439,7 @@ void HookPlayerReload(int client, int clipSize)
 	{
 		g_iReloadWeaponEntity[client] = weapon;
 		g_iReloadWeaponClip[client] = clipSize;
-		// PrintToChat(client, "武器：%d丨玩家：%d丨弹夹：%d丨原有：%d", weapon, client, clipSize, g_iReloadWeaponOldClip[client]);
+		// PrintToChat(client, "武器：%d丨玩家：%d丨弹夹：%d丨原有：%d丨现有：%d", weapon, client, clipSize, g_iReloadWeaponOldClip[client], GetEntProp(weapon, Prop_Send, "m_iClip1"));
 
 		if(g_iReloadWeaponOldClip[client] <= 0)
 			g_iReloadWeaponOldClip[client] = GetEntProp(weapon, Prop_Send, "m_iClip1");
@@ -7513,12 +7546,6 @@ public void PlayerHook_OnReloadThink(int client)
 			SetEntProp(weapon, Prop_Send, "m_reloadNumShells", g_iReloadWeaponClip[client]);
 			// PrintCenterText(client, "%d丨%d", GetEntProp(weapon, Prop_Send, "m_shellsInserted"), GetEntProp(weapon, Prop_Send, "m_reloadNumShells"));
 		}
-		else if(g_iReloadWeaponOldClip[client] > 0)
-		{
-			// 非霰弹枪无法进行单发填装，不需要这个
-			// PrintHintText(client, "原有子弹：%d，不还原", g_iReloadWeaponOldClip[client]);
-			g_iReloadWeaponOldClip[client] = 0;
-		}
 	}
 	else
 	{
@@ -7536,17 +7563,25 @@ public void PlayerHook_OnReloadThink(int client)
 				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
 			SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time - 0.3);
 		}
-		else if(GetEntProp(weapon, Prop_Send, "m_iClip1") > g_iReloadWeaponOldClip[client] || ammo <= 0)
+		else if(GetEntProp(weapon, Prop_Send, "m_iClip1") > 0 || ammo <= 0)
 		{
 			// 非霰弹枪换弹夹完成
 			ammo += GetEntProp(weapon, Prop_Send, "m_iClip1");
 			ammo -= g_iReloadWeaponClip[client];
+			
+			// 修复溢出子弹消失的问题
+			int defaultClip = GetDefaultClip(weapon);
+			if(g_iReloadWeaponOldClip[client] > defaultClip)
+				ammo += g_iReloadWeaponOldClip[client] - defaultClip;
+			
 			SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponClip[client]);
 			SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammoType);
 
 			PlayerHook_OnReloadStopped(client, weapon);
 			// PrintHintText(client, "换弹夹完成");
 		}
+		
+		g_iReloadWeaponOldClip[client] = 0;
 	}
 
 	// PrintCenterText(client, "备用：%d丨目标：%d", ammo, g_iReloadWeaponClip[client]);
@@ -8328,6 +8363,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					(GetEntPropFloat(weaponId, Prop_Send, "m_flNextPrimaryAttack") > GetGameTime() || clip <= 0))
 				{
 					// 单发武器无法开枪时取消开枪
+					// 应该(也许)不会触发spam检测吧
 					buttons &= ~IN_ATTACK;
 				}
 			}
@@ -8342,34 +8378,49 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					// PrintToLeft(client, "连续开枪停止");
 				}
 			}
-
+			
+			if((g_clSkill_1[client] & SKL_1_KeepClip) && !isReloading && (buttons & IN_RELOAD) && StrContains(classname, "shotgun", false) == -1)
+			{
+				g_iReloadWeaponKeepClip[client] = clip;
+				// PrintToChat(client, "pre clip size:%d", clip);
+			}
+			
 			int defaultClip = GetDefaultClip(weaponId);
 			if((g_clSkill_4[client] & SKL_4_ClipSize) && !isReloading && (buttons & IN_RELOAD) &&
-				defaultClip > 0 && clip >= defaultClip && clip < RoundToNearest(defaultClip * 1.5))
+				defaultClip > 0 && clip >= defaultClip)
 			{
-				if(StrContains(classname, "shotgun", false) != -1)
+				if(clip < RoundToNearest(defaultClip * 1.5))
 				{
-					if(g_iReloadWeaponOldClip[client] <= 0)
+					if(StrContains(classname, "shotgun", false) != -1)
 					{
-						g_iReloadWeaponOldClip[client] = clip;
+						if(g_iReloadWeaponOldClip[client] <= 0)
+						{
+							g_iReloadWeaponOldClip[client] = clip;
 
-						// SetEntProp(weaponId, Prop_Send, "m_iClip1", (clip >= defaultClip ? defaultClip - 1 : clip));
+							// SetEntProp(weaponId, Prop_Send, "m_iClip1", (clip >= defaultClip ? defaultClip - 1 : clip));
 
-						// 这样可能会更好吧...
-						SetEntProp(weaponId, Prop_Send, "m_iClip1", 0);
+							// 这样会更好，不会出现改了子弹却没触发填装动作
+							SetEntProp(weaponId, Prop_Send, "m_iClip1", 0);
+						}
 					}
+					else
+					{
+						int ammoType = GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType");
+						SetEntProp(weaponId, Prop_Send, "m_iClip1", 0);
+						SetEntProp(client, Prop_Send, "m_iAmmo", GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) +
+							clip, _, ammoType);
+						
+						g_iReloadWeaponOldClip[client] = 0;
+					}
+
+					// HookPlayerReload(client, RoundToNearest(defaultClip * 1.5));
 				}
 				else
 				{
-					int ammoType = GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType");
-					SetEntProp(weaponId, Prop_Send, "m_iClip1", 0);
-					SetEntProp(client, Prop_Send, "m_iAmmo", GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) +
-						clip, _, ammoType);
-
-					g_iReloadWeaponOldClip[client] = 0;
+					// 修复非霰弹枪弹夹过大可以强制重新装填的 bug
+					// 会和其他修改弹夹大小的插件冲突
+					buttons &= ~IN_RELOAD;
 				}
-
-				// HookPlayerReload(client, RoundToNearest(defaultClip * 1.5));
 			}
 		}
 
@@ -8382,9 +8433,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			if(IsValidEntity(entity) && IsValidEdict(entity))
 			{
-				char className[64];
+				static char className[64], weaponName[64];
 				GetEntityClassname(entity, className, 64);
-				if(StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false))
+				GetEntityClassname(weaponId, weaponName, 64);
+				
+				if(StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false) ||	// 弹药堆
+					(StrContains(className, weaponName, false) == 0 && className[strlen(weaponName)] == '_'))	// weapon_*_spawn
 				{
 					float origin[3], position[3];
 					GetClientAbsOrigin(client, origin);

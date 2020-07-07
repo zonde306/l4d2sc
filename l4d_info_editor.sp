@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION		"1.9"
+#define PLUGIN_VERSION		"1.10"
 
 /*======================================================================================
 	Plugin Info:
@@ -11,6 +11,10 @@
 
 ========================================================================================
 	Change Log:
+
+1.10 (02-Jul-2020)
+	- Fixed not always loading the correct map section data in the config for the current map.
+	- Fixed not adding 3rd party melee weapons on all 3rd party maps. Thanks to "Shao" for reporting.
 
 1.9 (10-May-2020)
 	- Added better error log message when gamedata file is missing.
@@ -96,7 +100,7 @@ ArrayList g_alWeaponsData;
 int g_PointerMission;
 bool g_bLeft4Dead2;
 bool g_bLoadNewMap;
-bool g_bLoadedMelee;
+char g_sLastMap[PLATFORM_MAX_PATH];
 
 
 
@@ -105,7 +109,7 @@ bool g_bLoadedMelee;
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "任务和武器数据修改",
+	name = "地图和武器数据编辑器",
 	author = "SilverShot",
 	description = "Modify gamemodes.txt and weapons.txt values by config instead of conflicting VPK files.",
 	version = PLUGIN_VERSION,
@@ -321,6 +325,7 @@ public Action CmdListenBlock(int client, const char[] command, int argc)
 
 public void OnMapEnd()
 {
+	GetCurrentMap(g_sLastMap, sizeof(g_sLastMap));
 	g_bLoadNewMap = true;
 }
 
@@ -331,6 +336,7 @@ public void OnMapEnd()
 // ====================================================================================================
 public Action CmdInfoReload(int client, int args)
 {
+	g_sLastMap[0] = 0;
 	ReloadData();
 	ReplyToCommand(client, "[Info Editor] Reloaded configs and weapon attributes.");
 	return Plugin_Handled;
@@ -354,12 +360,42 @@ void ReloadData()
 		g_alMissionData.GetString(i, key, sizeof(key));
 		g_alMissionData.GetString(i + 1, value, sizeof(value));
 
-		#if DEBUG_VALUES || FORCE_VALUES
 		char check[MAX_STRING_LENGTH];
 		SDKCall(SDK_KV_GetString, g_PointerMission, check, sizeof(check), key, "N/A");
 
+		// Dynamic Melee Weapons:
+		if( g_bLeft4Dead2 && strcmp(check, "N/A") && strcmp(key, "meleeweapons") == 0 )
+		{
+			Format(check, sizeof(check), ";%s;", check);
+			ReplaceString(check, sizeof(check), ";riot_shield;", ";");
+			ReplaceString(check, sizeof(check), ";baseball_bat;", ";");
+			ReplaceString(check, sizeof(check), ";cricket_bat;", ";");
+			ReplaceString(check, sizeof(check), ";crowbar;", ";");
+			ReplaceString(check, sizeof(check), ";electric_guitar;", ";");
+			ReplaceString(check, sizeof(check), ";fireaxe;", ";");
+			ReplaceString(check, sizeof(check), ";frying_pan;", ";");
+			ReplaceString(check, sizeof(check), ";golfclub;", ";");
+			ReplaceString(check, sizeof(check), ";katana;", ";");
+			ReplaceString(check, sizeof(check), ";knife;", ";");
+			ReplaceString(check, sizeof(check), ";machete;", ";");
+			ReplaceString(check, sizeof(check), ";tonfa;", ";");
+			int pos = strlen(check);
+			if( pos > 0 )
+			{
+				if( check[pos - 1] == ';' ) check[pos - 1] = 0;
+				StrCat(value, sizeof(value), ";");
+				StrCat(value, sizeof(value), check[1]);
+				pos = strlen(value);
+				if( pos > 0 )
+				{
+					if( value[pos - 1] == ';' ) value[pos - 1] = 0;
+				}
+			}
+		}
+
 		if( strcmp(check, value) )
 		{
+			#if DEBUG_VALUES || FORCE_VALUES
 			if( strcmp(check, "N/A") == 0 )
 			{
 				#if FORCE_VALUES
@@ -380,10 +416,10 @@ void ReloadData()
 					PrintToServer("MissionInfo: Set \"%s\" to \"%s\". Was \"%s\".", key, value, check);
 				#endif
 			}
-		}
-		#endif
+			#endif
 
-		SDKCall(SDK_KV_SetString, g_PointerMission, key, value);
+			SDKCall(SDK_KV_SetString, g_PointerMission, key, value);
+		}
 	}
 }
 
@@ -520,9 +556,8 @@ public MRESReturn GetMissionInfo(Handle hReturn, Handle hParams)
 		SDKCall(SDK_KV_GetString, pThis, check, sizeof(check), key, "N/A");
 
 		// Dynamic Melee Weapons:
-		if( g_bLeft4Dead2 && g_bLoadedMelee == false && strcmp(check, "N/A") && strcmp(key, "meleeweapons") == 0 )
+		if( g_bLeft4Dead2 && strcmp(check, "N/A") && strcmp(key, "meleeweapons") == 0 )
 		{
-			g_bLoadedMelee = true;
 			Format(check, sizeof(check), ";%s;", check);
 			ReplaceString(check, sizeof(check), ";riot_shield;", ";");
 			ReplaceString(check, sizeof(check), ";baseball_bat;", ";");
@@ -542,7 +577,11 @@ public MRESReturn GetMissionInfo(Handle hReturn, Handle hParams)
 				if( check[pos - 1] == ';' ) check[pos - 1] = 0;
 				StrCat(value, sizeof(value), ";");
 				StrCat(value, sizeof(value), check[1]);
-				g_alMissionData.SetString(i + 1, value);
+				pos = strlen(value);
+				if( pos > 0 )
+				{
+					if( value[pos - 1] == ';' ) value[pos - 1] = 0;
+				}
 			}
 		}
 
@@ -686,8 +725,15 @@ int g_iValueIndex;
 
 void ResetPlugin()
 {
+	char sMap[PLATFORM_MAX_PATH];
+	GetCurrentMap(sMap, sizeof(sMap));
+
+	if( strcmp(sMap, g_sLastMap) == 0 )
+		return;
+
+	strcopy(g_sLastMap, sizeof(g_sLastMap), sMap);
+
 	g_bLoadNewMap = false;
-	g_bLoadedMelee = false;
 
 	// Clear strings
 	if( g_alMissionData != null )
@@ -794,7 +840,7 @@ public SMCResult Config_NewSection(Handle parser, const char[] section, bool quo
 				while( (index = StrContains(newSection[last], ",")) != -1 )
 				{
 					newSection[last + index] = 0;
-					if( StrContains(sMap, newSection[last]) != -1 )
+					if( StrContains(sMap, newSection[last], false) != -1 )
 					{
 						g_bAllowSection = true;
 						break;
@@ -803,7 +849,7 @@ public SMCResult Config_NewSection(Handle parser, const char[] section, bool quo
 					last += index + 1;
 				}
 			}
-			else if( StrContains(sMap, section) != -1 )
+			else if( StrContains(sMap, section, false) != -1 )
 			{
 				g_bAllowSection = true;
 			}

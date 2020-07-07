@@ -127,7 +127,7 @@
 	{
 		"Signatures"
 		{
-			"CDirectorItemManager::IsMeleeWeaponAllowedToExist" //found by V10
+			"CDirectorItemManager::IsMeleeWeaponAllowedToExist" // Found by V10
 			{
 				"library"		"server"
 				"linux"			"@_ZN20CDirectorItemManager27IsMeleeWeaponAllowedToExistEPKc"
@@ -135,7 +135,7 @@
 				/* 55 8B EC 56 8B F1 8B 0D ? ? ? ? 8B 01 8B 90 ? ? ? ? FF D2 84 C0 75 ? 8B 45 ? 6A ? 68 ? ? ? ? 50 E8 ? ? ? ? 83 C4 ? 85 C0 */
 			}
 
-			"CTerrorGameRules::GetMissionInfo" //found by V10
+			"CTerrorGameRules::GetMissionInfo" // Found by V10
 			{
 				"library"		"server"
 				"linux"			"@_ZN16CTerrorGameRules14GetMissionInfoEv"

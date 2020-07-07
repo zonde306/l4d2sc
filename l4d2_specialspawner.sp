@@ -20,6 +20,7 @@ new Handle:hTimerHUD;
 
 new bool:bShowSpawnerHUD[MAXPLAYERS];
 new Float:g_fTimeLOS[100000]; // not sure what the largest possible userid is
+bool g_bAlreadyStart = false;
 
 // Modules
 #include "includes/hardcoop_util.sp"
@@ -75,6 +76,7 @@ public OnPluginStart() {
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_PostNoCopy);
 	// LOS tracking
 	HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_PostNoCopy);
+	// HookEvent("create_panic_event", Event_PaincEventStart, EventHookMode_PostNoCopy);
 	hCvarLineOfSightStarvationTime = CreateConVar( "ss_los_starvation_time", "7.5", "当SI看不见敌人多长时间处死" );
 	
 	// Customisation commands
@@ -139,7 +141,9 @@ public Action:L4D_OnFirstSurvivorLeftSafeArea(client) {
 		} else if( StrContains(gameMode, "survival", false) == -1 ) { // would otherwise cause spawns in survival before button is pressed
 			g_bHasSpawnTimerStarted = false;
 			StartSpawnTimer();
+			g_bAlreadyStart = true;
 		}
+		
 		return Plugin_Continue;
 	}
 	
@@ -160,6 +164,7 @@ public void OnGamemodeCoop(const char[] output, int caller, int activator, float
 {
 	g_bHasSpawnTimerStarted = false;
 	StartSpawnTimer();
+	g_bAlreadyStart = true;
 }
 
 public void OnGamemodeVersus(const char[] output, int caller, int activator, float delay)
@@ -204,6 +209,7 @@ public Action L4D_OnGetScriptValueInt(const char[] key, int &retVal)
 public OnSurvivalRoundStart() {
 	g_bHasSpawnTimerStarted = false;
 	StartSpawnTimer();
+	g_bAlreadyStart = true;
 }
 
 public void OnClientDisconnect_Post(int client)
@@ -219,8 +225,36 @@ public void OnClientDisconnect_Post(int client)
 	EndSpawnTimer();
 }
 
+public void OnClientPutInServer(int client)
+{
+	if(IsFakeClient(client))
+		return;
+	
+	if(g_bAlreadyStart)
+		StartSpawnTimer();
+}
+
 public OnRoundOver() {
 	EndSpawnTimer();
+	g_bAlreadyStart = false;
+}
+
+public void Event_PaincEventStart(Event event, const char[] name, bool dontBroadcast)
+{
+	if(!g_bAlreadyStart && HaveAnyHuman())
+	{
+		StartSpawnTimer();
+		g_bAlreadyStart = true;
+	}
+}
+
+public Action L4D_OnSpawnMob(int &amount)
+{
+	if(!g_bAlreadyStart && HaveAnyHuman())
+	{
+		StartSpawnTimer();
+		g_bAlreadyStart = true;
+	}
 }
 
 // Kick infected bots promptly after death to allow quicker infected respawn
@@ -229,6 +263,19 @@ public Action:OnPlayerDeath(Handle:event, const String:name[], bool:dontBroadcas
 	if( IsBotInfected(player) ) {
 		CreateTimer(1.0, Timer_KickBot, player);
 	}
+}
+
+stock bool HaveAnyHuman(int ignore = -1)
+{
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(i == ignore || !IsClientConnected(i) || IsFakeClient(i))
+			continue;
+		
+		return true;
+	}
+	
+	return false;
 }
 
 /***********************************************************************************************************************************************************************************
@@ -488,6 +535,7 @@ public Action:Cmd_ResetSpawns(client, args) {
 public Action:Cmd_StartSpawnTimerManually(client, args) {
 	if( args < 1 ) {
 		StartSpawnTimer();
+		g_bAlreadyStart = true;
 		ReplyToCommand(client, "[SS] Spawn timer started manually.");
 	} else {
 		new Float:time = 1.0;

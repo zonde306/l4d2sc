@@ -45,6 +45,7 @@ StartCustomSpawnTimer(Float:time) {
 
 //special infected spawn timer based on time modes
 StartSpawnTimer() {
+	/*
 	// 	Cvars
 	SetConVarBool( FindConVar("director_spectate_specials"), true );
 	SetConVarBool( FindConVar("director_no_specials"), true ); // disable Director spawning specials naturally
@@ -52,6 +53,7 @@ StartSpawnTimer() {
 	SetConVarInt( FindConVar("z_spawn_safety_range"), 0 );
 	//SetConVarInt( FindConVar("z_spawn_range"), 750 ); // default 1500 (potentially very far from survivors) is remedied if SpawnPositioner module is active 
 	SetConVarInt( FindConVar("z_discard_range"), 1250 ); // discard zombies farther away than this	
+	*/
 	
 	//prevent multiple timer instances
 	EndSpawnTimer();

@@ -42,12 +42,15 @@
 Handle g_fnFindUseEntity = null;
 StringMap g_WeaponClipSize;
 
+const int g_iMaxClip = 254;			// 游戏所允许的最大弹夹数量 8bit，但是 255 会被显示为 0，超过会溢出
+const int g_iMaxAmmo = 1023;		// 游戏所允许的最大子弹数量 10bit，超过会溢出
+const int g_iMaxHealHealth = 1268;	// 游戏所允许的最大治疗量，超过会溢出
+
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1) && !GetEntProp(%1, Prop_Send, "m_isGhost"))
 #define IsSurvivorHeld(%1)		(GetEntPropEnt(%1, Prop_Send, "m_jockeyAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pummelAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pounceAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_tongueOwner") > 0 || GetEntPropEnt(%1, Prop_Send, "m_carryAttacker") > 0)
 #define mps(%1,%2)				tr("%s %s", %1, (%2 ? "√" : ""))
-int g_clSkill_1[MAXPLAYERS+1], g_clSkill_2[MAXPLAYERS+1], g_clSkill_3[MAXPLAYERS+1],
-	g_clSkill_4[MAXPLAYERS+1], g_clSkill_5[MAXPLAYERS+1];
+int g_clSkill_1[MAXPLAYERS+1], g_clSkill_2[MAXPLAYERS+1], g_clSkill_3[MAXPLAYERS+1], g_clSkill_4[MAXPLAYERS+1], g_clSkill_5[MAXPLAYERS+1];
 
 enum()
 {
@@ -348,12 +351,12 @@ public OnPluginStart()
 	g_hCvarIncapCount = FindConVar("survivor_max_incapacitated_count");
 	g_hCvarPaincEvent = FindConVar("director_panic_forever");
 	g_hCvarLimitSpecial = FindConVar("z_max_player_zombies");
-	g_hCvarLimitSmoker = FindConVar("survival_max_smokers");
-	g_hCvarLimitBoomer = FindConVar("survival_max_boomers");
-	g_hCvarLimitHunter = FindConVar("survival_max_hunters");
-	g_hCvarLimitSpitter = FindConVar("survival_max_spitters");
-	g_hCvarLimitJockey = FindConVar("survival_max_jockeys");
-	g_hCvarLimitCharger = FindConVar("survival_max_chargers");
+	g_hCvarLimitSmoker = FindConVar("z_smoker_limit");
+	g_hCvarLimitBoomer = FindConVar("z_boomer_limit");
+	g_hCvarLimitHunter = FindConVar("z_hunter_limit");
+	g_hCvarLimitSpitter = FindConVar("z_spitter_limit");
+	g_hCvarLimitJockey = FindConVar("z_jockey_limit");
+	g_hCvarLimitCharger = FindConVar("z_charger_limit");
 	g_hCvarAccele = FindConVar("sv_airaccelerate");
 	g_hCvarCollide = FindConVar("sv_bounce");
 	g_hCvarVelocity = FindConVar("sv_maxvelocity");
@@ -377,6 +380,7 @@ public OnPluginStart()
 	RegConsoleCmd("ld", Command_BackPoint, "", FCVAR_HIDDEN);
 	AddCommandListener(Command_Say, "say");
 	AddCommandListener(Command_Say, "say_team");
+	AddCommandListener(Command_Give, "give");
 	// AddCommandListener(Command_Away, "go_away_from_keyboard");
 	// AddCommandListener(Command_Scripted, "scripted_user_func");
 
@@ -1475,7 +1479,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 	if(!IsValidClient(client))
 		return Plugin_Continue;
 
-	char sayText[255];
+	static char sayText[255];
 	GetCmdArg(1, sayText, 255);
 
 	if(g_pCvarAllow.BoolValue)
@@ -1522,6 +1526,23 @@ public Action Command_Say(int client, const char[] command, int argc)
 		cmdArg, GetClientUserId(client));
 	*/
 
+	return Plugin_Continue;
+}
+
+public Action Command_Give(int client, const char[] command, int argc)
+{
+	if(!IsValidAliveClient(client))
+		return Plugin_Continue;
+	
+	char item[64];
+	GetCmdArg(1, item, 64);
+	
+	if(StrEqual(item, "ammo", false))
+	{
+		AddAmmo(client, 999);
+		return Plugin_Handled;
+	}
+	
 	return Plugin_Continue;
 }
 
@@ -6894,8 +6915,8 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	if(GetClientTeam(client) == 2)
 	{
 		// 超过就会出 bug
-		if(maxHealth > 1268)
-			maxHealth = 1268;
+		if(maxHealth > g_iMaxHealHealth)
+			maxHealth = g_iMaxHealHealth;
 		
 		if(maxHealth > g_hCvarFirstAidMaxHeal.IntValue)
 			g_hCvarFirstAidMaxHeal.IntValue = maxHealth;
@@ -7430,7 +7451,10 @@ void HookPlayerReload(int client, int clipSize)
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	if(!IsValidEntity(weapon) || !IsValidEdict(weapon) || clipSize <= 0)
 		return;
-
+	
+	if(clipSize > g_iMaxClip)
+		clipSize = g_iMaxClip;
+	
 	char className[64];
 	GetEntityClassname(weapon, className, 64);
 	if(StrContains(className, "smg", false) > -1 || StrContains(className, "rifle", false) > -1 ||
@@ -7910,7 +7934,7 @@ stock bool AddHealth(int client, int amount, bool limit = true)
 #define AMMOTYPE_ADRENALINE			18
 #define AMMOTYPE_CHAINSAW			19
 
-stock bool AddAmmo(int client, int amount, int ammoType, bool noSound = false, bool limit = true)
+stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = false, bool limit = true)
 {
 	if(!IsValidAliveClient(client) || amount == 0)
 		return false;
@@ -7944,8 +7968,13 @@ stock bool AddAmmo(int client, int amount, int ammoType, bool noSound = false, b
 	}
 
 	int maxAmmo = -1;
+	int primary = GetPlayerWeaponSlot(client, 0);
+	
 	if(limit)
 	{
+		if(ammoType <= -1 && primary > MaxClients && IsValidEntity(primary))
+			ammoType = GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType");
+		
 		switch(ammoType)
 		{
 			case AMMOTYPE_PISTOL, AMMOTYPE_MAGNUM:
@@ -7993,74 +8022,83 @@ stock bool AddAmmo(int client, int amount, int ammoType, bool noSound = false, b
 
 		if(g_clSkill_3[client] & SKL_3_MoreAmmo)
 			maxAmmo = RoundToNearest(maxAmmo * 2.0);
+	}
+	else
+	{
+		maxAmmo = g_iMaxAmmo;
+	}
+	
+	int clip = 0, maxClip = 0;
+	int secondry = GetPlayerWeaponSlot(client, 1);
+	int grenade = GetPlayerWeaponSlot(client, 2);
+	int kit = GetPlayerWeaponSlot(client, 3);
+	int drug = GetPlayerWeaponSlot(client, 4);
+	if(primary > MaxClients && IsValidEntity(primary) &&
+		GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
+	{
+		maxClip = GetDefaultClip(primary);
+		if(maxClip > 0)
+		{
+			if(g_clSkill_4[client] & SKL_4_ClipSize)
+				maxClip = RoundToNearest(maxClip * 1.5);
 
-		int maxClip = 0;
+			// 主武器
+			clip = GetEntProp(primary, Prop_Send, "m_iClip1");
+			// maxAmmo += maxClip - clip;
+		}
+	}
+	else if(secondry > MaxClients && IsValidEntity(secondry) &&
+		GetEntProp(secondry, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
+	{
+		maxClip = GetDefaultClip(secondry);
+		if(maxClip > 0)
+		{
+			if(g_clSkill_4[client] & SKL_4_ClipSize)
+				maxClip = RoundToNearest(maxClip * 1.5);
 
-		int primary = GetPlayerWeaponSlot(client, 0);
-		int secondry = GetPlayerWeaponSlot(client, 1);
-		int grenade = GetPlayerWeaponSlot(client, 2);
-		int kit = GetPlayerWeaponSlot(client, 3);
-		int drug = GetPlayerWeaponSlot(client, 4);
-		if(primary > MaxClients && IsValidEntity(primary) &&
-			GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
-		{
-			maxClip = GetDefaultClip(primary);
-			if(maxClip > 0)
-			{
-				if(g_clSkill_4[client] & SKL_4_ClipSize)
-					maxClip = RoundToNearest(maxClip * 1.5);
-
-				// 主武器
-				maxAmmo += maxClip - GetEntProp(primary, Prop_Send, "m_iClip1");
-			}
+			// 副武器
+			clip = GetEntProp(secondry, Prop_Send, "m_iClip1");
+			// maxAmmo += maxClip - clip;
 		}
-		else if(secondry > MaxClients && IsValidEntity(secondry) &&
-			GetEntProp(secondry, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
+	}
+	else if(grenade > MaxClients && IsValidEntity(grenade) &&
+		GetEntProp(grenade, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
+	{
+		maxClip = GetDefaultClip(grenade);
+		if(maxClip > 0)
 		{
-			maxClip = GetDefaultClip(secondry);
-			if(maxClip > 0)
-			{
-				if(g_clSkill_4[client] & SKL_4_ClipSize)
-					maxClip = RoundToNearest(maxClip * 1.5);
-
-				// 副武器
-				maxAmmo += maxClip - GetEntProp(secondry, Prop_Send, "m_iClip1");
-			}
+			// 投掷武器
+			clip = GetEntProp(grenade, Prop_Send, "m_iClip1");
+			// maxAmmo += maxClip - clip;
 		}
-		else if(grenade > MaxClients && IsValidEntity(grenade) &&
-			GetEntProp(grenade, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
+	}
+	else if(kit > MaxClients && IsValidEntity(kit) &&
+		GetEntProp(kit, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
+	{
+		maxClip = GetDefaultClip(kit);
+		if(maxClip > 0)
 		{
-			maxClip = GetDefaultClip(grenade);
-			if(maxClip > 0)
-			{
-				// 投掷武器
-				maxAmmo += maxClip - GetEntProp(grenade, Prop_Send, "m_iClip1");
-			}
+			// 工具套件
+			clip = GetEntProp(kit, Prop_Send, "m_iClip1");
+			// maxAmmo += maxClip - clip;
 		}
-		else if(kit > MaxClients && IsValidEntity(kit) &&
-			GetEntProp(kit, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
+	}
+	else if(drug > MaxClients && IsValidEntity(drug) &&
+		GetEntProp(drug, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
+	{
+		maxClip = GetDefaultClip(drug);
+		if(maxClip > 0)
 		{
-			maxClip = GetDefaultClip(kit);
-			if(maxClip > 0)
-			{
-				// 工具套件
-				maxAmmo += maxClip - GetEntProp(kit, Prop_Send, "m_iClip1");
-			}
-		}
-		else if(drug > MaxClients && IsValidEntity(drug) &&
-			GetEntProp(drug, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
-		{
-			maxClip = GetDefaultClip(drug);
-			if(maxClip > 0)
-			{
-				// 药物
-				maxAmmo += maxClip - GetEntProp(drug, Prop_Send, "m_iClip1");
-			}
+			// 药物
+			clip = GetEntProp(drug, Prop_Send, "m_iClip1");
+			// maxAmmo += maxClip - drug;
 		}
 	}
 	
-	if(maxAmmo > 999)
-		maxAmmo = 999;
+	if(maxAmmo + maxClip > g_iMaxAmmo)
+		maxAmmo = g_iMaxAmmo - maxClip + 1;
+	else
+		maxAmmo += maxClip - clip;
 	
 	int oldAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
 	int newAmmo = oldAmmo + amount;

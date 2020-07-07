@@ -8096,7 +8096,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	}
 	
 	if(maxAmmo + maxClip > g_iMaxAmmo)
-		maxAmmo = g_iMaxAmmo - maxClip + 1;
+		maxAmmo = g_iMaxAmmo - clip;
 	else
 		maxAmmo += maxClip - clip;
 	

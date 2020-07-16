@@ -50,8 +50,12 @@ public Action Event_PlayerHurt(Handle event, const char[] name, bool dontBroadca
 	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
 
 	if (!victim || !attacker || !IsClientInGame(attacker) || !IsClientInGame(victim) || GetClientTeam(attacker) != 3 || GetClientTeam(victim) != 2) return;
-
-	if (FindDominator(victim) == attacker) CallBots();
+	
+	int dominater = FindDominator(victim);
+	if (dominater == attacker)
+		CallBots();
+	else if(dominater == -1)
+		L4D2_RunScript("CommandABot({cmd=0,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", GetClientUserId(victim), GetClientUserId(attacker));
 }
 
 public Action Event_Dominated(Event event, const char[] name, bool dontBroadcast)
@@ -75,7 +79,8 @@ static void CallBots()
 				if (!target) continue ; // if no target, no command
 				
 				TimeLastOrder[bot] =  GetGameTime();
-				ScriptCommand(bot, "script",  "CommandABot({cmd=0,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", GetClientUserId(bot), GetClientUserId(target));
+				// ScriptCommand(bot, "script",  "CommandABot({cmd=0,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", GetClientUserId(bot), GetClientUserId(target));
+				L4D2_RunScript("CommandABot({cmd=0,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", GetClientUserId(bot), GetClientUserId(target));
 				//PrintToChatAll("Bot %d commanded to kill %d", bot, target);
 			}
 		}
@@ -130,6 +135,25 @@ static int FindDominator(int client)
 	return -1;
 }
 
+
+stock void L4D2_RunScript(char[] sCode, any ...)
+{
+	static int iScriptLogic = INVALID_ENT_REFERENCE;
+	if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+	{
+		iScriptLogic = EntIndexToEntRef(CreateEntityByName("logic_script"));
+		if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+			SetFailState("Could not create 'logic_script'");
+		
+		DispatchSpawn(iScriptLogic);
+	}
+	
+	static char sBuffer[8192];
+	VFormat(sBuffer, sizeof(sBuffer), sCode, 2);
+	
+	SetVariantString(sBuffer);
+	AcceptEntityInput(iScriptLogic, "RunScriptCode");
+}
 
 stock void ScriptCommand(int client, const char[] command, const char[] arguments, any ...)
 {

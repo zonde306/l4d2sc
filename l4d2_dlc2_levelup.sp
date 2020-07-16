@@ -278,7 +278,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
 bool g_bRoundFirstStarting = false;
-ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance;
+ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints;
 
 public Plugin:myinfo =
 {
@@ -301,6 +301,7 @@ public OnPluginStart()
 	cv_sndPortalFX = CreateConVar("lv_portals_soundfx","ui/pickup_misc42.wav", "读点声音文件途径", FCVAR_NONE);
 	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒)，过期无法读档.0=无限", FCVAR_NONE, true, 0.0);
 	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率", FCVAR_NONE, true, 0.0, true, 100.0);
+	g_pCvarStartPoints = CreateConVar("lv_starter_points","0", "初始天赋点数量", FCVAR_NONE, true, 0.0, true, 30.0);
 	
 	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感才能获得一点", FCVAR_NONE, true, 1.0);
 	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友才能获得一点", FCVAR_NONE, true, 1.0);
@@ -984,7 +985,7 @@ bool ClientSaveToFileLoad(int client)
 	g_kvSavePlayer[client].SetString("steamId_3", steamId3);
 
 	// 技能和属性
-	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", 0);
+	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", g_pCvarStartPoints.IntValue);
 	// g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
 	g_clAngryPoint[client] = 0;
 	// g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);

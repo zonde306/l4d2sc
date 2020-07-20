@@ -10,6 +10,7 @@
 
 #include <sourcemod>
 #include <sdktools>
+#include <regex>
 // #include <left4downtown>
 #include <left4dhooks>
 
@@ -21,6 +22,8 @@ new Handle:hTimerHUD;
 new bool:bShowSpawnerHUD[MAXPLAYERS];
 new Float:g_fTimeLOS[100000]; // not sure what the largest possible userid is
 bool g_bAlreadyStart = false;
+bool g_bTweakMode = false;
+ConVar g_pCvarTweakSize, g_pCvarTweakInterval, g_pCvarTweakHunter, g_pCvarTweakJockey;
 
 // Modules
 #include "includes/hardcoop_util.sp"
@@ -67,11 +70,16 @@ public OnPluginStart() {
 	hCvarConfigName = CreateConVar("l4d_ready_cfg_name", "Hard Coop", "This cvar from readyup.smx is required by server_namer.smx, but is duplicated here to avoid use of readyup.smx");
 	SetConVarFlags( hCvarReadyUpEnabled, FCVAR_CHEAT ); SetConVarFlags( hCvarConfigName, FCVAR_CHEAT ); // get rid of 'symbol is assigned a value that is never used' compiler warnings
 	
+	g_pCvarTweakSize = CreateConVar("ss_tweak_size", "1", "是否允许玩家调整刷特感数量", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarTweakInterval = CreateConVar("ss_tweak_timer", "1", "是否允许玩家调整刷特感间隔", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarTweakHunter = CreateConVar("ss_tweak_hunter", "1", "是否允许玩家调整Hunter模式及数量", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarTweakJockey = CreateConVar("ss_tweak_jockey", "1", "是否允许玩家调整Jockey模式及数量", FCVAR_NONE, true, 0.0, true, 1.0);
+	
 	// Resetting at the end of rounds
-	HookEvent("mission_lost", EventHook:OnRoundOver, EventHookMode_PostNoCopy);
-	HookEvent("map_transition", EventHook:OnRoundOver, EventHookMode_PostNoCopy);
-	HookEvent("round_end", EventHook:OnRoundOver, EventHookMode_PostNoCopy);
-	HookEvent("survival_round_start", EventHook:OnSurvivalRoundStart, EventHookMode_PostNoCopy);
+	HookEvent("mission_lost", OnRoundOver, EventHookMode_PostNoCopy);
+	HookEvent("map_transition", OnRoundOver, EventHookMode_PostNoCopy);
+	HookEvent("round_end", OnRoundOver, EventHookMode_PostNoCopy);
+	HookEvent("survival_round_start", OnSurvivalRoundStart, EventHookMode_PostNoCopy);
 	// Faster spawns
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_PostNoCopy);
 	// LOS tracking
@@ -90,6 +98,9 @@ public OnPluginStart() {
 	RegAdminCmd("sm_forcetimer", Cmd_StartSpawnTimerManually, ADMFLAG_RCON, "Manually start the spawn timer");
 	
 	AutoExecConfig(true, "l4d2_specialspawnner");
+	
+	AddCommandListener(Command_Say, "say");
+	AddCommandListener(Command_Say, "say_team");
 }
 
 public OnPluginEnd() {
@@ -149,7 +160,7 @@ public Action:L4D_OnFirstSurvivorLeftSafeArea(client) {
 	
 	DispatchSpawn(entity);
 	HookSingleEntityOutput(entity, "OnCoop", OnGamemodeCoop, true);
-	// HookSingleEntityOutput(entity, "OnSurvival", OnGamemodeCoop, true);
+	HookSingleEntityOutput(entity, "OnSurvival", OnGamemodeCoop, true);
 	HookSingleEntityOutput(entity, "OnVersus", OnGamemodeVersus, true);
 	HookSingleEntityOutput(entity, "OnScavenge", OnGamemodeVersus, true);
 	ActivateEntity(entity);
@@ -165,25 +176,36 @@ public void OnGamemodeCoop(const char[] output, int caller, int activator, float
 	g_bHasSpawnTimerStarted = false;
 	StartSpawnTimer();
 	g_bAlreadyStart = true;
+	PrintToChatAll("\x03[SS]\x01 特感数量 \x05%d\x01，刷特间隔 \x05%d\x01。", hSILimit.IntValue, hSpawnTimeMin.IntValue);
+	PrintToChatAll("聊天框输入 \x04数字si\x01 设置数量，输入 \x04数字s\x01 设置间隔。例如：4si、8si、15s、30s");
+	// PrintToChatAll("聊天框输入 4ht/5ht/6ht/7ht/8ht/9ht/10ht/11ht/12ht 切换为Hunter模式并设置数量。");
+	// PrintToChatAll("聊天框输入 4jk/5jk/6jk/7jk/8jk/9jk/10jk/11jk/12jk 切换为Jockey模式并设置数量。");
+	// PrintToChatAll("聊天框输入 4si/5si/6si/7si/8si/9si/10si/11si/12si 设置特感数量。");
+	// PrintToChatAll("聊天框输入 5s/10s/15s/20s/25s/30s/35s/40s/45s 设置刷特间隔。");
 }
 
 public void OnGamemodeVersus(const char[] output, int caller, int activator, float delay)
 {
+	/*
 	ResetConVar( FindConVar("director_spectate_specials") );
 	ResetConVar( FindConVar("director_no_specials") ); // Disable Director spawning specials naturally
 	ResetConVar( FindConVar("z_safe_spawn_range") );
 	ResetConVar( FindConVar("z_spawn_safety_range") );
 	ResetConVar( FindConVar("z_spawn_range") );
 	ResetConVar( FindConVar("z_discard_range") );
+	*/
 }
 
 // 突变模式兼容
 public Action L4D_OnGetScriptValueInt(const char[] key, int &retVal)
 {
+	if(g_bTweakMode)
+		return Plugin_Continue;
+	
 	if(StrEqual(key, "MaxSpecials", false) || StrEqual(key, "cm_MaxSpecials", false))
 	{
 		hSILimit.IntValue = retVal;
-		hSILimitServerCap.IntValue = retVal * 2;
+		// hSILimitServerCap.IntValue = retVal * 2;
 	}
 	else if(StrEqual(key, "BoomerLimit", false))
 		hSpawnLimits[SI_BOOMER].IntValue = retVal;
@@ -206,10 +228,13 @@ public Action L4D_OnGetScriptValueInt(const char[] key, int &retVal)
 	return Plugin_Continue;
 }
 
-public OnSurvivalRoundStart() {
+public OnSurvivalRoundStart(Event event, const char[] name, bool dontBroadcast) {
+	/*
 	g_bHasSpawnTimerStarted = false;
 	StartSpawnTimer();
 	g_bAlreadyStart = true;
+	*/
+	L4D_OnFirstSurvivorLeftSafeArea(-1);
 }
 
 public void OnClientDisconnect_Post(int client)
@@ -222,6 +247,7 @@ public void OnClientDisconnect_Post(int client)
 		return;
 	}
 	
+	g_bTweakMode = false;
 	EndSpawnTimer();
 }
 
@@ -234,9 +260,10 @@ public void OnClientPutInServer(int client)
 		StartSpawnTimer();
 }
 
-public OnRoundOver() {
+public void OnRoundOver(Event event, const char[] name, bool dontBroadcast) {
 	EndSpawnTimer();
 	g_bAlreadyStart = false;
+	PrintToChatAll("\x03[SS]\x01 刷特感停止。");
 }
 
 public void Event_PaincEventStart(Event event, const char[] name, bool dontBroadcast)
@@ -515,6 +542,169 @@ public Action:Cmd_SpawnProximity(client, args) {
 	return Plugin_Handled;
 }
 
+public Action Command_Say(int client, const char[] command, int argc)
+{
+	if(client < 1 || client >= MaxClients || !IsClientInGame(client) || GetClientTeam(client) != 2 || !IsPlayerAlive(client))
+		return Plugin_Continue;
+	
+	static char sayText[255];
+	GetCmdArg(1, sayText, 255);
+	
+	if(g_pCvarTweakSize.BoolValue)
+	{
+		static Regex re;
+		if(re == null)
+			re = CompileRegex("(\\d{1,2})si");
+		if(re.Match(sayText) > 0)
+		{
+			int count = 0;
+			static char matchs[8];
+			if(re.GetSubString(1, matchs, 8) && matchs[0] != EOS && (1 <= (count = StringToInt(matchs)) <= 28))
+			{
+				int sepc = count / 3;
+				hSILimit.IntValue = count;
+				hSpawnLimits[SI_SMOKER].IntValue = sepc;
+				hSpawnLimits[SI_BOOMER].IntValue = sepc;
+				hSpawnLimits[SI_HUNTER].IntValue = sepc;
+				hSpawnLimits[SI_SPITTER].IntValue = sepc;
+				hSpawnLimits[SI_JOCKEY].IntValue = sepc;
+				hSpawnLimits[SI_CHARGER].IntValue = sepc;
+				hSpawnSize.IntValue = count - sepc;
+				g_bTweakMode = true;
+				
+				char message[255];
+				Format(message, 255, "\x03[SS]\x01 特感数量调整为 \x05%d\x01，每波刷 \x05%d\x01 只。", count, count - sepc);
+				
+				DataPack data = CreateDataPack();
+				data.WriteString(message);
+				RequestFrame(NotifyTweakMessage, data);
+				
+				return Plugin_Continue;
+			}
+			else
+			{
+				PrintToChat(client, "有效范围：1~28");
+			}
+		}
+	}
+	if(g_pCvarTweakInterval.BoolValue)
+	{
+		static Regex re;
+		if(re == null)
+			re = CompileRegex("(\\d{1,2})s");
+		if(re.Match(sayText) > 0)
+		{
+			int count = 0;
+			static char matchs[8];
+			if(re.GetSubString(1, matchs, 8) && matchs[0] != EOS && (0 <= (count = StringToInt(matchs)) <= 45))
+			{
+				hSpawnTimeMin.IntValue = count;
+				hSpawnTimeMax.IntValue = count + 5;
+				g_bTweakMode = true;
+				
+				char message[255];
+				Format(message, 255, "\x03[SS]\x01 特感刷新间隔调整为 \x05%d\x01。", count);
+				
+				DataPack data = CreateDataPack();
+				data.WriteString(message);
+				RequestFrame(NotifyTweakMessage, data);
+				
+				return Plugin_Continue;
+			}
+			else
+			{
+				PrintToChat(client, "有效范围：0~45");
+			}
+		}
+	}
+	if(g_pCvarTweakHunter.BoolValue)
+	{
+		static Regex re;
+		if(re == null)
+			re = CompileRegex("(\\d{1,2})ht");
+		if(re.Match(sayText) > 0)
+		{
+			int count = 0;
+			static char matchs[8];
+			if(re.GetSubString(1, matchs, 8) && matchs[0] != EOS && (1 <= (count = StringToInt(matchs)) <= 28))
+			{
+				int sepc = count / 3;
+				hSILimit.IntValue = count;
+				hSpawnLimits[SI_SMOKER].IntValue = 0;
+				hSpawnLimits[SI_BOOMER].IntValue = 0;
+				hSpawnLimits[SI_HUNTER].IntValue = count;
+				hSpawnLimits[SI_SPITTER].IntValue = sepc;
+				hSpawnLimits[SI_JOCKEY].IntValue = 0;
+				hSpawnLimits[SI_CHARGER].IntValue = 0;
+				hSpawnSize.IntValue = count - sepc;
+				g_bTweakMode = true;
+				
+				char message[255];
+				Format(message, 255, "\x03[SS]\x01 Hunter 数量调整为 \x05%d\x01，每波 \x05%d\x01 只。", count, count - sepc);
+				
+				DataPack data = CreateDataPack();
+				data.WriteString(message);
+				RequestFrame(NotifyTweakMessage, data);
+				
+				return Plugin_Continue;
+			}
+			else
+			{
+				PrintToChat(client, "有效范围：1~28");
+			}
+		}
+	}
+	if(g_pCvarTweakJockey.BoolValue)
+	{
+		static Regex re;
+		if(re == null)
+			re = CompileRegex("(\\d{1,2})jk");
+		if(re.Match(sayText) > 0)
+		{
+			int count = 0;
+			static char matchs[8];
+			if(re.GetSubString(1, matchs, 8) && matchs[0] != EOS && (1 <= (count = StringToInt(matchs)) <= 28))
+			{
+				int sepc = count / 3;
+				hSILimit.IntValue = count;
+				hSpawnLimits[SI_SMOKER].IntValue = 0;
+				hSpawnLimits[SI_BOOMER].IntValue = 0;
+				hSpawnLimits[SI_HUNTER].IntValue = count;
+				hSpawnLimits[SI_SPITTER].IntValue = 0;
+				hSpawnLimits[SI_JOCKEY].IntValue = sepc;
+				hSpawnLimits[SI_CHARGER].IntValue = 0;
+				hSpawnSize.IntValue = count - sepc;
+				g_bTweakMode = true;
+				
+				char message[255];
+				Format(message, 255, "\x03[SS]\x01 Jockey 数量调整为 \x05%d\x01，每波 \x05%d\x01 只。", count, count - sepc);
+				
+				DataPack data = CreateDataPack();
+				data.WriteString(message);
+				RequestFrame(NotifyTweakMessage, data);
+				
+				return Plugin_Continue;
+			}
+			else
+			{
+				PrintToChat(client, "有效范围：1~28");
+			}
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
+public void NotifyTweakMessage(any data)
+{
+	DataPack pack = view_as<DataPack>(data);
+	pack.Reset();
+	
+	char message[255];
+	pack.ReadString(message, 255);
+	PrintToChatAll(message);
+}
+
 /***********************************************************************************************************************************************************************************
 
                                                                          ADMIN COMMANDS
@@ -590,11 +780,11 @@ FillHeaderInfo(Handle:spawnerHUD) {
 FillSpecialInfectedInfo(Handle:spawnerHUD) {
 	// Potential SI
 	new String:SILimit[32];
-	Format( SILimit, sizeof(SILimit), "SI max -> %d / %d (Cap: %d)", CountSpecialInfectedBots(), GetConVarInt(hSILimit), GetConVarInt(hSILimitServerCap) );
+	Format( SILimit, sizeof(SILimit), "SI 存活上限 -> %d / %d (队列上限: %d)", CountSpecialInfectedBots(), GetConVarInt(hSILimit), GetConVarInt(hSILimitServerCap) );
 	DrawPanelText(spawnerHUD, SILimit);
 	// Simultaneous spawn limit
 	new String:simultaneousSpawnLimit[32];
-	Format( simultaneousSpawnLimit, sizeof(simultaneousSpawnLimit), "Group spawn size -> %d", GetConVarInt(hSpawnSize) );
+	Format( simultaneousSpawnLimit, sizeof(simultaneousSpawnLimit), "每波数量 -> %d", GetConVarInt(hSpawnSize) );
 	DrawPanelText(spawnerHUD, simultaneousSpawnLimit);
 	DrawPanelText(spawnerHUD, " \n");
 	// Individual class weights and limits
@@ -603,7 +793,7 @@ FillSpecialInfectedInfo(Handle:spawnerHUD) {
 		Format( 
 			classCustomisationInfo[i],
 			128, 
-			"%s | weight: %d | limit: %d/%d ",
+			"%s | 几率: %d | 上限: %d/%d ",
 			Spawns[i], GetConVarInt(hSpawnWeights[i]), CountSIClass(i + 1), GetConVarInt(hSpawnLimits[i])
 		);
 		DrawPanelText(spawnerHUD, classCustomisationInfo[i]);
@@ -613,14 +803,14 @@ FillSpecialInfectedInfo(Handle:spawnerHUD) {
 
 FillTimerInfo(Handle:spawnerHUD) {
 	// Section heading
-	DrawPanelText(spawnerHUD, "Timer:");
+	DrawPanelText(spawnerHUD, "间隔(秒):");
 	// Min spawn time
 	new String:timerMin[32];
-	Format( timerMin, sizeof(timerMin), "Min: %f", GetConVarFloat(hSpawnTimeMin) );
+	Format( timerMin, sizeof(timerMin), "最小: %f", GetConVarFloat(hSpawnTimeMin) );
 	DrawPanelText(spawnerHUD, timerMin);
 	// Max spawn time
 	new String:timerMax[32];
-	Format( timerMax, sizeof(timerMax), "Max: %f", GetConVarFloat(hSpawnTimeMax) );
+	Format( timerMax, sizeof(timerMax), "最大: %f", GetConVarFloat(hSpawnTimeMax) );
 	DrawPanelText(spawnerHUD, timerMax);
 }
 

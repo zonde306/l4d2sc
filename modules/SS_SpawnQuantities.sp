@@ -23,9 +23,9 @@ new SpawnSizeCache = UNINITIALISED;
 
 public SpawnQuantities_OnModuleStart() {
 	// Server SI max (marked FCVAR_CHEAT; admin only)
-	hSILimitServerCap = CreateConVar("ss_server_si_limit", "12", "特感数量最大上限", FCVAR_CHEAT, true, 1.0);
+	hSILimitServerCap = CreateConVar("ss_server_si_limit", "16", "特感数量最大上限", FCVAR_CHEAT, true, 1.0);
 	// Spawn limits
-	hSILimit = CreateConVar("ss_si_limit", "8", "最大存活特感上限", FCVAR_PLUGIN, true, 1.0, true, float(GetConVarInt(hSILimitServerCap)) );
+	hSILimit = CreateConVar("ss_si_limit", "4", "最大存活特感上限", FCVAR_PLUGIN, true, 1.0, true, float(GetConVarInt(hSILimitServerCap)) );
 	HookConVarChange(hSILimit, ConVarChanged:CalculateSpawnTimes);
 	hSpawnSize = CreateConVar("ss_spawn_size", "3", "每次刷多少个特感", FCVAR_PLUGIN, true, 1.0, true, float(GetConVarInt(hSILimitServerCap)) );
 	hSpawnLimits[SI_SMOKER]		= CreateConVar("ss_smoker_limit",	"1", "舌头存活上限", FCVAR_PLUGIN, true, 0.0, true, 14.0);

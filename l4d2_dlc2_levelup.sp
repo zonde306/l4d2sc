@@ -65,6 +65,7 @@ enum()
 	SKL_1_Armor = 256,
 	SKL_1_NoRecoil = 512,
 	SKL_1_KeepClip = 1024,
+	SKL_1_ReviveBlock = 2048,
 
 	SKL_2_Chainsaw = 1,
 	SKL_2_Excited = 2,
@@ -392,7 +393,7 @@ public OnPluginStart()
 	HookEvent("player_entered_start_area", Event_PlayerEnterStartArea);
 	HookEvent("player_first_spawn", Event_PlayerSpawn);
 	HookEvent("bot_player_replace", Event_PlayerReplaceBot);
-	HookEvent("spit_burst", Event_SpitBurst);
+	// HookEvent("spit_burst", Event_SpitBurst);
 	HookEvent("player_incapacitated", Event_PlayerIncapacitated);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("infected_death", Event_InfectedDeath);
@@ -400,18 +401,18 @@ public OnPluginStart()
 	HookEvent("player_hurt", Event_PlayerHurt);
 	HookEvent("player_team", Event_PlayerTeam);
 	HookEvent("infected_hurt", Event_InfectedHurt);
-	HookEvent("round_start", Event_RoundStart);
+	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("defibrillator_used", Event_DefibrillatorUsed);
 	HookEvent("revive_success", Event_ReviveSuccess);
 	HookEvent("weapon_reload", Event_WeaponReload);
 	HookEvent("weapon_fire", Event_WeaponFire);
-	HookEvent("round_end", Event_RoundEnd);
-	HookEvent("map_transition", Event_RoundEnd);
-	HookEvent("mission_lost", Event_RoundEnd);
-	HookEvent("map_transition", Event_RoundWin);
-	HookEvent("finale_win", Event_FinaleWin);
+	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("map_transition", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("mission_lost", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("map_transition", Event_RoundWin, EventHookMode_PostNoCopy);
+	HookEvent("finale_win", Event_FinaleWin, EventHookMode_PostNoCopy);
 	HookEvent("finale_vehicle_leaving", Event_FinaleVehicleLeaving);
-	HookEvent("mission_lost", Event_MissionLost);
+	HookEvent("mission_lost", Event_MissionLost, EventHookMode_PostNoCopy);
 	HookEvent("player_falldamage", Event_PlayerFallDamage);
 	HookEvent("award_earned", Event_AwardEarned);
 	HookEvent("player_complete_sacrifice", Event_PlayerSacrifice);
@@ -429,8 +430,8 @@ public OnPluginStart()
 	// HookEvent("witch_killed", Event_WitchKilled);
 	HookEvent("area_cleared", Event_AreaCleared);
 	// HookEvent("vomit_bomb_tank", Event_VomitjarTank);
-	HookEvent("create_panic_event", Event_PaincEventStart);
-	HookEvent("panic_event_finished", Event_PaincEventStop);
+	HookEvent("create_panic_event", Event_PaincEventStart, EventHookMode_PostNoCopy);
+	HookEvent("panic_event_finished", Event_PaincEventStop, EventHookMode_PostNoCopy);
 	// HookEvent("strongman_bell_knocked_off", Event_StrongmanTrigged);
 	// HookEvent("molotov_thrown", Event_MolotovThrown);
 	// HookEvent("stashwhacker_game_won", Event_StashwhackerTrigged);
@@ -959,7 +960,10 @@ bool ClientSaveToFileLoad(int client)
 		if(prev + deadline < current)
 		{
 			Initialization(client, true);
-			PrintToServer("玩家 %N 的存档过期了", client);
+			
+			if(prev > 0)
+				PrintToServer("玩家 %N 的存档过期了", client);
+			
 			return false;
 		}
 	}
@@ -1535,6 +1539,15 @@ public Action Command_Give(int client, const char[] command, int argc)
 	if(!IsValidAliveClient(client))
 		return Plugin_Continue;
 	
+	if(GetCommandFlags(command) & FCVAR_CHEAT)
+	{
+		static ConVar sv_cheats;
+		if(sv_cheats == null)
+			sv_cheats = FindConVar("sv_cheats");
+		if(sv_cheats != null && !sv_cheats.BoolValue)
+			return Plugin_Continue;
+	}
+	
 	char item[64];
 	GetCmdArg(1, item, 64);
 	
@@ -1970,6 +1983,7 @@ void StatusSelectMenuFuncA(int client)
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(限量，抵挡部分伤害，就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器无后坐力(可能无效)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("保守-武器换弹夹时保留原弹夹(就像CS一样)",(g_clSkill_1[client]&SKL_1_KeepClip)));
+	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("坚毅-拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -3883,21 +3897,28 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		// 免疫队友和自己的伤害
 		return Plugin_Handled;
 	}
-
-	if(attacker > MaxClients && IsValidEntity(attacker))
+	
+	if(attacker > 0 && IsValidEntity(attacker))
 	{
 		static char classname[64];
 		GetEdictClassname(attacker, classname, 64);
+		
+		int health = GetEntProp(victim, Prop_Data, "m_iHealth");
+		int reviver = GetEntPropEnt(victim, Prop_Send, "m_reviveOwner");
+		if(IsPlayerIncapped(victim) && IsValidAliveClient(reviver) && health > damage &&
+			((g_clSkill_1[victim] & SKL_1_ReviveBlock) || (g_clSkill_1[reviver] & SKL_1_ReviveBlock)))
+		{
+			// 将伤害类型替换为不会打断
+			damagetype = (DMG_ENERGYBEAM|DMG_RADIATION);
+		}
+		
 		if((g_clSkill_4[victim] & SKL_4_Defensive) && StrEqual(classname, "infected", false))
 		{
-			if(GetRandomInt(0, 1))
+			if(damage > 1.0 && (health <= damage || GetRandomInt(0, 1)))
 			{
 				damage /= 2.0;
 				if(damage < 1.0)
 					damage = 1.0;
-
-				// 普感伤害减半
-				return Plugin_Changed;
 			}
 			else
 			{
@@ -3907,7 +3928,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		}
 	}
 	
-	return Plugin_Continue;
+	return Plugin_Changed;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -6578,10 +6599,12 @@ public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroa
 
 public void Event_PaincEventStart(Event event, const char[] eventName, bool dontBroadcast)
 {
+	/*
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidAliveClient(client))
 		return;
-
+	*/
+	
 	g_bIsPaincEvent = true;
 	g_bIsPaincIncap = false;
 	// PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 搞了一波尸潮。", client);
@@ -6700,14 +6723,17 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 	
 	char classname[64];
 	event.GetString("item", classname, 64);
-	Format(classname, 64, "weapon_%s", classname);
-	
-	DataPack data = CreateDataPack();
-	data.WriteCell(client);
-	data.WriteString(classname);
-	data.WriteCell(false);
-	
-	RequestFrame(UpdateWeaponAmmo, data);
+	// Format(classname, 64, "weapon_%s", classname);
+	if(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
+		StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1)
+	{
+		DataPack data = CreateDataPack();
+		data.WriteCell(client);
+		data.WriteString(classname);
+		data.WriteCell(false);
+		
+		RequestFrame(UpdateWeaponAmmo, data);
+	}
 }
 
 public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBroadcast)
@@ -6794,7 +6820,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	// 当玩家切换到观察者或者离开游戏时停止正在播放的音乐
 	if(disconnect || newTeam <= 1)
 	{
-		PrintToServer("玩家 %N 不再进行游戏了。", client);
+		// PrintToServer("玩家 %N 不再进行游戏了。", client);
 		CreateHideMotd(client);
 		return;
 	}

@@ -1,16 +1,41 @@
-#define PLUGIN_VERSION 		"1.2"
+#define PLUGIN_VERSION 		"1.9"
 
-/*=======================================================================================
+/*======================================================================================
 	Plugin Info:
 
 *	Name	:	[L4D & L4D2] Incapped Shove
 *	Author	:	SilverShot
 *	Descrp	:	Allows Survivors to shove common and special infected while incapacitated.
 *	Link	:	https://forums.alliedmods.net/showthread.php?t=318729
-*	Plugins	:	http://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
+*	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
 ========================================================================================
 	Change Log:
+
+1.9 (15-May-2020)
+	- Fixed not damaging Special Infected.
+	- Replaced "point_hurt" entity with "SDKHooks_TakeDamage" function.
+
+1.8 (10-May-2020)
+	- Added better error log message when gamedata file is missing.
+	- Extra checks to prevent "IsAllowedGameMode" throwing errors.
+	- Various changes to tidy up code.
+	- Various optimizations and fixes.
+
+1.7 (01-Apr-2020)
+	- Fixed "IsAllowedGameMode" from throwing errors when the "_tog" cvar was changed before MapStart.
+
+1.6 (20-Jan-2020)
+	- Added cvar "l4d_incapped_shove_hurt" to damage the player each time they shove.
+
+1.5 (19-Jan-2020)
+	- Added cvar "l4d_incapped_shove_pounced" to control if shoving while pinned is allowed.
+
+1.4 (06-Jan-2020)
+	- Fixed invalid entity errors. Thanks to "xZk" for reporting.
+
+1.3 (01-Nov-2019)
+	- Fixed being able to shove while hanging from a ledge.
 
 1.2 (10-Oct-2019)
 	- Can now push and stumble Common Infected in L4D1. Thanks to "Dragokas" for reporting.
@@ -34,14 +59,20 @@
 #include <sdktools>
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
+#define GAMEDATA			"l4d_incapped_shove"
 #define MAX_DEGREE			90.0	// Degrees to spread traces over.
 #define MAX_TRACES			11		// How many TraceHull traces per hit. Odd number so 1 trace shoots down the center.
 
-ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarCooldown, g_hCvarPenalty, g_hCvarDamage, g_hCvarRange, g_hCvarTypes;
+
+ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarCooldown, g_hCvarDamage, g_hCvarHurt, g_hCvarPenalty, g_hCvarPounce, g_hCvarRange, g_hCvarTypes;
 Handle g_hSDK_OnSwingStart, g_hSDK_StaggerClient;
-bool g_bCvarAllow, g_bLeft4Dead2;
+bool g_bCvarAllow, g_bMapStarted, g_bLeft4Dead2;
 float g_fTimeout[MAXPLAYERS + 1];
 int g_iIgnore[MAX_TRACES + 1];
+int g_iClassTank;
+
+int g_iCvarDamage, g_iCvarHurt, g_iCvarPounce, g_iCvarRange, g_iCvarTypes;
+float g_fCvarCooldown, g_fCvarPenalty;
 
 
 
@@ -50,7 +81,7 @@ int g_iIgnore[MAX_TRACES + 1];
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "倒地推",
+	name = "[L4D & L4D2] Incapped Shove",
 	author = "SilverShot",
 	description = "Allows Survivors to shove common and special infected while incapacitated.",
 	version = PLUGIN_VERSION,
@@ -76,14 +107,16 @@ public void OnPluginStart()
 	// CVARS
 	g_hCvarAllow = CreateConVar(	"l4d_incapped_shove_allow",			"1",					"0=Plugin off, 1=Plugin on.", CVAR_FLAGS );
 	g_hCvarDamage = CreateConVar(	"l4d_incapped_shove_damage",		"5",					"The amount of damage each hit does.", CVAR_FLAGS );
-	g_hCvarRange = CreateConVar(	"l4d_incapped_shove_range",			"85",					"How close to survivors, common or special infected to stumble them.", CVAR_FLAGS );
+	g_hCvarHurt =	CreateConVar(	"l4d_incapped_shove_hurt",			"0",					"Each time the player shoves they will be damaged by this much.", CVAR_FLAGS);
 	g_hCvarPenalty = CreateConVar(	"l4d_incapped_shove_penalty",		"0.1",					"Penalty delay to add per shove. Delays each consecutive swing by this amount.", CVAR_FLAGS );
+	g_hCvarPounce = CreateConVar(	"l4d_incapped_shove_pounced",		"0",					"0=Off. Allow shoving while incapped and pinned by 1=Smoker, 2=Hunter, 4=Charger. 7=All. Add numbers together.", CVAR_FLAGS );
+	g_hCvarRange = CreateConVar(	"l4d_incapped_shove_range",			"85",					"How close to survivors, common or special infected to stumble them.", CVAR_FLAGS );
 	g_hCvarCooldown = CreateConVar(	"l4d_incapped_shove_swing",			"0.8",					"How quickly can a survivor shove. Time to wait till next swing.", CVAR_FLAGS );
 	g_hCvarTypes = CreateConVar(	"l4d_incapped_shove_types",			"5",					"Who to affect: 1=Common Infected, 2=Survivors, 4=Special Infected, 8=Tank. Add numbers together.", CVAR_FLAGS );
 	g_hCvarModes = CreateConVar(	"l4d_incapped_shove_modes",			"",						"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
 	g_hCvarModesOff = CreateConVar(	"l4d_incapped_shove_modes_off",		"",						"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
 	g_hCvarModesTog = CreateConVar(	"l4d_incapped_shove_modes_tog",		"0",					"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
-	CreateConVar(					"l4d_incapped_shove_version",		PLUGIN_VERSION,			"Incapped Shove plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
+	CreateConVar(					"l4d_incapped_shove_version",		PLUGIN_VERSION,			"Incapped Shove plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,			"l4d_incapped_shove");
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
@@ -92,16 +125,26 @@ public void OnPluginStart()
 	g_hCvarModes.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarModesOff.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarAllow.AddChangeHook(ConVarChanged_Allow);
+	g_hCvarDamage.AddChangeHook(ConVarChanged_Cvars);
+	g_hCvarHurt.AddChangeHook(ConVarChanged_Cvars);
+	g_hCvarPenalty.AddChangeHook(ConVarChanged_Cvars);
+	g_hCvarPounce.AddChangeHook(ConVarChanged_Cvars);
+	g_hCvarRange.AddChangeHook(ConVarChanged_Cvars);
+	g_hCvarCooldown.AddChangeHook(ConVarChanged_Cvars);
+	g_hCvarTypes.AddChangeHook(ConVarChanged_Cvars);
 
 
 
 	// GAMEDATA
-	Handle hConf = LoadGameConfigFile("l4d_incapped_shove");
-	if( hConf == null )
-		SetFailState("Missing required 'gamedata/l4d_incapped_shove.txt', please re-download.");
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", GAMEDATA);
+	if( FileExists(sPath) == false ) SetFailState("\n==========\nMissing required file: \"%s\".\nRead installation instructions again.\n==========", sPath);
+
+	Handle hGameData = LoadGameConfigFile(GAMEDATA);
+	if( hGameData == null ) SetFailState("Failed to load \"%s.txt\" gamedata.", GAMEDATA);
 
 	StartPrepSDKCall(SDKCall_Player);
-	if( PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTerrorPlayer::OnStaggered") == false )
+	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnStaggered") == false )
 		SetFailState("Could not load the 'CTerrorPlayer::OnStaggered' gamedata signature.");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_Pointer);
@@ -110,17 +153,21 @@ public void OnPluginStart()
 		SetFailState("Could not prep the 'CTerrorPlayer::OnStaggered' function.");
 
 	StartPrepSDKCall(SDKCall_Entity);
-	if( PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, "CTerrorWeapon::OnSwingStart") == false )
+	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorWeapon::OnSwingStart") == false )
 		SetFailState("Could not load the 'CTerrorWeapon::OnSwingStart' gamedata signature.");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 	g_hSDK_OnSwingStart = EndPrepSDKCall();
 	if( g_hSDK_OnSwingStart == null )
 		SetFailState("Could not prep the 'CTerrorWeapon::OnSwingStart' function.");
 
+	delete hGameData;
+
 
 
 	// EVENTS
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+
+	g_iClassTank = g_bLeft4Dead2 ? 8 : 5;
 }
 
 
@@ -128,6 +175,16 @@ public void OnPluginStart()
 // ====================================================================================================
 //					CVARS
 // ====================================================================================================
+public void OnMapStart()
+{
+	g_bMapStarted = true;
+}
+
+public void OnMapEnd()
+{
+	g_bMapStarted = false;
+}
+
 public void OnConfigsExecuted()
 {
 	IsAllowed();
@@ -138,10 +195,27 @@ public void ConVarChanged_Allow(Handle convar, const char[] oldValue, const char
 	IsAllowed();
 }
 
+public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	GetCvars();
+}
+
+void GetCvars()
+{
+	g_iCvarDamage		= g_hCvarDamage.IntValue;
+	g_iCvarHurt			= g_hCvarHurt.IntValue;
+	g_fCvarPenalty		= g_hCvarPenalty.FloatValue;
+	g_iCvarPounce		= g_hCvarPounce.IntValue;
+	g_iCvarRange		= g_hCvarRange.IntValue;
+	g_fCvarCooldown		= g_hCvarCooldown.FloatValue;
+	g_iCvarTypes		= g_hCvarTypes.IntValue;
+}
+
 void IsAllowed()
 {
 	bool bCvarAllow = g_hCvarAllow.BoolValue;
 	bool bAllowMode = IsAllowedGameMode();
+	GetCvars();
 
 	if( g_bCvarAllow == false && bCvarAllow == true && bAllowMode == true )
 	{
@@ -163,17 +237,24 @@ bool IsAllowedGameMode()
 	int iCvarModesTog = g_hCvarModesTog.IntValue;
 	if( iCvarModesTog != 0 )
 	{
+		if( g_bMapStarted == false )
+			return false;
+
 		g_iCurrentMode = 0;
 
 		int entity = CreateEntityByName("info_gamemode");
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		AcceptEntityInput(entity, "Kill");
+		if( IsValidEntity(entity) )
+		{
+			DispatchSpawn(entity);
+			HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+			ActivateEntity(entity);
+			AcceptEntityInput(entity, "PostSpawnActivate");
+			if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+				RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+		}
 
 		if( g_iCurrentMode == 0 )
 			return false;
@@ -187,7 +268,7 @@ bool IsAllowedGameMode()
 	Format(sGameMode, sizeof(sGameMode), ",%s,", sGameMode);
 
 	g_hCvarModes.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) == -1 )
@@ -195,7 +276,7 @@ bool IsAllowedGameMode()
 	}
 
 	g_hCvarModesOff.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) != -1 )
@@ -231,7 +312,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 }
 	
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
-// public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], int weapon, int subtype, int cmdnum, int tickcount, int seed, const int mouse[2])
+// public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], const float angles[3], int weapon, int subtype, int cmdnum, int tickcount, int seed, const int mouse[2])
 {
 	// Validate
 	if(
@@ -241,17 +322,36 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		GetClientTeam(client) == 2 &&															// Survivor
 		!IsFakeClient(client) &&																// Human
 		GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) &&								// Incapped
-		GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_flNextShoveTime") > 0 &&			// Can shove
-		GetCurrentAttacker(client) == -1
+		GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) == 0 &&						// Not on ledge
+		GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_flNextShoveTime") > 0				// Can shove
 	)
 	{
+		// Verify pinned
+		if(
+			g_iCvarPounce && (
+			(g_iCvarPounce & (1<<0) == 0 && GetEntProp(client, Prop_Send, "m_tongueOwner") > 0) ||
+			(g_iCvarPounce & (1<<1) == 0 && GetEntProp(client, Prop_Send, "m_pounceAttacker") > 0) ||
+			(g_bLeft4Dead2 && g_iCvarPounce & (1<<2) == 0 && GetEntProp(client, Prop_Send, "m_pummelAttacker") > 0)
+			)
+		) return;
+
 		// Swing
 		int entity = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+		if( entity <= MaxClients || IsValidEntity(entity) == false ) return;
+
 		SDKCall(g_hSDK_OnSwingStart, entity, entity);
+
+		// Hurt
+		if( g_iCvarHurt )
+		{
+			int iHealth = GetClientHealth(client) - g_iCvarHurt;
+			if( iHealth > 0 )
+				SetEntityHealth(client, iHealth);
+		}
 
 		// Penalty
 		int penalty;
-		if( g_hCvarPenalty.FloatValue > 0.0 )
+		if( g_fCvarPenalty )
 		{
 			penalty = GetEntProp(client, Prop_Send, "m_iShovePenalty");
 			if( penalty > 0 )
@@ -271,38 +371,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 
 		// Set next shove
-		SetEntPropFloat(client, Prop_Send, "m_flNextShoveTime", GetGameTime() + g_hCvarCooldown.FloatValue + (penalty * g_hCvarPenalty.FloatValue));
+		SetEntPropFloat(client, Prop_Send, "m_flNextShoveTime", GetGameTime() + g_fCvarCooldown + (penalty * g_fCvarPenalty));
 
 		// Hit
 		// float fStart = GetEngineTime(); // Benchmark
 		DoTraceHit(client);
 		// PrintToServer("DoTraceHit took: %f", GetEngineTime() - fStart);
 	}
-}
-
-stock int GetCurrentAttacker(int client)
-{
-	int attacker = GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker");
-	if(attacker > -1)
-		return attacker;
-	
-	attacker = GetEntPropEnt(client, Prop_Send, "m_pummelAttacker");
-	if(attacker > -1)
-		return attacker;
-	
-	attacker = GetEntPropEnt(client, Prop_Send, "m_pounceAttacker");
-	if(attacker > -1)
-		return attacker;
-	
-	attacker = GetEntPropEnt(client, Prop_Send, "m_tongueOwner");
-	if(attacker > -1)
-		return attacker;
-	
-	attacker = GetEntPropEnt(client, Prop_Send, "m_carryAttacker");
-	if(attacker > -1)
-		return attacker;
-	
-	return -1;
 }
 
 void DoTraceHit(int client)
@@ -366,41 +441,44 @@ void DoTraceHit(int client)
 		// Push survivor/special infected
 		if( target <= MaxClients )
 		{
-			if( g_hCvarTypes.IntValue > 1 && IsClientInGame(target) && IsPlayerAlive(target) )
+			if( g_iCvarTypes > 1 && IsClientInGame(target) && IsPlayerAlive(target) )
 			{
 				// Type check
 				int team = GetClientTeam(target);
 				if(
-					team == 2 && g_hCvarTypes.IntValue & (1<<1) ||
-					team == 3 && g_hCvarTypes.IntValue & (1<<2) ||
-					team == 3 && g_hCvarTypes.IntValue & (1<<3)
+					team == 2 && g_iCvarTypes & (1<<1) ||
+					team == 3 && g_iCvarTypes & (1<<2) ||
+					team == 3 && g_iCvarTypes & (1<<3)
 				)
 				{
 					// Tank allowed?
-					if( team == 3 && !(g_hCvarTypes.IntValue & (1<<3)) && GetEntProp(target, Prop_Send, "m_zombieClass") == (g_bLeft4Dead2 ? 8 : 5) )
+					if( team == 3 && !(g_iCvarTypes & (1<<3)) && GetEntProp(target, Prop_Send, "m_zombieClass") == g_iClassTank )
 						continue;
 
 					// Specials allowed?
-					if( team == 3 && !(g_hCvarTypes.IntValue & (1<<2)) && GetEntProp(target, Prop_Send, "m_zombieClass") != (g_bLeft4Dead2 ? 8 : 5) )
+					if( team == 3 && !(g_iCvarTypes & (1<<2)) && GetEntProp(target, Prop_Send, "m_zombieClass") != g_iClassTank )
 						continue;
+
+					// Damage
+					SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), DMG_GENERIC);
 
 					// Range check
 					GetClientEyePosition(target, vLoc);
-					if( GetVectorDistance(vPos, vLoc) < g_hCvarRange.FloatValue )
+					if( GetVectorDistance(vPos, vLoc) < g_iCvarRange )
 						SDKCall(g_hSDK_StaggerClient, target, client, vPos); // Stagger: SDKCall method
 				}
 			}
 		}
 		// Push common infected
-		else if( g_hCvarTypes.IntValue & (1<<0) )
+		else if( g_iCvarTypes & (1<<0) )
 		{
 			// Check class
-			GetEdictClassname(target, sTemp, sizeof sTemp);
+			GetEdictClassname(target, sTemp, sizeof(sTemp));
 			if( strcmp(sTemp, "infected") == 0 )
 			{
 				// Range check
 				GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", vLoc);
-				if( GetVectorDistance(vPos, vLoc) < g_hCvarRange.FloatValue )
+				if( GetVectorDistance(vPos, vLoc) < g_iCvarRange )
 				{
 					// Push common
 					PushCommonInfected(client, target, vPos);
@@ -412,20 +490,7 @@ void DoTraceHit(int client)
 
 void PushCommonInfected(int client, int target, float vPos[3])
 {
-	char dmg[8];
-	g_hCvarDamage.GetString(dmg, sizeof dmg);
-
-	int entity = CreateEntityByName("point_hurt");
-	DispatchKeyValue(target, "targetname", "silvershot");
-	DispatchKeyValue(entity, "DamageTarget", "silvershot");
-	DispatchKeyValue(entity, "Damage", dmg);
-	if( g_bLeft4Dead2 )		DispatchKeyValue(entity, "DamageType", "33554432");		// DMG_AIRBOAT (1<<25)	// Common L4D2
-	else					DispatchKeyValue(entity, "DamageType", "536870912");	// DMG_BUCKSHOT (1<<29)	// Common L4D1
-	TeleportEntity(entity, vPos, NULL_VECTOR, NULL_VECTOR);
-	DispatchSpawn(entity);
-	AcceptEntityInput(entity, "Hurt", client, client);
-	RemoveEdict(entity);
-	DispatchKeyValue(target, "targetname", "");
+	SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), g_bLeft4Dead2 ? DMG_AIRBOAT : DMG_BUCKSHOT, -1, NULL_VECTOR, vPos); // Common L4D2 / L4D1
 }
 
 public bool FilterExcludeSelf(int entity, int contentsMask, any client)

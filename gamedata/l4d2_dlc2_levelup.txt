@@ -1,0 +1,141 @@
+"Games"
+{
+	"#default"
+	{
+		"Functions"
+		{
+			"CTerrorMeleeWeapon::TestMeleeSwingCollision"
+			{
+				"signature"		"CTerrorMeleeWeapon::TestMeleeSwingCollision"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+				"arguments"
+				{
+					"CTerrorMeleeWeapon"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+			
+			"CTerrorWeapon::TestSwingCollision"
+			{
+				"signature"		"CTerrorWeapon::TestSwingCollision"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+				"arguments"
+				{
+					"CTerrorWeapon"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+		}
+
+		"Signatures"
+		{
+			/*
+			 * CTerrorMeleeWeapon::TestMeleeSwingCollision(CTerrorMeleeWeapon *this, const Vector *)
+			 * Search: "MeleeSlashSplatter"
+			 */
+			"CTerrorMeleeWeapon::TestMeleeSwingCollision"
+			{
+				"library"	"server"
+				"linux"		"@_ZN18CTerrorMeleeWeapon23TestMeleeSwingCollisionERK6Vector"
+				"windows"	"\x53\x8B\x2A\x83\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x8B\x2A\x2A\x57\x89\x2A\x2A\xE8"
+				/* 53 8B ? 83 ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 81 ? ? ? ? ? ? ? ? ? ? 33 ? 89 ? ? 56 8B ? ? 57 89 ? ? E8 */
+			}
+			
+			/*
+			*	CTerrorPlayer::OnPummelEnded(bool, CTerrorPlayer*)
+			*	Search: "charger_pummel_end"
+			*/
+			"CTerrorPlayer::OnPummelEnded"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer13OnPummelEndedEbPS_"
+				"windows"		"\x55\x8B\xEC\x8B\x2A\x2A\x2A\x2A\x2A\x53\x56\x8B\xF1\x8B\x2A\x2A\x2A\x2A\x2A\x57"
+				/* 55 8B EC 8B ? ? ? ? ? 53 56 8B F1 8B ? ? ? ? ? 57 */
+			}
+			
+			/*
+			 *  CTerrorWeapon::OnSwingStart(CTerrorWeapon *this)
+			 *	Search: "Weapon.Swing"
+			 */
+			"CTerrorWeapon::OnSwingStart"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorWeapon12OnSwingStartEv"
+				"windows"	"\x55\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x2A\x85\x2A\x0F\x84"
+				/* 55 8B ? 81 ? ? ? ? ? ? ? ? ? ? 33 ? 89 ? ? 56 57 8B ? E8 ? ? ? ? 8B ? 85 ? 0F 84 */
+			}
+			
+			"CTerrorPlayer::FindUseEntity"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\xB8**\x00\x00\xE8****\xA1****\x33\xC5\x89\x45*\x0F\x57\xC9"
+				"linux"		"@_ZN13CTerrorPlayer13FindUseEntityEfffPbb"
+			}
+			
+			/*
+			 *	CTerrorWeapon::TestSwingCollision(Vector const&)
+			 *	
+			 */
+			"CTerrorWeapon::TestSwingCollision"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorWeapon18TestSwingCollisionERK6Vector"
+				"mac"			"@__ZN13CTerrorWeapon18TestSwingCollisionERK6Vector"
+				"windows"		""
+			}
+			
+			/*
+			 *	CCharge::EndCharge(void)
+			 *	Search: "charger_charge_end"
+			 *	pass CBaseAbility
+			 */
+			"CCharge::EndCharge"
+			{
+				"library"		"server"
+				"linux"			"@_ZN7CCharge9EndChargeEv"
+				"mac"			"@__ZN7CCharge9EndChargeEv"
+				"windows"		""
+			}
+		}
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

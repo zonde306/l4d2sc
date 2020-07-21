@@ -6,6 +6,7 @@
 #include <l4d2_skill_detect>
 #include <left4dhooks>
 #include <l4d_info_editor>
+#include <dhooks>
 
 #define SOUND_Bomb					"weapons/grenade_launcher/grenadefire/grenade_launcher_explode_1.wav"
 #define SOUND_BCLAW					"animation/bombing_run_01.wav"
@@ -23,6 +24,7 @@
 #define ZC_CHARGER			6
 #define ZC_WITCH			7
 #define ZC_TANK				8
+#define ZC_SURVIVOR			9
 #define TEAM_SPECTATORS		1
 #define TEAM_SURVIVORS		2
 #define TEAM_INFECTED		3
@@ -39,12 +41,15 @@
 #define g_flSoHPumpE		0.6
 #define TRACE_TOLERANCE		25.0
 
-Handle g_fnFindUseEntity = null;
+Handle g_pfnFindUseEntity = null;
 StringMap g_WeaponClipSize;
 
-const int g_iMaxClip = 254;			// 游戏所允许的最大弹夹数量 8bit，但是 255 会被显示为 0，超过会溢出
-const int g_iMaxAmmo = 1023;		// 游戏所允许的最大子弹数量 10bit，超过会溢出
-const int g_iMaxHealHealth = 1268;	// 游戏所允许的最大治疗量，超过会溢出
+const int g_iMaxClip = 254;					// 游戏所允许的最大弹夹数量 8bit，但是 255 会被显示为 0，超过会溢出
+const int g_iMaxAmmo = 1023;				// 游戏所允许的最大子弹数量 10bit，超过会溢出
+const int g_iMaxHealHealth = 1268;			// 游戏所允许的最大治疗量，超过会溢出
+const float g_fIncapShovePenalty = 0.1;		// 连续倒地推惩罚时间
+const int g_iIncapShoveNumTrace = 11;
+const float g_fIncapShoveDegree = 90.0;
 
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1) && !GetEntProp(%1, Prop_Send, "m_isGhost"))
@@ -101,6 +106,7 @@ enum()
 	SKL_4_MoreDmgExtra = 128,
 	SKL_4_Defensive = 256,
 	SKL_4_ClipSize = 512,
+	SKL_4_Shove = 1024,
 
 	SKL_5_FireBullet = 1,
 	SKL_5_ExpBullet = 2,
@@ -111,6 +117,9 @@ enum()
 	SKL_5_OneInfected = 64,
 	SKL_5_Missiles = 128,
 	SKL_5_ClipHold = 256,
+	SKL_5_Sneak = 512,
+	SKL_5_MeleeRange = 1024,
+	SKL_5_ShoveRange = 2048,
 };
 
 new g_ttTankKilled		= 0;
@@ -127,7 +136,7 @@ new g_iTimeIdleO		= -1;
 new g_iActiveWO			= -1;
 new g_iViewModelO		= -1;
 int g_iVelocityO		= -1;
-int g_iBileTimestamp	= -1;
+// int g_iBileTimestamp	= -1;
 new g_clSkillPoint[MAXPLAYERS+1] = 0;
 new g_ttDefibUsed[MAXPLAYERS+1] = 0;
 new g_ttOtherRevived[MAXPLAYERS+1] = 0;
@@ -149,6 +158,8 @@ new bool:g_bCanGunShover[MAXPLAYERS+1] = false;
 // new bool:g_bCanDoubleJump[MAXPLAYERS+1] = false;
 // new bool:g_bHanFirstRelease[MAXPLAYERS+1] = false;
 float g_fMaxSpeedModify[MAXPLAYERS+1] = { 1.0, ... };
+float g_fNextCalmTime[MAXPLAYERS+1] = { 0.0, ... };
+int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
 
 enum
 {
@@ -182,6 +193,8 @@ new Handle:cv_particle = INVALID_HANDLE;
 // new Handle:sdkCallPushPlayer = INVALID_HANDLE;
 // new Handle:g_hGameConf = INVALID_HANDLE;
 // new Handle: sdkAdrenaline = INVALID_HANDLE;
+int g_iOldMeleeSwingRange = 0, g_iOldShoveSwingRange = 0;
+StringMap g_tMeleeRange, g_tShoveRange;
 
 new Float:cung_cdSaveCount[MAXPLAYERS+1][100][3];
 new g_cdSaveCount[MAXPLAYERS+1];
@@ -192,6 +205,20 @@ new g_clAngryPoint[MAXPLAYERS+1];
 #define SPRITE_BEAM		"materials/sprites/laserbeam.vmt"
 #define SPRITE_HALO		"materials/sprites/halo01.vmt"
 #define SPRITE_GLOW		"materials/sprites/glow.vmt"
+
+static const char g_sndShoveInfected[][] = {
+	"player/survivor/hit/rifle_swing_hit_infected7.wav",
+	"player/survivor/hit/rifle_swing_hit_infected8.wav",
+	"player/survivor/hit/rifle_swing_hit_infected9.wav",
+	"player/survivor/hit/rifle_swing_hit_infected10.wav",
+	"player/survivor/hit/rifle_swing_hit_infected11.wav",
+	"player/survivor/hit/rifle_swing_hit_infected12.wav",
+};
+
+static const char g_sndShoveMiss[][] = {
+	"player/survivor/swing/swish_weaponswing_swipe5.wav",
+	"player/survivor/swing/swish_weaponswing_swipe6.wav",
+};
 
 new g_BeamSprite;
 new g_HaloSprite;
@@ -204,6 +231,7 @@ int g_iReloadWeaponEntity[MAXPLAYERS+1];
 int g_iReloadWeaponClip[MAXPLAYERS+1];
 int g_iReloadWeaponOldClip[MAXPLAYERS+1];
 int g_iReloadWeaponKeepClip[MAXPLAYERS+1];
+float g_fIncapShoveTimeout[MAXPLAYERS+1] = { 0.0, ... };
 
 //装备附加
 new g_iRoundEvent = 0;
@@ -280,6 +308,8 @@ int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
 bool g_bRoundFirstStarting = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints;
+Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null;
+Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null;
 
 public Plugin:myinfo =
 {
@@ -329,7 +359,7 @@ public OnPluginStart()
 	g_iViewModelO		=	FindSendPropInfo("CTerrorPlayer","m_hViewModel");
 	propinfoghost		=	FindSendPropInfo("CTerrorPlayer", "m_isGhost");
 	g_iVelocityO		=	FindSendPropInfo("CBasePlayer", "m_vecVelocity[0]");
-	g_iBileTimestamp	=	FindSendPropInfo("CTerrorPlayer", "m_itTimer") + 8;
+	// g_iBileTimestamp	=	FindSendPropInfo("CTerrorPlayer", "m_itTimer") + 8;
 
 	g_hCvarGodMode = FindConVar("god");
 	// g_hCvarInfinite = FindConVar("sv_infinite_ammo");
@@ -442,6 +472,7 @@ public OnPluginStart()
 	HookEvent("item_pickup", Event_WeaponPickuped);
 	HookEvent("upgrade_pack_added", Event_UpgradePickup);
 	HookEvent("player_now_it", Event_PlayerHitByVomit);
+	HookEvent("player_shoved", Event_PlayerShoved);
 	
 	// 检查第一回合用
 	HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -489,6 +520,127 @@ public OnPluginStart()
 	hRoundRespawn = EndPrepSDKCall();
 	if (hRoundRespawn == INVALID_HANDLE) SetFailState("L4D_SM_Respawn: RoundRespawn Signature broken");
 	*/
+	
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4d2_dlc2_levelup");
+	if( FileExists(sPath) )
+	{
+		Handle hGameData = LoadGameConfigFile("l4d2_dlc2_levelup");
+		if( hGameData )
+		{
+			g_hDetourTestMeleeSwingCollision = DHookCreateFromConf(hGameData, "CTerrorMeleeWeapon::TestMeleeSwingCollision");
+			if(DHookEnableDetour(g_hDetourTestMeleeSwingCollision, false, TestMeleeSwingCollisionPre) &&
+				DHookEnableDetour(g_hDetourTestMeleeSwingCollision, true, TestMeleeSwingCollisionPost))
+			{
+				g_tMeleeRange = CreateTrie();
+				g_tMeleeRange.SetValue("baseball_bat",		130);
+				g_tMeleeRange.SetValue("cricket_bat",		130);
+				g_tMeleeRange.SetValue("crowbar",			100);
+				g_tMeleeRange.SetValue("electric_guitar",	150);
+				g_tMeleeRange.SetValue("fireaxe",			150);
+				g_tMeleeRange.SetValue("frying_pan",		90);
+				g_tMeleeRange.SetValue("golfclub",			130);
+				g_tMeleeRange.SetValue("katana",			150);
+				g_tMeleeRange.SetValue("knife",				90);
+				g_tMeleeRange.SetValue("machete",			120);
+				g_tMeleeRange.SetValue("tonfa",				100);
+				g_tMeleeRange.SetValue("riotshield",		100);
+				
+				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Hooked");
+			}
+			
+			g_hDetourTestSwingCollision = DHookCreateFromConf(hGameData, "CTerrorWeapon::TestSwingCollision");
+			if(DHookEnableDetour(g_hDetourTestSwingCollision, false, TestSwingCollisionPre) &&
+				DHookEnableDetour(g_hDetourTestSwingCollision, true, TestSwingCollisionPost))
+			{
+				g_tShoveRange = CreateTrie();
+				g_tShoveRange.SetValue("baseball_bat",				130);
+				g_tShoveRange.SetValue("cricket_bat",				130);
+				g_tShoveRange.SetValue("crowbar",					100);
+				g_tShoveRange.SetValue("electric_guitar",			150);
+				g_tShoveRange.SetValue("fireaxe",					150);
+				g_tShoveRange.SetValue("frying_pan",				90);
+				g_tShoveRange.SetValue("golfclub",					130);
+				g_tShoveRange.SetValue("katana",					150);
+				g_tShoveRange.SetValue("knife",						90);
+				g_tShoveRange.SetValue("machete",					120);
+				g_tShoveRange.SetValue("tonfa",						100);
+				g_tShoveRange.SetValue("riotshield",				100);
+				g_tShoveRange.SetValue("weapon_chainsaw",			90);
+				
+				g_tShoveRange.SetValue("weapon_pistol",				90);
+				g_tShoveRange.SetValue("weapon_pistol_magnum",		90);
+				g_tShoveRange.SetValue("weapon_smg",				100);
+				g_tShoveRange.SetValue("weapon_smg_silenced",		100);
+				g_tShoveRange.SetValue("weapon_smg_mp5",			100);
+				g_tShoveRange.SetValue("weapon_pumpshotgun",		120);
+				g_tShoveRange.SetValue("weapon_shotgun_chrome",		120);
+				g_tShoveRange.SetValue("weapon_autoshotgun",		120);
+				g_tShoveRange.SetValue("weapon_shotgun_spas",		120);
+				g_tShoveRange.SetValue("weapon_rifle",				130);
+				g_tShoveRange.SetValue("weapon_rifle_ak47",			130);
+				g_tShoveRange.SetValue("weapon_rifle_desert",		130);
+				g_tShoveRange.SetValue("weapon_rifle_sg552",		130);
+				g_tShoveRange.SetValue("weapon_hunting_rifle",		140);
+				g_tShoveRange.SetValue("weapon_sniper_military",	140);
+				g_tShoveRange.SetValue("weapon_sniper_scout",		140);
+				g_tShoveRange.SetValue("weapon_sniper_awp",			140);
+				g_tShoveRange.SetValue("weapon_rifle_m60",			150);
+				g_tShoveRange.SetValue("weapon_grenade_launcher",	110);
+				
+				g_tShoveRange.SetValue("weapon_pipe_bomb",			90);
+				g_tShoveRange.SetValue("weapon_molotov",			90);
+				g_tShoveRange.SetValue("weapon_vomitjar",			90);
+				g_tShoveRange.SetValue("weapon_pain_pills",			90);
+				g_tShoveRange.SetValue("weapon_adrenaline",			90);
+				g_tShoveRange.SetValue("weapon_first_aid_kit",		90);
+				g_tShoveRange.SetValue("weapon_defibrillator",		90);
+				g_tShoveRange.SetValue("weapon_upgradepack_incendiary",		90);
+				g_tShoveRange.SetValue("weapon_upgradepack_explosive",		90);
+				
+				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Hooked");
+			}
+			
+			StartPrepSDKCall(SDKCall_Entity);
+			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorWeapon::OnSwingStart");
+			PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+			g_pfnOnSwingStart = EndPrepSDKCall();
+			
+			if(g_pfnOnSwingStart != null)
+				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::OnSwingStart Found.");
+			
+			StartPrepSDKCall(SDKCall_Entity);
+			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnPummelEnded");
+			PrepSDKCall_AddParameter(SDKType_String, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+			g_pfnOnPummelEnded = EndPrepSDKCall();
+			
+			if(g_pfnOnPummelEnded != null)
+				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnPummelEnded Found.");
+			
+			StartPrepSDKCall(SDKCall_Player);
+			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::FindUseEntity");
+			PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
+			PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
+			PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
+			PrepSDKCall_AddParameter(SDKType_PlainOldData,SDKPass_Plain);
+			PrepSDKCall_AddParameter(SDKType_Bool,SDKPass_Plain);
+			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity,SDKPass_Pointer);
+			g_pfnFindUseEntity = EndPrepSDKCall();
+			
+			if(g_pfnFindUseEntity != null)
+				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::FindUseEntity Found.");
+			
+			StartPrepSDKCall(SDKCall_Entity);
+			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CCharge::EndCharge");
+			g_pfnEndCharge = EndPrepSDKCall();
+			
+			if(g_pfnEndCharge != null)
+				LogMessage("l4d2_dlc2_levelup: CCharge::EndCharge Found.");
+			
+			delete hGameData;
+		}
+	}
 }
 
 public void ConVarChaged_ZombieHealth(ConVar cvar, const char[] oldValue, const char[] newValue)
@@ -600,6 +752,11 @@ public OnMapStart()
 	GetConVarString(g_CvarSoundLevel, g_soundLevel, sizeof(g_soundLevel));
 	PrecacheSound(g_soundLevel, true);
 	PrecacheSound("ui/gift_drop.wav", true);
+	
+	for(int i = 0; i < sizeof(g_sndShoveInfected); ++i)
+		PrecacheSound(g_sndShoveInfected[i], true);
+	for(int i = 0; i < sizeof(g_sndShoveMiss); ++i)
+		PrecacheSound(g_sndShoveMiss[i], true);
 
 	GetConVarString(cv_particle, g_particle, sizeof(g_particle));
 	GetConVarString(cv_sndPortalERROR, g_sndPortalERROR, sizeof(g_sndPortalERROR));
@@ -856,6 +1013,9 @@ public Action Timer_RoundStartPost(Handle timer, any data)
 				CheatCommand(i, "give", "health");
 		}
 	}
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		g_fIncapShoveTimeout[i] = 0.0;
 
 	return Plugin_Continue;
 }
@@ -917,6 +1077,7 @@ void Initialization(int client, bool invalid = false)
 	g_timerRespawn[client] = null;
 	g_fFreezeTime[client] = 0.0;
 	g_fMaxSpeedModify[client] = 1.0;
+	g_fNextCalmTime[client] = 0.0;
 	g_cdCanTeleport[client] = true;
 
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
@@ -2050,7 +2211,12 @@ void StatusSelectMenuFuncD(int client)
 	menu.AddItem(tr("4_%d",SKL_4_MoreDmgExtra), mps("残忍-暴击时追加伤害上限+200",(g_clSkill_4[client]&SKL_4_MoreDmgExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_Defensive), mps("御策-受到普感攻击时伤害减半或返回三倍伤害",(g_clSkill_4[client]&SKL_4_Defensive)));
 	menu.AddItem(tr("4_%d",SKL_4_ClipSize), mps("弹夹-更多弹夹子弹",(g_clSkill_4[client]&SKL_4_ClipSize)));
-
+	
+	if(g_pfnOnSwingStart != null)
+		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("力大-可以推牛(Charger)/倒地可以推(倒地可推任何敌人)",(g_clSkill_4[client]&SKL_4_Shove)));
+	else
+		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("力大-可以推牛(Charger)",(g_clSkill_4[client]&SKL_4_Shove)));
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -2070,7 +2236,14 @@ void StatusSelectMenuFuncE(int client)
 	menu.AddItem(tr("5_%d",SKL_5_OneInfected), mps("精准-主武器1/4几率可以一枪杀死普感",(g_clSkill_5[client]&SKL_5_OneInfected)));
 	menu.AddItem(tr("5_%d",SKL_5_Missiles), mps("爆发-榴弹发射器爆炸伤害增加且可以导致僵直",(g_clSkill_5[client]&SKL_5_Missiles)));
 	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("持久-冲锋枪一次性射出25发子弹后消耗改为备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
-
+	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("潜行-不移动/静步走可降低被特感攻击几率(不能开枪)",(g_clSkill_5[client]&SKL_5_Sneak)));
+	
+	if(g_tMeleeRange != null && g_hDetourTestMeleeSwingCollision != null)
+		menu.AddItem(tr("5_%d",SKL_5_MeleeRange), mps("刀客-增加近战武器攻击范围(视武器而定)",(g_clSkill_5[client]&SKL_5_MeleeRange)));
+	
+	if(g_tShoveRange != null && g_hDetourTestSwingCollision != null)
+		menu.AddItem(tr("5_%d",SKL_5_ShoveRange), mps("枪托-增加推的攻击范围(视武器而定)",(g_clSkill_5[client]&SKL_5_ShoveRange)));
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -3807,6 +3980,56 @@ public void OnGameFrame()
 	}
 	*/
 	
+}
+
+public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
+{
+	if(!IsValidAliveClient(curTarget))
+		return Plugin_Continue;
+	
+	if((g_clSkill_5[curTarget] & SKL_5_Sneak) && g_fNextCalmTime[curTarget] <= GetEngineTime() && !GetRandomInt(0, 1))
+	{
+		int victim = ChooseOtherVictim(specialInfected, curTarget);
+		if(victim > -1)
+		{
+			curTarget = victim;
+			return Plugin_Changed;
+		}
+		else
+		{
+			return Plugin_Handled;
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
+int ChooseOtherVictim(int attacker, int ignore)
+{
+	float origin[3], position[3];
+	float distance = 1000.0 * 1000.0;
+	int victim = -1;
+	
+	GetClientAbsOrigin(attacker, origin);
+	int team = GetClientTeam(attacker);
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(i == ignore || !IsValidAliveClient(i) || GetClientTeam(i) == team)
+			continue;
+		
+		if(GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1) || IsSurvivorHeld(i))
+			continue;
+		
+		GetClientAbsOrigin(i, position);
+		float dist = GetVectorDistance(origin, position, true);
+		if(dist < distance)
+		{
+			distance = dist;
+			victim = i;
+		}
+	}
+	
+	return victim;
 }
 
 stock void SpawnCommonZombie(const char[] zombieName, float position[3], const char[] targetName = "")
@@ -6768,6 +6991,44 @@ public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool don
 		RequestFrame(UpdateVomitDuration, client);
 }
 
+public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	
+	if(!IsValidAliveClient(attacker) || !IsValidAliveClient(victim))
+		return;
+	
+	int zClass = GetEntProp(victim, Prop_Send, "m_zombieClass");
+	if((g_clSkill_4[attacker] & SKL_4_Shove) && zClass == ZC_CHARGER)
+	{
+		static ConVar z_charger_allow_shove;
+		if(z_charger_allow_shove == null)
+			z_charger_allow_shove = FindConVar("z_charger_allow_shove");
+		if(z_charger_allow_shove == null || !z_charger_allow_shove.BoolValue)
+		{
+			L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(victim), GetClientUserId(attacker));
+			
+			// 停止冲锋
+			if(IsChargerCharging(victim))
+			{
+				TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
+				
+				if(g_pfnEndCharge != null)
+					SDKCall(g_pfnEndCharge, GetEntPropEnt(victim, Prop_Send, "m_customAbility"));
+			}
+			
+			// 放开受害者
+			int survivor = GetEntPropEnt(victim, Prop_Send, "m_pummelVictim");
+			if(IsValidAliveClient(survivor))
+				ForceDropVictim(victim, survivor);
+			survivor = GetEntPropEnt(victim, Prop_Send, "m_carryVictim");
+			if(IsValidAliveClient(survivor))
+				ForceDropVictim(victim, survivor);
+		}
+	}
+}
+
 void UpdateVomitDuration(any client)
 {
 	if(!IsValidAliveClient(client))
@@ -6781,8 +7042,9 @@ void UpdateVomitDuration(any client)
 	// int itOffset = FindDataMapInfo(client, "m_itTimer", type);
 	
 	// PrintToChat(client, "m_itTimer = %d, m_timestamp = %d", FindSendPropInfo("CTerrorPlayer", "m_itTimer"), FindSendPropInfo("DT_CountdownTimer", "m_timestamp"));
-	SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + (cv_bile_duration.FloatValue / 2), true);
+	// SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + (cv_bile_duration.FloatValue / 2), true);
 	// SetEntPropFloat(client, Prop_Send, "m_itTimer", GetGameTime() + (cv_bile_duration.FloatValue / 2), 2);
+	L4D2_RunScript("NetProps.SetPropFloat(GetPlayerFromUserID(%d),\"m_itTimer.m_timestamp\",%.2f)", GetClientUserId(client), (cv_bile_duration.FloatValue / 2));
 	CreateTimer(cv_bile_duration.FloatValue / 2, Timer_UnVimit, client, TIMER_FLAG_NO_MAPCHANGE);
 }
 
@@ -7409,7 +7671,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			*/
 		}
 
-		if((g_clSkill_5[client] & SKL_5_ClipHold) && StrContains(classname, "smg", false) != -1)
+		if((g_clSkill_5[client] & SKL_5_ClipHold) && StrContains(classname, "smg", false) > -1)
 		{
 			int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
 			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
@@ -7422,8 +7684,13 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			else if(g_iBulletFired[client] == 25)
 				ClientCommand(client, "play \"ui/bigreward.wav\"");
 		}
+		
+		if(StrContains(classname, "smg", false))
+			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
+		else
+			g_fNextCalmTime[client] = GetEngineTime() + 5.0;
 	}
-	else if(StrContains(classname, "weapon_pistol", false) == 0)
+	else if(StrContains(classname, "pistol", false) > -1)
 	{
 		if(g_clSkill_1[client] & SKL_1_MagnumInf)
 		{
@@ -7447,6 +7714,11 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 				SetEntProp(weapon, Prop_Send, "m_iClip1", 7);
 			}
 		}
+		
+		if(classname[13] == EOS)
+			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
+		else
+			g_fNextCalmTime[client] = GetEngineTime() + 5.0;
 	}
 	else if(StrEqual(classname, "weapon_chainsaw", false))
 	{
@@ -7455,6 +7727,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			// 电锯无限燃料
 			SetEntProp(weapon, Prop_Send, "m_iClip1", 31);
 		}
+		
+		g_fNextCalmTime[client] = GetEngineTime() + 6.0;
 	}
 
 	if((g_clSkill_1[client] & SKL_1_NoRecoil) && !GetEntProp(client, Prop_Send, "m_isIncapacitated"))
@@ -8334,37 +8608,16 @@ stock bool IsInfectedThirdPerson(int iClient)
 	return false;
 }
 
-stock void InitFindEntity()
-{
-	new Handle:gConf = LoadGameConfigFile("upgradepackfix");
-	if(gConf == null)
-		return;
-	
-	StartPrepSDKCall(SDKCall_Player);
-	PrepSDKCall_SetFromConf(gConf, SDKConf_Signature, "CTerrorPlayer::FindUseEntity");
-	PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
-	PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
-	PrepSDKCall_AddParameter(SDKType_Float,SDKPass_Plain);
-	PrepSDKCall_AddParameter(SDKType_PlainOldData,SDKPass_Plain);
-	PrepSDKCall_AddParameter(SDKType_Bool,SDKPass_Plain);
-	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity,SDKPass_Pointer);
-	g_fnFindUseEntity = EndPrepSDKCall();
-	
-	CloseHandle(gConf);
-}
-
 stock int FindUseEntity(int client, float radius = 0.0)
 {
-	if(g_fnFindUseEntity == null)
-		InitFindEntity();
-	if(g_fnFindUseEntity == null)
+	if(g_pfnFindUseEntity == null)
 		return -1;
 	
 	static ConVar cvUseRadius;
 	if(cvUseRadius == null)
 		cvUseRadius = FindConVar("player_use_radius");
 	
-	return SDKCall(g_fnFindUseEntity, client, (radius > 0.0 ? radius : cvUseRadius.FloatValue), 0.0, 0.0, 0, false);
+	return SDKCall(g_pfnFindUseEntity, client, (radius > 0.0 ? radius : cvUseRadius.FloatValue), 0.0, 0.0, 0, false);
 }
 
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon,
@@ -8486,6 +8739,36 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					// 会和其他修改弹夹大小的插件冲突
 					buttons &= ~IN_RELOAD;
 				}
+			}
+			
+			if((g_clSkill_4[client] & SKL_4_Shove) && (buttons & IN_ATTACK2) && !(buttons & IN_FORWARD) &&
+				GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) &&
+				GetEntPropFloat(client, Prop_Send, "m_flNextShoveTime") <= GetGameTime())
+			{
+				ForceSwingStart(weaponId);
+				
+				int penalty = GetEntProp(client, Prop_Send, "m_iShovePenalty");
+				
+				if(g_fIncapShovePenalty > 0)
+				{
+					if( penalty > 0 )
+					{
+						int last = RoundToFloor(GetGameTime() - g_fIncapShoveTimeout[client]);
+						if( last > 1 )
+						{
+							penalty -= last;
+							if( penalty < 0 )
+								penalty = 0;
+						}
+					}
+					
+					SetEntProp(client, Prop_Send, "m_iShovePenalty", penalty + 1);
+					g_fIncapShoveTimeout[client] = GetGameTime();
+				}
+				
+				SetEntPropFloat(client, Prop_Send, "m_flNextShoveTime", GetGameTime() + g_hCvarShovTime.FloatValue + (penalty * g_fIncapShovePenalty));
+				
+				DoShoveSimulation(client, weaponId);
 			}
 		}
 
@@ -8616,7 +8899,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		// 取消任何标记
 		g_iJumpFlags[client] = JF_None;
 	}
-
+	
+	if(GetVectorLength(vel) > 9.0 && !(buttons & IN_SPEED))
+		g_fNextCalmTime[client] += GetEngineTime() + 1.0;
+	
 	return Plugin_Changed;
 }
 
@@ -8626,6 +8912,275 @@ public Action Timer_GunShovedReset(Handle timer, any client)
 		g_bCanGunShover[client] = true;
 
 	return Plugin_Continue;
+}
+
+stock void ForceSwingStart(int weapon)
+{
+	if(g_pfnOnSwingStart != null)
+		SDKCall(g_pfnOnSwingStart, weapon, weapon);
+}
+
+stock void ForceDropVictim(int client, int target, int stagger = 3)
+{
+	static ConVar z_charge_interval;
+	if(z_charge_interval == null)
+		z_charge_interval = FindConVar("z_charge_interval");
+	
+	if(g_pfnOnPummelEnded != null)
+		SDKCall(g_pfnOnPummelEnded, client, "", target);
+	
+	SetEntPropEnt(client, Prop_Send, "m_carryVictim", -1);
+	SetEntPropEnt(target, Prop_Send, "m_carryAttacker", -1);
+	
+	int ability = GetEntPropEnt(client, Prop_Send, "m_customAbility");
+	if( ability != -1 )
+		SetEntPropFloat(ability, Prop_Send, "m_timestamp", GetGameTime() + z_charge_interval.FloatValue);
+	
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if( weapon != -1 )
+		SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", GetGameTime() + 0.6);
+	
+	float vPos[3];
+	vPos[0] = GetEntProp(target, Prop_Send, "m_isIncapacitated") == 1 ? 20.0 : 50.0;
+	SetVariantString("!activator");
+	AcceptEntityInput(target, "SetParent", client);
+	TeleportEntity(target, vPos, NULL_VECTOR, NULL_VECTOR);
+	AcceptEntityInput(target, "ClearParent");
+	
+	CreateTimer(0.3, Timer_FixAnim, GetClientUserId(target));
+	
+	if( stagger & (1<<0) )
+	{
+		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(client), GetClientUserId(target));
+	}
+	
+	if( stagger & (1<<1) )
+	{
+		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(client));
+	}
+}
+
+public Action Timer_FixAnim(Handle t, any target)
+{
+	target = GetClientOfUserId(target);
+	if( target && IsPlayerAlive(target) )
+	{
+		int seq = GetEntProp(target, Prop_Send, "m_nSequence");
+		if( seq == 650 || seq == 665 || seq == 661 || seq == 651 || seq == 554 || seq == 551 ) // Coach, Ellis, Nick, Rochelle, Francis/Zoey, Bill/Louis
+		{
+			float vPos[3];
+			GetClientAbsOrigin(target, vPos);
+			SetEntityMoveType(target, MOVETYPE_WALK);
+			TeleportEntity(target, vPos, NULL_VECTOR, view_as<float>({0.0, 0.0, 0.0}));
+		}
+	}
+}
+
+stock void DoShoveSimulation(int client, int weapon = 0)
+{
+	g_iIncapShoveIgnore[0] = client;
+	
+	float vPos[3], vAng[3], vLoc[3];
+	GetClientEyePosition(client, vPos);
+	GetClientEyeAngles(client, vAng);
+	
+	vAng[1] += (g_fIncapShoveDegree / 2);
+	vAng[0] = 0.0; // Point horizontal
+	// vAng[0] = -15.0; // Point up
+	// vPos[2] -= 5;
+	vPos[2] += 15;
+	
+	char sTemp[32];
+	Handle trace;
+	int target;
+	float range = g_hCvarShovRange.FloatValue;
+	bool hit = false;
+	
+	if( weapon > MaxClients && (g_clSkill_5[client] & SKL_5_ShoveRange) )
+	{
+		GetEntityClassname(weapon, sTemp, sizeof(sTemp));
+		if(StrEqual(sTemp, "weapon_melee", false))
+			GetEntPropString(weapon, Prop_Data, "m_strMapSetScriptName", sTemp, sizeof(sTemp));
+		
+		if( g_tShoveRange != null )
+			g_tShoveRange.GetValue(sTemp, range);
+	}
+	
+	for( int i = 1; i <= g_iIncapShoveNumTrace; i++ )
+	{
+		g_iIncapShoveIgnore[i] = 0;
+		
+		vAng[1] -= (g_fIncapShoveDegree / (g_iIncapShoveNumTrace + 1));
+		trace = TR_TraceRayFilterEx(vPos, vAng, MASK_SHOT, RayType_Infinite, TraceRayDontHitSelf, client);
+		
+		if( !TR_DidHit(trace) )
+		{
+			delete trace;
+			continue;
+		}
+		
+		target = TR_GetEntityIndex(trace);
+		TR_GetEndPosition(vLoc, trace);
+		delete trace;
+		
+		if( target <= 0 || IsValidEntity(target) == false )
+			continue;
+		
+		for( int x = 0; x < i; x++ )
+			if( g_iIncapShoveIgnore[x] == target )
+				target = 0;
+		
+		if( target == 0 )
+			continue;
+		
+		g_iIncapShoveIgnore[i] = target;
+		
+		if( target <= MaxClients )
+		{
+			int zClass = GetEntProp(target, Prop_Send, "m_zombieClass");
+			if( IsClientInGame(target) && IsPlayerAlive(target) && zClass != ZC_SURVIVOR )
+			{
+				// GetClientEyePosition(target, vLoc);
+				if( GetVectorDistance(vPos, vLoc) <= range )
+				{
+					L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(client));
+					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, NULL_VECTOR, vLoc);
+					
+					// 停止冲锋
+					if(IsChargerCharging(target))
+					{
+						TeleportEntity(target, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
+						
+						if(g_pfnEndCharge != null)
+							SDKCall(g_pfnEndCharge, GetEntPropEnt(target, Prop_Send, "m_customAbility"));
+					}
+					
+					// 声音
+					EmitSoundToClient(client, g_sndShoveInfected[GetRandomInt(0, sizeof(g_sndShoveInfected)-1)], target,
+						SNDCHAN_BODY, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vLoc);
+					
+					// 事件
+					Event event = CreateEvent("player_shoved");
+					event.SetInt("userid", GetClientUserId(target));
+					event.SetInt("attacker", GetClientUserId(client));
+					event.Fire();
+					
+					hit = true;
+				}
+			}
+		}
+		else
+		{
+			GetEdictClassname(target, sTemp, sizeof(sTemp));
+			if( StrEqual(sTemp, "infected", false) || (StrEqual(sTemp, "witch", false) && GetEntPropFloat(target, Prop_Send, "m_rage") >= 1.0) )
+			{
+				// GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", vLoc);
+				if( GetVectorDistance(vPos, vLoc) <= range )
+					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, NULL_VECTOR, vLoc);
+				
+				// 声音
+				EmitSoundToClient(client, g_sndShoveInfected[GetRandomInt(0, sizeof(g_sndShoveInfected)-1)], target,
+					SNDCHAN_BODY, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vLoc);
+				
+				// 事件
+				Event event = CreateEvent("entity_shoved");
+				event.SetInt("entityid", target);
+				event.SetInt("attacker", GetClientUserId(client));
+				event.Fire();
+				
+				hit = true;
+			}
+		}
+	}
+	
+	if(!hit)
+	{
+		// 声音
+		EmitSoundToClient(client, g_sndShoveMiss[GetRandomInt(0, sizeof(g_sndShoveMiss)-1)], client,
+			SNDCHAN_BODY, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vPos);
+	}
+}
+
+stock bool IsChargerCharging(int client)
+{
+	if( GetClientTeam(client) == 3 && GetEntProp(client, Prop_Send, "m_zombieClass") == ZC_CHARGER )
+	{
+		int ability = GetEntPropEnt(client, Prop_Send, "m_customAbility"); // ability_charge
+		if( ability > 0 && IsValidEdict(ability) && GetEntProp(ability, Prop_Send, "m_isCharging") )
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+public MRESReturn TestMeleeSwingCollisionPre(int pThis, Handle hReturn)
+{
+	if( IsValidEntity(pThis) )
+	{
+		int owner = GetEntPropEnt(pThis, Prop_Send, "m_hOwnerEntity");
+		if( IsValidAliveClient(owner) && (g_clSkill_5[owner] & SKL_5_MeleeRange) )
+		{
+			static char sTemp[16];
+			GetEntPropString(pThis, Prop_Data, "m_strMapSetScriptName", sTemp, sizeof(sTemp));
+			
+			int range = 0;
+			if( g_tMeleeRange != null && g_tMeleeRange.GetValue(sTemp, range) && range > g_hCvarMeleeRange.IntValue )
+			{
+				g_iOldMeleeSwingRange = g_hCvarMeleeRange.IntValue;
+				g_hCvarMeleeRange.IntValue = range;
+			}
+		}
+	}
+	
+	return MRES_Ignored;
+}
+
+public MRESReturn TestMeleeSwingCollisionPost(int pThis, Handle hReturn)
+{
+	if( g_iOldMeleeSwingRange > 0 && g_iOldMeleeSwingRange < g_hCvarMeleeRange.IntValue )
+	{
+		g_hCvarMeleeRange.IntValue = g_iOldMeleeSwingRange;
+		g_iOldMeleeSwingRange = 0;
+	}
+	
+	return MRES_Ignored;
+}
+
+public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
+{
+	if( IsValidEntity(pThis) )
+	{
+		int owner = GetEntPropEnt(pThis, Prop_Send, "m_hOwnerEntity");
+		if( IsValidAliveClient(owner) && (g_clSkill_5[owner] & SKL_5_ShoveRange) )
+		{
+			static char sTemp[32];
+			GetEntityClassname(pThis, sTemp, 32);
+			if(StrEqual(sTemp, "weapon_melee", false))
+				GetEntPropString(pThis, Prop_Data, "m_strMapSetScriptName", sTemp, 32);
+			
+			int range = 0;
+			if( g_tShoveRange != null && g_tShoveRange.GetValue(sTemp, range) && range > g_hCvarShovRange.IntValue )
+			{
+				g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
+				g_hCvarShovRange.IntValue = range;
+			}
+		}
+	}
+	
+	return MRES_Ignored;
+}
+
+public MRESReturn TestSwingCollisionPost(int pThis, Handle hReturn)
+{
+	if( g_iOldShoveSwingRange > 0 && g_iOldShoveSwingRange < g_hCvarShovRange.IntValue )
+	{
+		g_hCvarShovRange.IntValue = g_iOldShoveSwingRange;
+		g_iOldShoveSwingRange = 0;
+	}
+	
+	return MRES_Ignored;
 }
 
 /*

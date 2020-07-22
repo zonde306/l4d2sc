@@ -82,7 +82,6 @@
 			
 			/*
 			 *	CTerrorWeapon::TestSwingCollision(Vector const&)
-			 *	
 			 */
 			"CTerrorWeapon::TestSwingCollision"
 			{
@@ -104,38 +103,18 @@
 				"mac"			"@__ZN7CCharge9EndChargeEv"
 				"windows"		""
 			}
+			
+			/*
+			*	CTerrorPlayer::OnCarryEnded(bool, bool, bool)
+			*	Search: "charger_carry_end"
+			*/
+			"CTerrorPlayer::OnCarryEnded"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer12OnCarryEndedEbbb"
+				"mac"			"@__ZN13CTerrorPlayer12OnCarryEndedEbbb"
+				"windows"		""
+			}
 		}
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

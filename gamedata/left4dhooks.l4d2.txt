@@ -452,6 +452,30 @@
 				}
 			}
 
+			/* Works for Linux L4D2 but not L4D1, currently leaving out
+			"SendInRescueVehicle"
+			{
+				"signature"		"SendInRescueVehicle"
+				"callconv"		"cdecl"
+				"return"		"void"
+				"arguments"
+				{
+					"ret"
+					{
+						"type"	"object"
+						"size"	"2"
+					}
+					"this"
+					{
+						"type"	"cbaseentity"
+						"windows"
+						{
+							"register"	"ecx"
+						}
+					}
+				}
+			}
+			*/
 			"SendInRescueVehicle"
 			{
 				"signature"		"SendInRescueVehicle"
@@ -1528,6 +1552,18 @@
 				"windows"	"\x55\x8B\x2A\x51\x8D\x2A\x2A\x50\x66\x2A\x2A\x2A\x2A\x2A\xE8"
 				/* 55 8B ? 51 8D ? ? 50 66 ? ? ? ? ? E8 */
 				/* Search "tank_frustrated", below "HasAnySurvivorLeftSafeArea" call */
+			}
+
+			/*
+			*  SurvivorBot::IsReachable(SurvivorBot *this, const Vector *)
+			*/
+			"SurvivorBot::IsReachable"
+			{
+				"library"	"server"
+				"linux"		"@_ZNK11SurvivorBot11IsReachableERK6Vector"
+				"windows"	"\x55\x8B\xEC\xD9\x05\x2A\x2A\x2A\x2A\x8B\x45\x08"
+				/*  55 8B EC D9 05 ? ? ? ? 8B 45 08 */
+				/* Search "Trying to use something to help us along" call somewhere above */
 			}
 			// =========================
 

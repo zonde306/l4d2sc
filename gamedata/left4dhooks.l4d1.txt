@@ -360,6 +360,30 @@
 				}
 			}
 
+			/* Works for Linux L4D2 but not L4D1, currently leaving out
+			"SendInRescueVehicle"
+			{
+				"signature"		"SendInRescueVehicle"
+				"callconv"		"cdecl"
+				"return"		"void"
+				"arguments"
+				{
+					"ret"
+					{
+						"type"	"object"
+						"size"	"2"
+					}
+					"this"
+					{
+						"type"	"cbaseentity"
+						"windows"
+						{
+							"register"	"ecx"
+						}
+					}
+				}
+			}
+			*/
 			"SendInRescueVehicle"
 			{
 				"signature"		"SendInRescueVehicle"

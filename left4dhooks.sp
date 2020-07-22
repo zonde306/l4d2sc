@@ -1,4 +1,24 @@
-#define PLUGIN_VERSION		"1.16a"
+/*
+*	Left 4 DHooks Direct
+*	Copyright (C) 2020 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+
+#define PLUGIN_VERSION		"1.17"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -17,6 +37,16 @@
 
 ========================================================================================
 	Change Log:
+
+1.17 (20-Jul-2020)
+	- Added native (L4D2 only): "L4D2_IsReachable" to check if a position is accessible to a Survivor Bot.
+	- Fixed include native "L4D2_AreTeamsFlipped" returning an int instead of bool. Thanks to "BloodyBlade" for reporting.
+	- Fixed native "L4D_GetHighestFlowSurvivor" throwing errors in 1.11. Thanks to "yuzumi" for reporting.
+	- Removed some useless "view_as" code. Might remove more in the future.
+
+	- Updated: Test plugin to reflect above changes.
+	- Updated: L4D2 GameData file.
+	- Updated: Plugin and Include file.
 
 1.16a (16-Jun-2020)
 	- Fixed using the wrong offset for "m_PendingMobCount". Thanks to "fbef0102" for reporting.
@@ -392,84 +422,85 @@ GlobalForward g_hForward_AddonsDisabler;
 
 // NATIVES - SDKCall
 // Silvers Natives
-Handle g_hNative_GetClient;
-Handle g_hNative_GetLastKnownArea;
-Handle g_hNative_Deafen;
-Handle g_hNative_Dissolve;
-Handle g_hNative_OnITExpired;
-Handle g_hNative_AngularVelocity;
-Handle g_hNative_PipeBombPrj;
-Handle g_hNative_SpitterPrj;
-Handle g_hNative_ForceNextStage;
-Handle g_hNative_IsTankInPlay;
-Handle g_hNative_GetFurthestSurvivorFlow;
-Handle g_hNative_GetScriptValueInt;
-// Handle g_hNative_GetScriptValueFloat;
-// Handle g_hNative_GetScriptValueString;
-Handle g_hNative_GetRandomPZSpawnPosition;
-Handle g_hNative_GetNearestNavArea;
-Handle g_hNative_FindRandomSpot;
-Handle g_hNative_HasAnySurvivorLeftSafeArea;
-Handle g_hNative_IsAnySurvivorInCheckpoint;
-Handle g_hNative_IsAnySurvivorInStartArea;
+Handle g_hSDK_Call_GetClient;
+Handle g_hSDK_Call_GetLastKnownArea;
+Handle g_hSDK_Call_Deafen;
+Handle g_hSDK_Call_Dissolve;
+Handle g_hSDK_Call_OnITExpired;
+Handle g_hSDK_Call_AngularVelocity;
+Handle g_hSDK_Call_IsReachable;
+Handle g_hSDK_Call_PipeBombPrj;
+Handle g_hSDK_Call_SpitterPrj;
+Handle g_hSDK_Call_ForceNextStage;
+Handle g_hSDK_Call_IsTankInPlay;
+Handle g_hSDK_Call_GetFurthestSurvivorFlow;
+Handle g_hSDK_Call_GetScriptValueInt;
+// Handle g_hSDK_Call_GetScriptValueFloat;
+// Handle g_hSDK_Call_GetScriptValueString;
+Handle g_hSDK_Call_GetRandomPZSpawnPosition;
+Handle g_hSDK_Call_GetNearestNavArea;
+Handle g_hSDK_Call_FindRandomSpot;
+Handle g_hSDK_Call_HasAnySurvivorLeftSafeArea;
+Handle g_hSDK_Call_IsAnySurvivorInCheckpoint;
+Handle g_hSDK_Call_IsAnySurvivorInStartArea;
 Handle SDK_KV_GetString;
 
 // left4downtown.inc
-Handle g_hNative_GetTeamScore;
-Handle g_hNative_RestartScenarioFromVote;
-Handle g_hNative_IsFirstMapInScenario;
-Handle g_hNative_IsMissionFinalMap;
-Handle g_hNative_ResetMobTimer;
-Handle g_hNative_NotifyNetworkStateChanged;
-Handle g_hNative_StaggerPlayer;
-Handle g_hNative_ReplaceTank;
-Handle g_hNative_SendInRescueVehicle;
-Handle g_hNative_ChangeFinaleStage;
-Handle g_hNative_SpawnSpecial;
-Handle g_hNative_SpawnHunter;
-Handle g_hNative_SpawnBoomer;
-Handle g_hNative_SpawnSmoker;
-Handle g_hNative_SpawnTank;
-Handle g_hNative_SpawnWitch;
-Handle g_hNative_SpawnWitchBride;
-Handle g_hNative_GetWeaponInfo;
-Handle g_hNative_GetMeleeInfo;
-Handle g_hNative_TryOfferingTankBot;
-Handle g_hNative_GetNavArea;
-Handle g_hNative_GetFlowDistance;
-Handle g_hNative_DoAnimationEvent;
-Handle g_hNative_LobbyUnreserve;
-// Handle g_hNative_GetCampaignScores;
-// Handle g_hNative_LobbyIsReserved;
+Handle g_hSDK_Call_GetTeamScore;
+Handle g_hSDK_Call_RestartScenarioFromVote;
+Handle g_hSDK_Call_IsFirstMapInScenario;
+Handle g_hSDK_Call_IsMissionFinalMap;
+Handle g_hSDK_Call_ResetMobTimer;
+Handle g_hSDK_Call_NotifyNetworkStateChanged;
+Handle g_hSDK_Call_StaggerPlayer;
+Handle g_hSDK_Call_ReplaceTank;
+Handle g_hSDK_Call_SendInRescueVehicle;
+Handle g_hSDK_Call_ChangeFinaleStage;
+Handle g_hSDK_Call_SpawnSpecial;
+Handle g_hSDK_Call_SpawnHunter;
+Handle g_hSDK_Call_SpawnBoomer;
+Handle g_hSDK_Call_SpawnSmoker;
+Handle g_hSDK_Call_SpawnTank;
+Handle g_hSDK_Call_SpawnWitch;
+Handle g_hSDK_Call_SpawnWitchBride;
+Handle g_hSDK_Call_GetWeaponInfo;
+Handle g_hSDK_Call_GetMeleeInfo;
+Handle g_hSDK_Call_TryOfferingTankBot;
+Handle g_hSDK_Call_GetNavArea;
+Handle g_hSDK_Call_GetFlowDistance;
+Handle g_hSDK_Call_DoAnimationEvent;
+Handle g_hSDK_Call_LobbyUnreserve;
+// Handle g_hSDK_Call_GetCampaignScores;
+// Handle g_hSDK_Call_LobbyIsReserved;
 
 // l4d2addresses.txt
-Handle g_hNative_CTerrorPlayer_OnVomitedUpon;
-Handle g_hNative_CTerrorPlayer_OnHitByVomitJar;
-Handle g_hNative_Infected_OnHitByVomitJar;
-Handle g_hNative_Fling;
-Handle g_hNative_CancelStagger;
-Handle g_hNative_CreateRescuableSurvivors;
-Handle g_hNative_OnRevived;
-Handle g_hNative_GetVersusCompletionPlayer;
-Handle g_hNative_GetHighestFlowSurvivor;
-Handle g_hNative_GetInfectedFlowDistance;
-Handle g_hNative_TakeOverZombieBot;
-Handle g_hNative_ReplaceWithBot;
-Handle g_hNative_CullZombie;
-Handle g_hNative_SetClass;
-Handle g_hNative_CreateAbility;
-Handle g_hNative_MaterializeFromGhost;
-Handle g_hNative_BecomeGhost;
-Handle g_hNative_State_Transition;
-Handle g_hNative_SwapTeams;
-Handle g_hNative_AreTeamsFlipped;
-Handle g_hNative_StartRematchVote;
-Handle g_hNative_FullRestart;
-Handle g_hNative_HideVersusScoreboard;
-Handle g_hNative_HideScavengeScoreboard;
-Handle g_hNative_HideScoreboard;
-Handle g_hNative_RegisterForbiddenTarget;
-Handle g_hNative_UnRegisterForbiddenTarget;
+Handle g_hSDK_Call_CTerrorPlayer_OnVomitedUpon;
+Handle g_hSDK_Call_CTerrorPlayer_OnHitByVomitJar;
+Handle g_hSDK_Call_Infected_OnHitByVomitJar;
+Handle g_hSDK_Call_Fling;
+Handle g_hSDK_Call_CancelStagger;
+Handle g_hSDK_Call_CreateRescuableSurvivors;
+Handle g_hSDK_Call_OnRevived;
+Handle g_hSDK_Call_GetVersusCompletionPlayer;
+Handle g_hSDK_Call_GetHighestFlowSurvivor;
+Handle g_hSDK_Call_GetInfectedFlowDistance;
+Handle g_hSDK_Call_TakeOverZombieBot;
+Handle g_hSDK_Call_ReplaceWithBot;
+Handle g_hSDK_Call_CullZombie;
+Handle g_hSDK_Call_SetClass;
+Handle g_hSDK_Call_CreateAbility;
+Handle g_hSDK_Call_MaterializeFromGhost;
+Handle g_hSDK_Call_BecomeGhost;
+Handle g_hSDK_Call_State_Transition;
+Handle g_hSDK_Call_SwapTeams;
+Handle g_hSDK_Call_AreTeamsFlipped;
+Handle g_hSDK_Call_StartRematchVote;
+Handle g_hSDK_Call_FullRestart;
+Handle g_hSDK_Call_HideVersusScoreboard;
+Handle g_hSDK_Call_HideScavengeScoreboard;
+Handle g_hSDK_Call_HideScoreboard;
+Handle g_hSDK_Call_RegisterForbiddenTarget;
+Handle g_hSDK_Call_UnRegisterForbiddenTarget;
 
 
 
@@ -552,7 +583,7 @@ ConVar g_hCvarRescueDeadTime;
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Left 4 DHooks Direct",
+	name = "左边4个动态钩子",
 	author = "SilverShot",
 	description = "Left 4 Downtown and L4D Direct conversion and merger.",
 	version = PLUGIN_VERSION,
@@ -647,7 +678,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// ====================================================================================================
 	//									NATIVES
 	// L4D1 = 12 [left4downtown] + 43 - 0 (deprecated) [l4d_direct] + 15 [l4d2addresses] + 13 [silvers - mine!] + 4 [anim] = 87
-	// L4D2 = 52 [left4downtown] + 62 - 1 (deprecated) [l4d_direct] + 26 [l4d2addresses] + 20 [silvers - mine!] + 4 [anim] = 162
+	// L4D2 = 52 [left4downtown] + 62 - 1 (deprecated) [l4d_direct] + 26 [l4d2addresses] + 21 [silvers - mine!] + 4 [anim] = 163
 	// ====================================================================================================
 	// ANIMATION HOOK
 	CreateNative("AnimHookEnable",		 							Native_AnimHookEnable);
@@ -681,6 +712,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 		CreateNative("L4D2_GetCurrentFinaleStage",		 			Native_GetCurrentFinaleStage);
 		CreateNative("L4D2_ForceNextStage",		 					Native_ForceNextStage);
 		CreateNative("L4D2_IsTankInPlay",		 					Native_IsTankInPlay);
+		CreateNative("L4D2_IsReachable",		 					Native_IsReachable);
 		CreateNative("L4D2_GetFurthestSurvivorFlow",		 		Native_GetFurthestSurvivorFlow);
 		CreateNative("L4D2_GetScriptValueInt",						Native_GetScriptValueInt);
 		// CreateNative("L4D2_GetScriptValueFloat",					Native_GetScriptValueFloat); // Only returns default value provided.
@@ -1335,8 +1367,8 @@ public MRESReturn AddonsDisabler(int pThis, Handle hReturn, Handle hParams)
 		int ptr = DHookGetParam(hParams, 1);
 		int client = LoadFromAddress(view_as<Address>(ptr + 48), NumberType_Int8); // Network slot
 
-		//PrintToServer("#### CALL g_hNative_GetClient");
-		client = SDKCall(g_hNative_GetClient, g_pServer, client); // Pointer to somewhere in client address, not their actual entity address.
+		//PrintToServer("#### CALL g_hSDK_Call_GetClient");
+		client = SDKCall(g_hSDK_Call_GetClient, g_pServer, client); // Pointer to somewhere in client address, not their actual entity address.
 		client = LoadFromAddress(view_as<Address>(client + 48), NumberType_Int8); // Strange, don't know why but works. Found with sm_ptr dump.
 
 		if( client > 0 && client <= MaxClients && IsClientConnected(client) )
@@ -1701,41 +1733,41 @@ public void OnMapStart()
 			bDirectorVars = true;
 
 			// Variable + default value you're passing, which may be used if the director var is not set. Probably uses cvar instead. Unknown.
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "MaxSpecials",			1); // This doesn't appear to work in the finale. At least for some maps.
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "MaxSpecials",			1); // This doesn't appear to work in the finale. At least for some maps.
 
 			// These only appear to work in the Finale, or maybe some specific maps. Unknown.
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "SmokerLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "BoomerLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "HunterLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "SpitterLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "JockeyLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "ChargerLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "TankLimit",				1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "DominatorLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "WitchLimit",				1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "CommonLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "SmokerLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "BoomerLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "HunterLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "SpitterLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "JockeyLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "ChargerLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TankLimit",				1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "DominatorLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "WitchLimit",				1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "CommonLimit",			1);
 
 			// Challenge mode required?
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_MaxSpecials",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_BaseSpecialLimit",	1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_SmokerLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_BoomerLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_HunterLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_SpitterLimit",		1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_JockeyLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_ChargerLimit",		1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_TankLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_DominatorLimit",		1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_WitchLimit",			1);
-			SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "cm_CommonLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_MaxSpecials",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_BaseSpecialLimit",	1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_SmokerLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_BoomerLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_HunterLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_SpitterLimit",		1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_JockeyLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_ChargerLimit",		1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_TankLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_DominatorLimit",		1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_WitchLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_CommonLimit",			1);
 
 			// These also exist, required?
-			// SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "TotalSmokers",			1);
-			// SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "TotalBoomers",			1);
-			// SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "TotalHunters",			1);
-			// SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "TotalSpitter",			1);
-			// SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "TotalJockey",			1);
-			// SDKCall(g_hNative_GetScriptValueInt, g_pDirector, "TotalCharger",			1);
+			// SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TotalSmokers",			1);
+			// SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TotalBoomers",			1);
+			// SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TotalHunters",			1);
+			// SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TotalSpitter",			1);
+			// SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TotalJockey",			1);
+			// SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TotalCharger",			1);
 		}
 	}
 }
@@ -1785,8 +1817,8 @@ void LoadGameData()
 		} else {
 			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_GetWeaponInfo = EndPrepSDKCall();
-			if( g_hNative_GetWeaponInfo == null )
+			g_hSDK_Call_GetWeaponInfo = EndPrepSDKCall();
+			if( g_hSDK_Call_GetWeaponInfo == null )
 				LogError("Failed to create SDKCall: GetWeaponInfo");
 		}
 
@@ -1797,8 +1829,8 @@ void LoadGameData()
 		} else {
 			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_GetClient = EndPrepSDKCall();
-			if( g_hNative_GetClient == null )
+			g_hSDK_Call_GetClient = EndPrepSDKCall();
+			if( g_hSDK_Call_GetClient == null )
 				LogError("Failed to create SDKCall: CBaseServer_GetClient");
 		}
 	}
@@ -1814,8 +1846,8 @@ void LoadGameData()
 		LogError("Failed to find signature: CTerrorPlayer::GetLastKnownArea");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_GetLastKnownArea = EndPrepSDKCall();
-		if( g_hNative_GetLastKnownArea == null )
+		g_hSDK_Call_GetLastKnownArea = EndPrepSDKCall();
+		if( g_hSDK_Call_GetLastKnownArea == null )
 			LogError("Failed to create SDKCall: CTerrorPlayer::GetLastKnownArea");
 	}
 
@@ -1827,8 +1859,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
-		g_hNative_Deafen = EndPrepSDKCall();
-		if( g_hNative_Deafen == null )
+		g_hSDK_Call_Deafen = EndPrepSDKCall();
+		if( g_hSDK_Call_Deafen == null )
 			LogError("Failed to create SDKCall: CTerrorPlayer::Deafen");
 	}
 
@@ -1843,8 +1875,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
 		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-		g_hNative_Dissolve = EndPrepSDKCall();
-		if( g_hNative_Dissolve == null )
+		g_hSDK_Call_Dissolve = EndPrepSDKCall();
+		if( g_hSDK_Call_Dissolve == null )
 			LogError("Failed to create SDKCall: CEntityDissolve_Create");
 	}
 
@@ -1853,8 +1885,8 @@ void LoadGameData()
 	{
 		LogError("Failed to find signature: CTerrorPlayer::OnITExpired");
 	} else {
-		g_hNative_OnITExpired = EndPrepSDKCall();
-		if( g_hNative_OnITExpired == null )
+		g_hSDK_Call_OnITExpired = EndPrepSDKCall();
+		if( g_hSDK_Call_OnITExpired == null )
 			LogError("Failed to create SDKCall: CTerrorPlayer::OnITExpired");
 	}
 
@@ -1864,8 +1896,8 @@ void LoadGameData()
 		LogError("Failed to find signature: CBaseEntity::ApplyLocalAngularVelocityImpulse");
 	} else {
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
-		g_hNative_AngularVelocity = EndPrepSDKCall();
-		if( g_hNative_AngularVelocity == null )
+		g_hSDK_Call_AngularVelocity = EndPrepSDKCall();
+		if( g_hSDK_Call_AngularVelocity == null )
 			LogError("Failed to create SDKCall: CBaseEntity::ApplyLocalAngularVelocityImpulse");
 	}
 
@@ -1879,8 +1911,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer); // Client
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK); // Vector return
 		PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-		g_hNative_GetRandomPZSpawnPosition = EndPrepSDKCall();
-		if( g_hNative_GetRandomPZSpawnPosition == null )
+		g_hSDK_Call_GetRandomPZSpawnPosition = EndPrepSDKCall();
+		if( g_hSDK_Call_GetRandomPZSpawnPosition == null )
 			LogError("Failed to create SDKCall: GetRandomPZSpawnPosition");
 	}
 
@@ -1896,8 +1928,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_GetNearestNavArea = EndPrepSDKCall();
-		if( g_hNative_GetNearestNavArea == null )
+		g_hSDK_Call_GetNearestNavArea = EndPrepSDKCall();
+		if( g_hSDK_Call_GetNearestNavArea == null )
 			LogError("Failed to create SDKCall: GetNearestNavArea");
 	}
 
@@ -1907,8 +1939,8 @@ void LoadGameData()
 		LogError("Failed to find signature: FindRandomSpot");
 	} else {
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
-		g_hNative_FindRandomSpot = EndPrepSDKCall();
-		if( g_hNative_FindRandomSpot == null )
+		g_hSDK_Call_FindRandomSpot = EndPrepSDKCall();
+		if( g_hSDK_Call_FindRandomSpot == null )
 			LogError("Failed to create SDKCall: FindRandomSpot");
 	}
 
@@ -1918,8 +1950,8 @@ void LoadGameData()
 		LogError("Failed to find signature: HasAnySurvivorLeftSafeArea");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-		g_hNative_HasAnySurvivorLeftSafeArea = EndPrepSDKCall();
-		if( g_hNative_HasAnySurvivorLeftSafeArea == null )
+		g_hSDK_Call_HasAnySurvivorLeftSafeArea = EndPrepSDKCall();
+		if( g_hSDK_Call_HasAnySurvivorLeftSafeArea == null )
 			LogError("Failed to create SDKCall: HasAnySurvivorLeftSafeArea");
 	}
 
@@ -1929,8 +1961,8 @@ void LoadGameData()
 		LogError("Failed to find signature: IsAnySurvivorInStartArea");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-		g_hNative_IsAnySurvivorInStartArea = EndPrepSDKCall();
-		if( g_hNative_IsAnySurvivorInStartArea == null )
+		g_hSDK_Call_IsAnySurvivorInStartArea = EndPrepSDKCall();
+		if( g_hSDK_Call_IsAnySurvivorInStartArea == null )
 			LogError("Failed to create SDKCall: IsAnySurvivorInStartArea");
 	}
 
@@ -1940,8 +1972,8 @@ void LoadGameData()
 		LogError("Failed to find signature: IsAnySurvivorInExitCheckpoint");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-		g_hNative_IsAnySurvivorInCheckpoint = EndPrepSDKCall();
-		if( g_hNative_IsAnySurvivorInCheckpoint == null )
+		g_hSDK_Call_IsAnySurvivorInCheckpoint = EndPrepSDKCall();
+		if( g_hSDK_Call_IsAnySurvivorInCheckpoint == null )
 			LogError("Failed to create SDKCall: IsAnySurvivorInExitCheckpoint");
 	}
 
@@ -1957,8 +1989,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
 		PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-		g_hNative_PipeBombPrj = EndPrepSDKCall();
-		if( g_hNative_PipeBombPrj == null )
+		g_hSDK_Call_PipeBombPrj = EndPrepSDKCall();
+		if( g_hSDK_Call_PipeBombPrj == null )
 			LogError("Failed to create SDKCall: CPipeBombProjectile_Create");
 	}
 
@@ -1975,8 +2007,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
 			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-			g_hNative_SpitterPrj = EndPrepSDKCall();
-			if( g_hNative_SpitterPrj == null )
+			g_hSDK_Call_SpitterPrj = EndPrepSDKCall();
+			if( g_hSDK_Call_SpitterPrj == null )
 					LogError("Failed to create SDKCall: CSpitterProjectile_Create");
 		}
 
@@ -1986,8 +2018,8 @@ void LoadGameData()
 			LogError("Failed to find signature: ForceNextStage");
 		} else {
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_ForceNextStage = EndPrepSDKCall();
-			if( g_hNative_ForceNextStage == null )
+			g_hSDK_Call_ForceNextStage = EndPrepSDKCall();
+			if( g_hSDK_Call_ForceNextStage == null )
 				LogError("Failed to create SDKCall: ForceNextStage");
 		}
 
@@ -1997,9 +2029,21 @@ void LoadGameData()
 			LogError("Failed to find signature: IsTankInPlay");
 		} else {
 			PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-			g_hNative_IsTankInPlay = EndPrepSDKCall();
-			if( g_hNative_IsTankInPlay == null )
+			g_hSDK_Call_IsTankInPlay = EndPrepSDKCall();
+			if( g_hSDK_Call_IsTankInPlay == null )
 				LogError("Failed to create SDKCall: IsTankInPlay");
+		}
+
+		StartPrepSDKCall(SDKCall_Player);
+		if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "SurvivorBot::IsReachable") == false )
+		{
+			LogError("Failed to find signature: SurvivorBot::IsReachable");
+		} else {
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
+			g_hSDK_Call_IsReachable = EndPrepSDKCall();
+			if( g_hSDK_Call_IsReachable == null )
+				LogError("Failed to create SDKCall: SurvivorBot::IsReachable");
 		}
 
 		StartPrepSDKCall(SDKCall_Raw);
@@ -2008,8 +2052,8 @@ void LoadGameData()
 			LogError("Failed to find signature: GetFurthestSurvivorFlow");
 		} else {
 			PrepSDKCall_SetReturnInfo(SDKType_Float, SDKPass_Plain);
-			g_hNative_GetFurthestSurvivorFlow = EndPrepSDKCall();
-			if( g_hNative_GetFurthestSurvivorFlow == null )
+			g_hSDK_Call_GetFurthestSurvivorFlow = EndPrepSDKCall();
+			if( g_hSDK_Call_GetFurthestSurvivorFlow == null )
 				LogError("Failed to create SDKCall: GetFurthestSurvivorFlow");
 		}
 
@@ -2021,8 +2065,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_GetScriptValueInt = EndPrepSDKCall();
-			if( g_hNative_GetScriptValueInt == null )
+			g_hSDK_Call_GetScriptValueInt = EndPrepSDKCall();
+			if( g_hSDK_Call_GetScriptValueInt == null )
 					LogError("Failed to create SDKCall: GetScriptValueInt");
 		}
 
@@ -2036,8 +2080,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 			PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 			PrepSDKCall_SetReturnInfo(SDKType_Float, SDKPass_Plain);
-			g_hNative_GetScriptValueFloat = EndPrepSDKCall();
-			if( g_hNative_GetScriptValueFloat == null )
+			g_hSDK_Call_GetScriptValueFloat = EndPrepSDKCall();
+			if( g_hSDK_Call_GetScriptValueFloat == null )
 					LogError("Failed to create SDKCall: GetScriptValueFloat");
 		}
 
@@ -2050,8 +2094,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 			PrepSDKCall_SetReturnInfo(SDKType_String, SDKPass_Pointer);
-			g_hNative_GetScriptValueString = EndPrepSDKCall();
-			if( g_hNative_GetScriptValueString == null )
+			g_hSDK_Call_GetScriptValueString = EndPrepSDKCall();
+			if( g_hSDK_Call_GetScriptValueString == null )
 					LogError("Failed to create SDKCall: GetScriptValueString");
 		}
 		*/
@@ -2069,8 +2113,8 @@ void LoadGameData()
 	} else {
 		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_RestartScenarioFromVote = EndPrepSDKCall();
-		if( g_hNative_RestartScenarioFromVote == null )
+		g_hSDK_Call_RestartScenarioFromVote = EndPrepSDKCall();
+		if( g_hSDK_Call_RestartScenarioFromVote == null )
 			LogError("Failed to create SDKCall: RestartScenarioFromVote");
 	}
 
@@ -2082,8 +2126,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_GetTeamScore = EndPrepSDKCall();
-		if( g_hNative_GetTeamScore == null )
+		g_hSDK_Call_GetTeamScore = EndPrepSDKCall();
+		if( g_hSDK_Call_GetTeamScore == null )
 			LogError("Failed to create SDKCall: GetTeamScore");
 	}
 
@@ -2098,8 +2142,8 @@ void LoadGameData()
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
 		} else
 		PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-		g_hNative_IsFirstMapInScenario = EndPrepSDKCall();
-		if( g_hNative_IsFirstMapInScenario == null )
+		g_hSDK_Call_IsFirstMapInScenario = EndPrepSDKCall();
+		if( g_hSDK_Call_IsFirstMapInScenario == null )
 			LogError("Failed to create SDKCall: IsFirstMapInScenario");
 	}
 
@@ -2109,8 +2153,8 @@ void LoadGameData()
 		LogError("Failed to find signature: IsMissionFinalMap");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-		g_hNative_IsMissionFinalMap = EndPrepSDKCall();
-		if( g_hNative_IsMissionFinalMap == null )
+		g_hSDK_Call_IsMissionFinalMap = EndPrepSDKCall();
+		if( g_hSDK_Call_IsMissionFinalMap == null )
 			LogError("Failed to create SDKCall: IsMissionFinalMap");
 	}
 
@@ -2133,8 +2177,8 @@ void LoadGameData()
 		LogError("Failed to find signature: NotifyNetworkStateChanged");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_NotifyNetworkStateChanged = EndPrepSDKCall();
-		if( g_hNative_NotifyNetworkStateChanged == null )
+		g_hSDK_Call_NotifyNetworkStateChanged = EndPrepSDKCall();
+		if( g_hSDK_Call_NotifyNetworkStateChanged == null )
 			LogError("Failed to create SDKCall: NotifyNetworkStateChanged");
 	}
 
@@ -2146,8 +2190,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_StaggerPlayer = EndPrepSDKCall();
-		if( g_hNative_StaggerPlayer == null )
+		g_hSDK_Call_StaggerPlayer = EndPrepSDKCall();
+		if( g_hSDK_Call_StaggerPlayer == null )
 			LogError("Failed to create SDKCall: OnStaggered");
 	}
 
@@ -2157,8 +2201,8 @@ void LoadGameData()
 		LogError("Failed to find signature: SendInRescueVehicle");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
-		g_hNative_SendInRescueVehicle = EndPrepSDKCall();
-		if( g_hNative_SendInRescueVehicle == null )
+		g_hSDK_Call_SendInRescueVehicle = EndPrepSDKCall();
+		if( g_hSDK_Call_SendInRescueVehicle == null )
 			LogError("Failed to create SDKCall: SendInRescueVehicle");
 	}
 
@@ -2170,8 +2214,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 		PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_ReplaceTank = EndPrepSDKCall();
-		if( g_hNative_ReplaceTank == null )
+		g_hSDK_Call_ReplaceTank = EndPrepSDKCall();
+		if( g_hSDK_Call_ReplaceTank == null )
 			LogError("Failed to create SDKCall: ReplaceTank");
 	}
 
@@ -2183,8 +2227,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 		PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef);
 		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-		g_hNative_SpawnTank = EndPrepSDKCall();
-		if( g_hNative_SpawnTank == null )
+		g_hSDK_Call_SpawnTank = EndPrepSDKCall();
+		if( g_hSDK_Call_SpawnTank == null )
 			LogError("Failed to create SDKCall: SpawnTank");
 	}
 
@@ -2196,8 +2240,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 		PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef);
 		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-		g_hNative_SpawnWitch = EndPrepSDKCall();
-		if( g_hNative_SpawnWitch == null )
+		g_hSDK_Call_SpawnWitch = EndPrepSDKCall();
+		if( g_hSDK_Call_SpawnWitch == null )
 			LogError("Failed to create SDKCall: SpawnWitch");
 	}
 
@@ -2209,8 +2253,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
 		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-		g_hNative_TryOfferingTankBot = EndPrepSDKCall();
-		if( g_hNative_TryOfferingTankBot == null )
+		g_hSDK_Call_TryOfferingTankBot = EndPrepSDKCall();
+		if( g_hSDK_Call_TryOfferingTankBot == null )
 			LogError("Failed to create SDKCall: TryOfferingTankBot");
 	}
 
@@ -2220,8 +2264,8 @@ void LoadGameData()
 	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-	g_hNative_GetNavArea = EndPrepSDKCall();
-	if( g_hNative_GetNavArea == null )
+	g_hSDK_Call_GetNavArea = EndPrepSDKCall();
+	if( g_hSDK_Call_GetNavArea == null )
 		SetFailState("Failed to create SDKCall: GetNavArea");
 
 	StartPrepSDKCall(SDKCall_Player);
@@ -2229,8 +2273,8 @@ void LoadGameData()
 		SetFailState("Failed to find signature: GetFlowDistance");
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	PrepSDKCall_SetReturnInfo(SDKType_Float, SDKPass_Plain);
-	g_hNative_GetFlowDistance = EndPrepSDKCall();
-	if( g_hNative_GetFlowDistance == null )
+	g_hSDK_Call_GetFlowDistance = EndPrepSDKCall();
+	if( g_hSDK_Call_GetFlowDistance == null )
 		SetFailState("Failed to create SDKCall: GetFlowDistance");
 
 	StartPrepSDKCall(SDKCall_Player);
@@ -2238,8 +2282,8 @@ void LoadGameData()
 		SetFailState("Failed to find signature: DoAnimationEvent");
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-	g_hNative_DoAnimationEvent = EndPrepSDKCall();
-	if( g_hNative_DoAnimationEvent == null )
+	g_hSDK_Call_DoAnimationEvent = EndPrepSDKCall();
+	if( g_hSDK_Call_DoAnimationEvent == null )
 		SetFailState("Failed to create SDKCall: DoAnimationEvent");
 
 
@@ -2253,8 +2297,8 @@ void LoadGameData()
 		} else {
 			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_GetMeleeInfo = EndPrepSDKCall();
-			if( g_hNative_GetMeleeInfo == null )
+			g_hSDK_Call_GetMeleeInfo = EndPrepSDKCall();
+			if( g_hSDK_Call_GetMeleeInfo == null )
 				LogError("Failed to create SDKCall: GetMeleeWeaponInfo");
 		}
 
@@ -2263,8 +2307,8 @@ void LoadGameData()
 		{
 			LogError("Failed to find signature: ResetMobTimer");
 		} else {
-			g_hNative_ResetMobTimer = EndPrepSDKCall();
-			if( g_hNative_ResetMobTimer == null )
+			g_hSDK_Call_ResetMobTimer = EndPrepSDKCall();
+			if( g_hSDK_Call_ResetMobTimer == null )
 				LogError("Failed to create SDKCall: ResetMobTimer");
 		}
 
@@ -2276,8 +2320,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_ChangeFinaleStage = EndPrepSDKCall();
-			if( g_hNative_ChangeFinaleStage == null )
+			g_hSDK_Call_ChangeFinaleStage = EndPrepSDKCall();
+			if( g_hSDK_Call_ChangeFinaleStage == null )
 				LogError("Failed to create SDKCall: ChangeFinaleStage");
 		}
 
@@ -2290,8 +2334,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef);
 			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-			g_hNative_SpawnSpecial = EndPrepSDKCall();
-			if( g_hNative_SpawnSpecial == null )
+			g_hSDK_Call_SpawnSpecial = EndPrepSDKCall();
+			if( g_hSDK_Call_SpawnSpecial == null )
 				LogError("Failed to create SDKCall: SpawnSpecial");
 		}
 
@@ -2303,8 +2347,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef);
 			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-			g_hNative_SpawnWitchBride = EndPrepSDKCall();
-			if( g_hNative_SpawnWitchBride == null )
+			g_hSDK_Call_SpawnWitchBride = EndPrepSDKCall();
+			if( g_hSDK_Call_SpawnWitchBride == null )
 				LogError("Failed to create SDKCall: SpawnWitchBride");
 		}
 	} else {
@@ -2316,8 +2360,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef);
 			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-			g_hNative_SpawnHunter = EndPrepSDKCall();
-			if( g_hNative_SpawnHunter == null )
+			g_hSDK_Call_SpawnHunter = EndPrepSDKCall();
+			if( g_hSDK_Call_SpawnHunter == null )
 				LogError("Failed to create SDKCall: SpawnHunter");
 		}
 
@@ -2329,8 +2373,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef);
 			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-			g_hNative_SpawnBoomer = EndPrepSDKCall();
-			if( g_hNative_SpawnBoomer == null )
+			g_hSDK_Call_SpawnBoomer = EndPrepSDKCall();
+			if( g_hSDK_Call_SpawnBoomer == null )
 				LogError("Failed to create SDKCall: SpawnBoomer");
 		}
 
@@ -2342,8 +2386,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_QAngle, SDKPass_ByRef);
 			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-			g_hNative_SpawnSmoker = EndPrepSDKCall();
-			if( g_hNative_SpawnSmoker == null )
+			g_hSDK_Call_SpawnSmoker = EndPrepSDKCall();
+			if( g_hSDK_Call_SpawnSmoker == null )
 				LogError("Failed to create SDKCall: SpawnSmoker");
 		}
 	}
@@ -2360,8 +2404,8 @@ void LoadGameData()
 	} else {
 		PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
 		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
-		g_hNative_CTerrorPlayer_OnVomitedUpon = EndPrepSDKCall();
-		if( g_hNative_CTerrorPlayer_OnVomitedUpon == null )
+		g_hSDK_Call_CTerrorPlayer_OnVomitedUpon = EndPrepSDKCall();
+		if( g_hSDK_Call_CTerrorPlayer_OnVomitedUpon == null )
 			LogError("Failed to create SDKCall: CTerrorPlayer_OnVomitedUpon");
 	}
 
@@ -2370,8 +2414,8 @@ void LoadGameData()
 	{
 		LogError("Failed to find signature: CancelStagger");
 	} else {
-		g_hNative_CancelStagger = EndPrepSDKCall();
-		if( g_hNative_CancelStagger == null )
+		g_hSDK_Call_CancelStagger = EndPrepSDKCall();
+		if( g_hSDK_Call_CancelStagger == null )
 			LogError("Failed to create SDKCall: CancelStagger");
 	}
 
@@ -2380,8 +2424,8 @@ void LoadGameData()
 	{
 		LogError("Failed to find signature: CreateRescuableSurvivors");
 	} else {
-		g_hNative_CreateRescuableSurvivors = EndPrepSDKCall();
-		if( g_hNative_CreateRescuableSurvivors == null )
+		g_hSDK_Call_CreateRescuableSurvivors = EndPrepSDKCall();
+		if( g_hSDK_Call_CreateRescuableSurvivors == null )
 			LogError("Failed to create SDKCall: CreateRescuableSurvivors");
 	}
 
@@ -2390,20 +2434,21 @@ void LoadGameData()
 	{
 		LogError("Failed to find signature: OnRevived");
 	} else {
-		g_hNative_OnRevived = EndPrepSDKCall();
-		if( g_hNative_OnRevived == null )
+		g_hSDK_Call_OnRevived = EndPrepSDKCall();
+		if( g_hSDK_Call_OnRevived == null )
 			LogError("Failed to create SDKCall: OnRevived");
 	}
 
-	StartPrepSDKCall(SDKCall_Raw);
+	StartPrepSDKCall(SDKCall_Static);
 	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "GetHighestFlowSurvivor") == false )
 	{
 		LogError("Failed to find signature: GetHighestFlowSurvivor");
 	} else {
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-		g_hNative_GetHighestFlowSurvivor = EndPrepSDKCall();
-		if( g_hNative_GetHighestFlowSurvivor == null )
+		g_hSDK_Call_GetHighestFlowSurvivor = EndPrepSDKCall();
+		if( g_hSDK_Call_GetHighestFlowSurvivor == null )
 			LogError("Failed to create SDKCall: GetHighestFlowSurvivor");
 	}
 
@@ -2413,8 +2458,8 @@ void LoadGameData()
 		LogError("Failed to find signature: GetInfectedFlowDistance");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_Float, SDKPass_Plain);
-		g_hNative_GetInfectedFlowDistance = EndPrepSDKCall();
-		if( g_hNative_GetInfectedFlowDistance == null )
+		g_hSDK_Call_GetInfectedFlowDistance = EndPrepSDKCall();
+		if( g_hSDK_Call_GetInfectedFlowDistance == null )
 			LogError("Failed to create SDKCall: GetInfectedFlowDistance");
 	}
 
@@ -2424,8 +2469,8 @@ void LoadGameData()
 		LogError("Failed to find signature: TakeOverZombieBot");
 	} else {
 		PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
-		g_hNative_TakeOverZombieBot = EndPrepSDKCall();
-		if( g_hNative_TakeOverZombieBot == null )
+		g_hSDK_Call_TakeOverZombieBot = EndPrepSDKCall();
+		if( g_hSDK_Call_TakeOverZombieBot == null )
 			LogError("Failed to create SDKCall: TakeOverZombieBot");
 	}
 
@@ -2435,8 +2480,8 @@ void LoadGameData()
 		LogError("Failed to find signature: ReplaceWithBot");
 	} else {
 		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
-		g_hNative_ReplaceWithBot = EndPrepSDKCall();
-		if( g_hNative_ReplaceWithBot == null )
+		g_hSDK_Call_ReplaceWithBot = EndPrepSDKCall();
+		if( g_hSDK_Call_ReplaceWithBot == null )
 			LogError("Failed to create SDKCall: ReplaceWithBot");
 	}
 
@@ -2445,8 +2490,8 @@ void LoadGameData()
 	{
 		LogError("Failed to find signature: CullZombie");
 	} else {
-		g_hNative_CullZombie = EndPrepSDKCall();
-		if( g_hNative_CullZombie == null )
+		g_hSDK_Call_CullZombie = EndPrepSDKCall();
+		if( g_hSDK_Call_CullZombie == null )
 			LogError("Failed to create SDKCall: CullZombie");
 	}
 
@@ -2456,8 +2501,8 @@ void LoadGameData()
 		LogError("Failed to find signature: SetClass");
 	} else {
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_SetClass = EndPrepSDKCall();
-		if( g_hNative_SetClass == null )
+		g_hSDK_Call_SetClass = EndPrepSDKCall();
+		if( g_hSDK_Call_SetClass == null )
 			LogError("Failed to create SDKCall: SetClass");
 	}
 
@@ -2468,8 +2513,8 @@ void LoadGameData()
 	} else {
 		PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-		g_hNative_CreateAbility = EndPrepSDKCall();
-		if( g_hNative_CreateAbility == null )
+		g_hSDK_Call_CreateAbility = EndPrepSDKCall();
+		if( g_hSDK_Call_CreateAbility == null )
 			LogError("Failed to create SDKCall: CreateAbility");
 	}
 
@@ -2479,8 +2524,8 @@ void LoadGameData()
 		LogError("Failed to find signature: MaterializeFromGhost");
 	} else {
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_MaterializeFromGhost = EndPrepSDKCall();
-		if( g_hNative_MaterializeFromGhost == null )
+		g_hSDK_Call_MaterializeFromGhost = EndPrepSDKCall();
+		if( g_hSDK_Call_MaterializeFromGhost == null )
 			LogError("Failed to create SDKCall: MaterializeFromGhost");
 	}
 
@@ -2497,8 +2542,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		}
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_BecomeGhost = EndPrepSDKCall();
-		if( g_hNative_BecomeGhost == null )
+		g_hSDK_Call_BecomeGhost = EndPrepSDKCall();
+		if( g_hSDK_Call_BecomeGhost == null )
 			LogError("Failed to create SDKCall: BecomeGhost");
 	}
 
@@ -2508,8 +2553,8 @@ void LoadGameData()
 		LogError("Failed to find signature: State_Transition");
 	} else {
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_State_Transition = EndPrepSDKCall();
-		if( g_hNative_State_Transition == null )
+		g_hSDK_Call_State_Transition = EndPrepSDKCall();
+		if( g_hSDK_Call_State_Transition == null )
 			LogError("Failed to create SDKCall: State_Transition");
 	}
 
@@ -2520,8 +2565,8 @@ void LoadGameData()
 	} else {
 		PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_RegisterForbiddenTarget = EndPrepSDKCall();
-		if( g_hNative_RegisterForbiddenTarget == null )
+		g_hSDK_Call_RegisterForbiddenTarget = EndPrepSDKCall();
+		if( g_hSDK_Call_RegisterForbiddenTarget == null )
 			LogError("Failed to create SDKCall: RegisterForbiddenTarget");
 	}
 
@@ -2531,8 +2576,8 @@ void LoadGameData()
 		LogError("Failed to find signature: UnRegisterForbiddenTarget");
 	} else {
 		PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
-		g_hNative_UnRegisterForbiddenTarget = EndPrepSDKCall();
-		if( g_hNative_UnRegisterForbiddenTarget == null )
+		g_hSDK_Call_UnRegisterForbiddenTarget = EndPrepSDKCall();
+		if( g_hSDK_Call_UnRegisterForbiddenTarget == null )
 			LogError("Failed to create SDKCall: UnRegisterForbiddenTarget");
 	}
 
@@ -2546,8 +2591,8 @@ void LoadGameData()
 			LogError("Failed to find signature: CTerrorPlayer_OnHitByVomitJar");
 		} else {
 			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
-			g_hNative_CTerrorPlayer_OnHitByVomitJar = EndPrepSDKCall();
-			if( g_hNative_CTerrorPlayer_OnHitByVomitJar == null )
+			g_hSDK_Call_CTerrorPlayer_OnHitByVomitJar = EndPrepSDKCall();
+			if( g_hSDK_Call_CTerrorPlayer_OnHitByVomitJar == null )
 				LogError("Failed to create SDKCall: CTerrorPlayer_OnHitByVomitJar");
 		}
 
@@ -2557,8 +2602,8 @@ void LoadGameData()
 			LogError("Failed to find signature: Infected_OnHitByVomitJar");
 		} else {
 			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
-			g_hNative_Infected_OnHitByVomitJar = EndPrepSDKCall();
-			if( g_hNative_Infected_OnHitByVomitJar == null )
+			g_hSDK_Call_Infected_OnHitByVomitJar = EndPrepSDKCall();
+			if( g_hSDK_Call_Infected_OnHitByVomitJar == null )
 				LogError("Failed to create SDKCall: Infected_OnHitByVomitJar");
 		}
 
@@ -2571,8 +2616,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
 			PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
-			g_hNative_Fling = EndPrepSDKCall();
-			if( g_hNative_Fling == null )
+			g_hSDK_Call_Fling = EndPrepSDKCall();
+			if( g_hSDK_Call_Fling == null )
 				LogError("Failed to create SDKCall: CTerrorPlayer_Fling");
 		}
 
@@ -2583,8 +2628,8 @@ void LoadGameData()
 		} else {
 			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_GetVersusCompletionPlayer = EndPrepSDKCall();
-			if( g_hNative_GetVersusCompletionPlayer == null )
+			g_hSDK_Call_GetVersusCompletionPlayer = EndPrepSDKCall();
+			if( g_hSDK_Call_GetVersusCompletionPlayer == null )
 				LogError("Failed to create SDKCall: GetVersusCompletionPlayer");
 		}
 
@@ -2594,8 +2639,8 @@ void LoadGameData()
 			LogError("Failed to find signature: SwapTeams");
 		} else {
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_SwapTeams = EndPrepSDKCall();
-			if( g_hNative_SwapTeams == null )
+			g_hSDK_Call_SwapTeams = EndPrepSDKCall();
+			if( g_hSDK_Call_SwapTeams == null )
 				LogError("Failed to create SDKCall: SwapTeams");
 		}
 
@@ -2605,8 +2650,8 @@ void LoadGameData()
 			LogError("Failed to find signature: AreTeamsFlipped");
 		} else {
 			PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-			g_hNative_AreTeamsFlipped = EndPrepSDKCall();
-			if( g_hNative_AreTeamsFlipped == null )
+			g_hSDK_Call_AreTeamsFlipped = EndPrepSDKCall();
+			if( g_hSDK_Call_AreTeamsFlipped == null )
 				LogError("Failed to create SDKCall: AreTeamsFlipped");
 		}
 
@@ -2615,8 +2660,8 @@ void LoadGameData()
 		{
 			LogError("Failed to find signature: StartRematchVote");
 		} else {
-			g_hNative_StartRematchVote = EndPrepSDKCall();
-			if( g_hNative_StartRematchVote == null )
+			g_hSDK_Call_StartRematchVote = EndPrepSDKCall();
+			if( g_hSDK_Call_StartRematchVote == null )
 				LogError("Failed to create SDKCall: StartRematchVote");
 		}
 
@@ -2625,8 +2670,8 @@ void LoadGameData()
 		{
 			LogError("Failed to find signature: FullRestart");
 		} else {
-			g_hNative_FullRestart = EndPrepSDKCall();
-			if( g_hNative_FullRestart == null )
+			g_hSDK_Call_FullRestart = EndPrepSDKCall();
+			if( g_hSDK_Call_FullRestart == null )
 				LogError("Failed to create SDKCall: FullRestart");
 		}
 
@@ -2635,8 +2680,8 @@ void LoadGameData()
 		{
 			LogError("Failed to find signature: HideVersusScoreboard");
 		} else {
-			g_hNative_HideVersusScoreboard = EndPrepSDKCall();
-			if( g_hNative_HideVersusScoreboard == null )
+			g_hSDK_Call_HideVersusScoreboard = EndPrepSDKCall();
+			if( g_hSDK_Call_HideVersusScoreboard == null )
 				LogError("Failed to create SDKCall: HideVersusScoreboard");
 		}
 
@@ -2645,8 +2690,8 @@ void LoadGameData()
 		{
 			LogError("Failed to find signature: HideScavengeScoreboard");
 		} else {
-			g_hNative_HideScavengeScoreboard = EndPrepSDKCall();
-			if( g_hNative_HideScavengeScoreboard == null )
+			g_hSDK_Call_HideScavengeScoreboard = EndPrepSDKCall();
+			if( g_hSDK_Call_HideScavengeScoreboard == null )
 				LogError("Failed to create SDKCall: HideScavengeScoreboard");
 		}
 
@@ -2655,8 +2700,8 @@ void LoadGameData()
 		{
 			LogError("Failed to find signature: HideScoreboard");
 		} else {
-			g_hNative_HideScoreboard = EndPrepSDKCall();
-			if( g_hNative_HideScoreboard == null )
+			g_hSDK_Call_HideScoreboard = EndPrepSDKCall();
+			if( g_hSDK_Call_HideScoreboard == null )
 				LogError("Failed to create SDKCall: HideScoreboard");
 		}
 	}
@@ -2670,8 +2715,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		g_hNative_LobbyUnreserve = EndPrepSDKCall();
-		if( g_hNative_LobbyUnreserve == null )
+		g_hSDK_Call_LobbyUnreserve = EndPrepSDKCall();
+		if( g_hSDK_Call_LobbyUnreserve == null )
 			LogError("Failed to create SDKCall: SetReservationCookie");
 	}
 
@@ -2687,8 +2732,8 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_GetCampaignScores = EndPrepSDKCall();
-		if( g_hNative_GetCampaignScores == null )
+		g_hSDK_Call_GetCampaignScores = EndPrepSDKCall();
+		if( g_hSDK_Call_GetCampaignScores == null )
 			LogError("Failed to create SDKCall: GetCampaignScores");
 	}
 	// */
@@ -2701,8 +2746,8 @@ void LoadGameData()
 	} else {
 		PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-		g_hNative_LobbyIsReserved = EndPrepSDKCall();
-		if( g_hNative_LobbyIsReserved == null )
+		g_hSDK_Call_LobbyIsReserved = EndPrepSDKCall();
+		if( g_hSDK_Call_LobbyIsReserved == null )
 			LogError("Failed to create SDKCall: LobbyIsReserved");
 	}
 	// */
@@ -2717,7 +2762,7 @@ void LoadGameData()
 	PrintToServer("Various Offsets:");
 	#endif
 
-	g_bLinuxOS = hGameData.GetOffset("OS") == 1;
+	// g_bLinuxOS = hGameData.GetOffset("OS") == 1;
 
 	m_iCampaignScores = hGameData.GetOffset("m_iCampaignScores");
 	ValidateOffset(m_iCampaignScores, "m_iCampaignScores");
@@ -3068,16 +3113,16 @@ public int Native_GetVScriptOutput(Handle plugin, int numParams)
 
 public int Native_Deafen(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_Deafen, "Deafen");
+	ValidateNatives(g_hSDK_Call_Deafen, "Deafen");
 
 	int client = GetNativeCell(1);
-	//PrintToServer("#### CALL g_hNative_Deafen");
-	SDKCall(g_hNative_Deafen, client, 1.0, 0.0, 0.01 );
+	//PrintToServer("#### CALL g_hSDK_Call_Deafen");
+	SDKCall(g_hSDK_Call_Deafen, client, 1.0, 0.0, 0.01 );
 }
 
 public int Native_Dissolve(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_Dissolve, "Dissolve");
+	ValidateNatives(g_hSDK_Call_Dissolve, "Dissolve");
 
 	int entity = GetNativeCell(1);
 	if( entity > MaxClients )
@@ -3086,8 +3131,8 @@ public int Native_Dissolve(Handle plugin, int numParams)
 		SDKHook(entity, SDKHook_OnTakeDamage, OnCommonDamage);
 	}
 
-	//PrintToServer("#### CALL g_hNative_Dissolve");
-	int dissolver = SDKCall(g_hNative_Dissolve, entity, "", GetGameTime() + 0.8, 2, false);
+	//PrintToServer("#### CALL g_hSDK_Call_Dissolve");
+	int dissolver = SDKCall(g_hSDK_Call_Dissolve, entity, "", GetGameTime() + 0.8, 2, false);
 	SetEntPropFloat(dissolver, Prop_Send, "m_flFadeOutStart", 0.0); // Fixes broken particles
 	return dissolver;
 }
@@ -3105,35 +3150,35 @@ public Action OnCommonDamage(int victim, int &attacker, int &inflictor, float &d
 
 public int Native_OnITExpired(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_OnITExpired, "OnITExpired");
+	ValidateNatives(g_hSDK_Call_OnITExpired, "OnITExpired");
 
 	int client = GetNativeCell(1);
-	//PrintToServer("#### CALL g_hNative_OnITExpired");
-	SDKCall(g_hNative_OnITExpired, client);
+	//PrintToServer("#### CALL g_hSDK_Call_OnITExpired");
+	SDKCall(g_hSDK_Call_OnITExpired, client);
 }
 
 public int Native_AngularVelocity(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_AngularVelocity, "AngularVelocity");
+	ValidateNatives(g_hSDK_Call_AngularVelocity, "AngularVelocity");
 
 	float vAng[3];
 	int entity = GetNativeCell(1);
 	GetNativeArray(2, vAng, 3);
-	//PrintToServer("#### CALL g_hNative_AngularVelocity");
-	SDKCall(g_hNative_AngularVelocity, entity, vAng);
+	//PrintToServer("#### CALL g_hSDK_Call_AngularVelocity");
+	SDKCall(g_hSDK_Call_AngularVelocity, entity, vAng);
 }
 
 public int Native_GetRandomPZSpawnPosition(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pZombieManager, "g_pZombieManager");
-	ValidateNatives(g_hNative_GetRandomPZSpawnPosition, "GetRandomPZSpawnPosition");
+	ValidateNatives(g_hSDK_Call_GetRandomPZSpawnPosition, "GetRandomPZSpawnPosition");
 
 	float vPos[3];
 	int client = GetNativeCell(1);
 	int zombieClass = GetNativeCell(2);
 	int attempts = GetNativeCell(3);
 
-	int result = SDKCall(g_hNative_GetRandomPZSpawnPosition, g_pZombieManager, zombieClass, attempts, client, vPos);
+	int result = SDKCall(g_hSDK_Call_GetRandomPZSpawnPosition, g_pZombieManager, zombieClass, attempts, client, vPos);
 	SetNativeArray(4, vPos, 3);
 
 	return result;
@@ -3142,35 +3187,35 @@ public int Native_GetRandomPZSpawnPosition(Handle plugin, int numParams)
 public int Native_GetNearestNavArea(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pNavMesh, "g_pNavMesh");
-	ValidateNatives(g_hNative_GetNearestNavArea, "GetNearestNavArea");
+	ValidateNatives(g_hSDK_Call_GetNearestNavArea, "GetNearestNavArea");
 
 	float vPos[3];
 	GetNativeArray(1, vPos, 3);
 
 	//PrintToServer("#### CALL Native_GetNearestNavArea");
-	int result = SDKCall(g_hNative_GetNearestNavArea, g_pNavMesh, vPos, 0, 10000.0, 0, 1, 0);
+	int result = SDKCall(g_hSDK_Call_GetNearestNavArea, g_pNavMesh, vPos, 0, 10000.0, 0, 1, 0);
 	return result;
 }
 
 public int Native_FindRandomSpot(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_FindRandomSpot, "FindRandomSpot");
+	ValidateNatives(g_hSDK_Call_FindRandomSpot, "FindRandomSpot");
 
 	float vPos[3];
 	int area = GetNativeCell(1);
 
-	//PrintToServer("#### CALL g_hNative_FindRandomSpot");
-	SDKCall(g_hNative_FindRandomSpot, area, vPos);
+	//PrintToServer("#### CALL g_hSDK_Call_FindRandomSpot");
+	SDKCall(g_hSDK_Call_FindRandomSpot, area, vPos);
 	SetNativeArray(2, vPos, 3);
 }
 
 public int Native_HasAnySurvivorLeftSafeArea(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_HasAnySurvivorLeftSafeArea, "HasAnySurvivorLeftSafeArea");
+	ValidateNatives(g_hSDK_Call_HasAnySurvivorLeftSafeArea, "HasAnySurvivorLeftSafeArea");
 
-	//PrintToServer("#### CALL g_hNative_HasAnySurvivorLeftSafeArea");
-	return SDKCall(g_hNative_HasAnySurvivorLeftSafeArea, g_pDirector);
+	//PrintToServer("#### CALL g_hSDK_Call_HasAnySurvivorLeftSafeArea");
+	return SDKCall(g_hSDK_Call_HasAnySurvivorLeftSafeArea, g_pDirector);
 }
 
 public int Native_IsAnySurvivorInStartArea(Handle plugin, int numParams)
@@ -3178,10 +3223,10 @@ public int Native_IsAnySurvivorInStartArea(Handle plugin, int numParams)
 	if( g_bLeft4Dead2 )
 	{
 		ValidateAddress(g_pDirector, "g_pDirector");
-		ValidateNatives(g_hNative_IsAnySurvivorInStartArea, "IsAnySurvivorInStartArea");
+		ValidateNatives(g_hSDK_Call_IsAnySurvivorInStartArea, "IsAnySurvivorInStartArea");
 
-		// PrintToServer("#### CALL g_hNative_IsAnySurvivorInStartArea");
-		return SDKCall(g_hNative_IsAnySurvivorInStartArea, g_pDirector);
+		// PrintToServer("#### CALL g_hSDK_Call_IsAnySurvivorInStartArea");
+		return SDKCall(g_hSDK_Call_IsAnySurvivorInStartArea, g_pDirector);
 	} else {
 		for( int i = 1; i <= MaxClients; i++ )
 		{
@@ -3198,10 +3243,10 @@ public int Native_IsAnySurvivorInStartArea(Handle plugin, int numParams)
 public int Native_IsAnySurvivorInCheckpoint(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_IsAnySurvivorInCheckpoint, "IsAnySurvivorInCheckpoint");
+	ValidateNatives(g_hSDK_Call_IsAnySurvivorInCheckpoint, "IsAnySurvivorInCheckpoint");
 
-	//PrintToServer("#### CALL g_hNative_IsAnySurvivorInCheckpoint");
-	return SDKCall(g_hNative_IsAnySurvivorInCheckpoint, g_pDirector);
+	//PrintToServer("#### CALL g_hSDK_Call_IsAnySurvivorInCheckpoint");
+	return SDKCall(g_hSDK_Call_IsAnySurvivorInCheckpoint, g_pDirector);
 }
 
 public int Native_IsInFirstCheckpoint(Handle plugin, int numParams)
@@ -3221,10 +3266,10 @@ bool InCheckpoint(int client, bool start)
 	if( g_bCheckpoint[client] )
 	{
 		ValidateAddress(m_flow, "m_flow");
-		ValidateNatives(g_hNative_GetLastKnownArea, "GetLastKnownArea");
+		ValidateNatives(g_hSDK_Call_GetLastKnownArea, "GetLastKnownArea");
 
-		//PrintToServer("#### CALL InCheckpoint %d g_hNative_GetLastKnownArea", start);
-		int area = SDKCall(g_hNative_GetLastKnownArea, client);
+		//PrintToServer("#### CALL InCheckpoint %d g_hSDK_Call_GetLastKnownArea", start);
+		int area = SDKCall(g_hSDK_Call_GetLastKnownArea, client);
 		if( area == 0 ) return false;
 
 		float flow = view_as<float>(LoadFromAddress(view_as<Address>(area + m_flow), NumberType_Int32));
@@ -3236,28 +3281,28 @@ bool InCheckpoint(int client, bool start)
 
 public int Native_PipeBombPrj(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_PipeBombPrj, "PipeBombPrj");
+	ValidateNatives(g_hSDK_Call_PipeBombPrj, "PipeBombPrj");
 
 	float vPos[3], vAng[3];
 	int client = GetNativeCell(1);
 	GetNativeArray(2, vPos, 3);
 	GetNativeArray(3, vAng, 3);
 
-	//PrintToServer("#### CALL g_hNative_PipeBombPrj");
-	return SDKCall(g_hNative_PipeBombPrj, vPos, vAng, vAng, vAng, client, 2.0);
+	//PrintToServer("#### CALL g_hSDK_Call_PipeBombPrj");
+	return SDKCall(g_hSDK_Call_PipeBombPrj, vPos, vAng, vAng, vAng, client, 2.0);
 }
 
 public int Native_SpitterPrj(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_SpitterPrj, "SpitterPrj");
+	ValidateNatives(g_hSDK_Call_SpitterPrj, "SpitterPrj");
 
 	float vPos[3], vAng[3];
 	int client = GetNativeCell(1);
 	GetNativeArray(2, vPos, 3);
 	GetNativeArray(3, vAng, 3);
 
-	//PrintToServer("#### CALL g_hNative_SpitterPrj");
-	return SDKCall(g_hNative_SpitterPrj, vPos, vAng, vAng, vAng, client);
+	//PrintToServer("#### CALL g_hSDK_Call_SpitterPrj");
+	return SDKCall(g_hSDK_Call_SpitterPrj, vPos, vAng, vAng, vAng, client);
 }
 
 public int Native_GetCurrentFinaleStage(Handle plugin, int numParams)
@@ -3270,34 +3315,45 @@ public int Native_GetCurrentFinaleStage(Handle plugin, int numParams)
 public int Native_ForceNextStage(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_ForceNextStage, "ForceNextStage");
+	ValidateNatives(g_hSDK_Call_ForceNextStage, "ForceNextStage");
 
-	// PrintToServer("#### CALL g_hNative_ForceNextStage");
-	SDKCall(g_hNative_ForceNextStage, g_pDirector);
+	// PrintToServer("#### CALL g_hSDK_Call_ForceNextStage");
+	SDKCall(g_hSDK_Call_ForceNextStage, g_pDirector);
 }
 
 public int Native_IsTankInPlay(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_IsTankInPlay, "IsTankInPlay");
+	ValidateNatives(g_hSDK_Call_IsTankInPlay, "IsTankInPlay");
 
-	//PrintToServer("#### CALL g_hNative_IsTankInPlay");
-	return SDKCall(g_hNative_IsTankInPlay, g_pDirector);
+	//PrintToServer("#### CALL g_hSDK_Call_IsTankInPlay");
+	return SDKCall(g_hSDK_Call_IsTankInPlay, g_pDirector);
+}
+
+public int Native_IsReachable(Handle plugin, int numParams)
+{
+	ValidateNatives(g_hSDK_Call_IsReachable, "IsReachable");
+
+	float vPos[3];
+	int client = GetNativeCell(1);
+	GetNativeArray(2, vPos, 3);
+
+	return SDKCall(g_hSDK_Call_IsReachable, client, vPos);
 }
 
 public any Native_GetFurthestSurvivorFlow(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_GetFurthestSurvivorFlow, "GetFurthestSurvivorFlow");
+	ValidateNatives(g_hSDK_Call_GetFurthestSurvivorFlow, "GetFurthestSurvivorFlow");
 
-	//PrintToServer("#### CALL g_hNative_GetFurthestSurvivorFlow");
-	return view_as<float>(SDKCall(g_hNative_GetFurthestSurvivorFlow, g_pDirector));
+	//PrintToServer("#### CALL g_hSDK_Call_GetFurthestSurvivorFlow");
+	return SDKCall(g_hSDK_Call_GetFurthestSurvivorFlow, g_pDirector);
 }
 
 public int Native_GetScriptValueInt(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_GetScriptValueInt, "GetScriptValueInt");
+	ValidateNatives(g_hSDK_Call_GetScriptValueInt, "GetScriptValueInt");
 
 	int maxlength;
 	GetNativeStringLength(1, maxlength);
@@ -3306,14 +3362,14 @@ public int Native_GetScriptValueInt(Handle plugin, int numParams)
 	GetNativeString(1, key, maxlength);
 
 	int value = GetNativeCell(2);
-	return SDKCall(g_hNative_GetScriptValueInt, g_pDirector, key, value);
+	return SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, key, value);
 }
 
 /* // Only returns default value provided.
 public any Native_GetScriptValueFloat(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_GetScriptValueFloat, "GetScriptValueFloat");
+	ValidateNatives(g_hSDK_Call_GetScriptValueFloat, "GetScriptValueFloat");
 
 	int maxlength;
 	GetNativeStringLength(1, maxlength);
@@ -3322,14 +3378,14 @@ public any Native_GetScriptValueFloat(Handle plugin, int numParams)
 	GetNativeString(1, key, maxlength);
 
 	float value = GetNativeCell(2);
-	return SDKCall(g_hNative_GetScriptValueFloat, g_pDirector, key, value);
+	return SDKCall(g_hSDK_Call_GetScriptValueFloat, g_pDirector, key, value);
 }
 
 // Not implemented, request if really required.
 public int Native_GetScriptValueString(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_GetScriptValueString, "GetScriptValueString");
+	ValidateNatives(g_hSDK_Call_GetScriptValueString, "GetScriptValueString");
 
 	// Key
 	int maxlength;
@@ -3348,8 +3404,8 @@ public int Native_GetScriptValueString(Handle plugin, int numParams)
 	maxlength = GetNativeCell(4);
 	char[] retValue = new char[maxlength];
 
-	//PrintToServer("#### CALL g_hNative_GetScriptValueString");
-	SDKCall(g_hNative_GetScriptValueString, g_pDirector, key, value, retValue, maxlength);
+	//PrintToServer("#### CALL g_hSDK_Call_GetScriptValueString");
+	SDKCall(g_hSDK_Call_GetScriptValueString, g_pDirector, key, value, retValue, maxlength);
 	SetNativeString(3, retValue, maxlength);
 }
 */
@@ -3372,10 +3428,10 @@ public int Native_ScavengeBeginRoundSetupTime(Handle plugin, int numParams)
 public int Native_ResetMobTimer(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_ResetMobTimer, "ResetMobTimer");
+	ValidateNatives(g_hSDK_Call_ResetMobTimer, "ResetMobTimer");
 
-	//PrintToServer("#### CALL g_hNative_ResetMobTimer");
-	SDKCall(g_hNative_ResetMobTimer, g_pDirector);
+	//PrintToServer("#### CALL g_hSDK_Call_ResetMobTimer");
+	SDKCall(g_hSDK_Call_ResetMobTimer, g_pDirector);
 	return 0;
 }
 
@@ -3390,12 +3446,12 @@ public any Native_GetPlayerSpawnTime(Handle plugin, int numParams)
 public int Native_RestartScenarioFromVote(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_RestartScenarioFromVote, "RestartScenarioFromVote");
+	ValidateNatives(g_hSDK_Call_RestartScenarioFromVote, "RestartScenarioFromVote");
 
 	char map[64];
 	GetNativeString(1, map, sizeof(map));
-	//PrintToServer("#### CALL g_hNative_RestartScenarioFromVote");
-	return SDKCall(g_hNative_RestartScenarioFromVote, g_pDirector, map);
+	//PrintToServer("#### CALL g_hSDK_Call_RestartScenarioFromVote");
+	return SDKCall(g_hSDK_Call_RestartScenarioFromVote, g_pDirector, map);
 }
 
 public int Native_GetVersusMaxCompletionScore(Handle plugin, int numParams)
@@ -3425,7 +3481,7 @@ public int Native_GetTeamScore(Handle plugin, int numParams)
 
 	if( g_bLeft4Dead2 )
 	{
-		ValidateNatives(g_hNative_GetTeamScore, "GetTeamScore");
+		ValidateNatives(g_hSDK_Call_GetTeamScore, "GetTeamScore");
 
 		//sanity check that the team index is valid
 		int team = GetNativeCell(1);
@@ -3441,8 +3497,8 @@ public int Native_GetTeamScore(Handle plugin, int numParams)
 			ThrowNativeError(SP_ERROR_PARAM, "campaign_score %d is invalid. Accepted values: 0 or 1", score);
 		}
 
-		//PrintToServer("#### CALL g_hNative_GetTeamScore");
-		return SDKCall(g_hNative_GetTeamScore, team, score);
+		//PrintToServer("#### CALL g_hSDK_Call_GetTeamScore");
+		return SDKCall(g_hSDK_Call_GetTeamScore, team, score);
 	// } else {
 		// ValidateAddress(TeamScoresAddress, "TeamScoresAddress");
 		// ValidateAddress(ClearTeamScore_A, "ClearTeamScore_A");
@@ -3461,15 +3517,15 @@ public int Native_GetTeamScore(Handle plugin, int numParams)
 
 public int Native_IsFirstMapInScenario(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_IsFirstMapInScenario, "IsFirstMapInScenario");
+	ValidateNatives(g_hSDK_Call_IsFirstMapInScenario, "IsFirstMapInScenario");
 
 	if( !g_bLeft4Dead2 )
 	{
 		ValidateNatives(SDK_KV_GetString, "SDK_KV_GetString");
 		static char sMap[64], check[64];
 
-		//PrintToServer("#### CALL g_hNative_IsFirstMapInScenario");
-		int keyvalue = SDKCall(g_hNative_IsFirstMapInScenario, 0, 0);
+		//PrintToServer("#### CALL g_hSDK_Call_IsFirstMapInScenario");
+		int keyvalue = SDKCall(g_hSDK_Call_IsFirstMapInScenario, 0, 0);
 		if( keyvalue )
 		{
 			GetCurrentMap(sMap, sizeof(sMap));
@@ -3481,43 +3537,43 @@ public int Native_IsFirstMapInScenario(Handle plugin, int numParams)
 		return 0;
 	}
 
-	//PrintToServer("#### CALL g_hNative_IsFirstMapInScenario");
-	return SDKCall(g_hNative_IsFirstMapInScenario, g_pDirector);
+	//PrintToServer("#### CALL g_hSDK_Call_IsFirstMapInScenario");
+	return SDKCall(g_hSDK_Call_IsFirstMapInScenario, g_pDirector);
 }
 
 public int Native_IsMissionFinalMap(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_IsMissionFinalMap, "IsMissionFinalMap");
-	//PrintToServer("#### CALL g_hNative_IsMissionFinalMap");
-	return SDKCall(g_hNative_IsMissionFinalMap);
+	ValidateNatives(g_hSDK_Call_IsMissionFinalMap, "IsMissionFinalMap");
+	//PrintToServer("#### CALL g_hSDK_Call_IsMissionFinalMap");
+	return SDKCall(g_hSDK_Call_IsMissionFinalMap);
 }
 
 public int Native_NotifyNetworkStateChanged(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_NotifyNetworkStateChanged, "NotifyNetworkStateChanged");
+	ValidateNatives(g_hSDK_Call_NotifyNetworkStateChanged, "NotifyNetworkStateChanged");
 
-	//PrintToServer("#### CALL g_hNative_NotifyNetworkStateChanged");
-	SDKCall(g_hNative_NotifyNetworkStateChanged);
+	//PrintToServer("#### CALL g_hSDK_Call_NotifyNetworkStateChanged");
+	SDKCall(g_hSDK_Call_NotifyNetworkStateChanged);
 	return 0;
 }
 
 public int Native_StaggerPlayer(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_StaggerPlayer, "StaggerPlayer");
+	ValidateNatives(g_hSDK_Call_StaggerPlayer, "StaggerPlayer");
 
 	int a1 = GetNativeCell(1);
 	int a2 = GetNativeCell(2);
 	float vDir[3];
 	GetNativeArray(3, vDir, 3);
 
-	//PrintToServer("#### CALL g_hNative_StaggerPlayer");
-	SDKCall(g_hNative_StaggerPlayer, a1, a2, vDir);
+	//PrintToServer("#### CALL g_hSDK_Call_StaggerPlayer");
+	SDKCall(g_hSDK_Call_StaggerPlayer, a1, a2, vDir);
 	return 0;
 }
 
 public int Native_ReplaceTank(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_ReplaceTank, "ReplaceTank");
+	ValidateNatives(g_hSDK_Call_ReplaceTank, "ReplaceTank");
 
 	int oldtank = GetNativeCell(1);
 	int newtank = GetNativeCell(2);
@@ -3533,8 +3589,8 @@ public int Native_ReplaceTank(Handle plugin, int numParams)
 	GetClientEyePosition(oldtank, vOld);
 	GetClientAbsOrigin(newtank, vNew);
 
-	//PrintToServer("#### CALL g_hNative_ReplaceTank");
-	SDKCall(g_hNative_ReplaceTank, g_pZombieManager, oldtank, newtank);
+	//PrintToServer("#### CALL g_hSDK_Call_ReplaceTank");
+	SDKCall(g_hSDK_Call_ReplaceTank, g_pZombieManager, oldtank, newtank);
 
 	TeleportEntity(oldtank, vOld, vAng, NULL_VECTOR);
 	TeleportEntity(newtank, vNew, NULL_VECTOR, NULL_VECTOR);
@@ -3543,40 +3599,40 @@ public int Native_ReplaceTank(Handle plugin, int numParams)
 
 public int Native_SendInRescueVehicle(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_SendInRescueVehicle, "SendInRescueVehicle");
+	ValidateNatives(g_hSDK_Call_SendInRescueVehicle, "SendInRescueVehicle");
 	if( g_bLeft4Dead2 )		ValidateAddress(ScriptedEventManagerPtr, "ScriptedEventManagerPtr");
 	else					ValidateAddress(g_pDirector, "g_pDirector");
 
-	//PrintToServer("#### CALL g_hNative_SendInRescueVehicle");
-	SDKCall(g_hNative_SendInRescueVehicle, g_bLeft4Dead2 ? ScriptedEventManagerPtr : view_as<int>(g_pDirector));
+	//PrintToServer("#### CALL g_hSDK_Call_SendInRescueVehicle");
+	SDKCall(g_hSDK_Call_SendInRescueVehicle, g_bLeft4Dead2 ? ScriptedEventManagerPtr : view_as<int>(g_pDirector));
 	return 0;
 }
 
 public int Native_ChangeFinaleStage(Handle plugin, int numParams)
 {
 	ValidateAddress(ScriptedEventManagerPtr, "ScriptedEventManagerPtr");
-	ValidateNatives(g_hNative_ChangeFinaleStage, "ChangeFinaleStage");
+	ValidateNatives(g_hSDK_Call_ChangeFinaleStage, "ChangeFinaleStage");
 
 	static char arg[64];
 	int finaleType = GetNativeCell(1);
 	GetNativeString(2, arg, sizeof(arg));
 
-	//PrintToServer("#### CALL g_hNative_ChangeFinaleStage");
-	SDKCall(g_hNative_ChangeFinaleStage, ScriptedEventManagerPtr, finaleType, arg);
+	//PrintToServer("#### CALL g_hSDK_Call_ChangeFinaleStage");
+	SDKCall(g_hSDK_Call_ChangeFinaleStage, ScriptedEventManagerPtr, finaleType, arg);
 	return 0;
 }
 
 public int Native_SpawnTank(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pZombieManager, "g_pZombieManager");
-	ValidateNatives(g_hNative_SpawnTank, "SpawnTank");
+	ValidateNatives(g_hSDK_Call_SpawnTank, "SpawnTank");
 
 	float vPos[3], vAng[3];
 	GetNativeArray(1, vPos, 3);
 	GetNativeArray(2, vAng, 3);
 
-	//PrintToServer("#### CALL g_hNative_SpawnTank");
-	return SDKCall(g_hNative_SpawnTank, g_pZombieManager, vPos, vAng);
+	//PrintToServer("#### CALL g_hSDK_Call_SpawnTank");
+	return SDKCall(g_hSDK_Call_SpawnTank, g_pZombieManager, vPos, vAng);
 }
 
 public int Native_SpawnSpecial(Handle plugin, int numParams)
@@ -3590,9 +3646,9 @@ public int Native_SpawnSpecial(Handle plugin, int numParams)
 
 	if( g_bLeft4Dead2 )
 	{
-		ValidateNatives(g_hNative_SpawnSpecial, "SpawnSpecial");
-		//PrintToServer("#### CALL g_hNative_SpawnSpecial");
-		return SDKCall(g_hNative_SpawnSpecial, g_pZombieManager, zombieClass, vPos, vAng);
+		ValidateNatives(g_hSDK_Call_SpawnSpecial, "SpawnSpecial");
+		//PrintToServer("#### CALL g_hSDK_Call_SpawnSpecial");
+		return SDKCall(g_hSDK_Call_SpawnSpecial, g_pZombieManager, zombieClass, vPos, vAng);
 	}
 	else
 	{
@@ -3600,21 +3656,21 @@ public int Native_SpawnSpecial(Handle plugin, int numParams)
 		{
 			case 1:
 			{
-				ValidateNatives(g_hNative_SpawnSmoker, "SpawnSmoker");
-				//PrintToServer("#### CALL g_hNative_SpawnSmoker");
-				return SDKCall(g_hNative_SpawnSmoker, g_pZombieManager, vPos, vAng);
+				ValidateNatives(g_hSDK_Call_SpawnSmoker, "SpawnSmoker");
+				//PrintToServer("#### CALL g_hSDK_Call_SpawnSmoker");
+				return SDKCall(g_hSDK_Call_SpawnSmoker, g_pZombieManager, vPos, vAng);
 			}
 			case 2:
 			{
-				ValidateNatives(g_hNative_SpawnBoomer, "SpawnBoomer");
-				//PrintToServer("#### CALL g_hNative_SpawnBoomer");
-				return SDKCall(g_hNative_SpawnBoomer, g_pZombieManager, vPos, vAng);
+				ValidateNatives(g_hSDK_Call_SpawnBoomer, "SpawnBoomer");
+				//PrintToServer("#### CALL g_hSDK_Call_SpawnBoomer");
+				return SDKCall(g_hSDK_Call_SpawnBoomer, g_pZombieManager, vPos, vAng);
 			}
 			case 3:
 			{
-				ValidateNatives(g_hNative_SpawnHunter, "SpawnHunter");
-				//PrintToServer("#### CALL g_hNative_SpawnHunter");
-				return SDKCall(g_hNative_SpawnHunter, g_pZombieManager, vPos, vAng);
+				ValidateNatives(g_hSDK_Call_SpawnHunter, "SpawnHunter");
+				//PrintToServer("#### CALL g_hSDK_Call_SpawnHunter");
+				return SDKCall(g_hSDK_Call_SpawnHunter, g_pZombieManager, vPos, vAng);
 			}
 		}
 	}
@@ -3625,27 +3681,27 @@ public int Native_SpawnSpecial(Handle plugin, int numParams)
 public int Native_SpawnWitch(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pZombieManager, "g_pZombieManager");
-	ValidateNatives(g_hNative_SpawnWitch, "SpawnWitch");
+	ValidateNatives(g_hSDK_Call_SpawnWitch, "SpawnWitch");
 
 	float vPos[3], vAng[3];
 	GetNativeArray(1, vPos, 3);
 	GetNativeArray(2, vAng, 3);
 
-	//PrintToServer("#### CALL g_hNative_SpawnWitch");
-	return SDKCall(g_hNative_SpawnWitch, g_pZombieManager, vPos, vAng);
+	//PrintToServer("#### CALL g_hSDK_Call_SpawnWitch");
+	return SDKCall(g_hSDK_Call_SpawnWitch, g_pZombieManager, vPos, vAng);
 }
 
 public int Native_SpawnWitchBride(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pZombieManager, "g_pZombieManager");
-	ValidateNatives(g_hNative_SpawnWitchBride, "SpawnWitchBride");
+	ValidateNatives(g_hSDK_Call_SpawnWitchBride, "SpawnWitchBride");
 
 	float vPos[3], vAng[3];
 	GetNativeArray(1, vPos, 3);
 	GetNativeArray(2, vAng, 3);
 
-	//PrintToServer("#### CALL g_hNative_SpawnWitchBride");
-	return SDKCall(g_hNative_SpawnWitchBride, g_pZombieManager, vPos, vAng);
+	//PrintToServer("#### CALL g_hSDK_Call_SpawnWitchBride");
+	return SDKCall(g_hSDK_Call_SpawnWitchBride, g_pZombieManager, vPos, vAng);
 }
 
 public any Native_GetMobSpawnTimerRemaining(Handle plugin, int numParams)
@@ -3669,9 +3725,9 @@ public any Native_GetMobSpawnTimerDuration(Handle plugin, int numParams)
 public int Native_LobbyUnreserve(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pServer, "g_pServer");
-	ValidateNatives(g_hNative_LobbyUnreserve, "LobbyUnreserve");
+	ValidateNatives(g_hSDK_Call_LobbyUnreserve, "LobbyUnreserve");
 
-	SDKCall(g_hNative_LobbyUnreserve, g_pServer, 0, 0, "Unreserved by Left 4 DHooks");
+	SDKCall(g_hSDK_Call_LobbyUnreserve, g_pServer, 0, 0, "Unreserved by Left 4 DHooks");
 }
 
 //DEPRECATED
@@ -3692,7 +3748,7 @@ public int Native_LobbyUnreserve(Handle plugin, int numParams)
 int GetWeaponPointer()
 {
 	ValidateAddress(g_pWeaponInfoDatabase, "g_pWeaponInfoDatabase");
-	ValidateNatives(g_hNative_GetWeaponInfo, "GetWeaponInfo");
+	ValidateNatives(g_hSDK_Call_GetWeaponInfo, "GetWeaponInfo");
 
 	static char weaponName[32];
 	GetNativeString(1, weaponName, sizeof(weaponName));
@@ -3706,8 +3762,8 @@ int GetWeaponPointer()
 			return -1;
 		}
 
-		//PrintToServer("#### CALL g_hNative_GetWeaponInfo");
-		if( ptr ) ptr = SDKCall(g_hNative_GetWeaponInfo, ptr);
+		//PrintToServer("#### CALL g_hSDK_Call_GetWeaponInfo");
+		if( ptr ) ptr = SDKCall(g_hSDK_Call_GetWeaponInfo, ptr);
 		if( ptr ) g_aWeaponPtrs.SetValue(weaponName, ptr);
 	}
 
@@ -3718,13 +3774,13 @@ int GetWeaponPointer()
 int GetMeleePointer(int id)
 {
 	ValidateAddress(g_pMeleeWeaponInfoStore, "g_pMeleeWeaponInfoStore");
-	ValidateNatives(g_hNative_GetMeleeInfo, "GetMeleeInfo");
+	ValidateNatives(g_hSDK_Call_GetMeleeInfo, "GetMeleeInfo");
 
 	int ptr = g_aMeleePtrs.FindValue(id, 0);
 	if( ptr == -1 )
 	{
-		//PrintToServer("#### CALL g_hNative_GetMeleeInfo");
-		ptr = SDKCall(g_hNative_GetMeleeInfo, g_pMeleeWeaponInfoStore, id);
+		//PrintToServer("#### CALL g_hSDK_Call_GetMeleeInfo");
+		ptr = SDKCall(g_hSDK_Call_GetMeleeInfo, g_pMeleeWeaponInfoStore, id);
 
 		if( ptr )
 		{
@@ -4293,7 +4349,7 @@ public any Direct_GetVSTankFlowPercent(Handle plugin, int numParams)
 	int round = GetNativeCell(1);
 	if( round < 0 || round > 1 ) return -1.0;
 
-	return view_as<float>(LoadFromAddress(view_as<Address>(VersusModePtr + m_fTankSpawnFlowPercent + (round * 4)), NumberType_Int32));
+	return LoadFromAddress(view_as<Address>(VersusModePtr + m_fTankSpawnFlowPercent + (round * 4)), NumberType_Int32);
 }
 
 public int Direct_SetVSTankFlowPercent(Handle plugin, int numParams)
@@ -4308,7 +4364,7 @@ public int Direct_SetVSTankFlowPercent(Handle plugin, int numParams)
 	StoreToAddress(view_as<Address>(VersusModePtr + m_fTankSpawnFlowPercent + (round * 4)), view_as<int>(flow), NumberType_Int32);
 }
 
-public any Direct_GetVSTankToSpawnThisRound(Handle plugin, int numParams)
+public int Direct_GetVSTankToSpawnThisRound(Handle plugin, int numParams)
 {
 	ValidateAddress(VersusModePtr, "VersusModePtr");
 	ValidateAddress(m_bTankThisRound, "m_bTankThisRound");
@@ -4316,7 +4372,7 @@ public any Direct_GetVSTankToSpawnThisRound(Handle plugin, int numParams)
 	int round = GetNativeCell(1);
 	if( round < 0 || round > 1 ) return false;
 
-	return view_as<float>(LoadFromAddress(view_as<Address>(VersusModePtr + m_bTankThisRound + round), NumberType_Int8));
+	return LoadFromAddress(view_as<Address>(VersusModePtr + m_bTankThisRound + round), NumberType_Int8);
 }
 
 public int Direct_SetVSTankToSpawnThisRound(Handle plugin, int numParams)
@@ -4339,7 +4395,7 @@ public any Direct_GetVSWitchFlowPercent(Handle plugin, int numParams)
 	int round = GetNativeCell(1);
 	if( round < 0 || round > 1 ) return false;
 
-	return view_as<float>(LoadFromAddress(view_as<Address>(VersusModePtr + m_fWitchSpawnFlowPercent + (round * 4)), NumberType_Int32));
+	return LoadFromAddress(view_as<Address>(VersusModePtr + m_fWitchSpawnFlowPercent + (round * 4)), NumberType_Int32);
 }
 
 public int Direct_SetVSWitchFlowPercent(Handle plugin, int numParams)
@@ -4354,7 +4410,7 @@ public int Direct_SetVSWitchFlowPercent(Handle plugin, int numParams)
 	StoreToAddress(view_as<Address>(VersusModePtr + m_fWitchSpawnFlowPercent + (round * 4)), view_as<int>(flow), NumberType_Int32);
 }
 
-public any Direct_GetVSWitchToSpawnThisRound(Handle plugin, int numParams)
+public int Direct_GetVSWitchToSpawnThisRound(Handle plugin, int numParams)
 {
 	ValidateAddress(VersusModePtr, "VersusModePtr");
 	ValidateAddress(m_bWitchThisRound, "m_bWitchThisRound");
@@ -4362,7 +4418,7 @@ public any Direct_GetVSWitchToSpawnThisRound(Handle plugin, int numParams)
 	int round = GetNativeCell(1);
 	if( round < 0 || round > 1 ) return false;
 
-	return view_as<float>(LoadFromAddress(view_as<Address>(VersusModePtr + m_bWitchThisRound + round), NumberType_Int8));
+	return LoadFromAddress(view_as<Address>(VersusModePtr + m_bWitchThisRound + round), NumberType_Int8);
 }
 
 public int Direct_SetVSWitchToSpawnThisRound(Handle plugin, int numParams)
@@ -4413,7 +4469,7 @@ public any Direct_GetMapMaxFlowDistance(Handle plugin, int numParams)
 	ValidateAddress(g_pNavMesh, "g_pNavMesh");
 	ValidateAddress(m_fMapMaxFlowDistance, "m_fMapMaxFlowDistance");
 
-	return view_as<float>(LoadFromAddress(g_pNavMesh + view_as<Address>(m_fMapMaxFlowDistance), NumberType_Int32));
+	return LoadFromAddress(g_pNavMesh + view_as<Address>(m_fMapMaxFlowDistance), NumberType_Int32);
 }
 
 public any Direct_GetSpawnTimer(Handle plugin, int numParams)
@@ -4520,7 +4576,7 @@ public any Direct_GetNextShoveTime(Handle plugin, int numParams)
 	if( pEntity == Address_Null )
 		return 0.0;
 
-	return view_as<float>(LoadFromAddress(pEntity + view_as<Address>(m_fNextShoveTime), NumberType_Int32));
+	return LoadFromAddress(pEntity + view_as<Address>(m_fNextShoveTime), NumberType_Int32);
 }
 
 public int Direct_SetNextShoveTime(Handle plugin, int numParams)
@@ -4644,8 +4700,8 @@ public any Direct_GetTerrorNavArea(Handle plugin, int numParams)
 
 	float beneathLimit = GetNativeCell(2);
 
-	//PrintToServer("#### CALL g_hNative_GetNavArea");
-	return view_as<Address>(SDKCall(g_hNative_GetNavArea, g_pNavMesh, vPos, beneathLimit));
+	//PrintToServer("#### CALL g_hSDK_Call_GetNavArea");
+	return SDKCall(g_hSDK_Call_GetNavArea, g_pNavMesh, vPos, beneathLimit);
 }
 
 public any Direct_GetTerrorNavAreaFlow(Handle plugin, int numParams)
@@ -4662,39 +4718,39 @@ public any Direct_GetTerrorNavAreaFlow(Handle plugin, int numParams)
 public int Direct_TryOfferingTankBot(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_TryOfferingTankBot, "TryOfferingTankBot");
+	ValidateNatives(g_hSDK_Call_TryOfferingTankBot, "TryOfferingTankBot");
 
 	int entity = GetNativeCell(1);
 	bool bEnterStasis = GetNativeCell(2);
 
-	//PrintToServer("#### CALL g_hNative_TryOfferingTankBot");
-	SDKCall(g_hNative_TryOfferingTankBot, g_pDirector, entity, bEnterStasis);
+	//PrintToServer("#### CALL g_hSDK_Call_TryOfferingTankBot");
+	SDKCall(g_hSDK_Call_TryOfferingTankBot, g_pDirector, entity, bEnterStasis);
 }
 
 public any Direct_GetFlowDistance(Handle plugin, int numParams)
 {
 	ValidateAddress(m_flow, "m_flow");
-	ValidateNatives(g_hNative_GetLastKnownArea, "GetLastKnownArea");
+	ValidateNatives(g_hSDK_Call_GetLastKnownArea, "GetLastKnownArea");
 
 	int client = GetNativeCell(1);
 
-	int area = SDKCall(g_hNative_GetLastKnownArea, client);
+	int area = SDKCall(g_hSDK_Call_GetLastKnownArea, client);
 	if( area == 0 ) return 0.0;
 
-	return view_as<float>(LoadFromAddress(view_as<Address>(area + m_flow), NumberType_Int32));
+	return LoadFromAddress(view_as<Address>(area + m_flow), NumberType_Int32);
 }
 
 public int Direct_DoAnimationEvent(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_DoAnimationEvent, "DoAnimationEvent");
+	ValidateNatives(g_hSDK_Call_DoAnimationEvent, "DoAnimationEvent");
 
 	int client = GetNativeCell(1);
 	if( client <= 0 || client > MaxClients )
 		return;
 
 	int event = GetNativeCell(2);
-	//PrintToServer("#### CALL g_hNative_DoAnimationEvent");
-	SDKCall(g_hNative_DoAnimationEvent, client, event, 0);
+	//PrintToServer("#### CALL g_hSDK_Call_DoAnimationEvent");
+	SDKCall(g_hSDK_Call_DoAnimationEvent, client, event, 0);
 }
 
 
@@ -4785,7 +4841,7 @@ public any Direct_ITimer_GetElapsedTime(Handle plugin, int numParams)
 public any Direct_CTimer_GetDuration(Handle plugin, int numParams)
 {
 	CountdownTimer timer = GetNativeCell(1);
-	return view_as<float>(Stock_CTimer_GetDuration(timer));
+	return Stock_CTimer_GetDuration(timer);
 }
 
 public int Direct_CTimer_SetDuration(Handle plugin, int numParams)
@@ -4934,54 +4990,54 @@ void Stock_ITimer_SetTimestamp(IntervalTimer timer, float timestamp)
 // ==================================================
 public int Native_CTerrorPlayer_OnVomitedUpon(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_CTerrorPlayer_OnVomitedUpon, "CTerrorPlayer_OnVomitedUpon");
+	ValidateNatives(g_hSDK_Call_CTerrorPlayer_OnVomitedUpon, "CTerrorPlayer_OnVomitedUpon");
 
 	int client = GetNativeCell(1);
 	int attacker = GetNativeCell(2);
-	SDKCall(g_hNative_CTerrorPlayer_OnVomitedUpon, client, attacker, false);
+	SDKCall(g_hSDK_Call_CTerrorPlayer_OnVomitedUpon, client, attacker, false);
 }
 
 public int Native_CTerrorPlayer_OnHitByVomitJar(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_CTerrorPlayer_OnHitByVomitJar, "CTerrorPlayer_OnHitByVomitJar");
+	ValidateNatives(g_hSDK_Call_CTerrorPlayer_OnHitByVomitJar, "CTerrorPlayer_OnHitByVomitJar");
 
 	int client = GetNativeCell(1);
 	int attacker = GetNativeCell(2);
-	SDKCall(g_hNative_CTerrorPlayer_OnHitByVomitJar, client, attacker, true);
+	SDKCall(g_hSDK_Call_CTerrorPlayer_OnHitByVomitJar, client, attacker, true);
 }
 
 public int Native_Infected_OnHitByVomitJar(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_Infected_OnHitByVomitJar, "Infected_OnHitByVomitJar");
+	ValidateNatives(g_hSDK_Call_Infected_OnHitByVomitJar, "Infected_OnHitByVomitJar");
 
 	int entity = GetNativeCell(1);
 	int attacker = GetNativeCell(2);
-	SDKCall(g_hNative_Infected_OnHitByVomitJar, entity, attacker, true);
+	SDKCall(g_hSDK_Call_Infected_OnHitByVomitJar, entity, attacker, true);
 }
 
 public int Native_CTerrorPlayer_Fling(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_Fling, "Fling");
+	ValidateNatives(g_hSDK_Call_Fling, "Fling");
 
 	int client = GetNativeCell(1);
 	int attacker = GetNativeCell(2);
 	float vDir[3];
 	GetNativeArray(3, vDir, 3);
-	SDKCall(g_hNative_Fling, client, vDir, 76, attacker, 3.0); // 76 is the 'got bounced' animation in L4D2. 3.0 = incapTime, what's this mean?
+	SDKCall(g_hSDK_Call_Fling, client, vDir, 76, attacker, 3.0); // 76 is the 'got bounced' animation in L4D2. 3.0 = incapTime, what's this mean?
 }
 
 public int Native_CancelStagger(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_CancelStagger, "CancelStagger");
+	ValidateNatives(g_hSDK_Call_CancelStagger, "CancelStagger");
 
 	int client = GetNativeCell(1);
-	SDKCall(g_hNative_CancelStagger, client);
+	SDKCall(g_hSDK_Call_CancelStagger, client);
 }
 
 public int Native_CreateRescuableSurvivors(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_CreateRescuableSurvivors, "CreateRescuableSurvivors");
+	ValidateNatives(g_hSDK_Call_CreateRescuableSurvivors, "CreateRescuableSurvivors");
 
 	// Only spawns one per frame, so we'll call for as many dead survivors.
 	int count;
@@ -5009,41 +5065,41 @@ void RespawnRescue()
 
 	int time = g_hCvarRescueDeadTime.IntValue;
 	g_hCvarRescueDeadTime.SetInt(0);
-	SDKCall(g_hNative_CreateRescuableSurvivors, g_pDirector);
+	SDKCall(g_hSDK_Call_CreateRescuableSurvivors, g_pDirector);
 	g_hCvarRescueDeadTime.SetInt(time);
 }
 
 public int Native_OnRevived(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_OnRevived, "OnRevived");
+	ValidateNatives(g_hSDK_Call_OnRevived, "OnRevived");
 
 	int client = GetNativeCell(1);
-	SDKCall(g_hNative_OnRevived, client);
+	SDKCall(g_hSDK_Call_OnRevived, client);
 }
 
 public any Native_GetVersusCompletionPlayer(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pGameRules, "g_pGameRules");
-	ValidateNatives(g_hNative_GetVersusCompletionPlayer, "GetVersusCompletionPlayer");
+	ValidateNatives(g_hSDK_Call_GetVersusCompletionPlayer, "GetVersusCompletionPlayer");
 
 	int client = GetNativeCell(1);
-	return SDKCall(g_hNative_GetVersusCompletionPlayer, g_pGameRules, client);
+	return SDKCall(g_hSDK_Call_GetVersusCompletionPlayer, g_pGameRules, client);
 }
 
 public int Native_GetHighestFlowSurvivor(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_GetHighestFlowSurvivor, "GetHighestFlowSurvivor");
-	return SDKCall(g_hNative_GetHighestFlowSurvivor, 0, 0);
+	ValidateNatives(g_hSDK_Call_GetHighestFlowSurvivor, "GetHighestFlowSurvivor");
+	return SDKCall(g_hSDK_Call_GetHighestFlowSurvivor, 0, 0);
 }
 
 public any Native_GetInfectedFlowDistance(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_GetInfectedFlowDistance, "GetInfectedFlowDistance");
+	ValidateNatives(g_hSDK_Call_GetInfectedFlowDistance, "GetInfectedFlowDistance");
 
 	int entity = GetNativeCell(1);
 	if( entity > MaxClients )
 	{
-		return view_as<float>(SDKCall(g_hNative_GetInfectedFlowDistance, entity));
+		return SDKCall(g_hSDK_Call_GetInfectedFlowDistance, entity);
 	}
 
 	return 0.0;
@@ -5051,7 +5107,7 @@ public any Native_GetInfectedFlowDistance(Handle plugin, int numParams)
 
 public int Native_TakeOverZombieBot(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_TakeOverZombieBot, "TakeOverZombieBot");
+	ValidateNatives(g_hSDK_Call_TakeOverZombieBot, "TakeOverZombieBot");
 
 	int client = GetNativeCell(1);
 	int target = GetNativeCell(2);
@@ -5061,12 +5117,12 @@ public int Native_TakeOverZombieBot(Handle plugin, int numParams)
 		IsFakeClient(client) == false && IsFakeClient(target) == true )
 	{
 		if( g_bLeft4Dead2 )
-			SDKCall(g_hNative_TakeOverZombieBot, client, target);
+			SDKCall(g_hSDK_Call_TakeOverZombieBot, client, target);
 		else
 		{
 			// Workaround spawning wrong type, you'll hear another special infected type sound when spawning.
 			int zombieClass = GetEntProp(target, Prop_Send, "m_zombieClass");
-			SDKCall(g_hNative_TakeOverZombieBot, client, target);
+			SDKCall(g_hSDK_Call_TakeOverZombieBot, client, target);
 			SetClass(client, zombieClass);
 		}
 	}
@@ -5074,7 +5130,7 @@ public int Native_TakeOverZombieBot(Handle plugin, int numParams)
 
 public int Native_ReplaceWithBot(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_ReplaceWithBot, "ReplaceWithBot");
+	ValidateNatives(g_hSDK_Call_ReplaceWithBot, "ReplaceWithBot");
 
 	int client = GetNativeCell(1);
 
@@ -5082,23 +5138,23 @@ public int Native_ReplaceWithBot(Handle plugin, int numParams)
 	GetClientAbsOrigin(client, vPos);
 	GetClientEyeAngles(client, vAng);
 
-	SDKCall(g_hNative_ReplaceWithBot, client, true);
-	SDKCall(g_hNative_BecomeGhost, client, 0, 0); // Otherwise they duplicate bots and don't go into ghost mode
+	SDKCall(g_hSDK_Call_ReplaceWithBot, client, true);
+	SDKCall(g_hSDK_Call_BecomeGhost, client, 0, 0); // Otherwise they duplicate bots and don't go into ghost mode
 	TeleportEntity(client, vPos, vAng, NULL_VECTOR);
 }
 
 public int Native_CullZombie(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_CullZombie, "CullZombie");
+	ValidateNatives(g_hSDK_Call_CullZombie, "CullZombie");
 
 	int client = GetNativeCell(1);
-	SDKCall(g_hNative_CullZombie, client);
+	SDKCall(g_hSDK_Call_CullZombie, client);
 }
 
 public int Native_SetClass(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_SetClass, "SetClass");
-	ValidateNatives(g_hNative_CreateAbility, "CreateAbility");
+	ValidateNatives(g_hSDK_Call_SetClass, "SetClass");
+	ValidateNatives(g_hSDK_Call_CreateAbility, "CreateAbility");
 
 	int client = GetNativeCell(1);
 	int zombieClass = GetNativeCell(2);
@@ -5118,20 +5174,20 @@ void SetClass(int client, int zombieClass)
 	int ability = GetEntPropEnt(client, Prop_Send, "m_customAbility");
 	if( ability != -1 ) RemoveEntity(ability);
 
-	SDKCall(g_hNative_SetClass, client, zombieClass);
+	SDKCall(g_hSDK_Call_SetClass, client, zombieClass);
 
-	ability = SDKCall(g_hNative_CreateAbility, client);
+	ability = SDKCall(g_hSDK_Call_CreateAbility, client);
 	if( ability != -1 ) SetEntPropEnt(client, Prop_Send, "m_customAbility", ability);
 }
 
 public int Native_MaterializeFromGhost(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_MaterializeFromGhost, "MaterializeFromGhost");
+	ValidateNatives(g_hSDK_Call_MaterializeFromGhost, "MaterializeFromGhost");
 
 	int client = GetNativeCell(1);
 	if( GetClientTeam(client) == 3 && GetEntProp(client, Prop_Send, "m_isGhost") )
 	{
-		SDKCall(g_hNative_MaterializeFromGhost, client);
+		SDKCall(g_hSDK_Call_MaterializeFromGhost, client);
 		return GetEntPropEnt(client, Prop_Send, "m_customAbility");
 	}
 	return -1;
@@ -5139,99 +5195,99 @@ public int Native_MaterializeFromGhost(Handle plugin, int numParams)
 
 public int Native_BecomeGhost(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_BecomeGhost, "BecomeGhost");
+	ValidateNatives(g_hSDK_Call_BecomeGhost, "BecomeGhost");
 
 	int client = GetNativeCell(1);
 	if( GetEntProp(client, Prop_Send, "m_isGhost") == 0 )
 	{
 		if( g_bLeft4Dead2 )
-			return !!SDKCall(g_hNative_BecomeGhost, client, true);
+			return !!SDKCall(g_hSDK_Call_BecomeGhost, client, true);
 		else
-			return !!SDKCall(g_hNative_BecomeGhost, client, 0, 0);
+			return !!SDKCall(g_hSDK_Call_BecomeGhost, client, 0, 0);
 	}
 	return 0;
 }
 
 public int Native_State_Transition(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_State_Transition, "State_Transition");
+	ValidateNatives(g_hSDK_Call_State_Transition, "State_Transition");
 
 	int client = GetNativeCell(1);
 	int state = GetNativeCell(2);
-	SDKCall(g_hNative_State_Transition, client, state);
+	SDKCall(g_hSDK_Call_State_Transition, client, state);
 }
 
 public int Native_SwapTeams(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_SwapTeams, "SwapTeams");
+	ValidateNatives(g_hSDK_Call_SwapTeams, "SwapTeams");
 
-	SDKCall(g_hNative_SwapTeams, g_pDirector);
+	SDKCall(g_hSDK_Call_SwapTeams, g_pDirector);
 }
 
 public int Native_AreTeamsFlipped(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_AreTeamsFlipped, "AreTeamsFlipped");
+	ValidateNatives(g_hSDK_Call_AreTeamsFlipped, "AreTeamsFlipped");
 
-	return SDKCall(g_hNative_AreTeamsFlipped, g_pDirector);
+	return SDKCall(g_hSDK_Call_AreTeamsFlipped, g_pDirector);
 }
 
 public int Native_StartRematchVote(Handle plugin, int numParams)
 {
-	ValidateNatives(g_hNative_StartRematchVote, "StartRematchVote");
-	SDKCall(g_hNative_StartRematchVote, g_pDirector);
+	ValidateNatives(g_hSDK_Call_StartRematchVote, "StartRematchVote");
+	SDKCall(g_hSDK_Call_StartRematchVote, g_pDirector);
 }
 
 
 public int Native_FullRestart(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_FullRestart, "FullRestart");
+	ValidateNatives(g_hSDK_Call_FullRestart, "FullRestart");
 
-	SDKCall(g_hNative_FullRestart, g_pDirector);
+	SDKCall(g_hSDK_Call_FullRestart, g_pDirector);
 }
 
 public int Native_HideVersusScoreboard(Handle plugin, int numParams)
 {
 	ValidateAddress(VersusModePtr, "VersusModePtr");
-	ValidateNatives(g_hNative_HideVersusScoreboard, "VersusScoreboard");
+	ValidateNatives(g_hSDK_Call_HideVersusScoreboard, "VersusScoreboard");
 
-	SDKCall(g_hNative_HideVersusScoreboard, VersusModePtr);
+	SDKCall(g_hSDK_Call_HideVersusScoreboard, VersusModePtr);
 }
 
 public int Native_HideScavengeScoreboard(Handle plugin, int numParams)
 {
 	ValidateAddress(ScavengeModePtr, "ScavengeModePtr");
-	ValidateNatives(g_hNative_HideScavengeScoreboard, "HideScavengeScoreboard");
+	ValidateNatives(g_hSDK_Call_HideScavengeScoreboard, "HideScavengeScoreboard");
 
-	SDKCall(g_hNative_HideScavengeScoreboard, ScavengeModePtr);
+	SDKCall(g_hSDK_Call_HideScavengeScoreboard, ScavengeModePtr);
 }
 
 public int Native_HideScoreboard(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_HideScoreboard, "HideScoreboard");
+	ValidateNatives(g_hSDK_Call_HideScoreboard, "HideScoreboard");
 
-	SDKCall(g_hNative_HideScoreboard, g_pDirector);
+	SDKCall(g_hSDK_Call_HideScoreboard, g_pDirector);
 }
 
 public int Native_RegisterForbiddenTarget(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_RegisterForbiddenTarget, "RegisterForbiddenTarget");
+	ValidateNatives(g_hSDK_Call_RegisterForbiddenTarget, "RegisterForbiddenTarget");
 
 	int entity = GetNativeCell(1);
-	return SDKCall(g_hNative_RegisterForbiddenTarget, g_pDirector, entity);
+	return SDKCall(g_hSDK_Call_RegisterForbiddenTarget, g_pDirector, entity);
 }
 
 public int Native_UnRegisterForbiddenTarget(Handle plugin, int numParams)
 {
 	ValidateAddress(g_pDirector, "g_pDirector");
-	ValidateNatives(g_hNative_UnRegisterForbiddenTarget, "UnRegisterForbiddenTarget");
+	ValidateNatives(g_hSDK_Call_UnRegisterForbiddenTarget, "UnRegisterForbiddenTarget");
 
 	int entity = GetNativeCell(1);
-	SDKCall(g_hNative_UnRegisterForbiddenTarget, g_pDirector, entity);
+	SDKCall(g_hSDK_Call_UnRegisterForbiddenTarget, g_pDirector, entity);
 }
 
 
@@ -5332,21 +5388,21 @@ MRESReturn Spawn_SmokerBoomerHunter(int zombieClass, Handle hReturn, Handle hPar
 			{
 				case 1:
 				{
-					ValidateNatives(g_hNative_SpawnSmoker, "SpawnSmoker");
-					//PrintToServer("#### CALL g_hNative_SpawnSmoker");
-					SDKCall(g_hNative_SpawnSmoker, g_pZombieManager, a1, a2);
+					ValidateNatives(g_hSDK_Call_SpawnSmoker, "SpawnSmoker");
+					//PrintToServer("#### CALL g_hSDK_Call_SpawnSmoker");
+					SDKCall(g_hSDK_Call_SpawnSmoker, g_pZombieManager, a1, a2);
 				}
 				case 2:
 				{
-					ValidateNatives(g_hNative_SpawnBoomer, "SpawnBoomer");
-					//PrintToServer("#### CALL g_hNative_SpawnBoomer");
-					SDKCall(g_hNative_SpawnBoomer, g_pZombieManager, a1, a2);
+					ValidateNatives(g_hSDK_Call_SpawnBoomer, "SpawnBoomer");
+					//PrintToServer("#### CALL g_hSDK_Call_SpawnBoomer");
+					SDKCall(g_hSDK_Call_SpawnBoomer, g_pZombieManager, a1, a2);
 				}
 				case 3:
 				{
-					ValidateNatives(g_hNative_SpawnHunter, "SpawnHunter");
-					//PrintToServer("#### CALL g_hNative_SpawnHunter");
-					SDKCall(g_hNative_SpawnHunter, g_pZombieManager, a1, a2);
+					ValidateNatives(g_hSDK_Call_SpawnHunter, "SpawnHunter");
+					//PrintToServer("#### CALL g_hSDK_Call_SpawnHunter");
+					SDKCall(g_hSDK_Call_SpawnHunter, g_pZombieManager, a1, a2);
 				}
 			}
 
@@ -5974,6 +6030,7 @@ public MRESReturn StartMeleeSwing(Handle hReturn, Handle hParams)
 }
 
 public MRESReturn SendInRescueVehicle(Handle hReturn)
+// public MRESReturn SendInRescueVehicle(Handle hParams)
 {
 	//PrintToServer("##### DTR SendInRescueVehicle");
 	Action aResult = Plugin_Continue;
@@ -5982,6 +6039,8 @@ public MRESReturn SendInRescueVehicle(Handle hReturn)
 
 	if( aResult == Plugin_Handled )
 	{
+		// DHookSetParamObjectPtrVar(hParams, 1, 0, ObjectValueType_Int, 0);
+		// DHookSetParamObjectPtrVar(hParams, 1, 1, ObjectValueType_Int, 0);
 		DHookSetReturn(hReturn, 0);
 		return MRES_Supercede;
 	}
@@ -6212,8 +6271,10 @@ public MRESReturn InfernoSpread(int pThis, Handle hReturn, Handle hParams)
 }
 
 public MRESReturn OnUseHealingItems(int pThis, Handle hReturn, Handle hParams)
+// public MRESReturn OnUseHealingItems(Handle hParams)
 {
 	//PrintToServer("##### DTR OnUseHealingItems");
+	// int pThis = DHookGetParam(hParams, 2);
 	Action aResult = Plugin_Continue;
 	Call_StartForward(g_hForward_OnUseHealingItems);
 	Call_PushCell(pThis);
@@ -6221,6 +6282,8 @@ public MRESReturn OnUseHealingItems(int pThis, Handle hReturn, Handle hParams)
 
 	if( aResult == Plugin_Handled )
 	{
+		// DHookSetParamObjectPtrVar(hParams, 1, 0, ObjectValueType_Int, 0);
+		// DHookGetParamObjectPtrString(hParams, 1, 1, ObjectValueType_Int, 0);
 		DHookSetReturn(hReturn, 0);
 		return MRES_Supercede;
 	}

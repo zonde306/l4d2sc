@@ -309,7 +309,7 @@ int g_iCommonHealth = 50;
 bool g_bRoundFirstStarting = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null;
-Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null;
+Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null;
 
 public Plugin:myinfo =
 {
@@ -546,7 +546,7 @@ public OnPluginStart()
 				g_tMeleeRange.SetValue("tonfa",				100);
 				g_tMeleeRange.SetValue("riotshield",		100);
 				
-				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Hooked");
+				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Hooked.");
 			}
 			
 			g_hDetourTestSwingCollision = DHookCreateFromConf(hGameData, "CTerrorWeapon::TestSwingCollision");
@@ -598,7 +598,7 @@ public OnPluginStart()
 				g_tShoveRange.SetValue("weapon_upgradepack_incendiary",		90);
 				g_tShoveRange.SetValue("weapon_upgradepack_explosive",		90);
 				
-				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Hooked");
+				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Hooked.");
 			}
 			
 			StartPrepSDKCall(SDKCall_Entity);
@@ -637,6 +637,16 @@ public OnPluginStart()
 			
 			if(g_pfnEndCharge != null)
 				LogMessage("l4d2_dlc2_levelup: CCharge::EndCharge Found.");
+			
+			StartPrepSDKCall(SDKCall_Player);
+			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnCarryEnded");
+			PrepSDKCall_AddParameter(SDKType_Bool,SDKPass_Plain);
+			PrepSDKCall_AddParameter(SDKType_Bool,SDKPass_Plain);
+			PrepSDKCall_AddParameter(SDKType_Bool,SDKPass_Plain);
+			g_pfnOnCarryEnded = EndPrepSDKCall();
+			
+			if(g_pfnOnCarryEnded != null)
+				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnCarryEnded Found.");
 			
 			delete hGameData;
 		}
@@ -1120,12 +1130,11 @@ bool ClientSaveToFileLoad(int client)
 		int prev = g_kvSavePlayer[client].GetNum("deadline", 0);
 		if(prev + deadline < current)
 		{
-			Initialization(client, true);
+			delete g_kvSavePlayer[client];
+			g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
 			
 			if(prev > 0)
 				PrintToServer("玩家 %N 的存档过期了", client);
-			
-			return false;
 		}
 	}
 	
@@ -8928,6 +8937,8 @@ stock void ForceDropVictim(int client, int target, int stagger = 3)
 	
 	if(g_pfnOnPummelEnded != null)
 		SDKCall(g_pfnOnPummelEnded, client, "", target);
+	if(g_pfnOnCarryEnded != null)
+		SDKCall(g_pfnOnCarryEnded, client, 1, 0, 0);
 	
 	SetEntPropEnt(client, Prop_Send, "m_carryVictim", -1);
 	SetEntPropEnt(target, Prop_Send, "m_carryAttacker", -1);

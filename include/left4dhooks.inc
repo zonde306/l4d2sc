@@ -87,6 +87,7 @@ public void __pl_l4dh_SetNTVOptional()
 	MarkNativeAsOptional("L4D_IsAnySurvivorInCheckpoint");
 	MarkNativeAsOptional("L4D_IsInFirstCheckpoint");
 	MarkNativeAsOptional("L4D_IsInLastCheckpoint");
+	MarkNativeAsOptional("L4D2_IsReachable");
 	MarkNativeAsOptional("L4D_PipeBombPrj");
 
 	MarkNativeAsOptional("L4D2_GetVScriptOutput");
@@ -1029,6 +1030,19 @@ native bool L4D_IsInFirstCheckpoint(int client);
  * @return			True if a survivor is in the ending checkpoint area. False otherwise.
  */
 native bool L4D_IsInLastCheckpoint(int client);
+
+/**
+ * @brief Checks if a world position is accessible to a player.
+ * @remarks You can pass any client index into this (real or fake players, survivors or special infected).
+ * @remarks If the clients flow distance is too far away from the position to test it will return false.
+ *
+ * @param client	Client id to use for testing
+ * @param vecPos	Vector coordinate to test
+ *
+ * @return			True if accessible, false otherwise
+ */
+// L4D2 only.
+native bool L4D2_IsReachable(int client, const float vecPos[3]);
 
 /**
  * @brief Creates an activated PipeBomb projectile
@@ -2720,7 +2734,7 @@ native void L4D2_SwapTeams();
  * @return					0=Not flipped. 1=Flipped
  */
 // L4D2 only.
-native int L4D2_AreTeamsFlipped();
+native bool L4D2_AreTeamsFlipped();
 
 /**
  * @brief Starts a Versus rematch vote like end of game before credits roll

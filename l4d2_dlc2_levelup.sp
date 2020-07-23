@@ -1993,18 +1993,16 @@ void StatusSelectMenuFuncBuy(int client, bool back = true)
 	Menu menu = CreateMenu(MenuHandler_Shop);
 	menu.SetTitle("========= 商店菜单 =========\n全部两块，点到即售（现有 %d 点）", g_clSkillPoint[client]);
 
-	menu.AddItem("smg_silenced katana", "冲锋枪(消音) + 武士刀");
-	menu.AddItem("shotgun_chrome pistol_magnum", "单喷(二代) + 马格南");
-	menu.AddItem("defibrillator ammo", "电击器 + 补充弹药");
-	menu.AddItem("pipe_bomb adrenaline", "土雷 + 针筒");
-	menu.AddItem("molotov pain_pills", "火瓶 + 药丸");
-	menu.AddItem("vomitjar upgradepack_incendiary", "胆汁 + 燃烧子弹包");
-	menu.AddItem("rifle_sg552 crowbar", "步枪(SG552) + 物理学圣剑");
-	menu.AddItem("autoshotgun pistol pistol", "连喷(一代) + 俩手枪");
-	menu.AddItem("sniper_awp machete", "狙稽枪(AWP) + 砍刀");
-	menu.AddItem("rifle_m60 chainsaw", "机枪(M60) + 电锯");
-	menu.AddItem("grenade_launcher pistol", "榴弹 + 小手枪");
-	menu.AddItem("first_aid_kit", "医疗包");
+	menu.AddItem("smg_silenced katana upgradepack_explosive", "冲锋枪(消音) + 武士刀 + 高爆弹药包");
+	menu.AddItem("shotgun_chrome fireaxe upgradepack_incendiary", "单喷(二代) + 消防斧 + 燃烧弹药包");
+	menu.AddItem("rifle_ak47 machete molotov", "AK47 + 开山刀 + 火瓶");
+	menu.AddItem("autoshotgun pistol_magnum pipe_bomb", "连喷(一代) + 马格南 + 土制炸弹");
+	menu.AddItem("sniper_scout crowbar firework_crate", "鸟狙(Scout) + 物理学圣剑(撬棍) + 烟花盒");
+	menu.AddItem("sniper_awp knife gascan", "大鸟(AWP) + 小刀 + 汽油桶");
+	menu.AddItem("rifle_m60 chainsaw vomitjar", "机枪(M60) + 电锯 + 胆汁");
+	menu.AddItem("grenade_launcher baseball_bat vomitjar", "榴弹 + 棒球棒 + 胆汁");
+	menu.AddItem("first_aid_kit adrenaline ammo", "医疗包 + 针筒 + 补充弹药");
+	menu.AddItem("defibrillator pain_pills ammo", "电击器 + 药丸 + 补充弹药");
 	// menu.AddItem("health", "回血");
 
 	menu.ExitButton = true;
@@ -2137,7 +2135,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 	return 0;
 }
 
-void StatusSelectMenuFuncA(int client)
+void StatusSelectMenuFuncA(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 一级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
@@ -2157,10 +2155,14 @@ void StatusSelectMenuFuncA(int client)
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
-	menu.Display(client, MENU_TIME_FOREVER);
+	
+	if(page > -1 && page < menu.ItemCount)
+		menu.DisplayAt(client, page, MENU_TIME_FOREVER);
+	else
+		menu.Display(client, MENU_TIME_FOREVER);
 }
 
-void StatusSelectMenuFuncB(int client)
+void StatusSelectMenuFuncB(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 二级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
@@ -2179,10 +2181,14 @@ void StatusSelectMenuFuncB(int client)
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
-	menu.Display(client, MENU_TIME_FOREVER);
+	
+	if(page > -1 && page < menu.ItemCount)
+		menu.DisplayAt(client, page, MENU_TIME_FOREVER);
+	else
+		menu.Display(client, MENU_TIME_FOREVER);
 }
 
-void StatusSelectMenuFuncC(int client)
+void StatusSelectMenuFuncC(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle("========= 三级天赋 =========");
@@ -2202,10 +2208,14 @@ void StatusSelectMenuFuncC(int client)
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
-	menu.Display(client, MENU_TIME_FOREVER);
+	
+	if(page > -1 && page < menu.ItemCount)
+		menu.DisplayAt(client, page, MENU_TIME_FOREVER);
+	else
+		menu.Display(client, MENU_TIME_FOREVER);
 }
 
-void StatusSelectMenuFuncD(int client)
+void StatusSelectMenuFuncD(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 四级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
@@ -2228,10 +2238,14 @@ void StatusSelectMenuFuncD(int client)
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
-	menu.Display(client, MENU_TIME_FOREVER);
+	
+	if(page > -1 && page < menu.ItemCount)
+		menu.DisplayAt(client, page, MENU_TIME_FOREVER);
+	else
+		menu.Display(client, MENU_TIME_FOREVER);
 }
 
-void StatusSelectMenuFuncE(int client)
+void StatusSelectMenuFuncE(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 五级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
@@ -2255,7 +2269,11 @@ void StatusSelectMenuFuncE(int client)
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
-	menu.Display(client, MENU_TIME_FOREVER);
+	
+	if(page > -1 && page < menu.ItemCount)
+		menu.DisplayAt(client, page, MENU_TIME_FOREVER);
+	else
+		menu.Display(client, MENU_TIME_FOREVER);
 }
 
 public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selected)
@@ -2309,14 +2327,14 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 			if(g_clSkillPoint[client] < 1)
 			{
 				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
-				StatusSelectMenuFuncA(client);
+				StatusSelectMenuFuncA(client, menu.Selection);
 				return 0;
 			}
 
 			g_clSkill_1[client] |= skill;
 
 			GiveSkillPoint(client, -1);
-			StatusSelectMenuFuncA(client);
+			StatusSelectMenuFuncA(client, menu.Selection);
 		}
 		case 2:
 		{
@@ -2340,14 +2358,14 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 			if(g_clSkillPoint[client] < 2)
 			{
 				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
-				StatusSelectMenuFuncB(client);
+				StatusSelectMenuFuncB(client, menu.Selection);
 				return 0;
 			}
 
 			g_clSkill_2[client] |= skill;
 
 			GiveSkillPoint(client, -2);
-			StatusSelectMenuFuncB(client);
+			StatusSelectMenuFuncB(client, menu.Selection);
 		}
 		case 3:
 		{
@@ -2371,14 +2389,14 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 			if(g_clSkillPoint[client] < 3)
 			{
 				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
-				StatusSelectMenuFuncC(client);
+				StatusSelectMenuFuncC(client, menu.Selection);
 				return 0;
 			}
 
 			g_clSkill_3[client] |= skill;
 
 			GiveSkillPoint(client, -3);
-			StatusSelectMenuFuncC(client);
+			StatusSelectMenuFuncC(client, menu.Selection);
 		}
 		case 4:
 		{
@@ -2402,14 +2420,14 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 			if(g_clSkillPoint[client] < 4)
 			{
 				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
-				StatusSelectMenuFuncD(client);
+				StatusSelectMenuFuncD(client, menu.Selection);
 				return 0;
 			}
 
 			g_clSkill_4[client] |= skill;
 
 			GiveSkillPoint(client, -4);
-			StatusSelectMenuFuncD(client);
+			StatusSelectMenuFuncD(client, menu.Selection);
 		}
 		case 5:
 		{
@@ -2433,14 +2451,14 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 			if(g_clSkillPoint[client] < 5)
 			{
 				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
-				StatusSelectMenuFuncE(client);
+				StatusSelectMenuFuncE(client, menu.Selection);
 				return 0;
 			}
 
 			g_clSkill_5[client] |= skill;
 
 			GiveSkillPoint(client, -5);
-			StatusSelectMenuFuncE(client);
+			StatusSelectMenuFuncE(client, menu.Selection);
 		}
 	}
 
@@ -3864,7 +3882,7 @@ public void OnGameFrame()
 			{
 				g_ctGodMode[i] = curTime + 80.0;
 				g_csHasGodMode[i] = false;
-				PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03无敌\x04状态结束了。");
+				PrintToChat(i, "\x03[\x05提示\x03]\x04你的\x03无敌\x04状态结束了。");
 			}
 			
 			if(g_fFreezeTime[i] > 0.0 && g_fFreezeTime[i] <= curTime)
@@ -6778,6 +6796,7 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 		return;
 
 	RegPlayerHook(client, true);
+	
 	if(g_clSkill_1[client] & SKL_1_Armor)
 	{
 		SetEntProp(client, Prop_Send, "m_ArmorValue", 127);
@@ -6955,7 +6974,7 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 	
 	char classname[64];
 	event.GetString("item", classname, 64);
-	// Format(classname, 64, "weapon_%s", classname);
+	Format(classname, 64, "weapon_%s", classname);
 	if(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
 		StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1)
 	{
@@ -6966,6 +6985,51 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 		
 		RequestFrame(UpdateWeaponAmmo, data);
 	}
+	
+	if((g_clSkill_5[client] & SKL_5_MeleeRange) || (g_clSkill_5[client] & SKL_5_ShoveRange))
+	{
+		DataPack data = CreateDataPack();
+		data.WriteCell(client);
+		data.WriteString(classname);
+		
+		RequestFrame(NotifyWeaponRange, data);
+	}
+}
+
+public void NotifyWeaponRange(any pack)
+{
+	DataPack data = view_as<DataPack>(pack);
+	data.Reset();
+	
+	char classname[64];
+	int client = data.ReadCell();
+	data.ReadString(classname, 64);
+	
+	if(StrContains(classname, "melee", false) > -1)
+	{
+		int weapon = GetPlayerWeaponSlot(client, 1);
+		if(IsValidEntity(weapon) && HasEntProp(weapon, Prop_Data, "m_strMapSetScriptName"))
+			GetEntPropString(weapon, Prop_Data, "m_strMapSetScriptName", classname, 64);
+	}
+	
+	int range;
+	char msg[255];
+	msg[0] = EOS;
+	
+	if((g_clSkill_5[client] & SKL_5_MeleeRange) && g_tMeleeRange.GetValue(classname, range))
+	{
+		Format(msg, 255, "攻击范围 %d", range);
+	}
+	if((g_clSkill_5[client] & SKL_5_ShoveRange) && g_tShoveRange.GetValue(classname, range))
+	{
+		if(msg[0] == EOS)
+			Format(msg, 255, "推范围 %d", range);
+		else
+			FormatEx(msg, 255, "%s丨推范围 %d", msg, range);
+	}
+	
+	if(msg[0] != EOS)
+		PrintCenterText(client, msg);
 }
 
 public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBroadcast)

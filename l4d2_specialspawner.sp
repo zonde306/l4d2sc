@@ -669,9 +669,9 @@ public Action Command_Say(int client, const char[] command, int argc)
 				hSILimit.IntValue = count;
 				hSpawnLimits[SI_SMOKER].IntValue = 0;
 				hSpawnLimits[SI_BOOMER].IntValue = 0;
-				hSpawnLimits[SI_HUNTER].IntValue = count;
-				hSpawnLimits[SI_SPITTER].IntValue = 0;
-				hSpawnLimits[SI_JOCKEY].IntValue = sepc;
+				hSpawnLimits[SI_HUNTER].IntValue = 0;
+				hSpawnLimits[SI_SPITTER].IntValue = sepc;
+				hSpawnLimits[SI_JOCKEY].IntValue = count;
 				hSpawnLimits[SI_CHARGER].IntValue = 0;
 				hSpawnSize.IntValue = count - sepc;
 				g_bTweakMode = true;

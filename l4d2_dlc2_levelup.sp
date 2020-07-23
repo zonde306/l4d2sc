@@ -5693,7 +5693,10 @@ void RewardPicker(int client)
 						SetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
 						SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
 						// SetEntProp(client, Prop_Send, "m_iMaxHealth", cv_incaphealth.IntValue);
-
+						
+						// 修复倒地没武器
+						CheatCommand(client, "give", "pistol");
+						
 						event = CreateEvent("player_incapacitated");
 						event.SetInt("userid", GetClientUserId(client));
 						event.SetInt("attacker", 0);
@@ -5701,11 +5704,6 @@ void RewardPicker(int client)
 						event.SetInt("type", 0);
 						event.SetString("weapon", "");
 						event.Fire(false);
-						
-						// 修复倒地没武器
-						int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-						if(weapon <= MaxClients)
-							CheatCommand(client, "give", "pistol");
 						
 						if(g_pCvarAllow.BoolValue)
 							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
@@ -5839,6 +5837,9 @@ void RewardPicker(int client)
 				SetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
 				SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
 				
+				// 修复倒地没武器
+				CheatCommand(client, "give", "pistol");
+				
 				event = CreateEvent("player_incapacitated");
 				event.SetInt("userid", GetClientUserId(client));
 				event.SetInt("attacker", 0);
@@ -5846,11 +5847,6 @@ void RewardPicker(int client)
 				event.SetInt("type", 0);
 				event.SetString("weapon", "");
 				event.Fire(false);
-				
-				// 修复倒地没武器
-				int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-				if(weapon <= MaxClients)
-					CheatCommand(client, "give", "pistol");
 				
 				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
@@ -7119,7 +7115,7 @@ void UpdateVomitDuration(any client)
 	// PrintToChat(client, "m_itTimer = %d, m_timestamp = %d", FindSendPropInfo("CTerrorPlayer", "m_itTimer"), FindSendPropInfo("DT_CountdownTimer", "m_timestamp"));
 	// SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + (cv_bile_duration.FloatValue / 2), true);
 	// SetEntPropFloat(client, Prop_Send, "m_itTimer", GetGameTime() + (cv_bile_duration.FloatValue / 2), 2);
-	L4D2_RunScript("NetProps.SetPropFloat(GetPlayerFromUserID(%d),\"m_itTimer.m_timestamp\",%.2f)", GetClientUserId(client), (cv_bile_duration.FloatValue / 2));
+	L4D2_RunScript("NetProps.SetPropFloat(GetPlayerFromUserID(%d),\"m_itTimer.m_timestamp\",Time()+%.2f)", GetClientUserId(client), (cv_bile_duration.FloatValue / 2));
 	CreateTimer(cv_bile_duration.FloatValue / 2, Timer_UnVimit, client, TIMER_FLAG_NO_MAPCHANGE);
 }
 
@@ -9683,12 +9679,12 @@ public Action:Event_RP(Handle:timer, any:client)
 		{
 			case 0:
 			{
-				CheatCommand(client, "z_spawn_old", "hunter");
-				CheatCommand(client, "z_spawn_old", "boomer");
-				CheatCommand(client, "z_spawn_old", "jockey");
-				CheatCommand(client, "z_spawn_old", "smoker");
-				CheatCommand(client, "z_spawn_old", "charger");
-				CheatCommand(client, "z_spawn_old", "spitter");
+				CheatCommand(client, "z_spawn_old", "hunter auto area");
+				CheatCommand(client, "z_spawn_old", "boomer auto area");
+				CheatCommand(client, "z_spawn_old", "jockey auto area");
+				CheatCommand(client, "z_spawn_old", "smoker auto area");
+				CheatCommand(client, "z_spawn_old", "charger auto area");
+				CheatCommand(client, "z_spawn_old", "spitter auto area");
 
 				for(new i = 1; i <= MaxClients; i++)
 				{
@@ -9731,10 +9727,10 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				CheatCommand(client, "z_spawn_old", "witch");
-				CheatCommand(client, "z_spawn_old", "witch");
-				CheatCommand(client, "z_spawn_old", "witch");
-				CheatCommand(client, "z_spawn_old", "witch");
+				CheatCommand(client, "z_spawn_old", "witch auto area");
+				CheatCommand(client, "z_spawn_old", "witch auto area");
+				CheatCommand(client, "z_spawn_old", "witch auto area");
+				CheatCommand(client, "z_spawn_old", "witch auto area");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04招了一群美女出来准备围观爆菊花.", client);
 			}
 			case 4:
@@ -9967,7 +9963,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				CheatCommand(client, "z_spawn_old", "boomer auto area");
 				CheatCommand(client, "z_spawn_old", "boomer auto area");
 				CheatCommand(client, "z_spawn_old", "boomer auto area");
-				// CheatCommand(client, "script", "GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
+				CheatCommand(client, "script", "GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
 				L4D2_RunScript("GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,OP特赠BOOMER胆汁一口.", client);
 			}
@@ -10056,7 +10052,7 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				CheatCommand(client, "z_spawn_old", "tank");
+				CheatCommand(client, "z_spawn_old", "tank auto area");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04闲着无聊,把自家的宠物坦克牵了出来玩玩.", client);
 			}
 			case 28:
@@ -10083,10 +10079,10 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				CheatCommand(client, "z_spawn_old", "hunter");
-				CheatCommand(client, "z_spawn_old", "hunter");
-				CheatCommand(client, "z_spawn_old", "hunter");
-				CheatCommand(client, "z_spawn_old", "hunter");
+				CheatCommand(client, "z_spawn_old", "hunter auto area");
+				CheatCommand(client, "z_spawn_old", "hunter auto area");
+				CheatCommand(client, "z_spawn_old", "hunter auto area");
+				CheatCommand(client, "z_spawn_old", "hunter auto area");
 				PrintToChatAll("\x03[\x05RP\x03] %N\x04召唤了一队职业灭团Hunter.", client);
 			}
 			case 30:
@@ -10287,6 +10283,9 @@ public Action:Event_RP(Handle:timer, any:client)
 					EmitSoundToClient(i,SOUND_BAD);
 				}
 				g_clSkill_1[client] = 0;
+				ClientCommand(client, "play \"ambient/animal/crow_1.wav\"");
+				
+				/*
 				new clienthp = 100;
 				for(new i = 0;i < 4;i ++)
 				{
@@ -10304,11 +10303,12 @@ public Action:Event_RP(Handle:timer, any:client)
 						clientsp += g_eqmSpeed[client][g_clCurEquip[client][i]];
 					}
 				}
-				ClientCommand(client, "play \"ambient/animal/crow_1.wav\"");
 				
 				// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
 				g_fMaxSpeedModify[client] = ((clientsp + 100) / 200.0);
+				*/
 				
+				RegPlayerHook(client, false);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04练功走火入魔,丧失掉所有\x03一级\x04天赋技能,大家一起默哀三分钟...", client);
 			}
 			case 48:
@@ -10344,7 +10344,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 
 				GiveSkillPoint(client, -3);
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04激怒了OP,OP扣除他天赋点3点.", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04的阴阳怪气激怒了OP,OP扣除他天赋点3点.", client);
 			}
 			case 50:
 			{
@@ -10353,7 +10353,7 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				CheatCommandEx(client, "z_spawn_old", "tank");
+				CheatCommandEx(client, "z_spawn_old", "tank auto area");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04画个圈圈召唤出了坦克.", client);
 			}
 			case 51:
@@ -10380,10 +10380,10 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				CheatCommand(client, "z_spawn_old", "spitter");
-				CheatCommand(client, "z_spawn_old", "spitter");
-				CheatCommand(client, "z_spawn_old", "spitter");
-				CheatCommand(client, "z_spawn_old", "spitter");
+				CheatCommand(client, "z_spawn_old", "spitter auto area");
+				CheatCommand(client, "z_spawn_old", "spitter auto area");
+				CheatCommand(client, "z_spawn_old", "spitter auto area");
+				CheatCommand(client, "z_spawn_old", "spitter auto area");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04画个圈圈发现有好多口水妈.", client);
 			}
 			case 53:

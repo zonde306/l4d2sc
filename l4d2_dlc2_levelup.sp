@@ -160,6 +160,7 @@ new bool:g_bCanGunShover[MAXPLAYERS+1] = false;
 float g_fMaxSpeedModify[MAXPLAYERS+1] = { 1.0, ... };
 float g_fNextCalmTime[MAXPLAYERS+1] = { 0.0, ... };
 int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
+bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
 
 enum
 {
@@ -1026,7 +1027,15 @@ public Action Timer_RoundStartPost(Handle timer, any data)
 	
 	for(int i = 1; i <= MaxClients; ++i)
 		g_fIncapShoveTimeout[i] = 0.0;
-
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
+			continue;
+		
+		RegPlayerHook(i, false);
+	}
+	
 	return Plugin_Continue;
 }
 
@@ -1089,6 +1098,7 @@ void Initialization(int client, bool invalid = false)
 	g_fMaxSpeedModify[client] = 1.0;
 	g_fNextCalmTime[client] = 0.0;
 	g_cdCanTeleport[client] = true;
+	g_bIsHitByVomit[client] = false;
 
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
 		g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
@@ -2177,7 +2187,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_SlefHelp), mps("顽强-倒地时1/4几率自救",(g_clSkill_2[client]&SKL_2_SlefHelp)));
 	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("自守-倒地被控自动推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("踏空-在空中按跳跃可以再次起跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
-	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("防化服-受到胆汁影响时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
+	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("防化服-受到胆汁影响时间减半/防止胆汁期间被特感故意攻击",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4028,10 +4038,20 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 		}
 	}
 	
+	if((g_clSkill_2[curTarget] & SKL_2_ProtectiveSuit) && g_bIsHitByVomit[curTarget])
+	{
+		int victim = ChooseOtherVictim(specialInfected);
+		if(victim > -1 && victim != curTarget)
+		{
+			curTarget = victim;
+			return Plugin_Changed;
+		}
+	}
+	
 	return Plugin_Continue;
 }
 
-int ChooseOtherVictim(int attacker, int ignore)
+int ChooseOtherVictim(int attacker, int ignore = -1)
 {
 	float origin[3], position[3];
 	float distance = 1000.0 * 1000.0;
@@ -7117,12 +7137,15 @@ void UpdateVomitDuration(any client)
 	// SetEntPropFloat(client, Prop_Send, "m_itTimer", GetGameTime() + (cv_bile_duration.FloatValue / 2), 2);
 	L4D2_RunScript("NetProps.SetPropFloat(GetPlayerFromUserID(%d),\"m_itTimer.m_timestamp\",Time()+%.2f)", GetClientUserId(client), (cv_bile_duration.FloatValue / 2));
 	CreateTimer(cv_bile_duration.FloatValue / 2, Timer_UnVimit, client, TIMER_FLAG_NO_MAPCHANGE);
+	g_bIsHitByVomit[client] = true;
 }
 
 public Action Timer_UnVimit(Handle timer, any client)
 {
 	if(IsValidAliveClient(client))
 		L4D_OnITExpired(client);
+	
+	g_bIsHitByVomit[client] = false;
 }
 
 stock void PrintToChatTeam(int team, const char[] text, any ...)

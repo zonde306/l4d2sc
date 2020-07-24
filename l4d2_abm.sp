@@ -179,6 +179,9 @@ public void OnPluginStart()
 	RegAdminCmd("abm_rm", RmBotsCmd, ADMFLAG_GENERIC, "Cmd: <TEAM> | <N|-N> <TEAM>");
 	RegConsoleCmd("takeover", SwitchToBotCmd, "Menu/Cmd: <ID> | <ID1> <ID2>");
 	RegConsoleCmd("jointo", SwitchTeamCmd, "Menu/Cmd: <TEAM> | <ID> <TEAM>");
+	RegConsoleCmd("joingame", SwitchTeamCmd, "Menu/Cmd: <TEAM> | <ID> <TEAM>");
+	RegConsoleCmd("jg", SwitchTeamCmd, "Menu/Cmd: <TEAM> | <ID> <TEAM>");
+	RegConsoleCmd("join", SwitchTeamCmd, "Menu/Cmd: <TEAM> | <ID> <TEAM>");
 	AddCommandListener(JoinTeamCmd, "jointeam");
 	
 	g_OS = GetOS();  // 0: Linux 1: Windows

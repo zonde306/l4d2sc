@@ -554,7 +554,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 	{
 		static Regex re;
 		if(re == null)
-			re = CompileRegex("(\\d{1,2})si");
+			re = CompileRegex("(\\d{1,2})si", PCRE_CASELESS);
 		if(re.Match(sayText) > 0)
 		{
 			int count = 0;
@@ -591,7 +591,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 	{
 		static Regex re;
 		if(re == null)
-			re = CompileRegex("(\\d{1,2})s");
+			re = CompileRegex("(\\d{1,2})s", PCRE_CASELESS);
 		if(re.Match(sayText) > 0)
 		{
 			int count = 0;
@@ -621,7 +621,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 	{
 		static Regex re;
 		if(re == null)
-			re = CompileRegex("(\\d{1,2})ht");
+			re = CompileRegex("(\\d{1,2})ht", PCRE_CASELESS);
 		if(re.Match(sayText) > 0)
 		{
 			int count = 0;
@@ -658,7 +658,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 	{
 		static Regex re;
 		if(re == null)
-			re = CompileRegex("(\\d{1,2})jk");
+			re = CompileRegex("(\\d{1,2})jk", PCRE_CASELESS);
 		if(re.Match(sayText) > 0)
 		{
 			int count = 0;

@@ -79,10 +79,11 @@ enum()
 	SKL_2_Defibrillator = 16,
 	SKL_2_HealBouns = 32,
 	SKL_2_PipeBomb = 64,
-	SKL_2_SlefHelp = 128,
+	SKL_2_SelfHelp = 128,
 	SKL_2_Defensive = 256,
 	SKL_2_DoubleJump = 512,
 	SKL_2_ProtectiveSuit = 1024,
+	SKL_2_Magnum = 2048,
 
 	SKL_3_Sacrifice = 1,
 	SKL_3_Respawn = 2,
@@ -233,6 +234,9 @@ int g_iReloadWeaponClip[MAXPLAYERS+1];
 int g_iReloadWeaponOldClip[MAXPLAYERS+1];
 int g_iReloadWeaponKeepClip[MAXPLAYERS+1];
 float g_fIncapShoveTimeout[MAXPLAYERS+1] = { 0.0, ... };
+char g_sLastWeapon[MAXPLAYERS+1][64];
+int g_iLastWeaponClip[MAXPLAYERS+1];
+bool g_bLastWeaponDual[MAXPLAYERS+1];
 
 //装备附加
 new g_iRoundEvent = 0;
@@ -426,6 +430,7 @@ public OnPluginStart()
 	HookEvent("bot_player_replace", Event_PlayerReplaceBot);
 	// HookEvent("spit_burst", Event_SpitBurst);
 	HookEvent("player_incapacitated", Event_PlayerIncapacitated);
+	HookEvent("player_incapacitated_start", Event_PlayerIncapacitatedStart);
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("infected_death", Event_InfectedDeath);
 	HookEvent("tank_killed", Event_TankKilled);
@@ -1130,6 +1135,9 @@ void Initialization(int client, bool invalid = false)
 	g_fNextCalmTime[client] = 0.0;
 	g_cdCanTeleport[client] = true;
 	g_bIsHitByVomit[client] = false;
+	g_sLastWeapon[client][0] = '\0';
+	g_iLastWeaponClip[client] = -1;
+	g_bLastWeaponDual[client] = false;
 
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
 		g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
@@ -2217,10 +2225,11 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("电疗-每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
 	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("擅医-打包成功恢复HP+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
 	menu.AddItem(tr("2_%d",SKL_2_PipeBomb), mps("爆破-每100秒获得一个土制",(g_clSkill_2[client]&SKL_2_PipeBomb)));
-	menu.AddItem(tr("2_%d",SKL_2_SlefHelp), mps("顽强-倒地时1/4几率自救",(g_clSkill_2[client]&SKL_2_SlefHelp)));
+	menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("顽强-倒地时1/4几率自救",(g_clSkill_2[client]&SKL_2_SelfHelp)));
 	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("自守-倒地被控自动推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("踏空-在空中按跳跃可以再次起跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
 	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("防化服-受到胆汁影响时间减半/防止胆汁期间被特感故意攻击",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
+	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("炮台-倒地手枪换成马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2758,7 +2767,7 @@ public int MenuHandler_EquipMain(Menu menu, MenuAction action, int client, int s
 			if((g_clSkill_2[client] & SKL_2_Defibrillator)) Fighting_Power += 80;
 			if((g_clSkill_2[client] & SKL_2_HealBouns)) Fighting_Power += 80;
 			if((g_clSkill_2[client] & SKL_2_PipeBomb)) Fighting_Power += 80;
-			if((g_clSkill_2[client] & SKL_2_SlefHelp)) Fighting_Power += 80;
+			if((g_clSkill_2[client] & SKL_2_SelfHelp)) Fighting_Power += 80;
 			if((g_clSkill_3[client] & SKL_3_Sacrifice)) Fighting_Power += 120;
 			if((g_clSkill_3[client] & SKL_3_Respawn)) Fighting_Power += 120;
 			if((g_clSkill_3[client] & SKL_3_IncapFire)) Fighting_Power += 120;
@@ -4470,6 +4479,29 @@ public Action:Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadc
 	}
 }
 
+public void Event_PlayerIncapacitatedStart(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(!IsValidAliveClient(client) || GetClientTeam(client) != 2)
+		return;
+	
+	if(g_clSkill_2[client] & SKL_2_Magnum)
+	{
+		int weapon = GetPlayerWeaponSlot(client, 1);
+		if(weapon > MaxClients && IsValidEntity(weapon))
+		{
+			char classname[64];
+			GetEntityClassname(weapon, classname, 64);
+			if(StrEqual(classname, "weapon_melee", false))
+				GetEntPropString(weapon, Prop_Data, "m_strMapSetScriptName", classname, 64);
+			
+			strcopy(g_sLastWeapon[client], sizeof(g_sLastWeapon[]), classname);
+			g_iLastWeaponClip[client] = GetEntProp(weapon, Prop_Send, "m_iClip1");
+			g_bLastWeaponDual[client] = (HasEntProp(weapon, Prop_Send, "m_hasDualWeapons") && GetEntProp(weapon, Prop_Send, "m_hasDualWeapons", 1));
+		}
+	}
+}
+
 public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:dontBroadcast)
 {
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
@@ -4478,7 +4510,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 	if (!client || !IsClientInGame(client) || !IsClientConnected(client) || GetClientTeam(client) != 2)
 		return;
 
-	if ((g_clSkill_2[client] & SKL_2_SlefHelp))
+	if ((g_clSkill_2[client] & SKL_2_SelfHelp))
 	{
 		new chance = GetRandomInt(1,4);
 		if(chance == 1)
@@ -4578,12 +4610,34 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		// TE_SetupBeamRingPoint(origin, 2.0, 200.0, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, {255, 0, 0, 255}, 0, 0);
 		// TE_SendToAll();
 	}
+	
+	if((g_clSkill_2[client] & SKL_2_Magnum) && g_sLastWeapon[client][0] != EOS)
+	{
+		int weapon = GetPlayerWeaponSlot(client, 1);
+		if(weapon > MaxClients && IsValidEntity(weapon))
+			RemoveEntity(weapon);
+		
+		CheatCommand(client, "give", "pistol_magnum");
+		CreateTimer(0.1, Timer_CheckHavePistol, client);
+	}
 
 	if(g_iRoundEvent == 14)
 	{
 		SetEntProp(client, Prop_Data, "m_iHealth", 1);
 		SDKHooks_TakeDamage(client, 0, attacker, 666.0, DMG_FALL);
 	}
+}
+
+public Action Timer_CheckHavePistol(Handle timer, any client)
+{
+	if(!IsValidAliveClient(client))
+		return Plugin_Continue;
+	
+	int weapon = GetPlayerWeaponSlot(client, 1);
+	if(weapon == -1 || !IsValidEntity(weapon))
+		CheatCommand(client, "give", "pistol_magnum");
+	
+	return Plugin_Continue;
 }
 
 public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
@@ -5758,7 +5812,8 @@ void RewardPicker(int client)
 						// SetEntProp(client, Prop_Send, "m_iMaxHealth", cv_incaphealth.IntValue);
 						
 						// 修复倒地没武器
-						CheatCommand(client, "give", "pistol");
+						// CheatCommand(client, "give", "pistol");
+						CreateTimer(0.2, Timer_GivePistol, client);
 						
 						event = CreateEvent("player_incapacitated");
 						event.SetInt("userid", GetClientUserId(client));
@@ -5901,7 +5956,8 @@ void RewardPicker(int client)
 				SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
 				
 				// 修复倒地没武器
-				CheatCommand(client, "give", "pistol");
+				// CheatCommand(client, "give", "pistol");
+				CreateTimer(0.2, Timer_GivePistol, client);
 				
 				event = CreateEvent("player_incapacitated");
 				event.SetInt("userid", GetClientUserId(client));
@@ -5918,6 +5974,21 @@ void RewardPicker(int client)
 			}
 		}
 	}
+}
+
+public Action Timer_GivePistol(Handle timer, any client)
+{
+	if(!IsValidAliveClient(client))
+		return Plugin_Continue;
+	
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		if(g_clSkill_2[client] & SKL_2_Magnum)
+			CheatCommand(client, "give", "pistol_magnum");
+		else
+			CheatCommand(client, "give", "pistol");
+	
+	return Plugin_Continue;
 }
 
 int CheckTankNumber()
@@ -6312,6 +6383,31 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	}
 
 	RegPlayerHook(subject, false);
+	
+	// 修复电击复活后的武器
+	if((g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
+	{
+		int weapon = GetPlayerWeaponSlot(subject, 1);
+		if(weapon > MaxClients && IsValidEntity(weapon))
+			RemoveEntity(weapon);
+		
+		if(StrContains(g_sLastWeapon[subject], "weapon_", false) == 0)
+		{
+			ReplaceString(g_sLastWeapon[subject], sizeof(g_sLastWeapon[]), "weapon_", "", false);
+			
+			CheatCommand(subject, "give", g_sLastWeapon[subject]);
+			if(g_bLastWeaponDual[subject])
+				CheatCommand(subject, "give", g_sLastWeapon[subject]);
+			
+			CreateTimer(0.1, Timer_SetWeaponClip, subject);
+		}
+		else
+		{
+			CheatCommand(subject, "give", g_sLastWeapon[subject]);
+		}
+		
+		g_sLastWeapon[subject][0] = EOS;
+	}
 
 	if(g_iRoundEvent == 19)
 	{
@@ -6447,12 +6543,49 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			}
 		}
 	}
-
+	
+	if((g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
+	{
+		int weapon = GetPlayerWeaponSlot(subject, 1);
+		if(weapon > MaxClients && IsValidEntity(weapon))
+			RemoveEntity(weapon);
+		
+		if(StrContains(g_sLastWeapon[subject], "weapon_", false) == 0)
+		{
+			ReplaceString(g_sLastWeapon[subject], sizeof(g_sLastWeapon[]), "weapon_", "", false);
+			
+			CheatCommand(subject, "give", g_sLastWeapon[subject]);
+			if(g_bLastWeaponDual[subject])
+				CheatCommand(subject, "give", g_sLastWeapon[subject]);
+			
+			CreateTimer(0.1, Timer_SetWeaponClip, subject);
+		}
+		else
+		{
+			CheatCommand(subject, "give", g_sLastWeapon[subject]);
+		}
+		
+		g_sLastWeapon[subject][0] = EOS;
+	}
+	
 	if(g_iRoundEvent == 14)
 	{
 		SetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 0);
 		SetEntProp(subject, Prop_Send, "m_isGoingToDie", 0);
 	}
+}
+
+public Action Timer_SetWeaponClip(Handle timer, any client)
+{
+	if(!IsValidAliveClient(client) || g_iLastWeaponClip[client] < 0)
+		return Plugin_Continue;
+	
+	int weapon = GetPlayerWeaponSlot(client, 1);
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		return Plugin_Continue;
+	
+	SetEntProp(weapon, Prop_Send, "m_iClip1", g_iLastWeaponClip[client]);
+	return Plugin_Continue;
 }
 
 public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroadcast)

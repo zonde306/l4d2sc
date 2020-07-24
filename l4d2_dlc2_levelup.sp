@@ -6389,10 +6389,10 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	int subject = GetClientOfUserId(GetEventInt(event, "subject"));
-	if(!IsValidAliveClient(client) || !IsValidClient(subject))
+	if(!IsValidClient(subject))
 		return Plugin_Continue;
 
-	if(subject != client)
+	if(IsValidAliveClient(client) && subject != client)
 	{
 		g_ttDefibUsed[client] ++;
 		if(g_ttDefibUsed[client] >= g_pCvarDefibUsed.IntValue)
@@ -6405,7 +6405,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 		}
 	}
 
-	if(g_clSkill_1[client] & SKL_1_Armor)
+	if(g_clSkill_1[subject] & SKL_1_Armor)
 	{
 		SetEntProp(subject, Prop_Send, "m_ArmorValue", 127);
 		SetEntProp(subject, Prop_Send, "m_bHasHelmet", 1);
@@ -6464,111 +6464,112 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	new subject = GetClientOfUserId(GetEventInt(event, "subject"));
 	new bool:WasLedgeHang = GetEventBool(event, "ledge_hang");
-	if (!client || !IsClientInGame(client)) return;
-	if (!subject || !IsClientInGame(subject)) return;
-
-	// 挂边不算（挂边可以是故意的）
-	if (WasLedgeHang) return;
+	if (!IsValidAliveClient(subject)) return;
 	
-	new extrahp = 0;
-	if((g_clSkill_1[subject] & SKL_1_ReviveHealth))
+	if(IsValidClient(client) && !WasLedgeHang)
 	{
-		extrahp += 50;
-	}
-	new bool:ExtraAdd = false;
-	new bool:ExtraSp = false;
-	for(new i = 0;i < 4;i ++)
-	{
-		if(g_clCurEquip[subject][i] != -1)
+		new extrahp = 0;
+		if((g_clSkill_1[subject] & SKL_1_ReviveHealth))
 		{
-			if(g_eqmEffects[subject][g_clCurEquip[subject][i]] == 1)
+			extrahp += 50;
+		}
+		new bool:ExtraAdd = false;
+		new bool:ExtraSp = false;
+		for(new i = 0;i < 4;i ++)
+		{
+			if(g_clCurEquip[subject][i] != -1)
 			{
-				ExtraAdd = true;
-				break;
+				if(g_eqmEffects[subject][g_clCurEquip[subject][i]] == 1)
+				{
+					ExtraAdd = true;
+					break;
+				}
 			}
 		}
-	}
-	for(new i = 0;i < 4;i ++)
-	{
-		if(g_clCurEquip[subject][i] != -1)
+		for(new i = 0;i < 4;i ++)
 		{
-			if(g_eqmEffects[subject][g_clCurEquip[subject][i]] == 4)
+			if(g_clCurEquip[subject][i] != -1)
 			{
-				ExtraSp = true;
-				break;
+				if(g_eqmEffects[subject][g_clCurEquip[subject][i]] == 4)
+				{
+					ExtraSp = true;
+					break;
+				}
 			}
 		}
-	}
-	if(ExtraAdd) extrahp += 40;
-	if(extrahp)
-	{
-		SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", GetEntPropFloat(subject, Prop_Send, "m_healthBuffer") + extrahp);
-		if(!IsFakeClient(subject)) PrintToChat(subject, "\x03[\x05提示\x03]\x04倒地被救起恢复额外HP:%d",extrahp);
-	}
-	if(ExtraSp)
-	{
-		// SDKCall(sdkAdrenaline, subject, 15.0);
-		// CheatCommand(subject, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
-		L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
-	}
-	if(client != subject)
-	{
-		g_ttOtherRevived[client] ++;
-		if(g_ttOtherRevived[client] >= g_pCvarOtherRevived.IntValue)
+		if(ExtraAdd) extrahp += 40;
+		if(extrahp)
 		{
-			GiveSkillPoint(client, 1);
-			g_ttOtherRevived[client] -= g_pCvarOtherRevived.IntValue;
-
-			if(g_pCvarAllow.BoolValue && !IsFakeClient(client))
-				PrintToChat(client, "\x03[\x05提示\x03]\x04 你多次拉起队友获得了 \x051\x01 天赋点。");
+			SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", GetEntPropFloat(subject, Prop_Send, "m_healthBuffer") + extrahp);
+			if(!IsFakeClient(subject)) PrintToChat(subject, "\x03[\x05提示\x03]\x04倒地被救起恢复额外HP:%d",extrahp);
 		}
-	}
-	if(client != subject && (g_clSkill_3[client] & SKL_3_ReviveBonus))
-	{
-		new RandomGiv = GetRandomInt(0, 11);
-		switch(RandomGiv)
+		if(ExtraSp)
 		{
-			case 0:
-			{
-				CheatCommand(client, "give", "adrenaline");
-
-				if(g_pCvarAllow.BoolValue)
-					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03肾上腺素\x04!");
-			}
-			case 1:
-			{
-				CheatCommand(client, "give", "pain_pills");
-
-				if(g_pCvarAllow.BoolValue)
-					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03止痛药\x04!");
-			}
-			case 2:
-			{
-				CheatCommand(client, "give", "molotov");
-
-				if(g_pCvarAllow.BoolValue)
-					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03燃烧瓶\x04!");
-			}
-			case 3:
-			{
-				CheatCommand(client, "upgrade_add", "INCENDIARY_AMMO");
-
-				if(g_pCvarAllow.BoolValue)
-					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03燃烧子弹\x04!");
-			}
-			case 4:
-			{
-				CheatCommand(client, "give", "defibrillator");
-
-				if(g_pCvarAllow.BoolValue)
-					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03电击器\x04!");
-			}
-			case 5:
+			// SDKCall(sdkAdrenaline, subject, 15.0);
+			// CheatCommand(subject, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
+			L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
+		}
+		if(client != subject)
+		{
+			g_ttOtherRevived[client] ++;
+			if(g_ttOtherRevived[client] >= g_pCvarOtherRevived.IntValue)
 			{
 				GiveSkillPoint(client, 1);
+				g_ttOtherRevived[client] -= g_pCvarOtherRevived.IntValue;
 
-				if(g_pCvarAllow.BoolValue)
-					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03天赋点一点\x04!");
+				if(g_pCvarAllow.BoolValue && !IsFakeClient(client))
+					PrintToChat(client, "\x03[\x05提示\x03]\x04 你多次拉起队友获得了 \x051\x01 天赋点。");
+			}
+		}
+		if(client != subject && (g_clSkill_3[client] & SKL_3_ReviveBonus))
+		{
+			new RandomGiv = GetRandomInt(0, 11);
+			switch(RandomGiv)
+			{
+				case 0:
+				{
+					CheatCommand(client, "give", "adrenaline");
+
+					if(g_pCvarAllow.BoolValue)
+						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03肾上腺素\x04!");
+				}
+				case 1:
+				{
+					CheatCommand(client, "give", "pain_pills");
+
+					if(g_pCvarAllow.BoolValue)
+						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03止痛药\x04!");
+				}
+				case 2:
+				{
+					CheatCommand(client, "give", "molotov");
+
+					if(g_pCvarAllow.BoolValue)
+						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03燃烧瓶\x04!");
+				}
+				case 3:
+				{
+					CheatCommand(client, "upgrade_add", "INCENDIARY_AMMO");
+
+					if(g_pCvarAllow.BoolValue)
+						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03燃烧子弹\x04!");
+				}
+				case 4:
+				{
+					CheatCommand(client, "give", "defibrillator");
+
+					if(g_pCvarAllow.BoolValue)
+						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03电击器\x04!");
+				}
+				case 5:
+				{
+					if(!GetRandomInt(0, 3))
+					{
+						GiveSkillPoint(client, 1);
+						if(g_pCvarAllow.BoolValue)
+							PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03天赋点一点\x04!");
+					}
+				}
 			}
 		}
 	}

@@ -311,7 +311,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 
 int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
-bool g_bRoundFirstStarting = false;
+bool g_bRoundFirstStarting = false, g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null;
 Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null;
@@ -324,6 +324,12 @@ public Plugin:myinfo =
 	version = "1.0.0",
 	url = "https://forums.alliedmods.net/",
 };
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	g_bLateLoad = late;
+	return APLRes_Success;
+}
 
 public OnPluginStart()
 {
@@ -657,6 +663,26 @@ public OnPluginStart()
 			delete hGameData;
 		}
 	}
+	
+	if(g_bLateLoad)
+		OnMapStart();
+}
+
+public void OnPluginEnd()
+{
+	if(g_hDetourTestMeleeSwingCollision)
+	{
+		DHookDisableDetour(g_hDetourTestMeleeSwingCollision, false, TestMeleeSwingCollisionPre);
+		DHookDisableDetour(g_hDetourTestMeleeSwingCollision, true, TestMeleeSwingCollisionPost);
+	}
+	
+	if(g_hDetourTestSwingCollision)
+	{
+		DHookDisableDetour(g_hDetourTestSwingCollision, false, TestSwingCollisionPre);
+		DHookDisableDetour(g_hDetourTestSwingCollision, true, TestSwingCollisionPost);
+	}
+	
+	OnMapEnd();
 }
 
 public void ConVarChaged_ZombieHealth(ConVar cvar, const char[] oldValue, const char[] newValue)
@@ -725,12 +751,6 @@ public OnMapStart()
 	g_szRoundEvent = "无";
 	g_bHasTeleportActived = false;
 	
-	for(new i = 1; i <= MaxClients; i++)
-	{
-		// Initialization(i);
-		ClientSaveToFileLoad(i);
-	}
-
 	/*
 	PrecacheModel("models/survivors/survivor_teenangst.mdl", true);
 	PrecacheModel("models/survivors/survivor_namvet.mdl", true);
@@ -800,6 +820,15 @@ public OnMapStart()
 
 	for(int i = 0; i <= MAXPLAYERS; ++i)
 		g_kvSavePlayer[i] = null;
+	
+	for(new i = 1; i <= MaxClients; i++)
+	{
+		// Initialization(i);
+		ClientSaveToFileLoad(i);
+		
+		if(IsValidAliveClient(i))
+			RegPlayerHook(i, false);
+	}
 }
 
 void RestoreConVar()

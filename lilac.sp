@@ -2460,7 +2460,7 @@ void lilac_forward_client_ban(int client, int cheat)
 
 bool lilac_forward_allow_cheat_detection(int client, int cheat)
 {
-	if(GetUserFlagBits(client) & ADMFLAG_ROOT)
+	if(icvar[CVAR_BAN] && (GetUserFlagBits(client) & ADMFLAG_ROOT))
 		return false;
 	
 	Action result = Plugin_Continue;

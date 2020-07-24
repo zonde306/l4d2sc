@@ -182,12 +182,12 @@ public void OnPluginStart()
 	g_ConVar_ProfileCheckEnable = CreateConVar("cac_profilecheck", "1", "是否开启账户信息是否公开检测，开启后账户信息非公开会被踢出", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_ConVar_SpeedHackEnable = CreateConVar("cac_speedhack", "1", "是否开启加速检测", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_ConVar_ThirdESPEnable = CreateConVar("cac_thirdesp", "1", "是否开启第三人称透视检测", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_ConVar_FamilySharing = CreateConVar("cac_family_sharing", "1", "是否开启禁止家庭共享的玩家加入服务器", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_ConVar_FamilySharing = CreateConVar("cac_family_sharing", "0", "是否开启禁止家庭共享的玩家加入服务器", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_ConVar_MatHack = CreateConVar("cac_mathack", "1", "是否开启检查玩家的 mat_ 控制台变量", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_ConVar_BlockDefibIdle = CreateConVar("cac_block_defib_idle", "1", "是否开启禁止电击复活闲置", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_ConVar_BlockReleaseIdle = CreateConVar("cac_block_release_idle", "1", "是否开启禁止解除控制闲置", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_ConVar_BlockDefibIdle = CreateConVar("cac_block_defib_idle", "0", "是否开启禁止电击复活闲置", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_ConVar_BlockReleaseIdle = CreateConVar("cac_block_release_idle", "0", "是否开启禁止解除控制闲置", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_ConVar_BlockReleaseDuration = CreateConVar("cac_block_release_duration", "5.0", "禁止解除控制闲置持续时间", FCVAR_NONE, true, 0.1);
-	g_ConVar_BlockGasCanIdle  = CreateConVar("cac_block_gascan_idle", "1", "是否开启禁止点油闲置", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_ConVar_BlockGasCanIdle  = CreateConVar("cac_block_gascan_idle", "0", "是否开启禁止点油闲置", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_ConVar_BlockGasCanDuration = CreateConVar("cac_block_gascan_duration", "9.0", "禁止点油闲置持续时间", FCVAR_NONE, true, 0.1);
 	g_ConVar_QueryMaxTime = CreateConVar("cac_query_cvar_max_duration", "3.0", "查询 ConVar 超时时间", FCVAR_NONE, true, 0.1);
 	g_ConVar_QueryMaxCount = CreateConVar("cac_query_cvar_max_count", "5", "查询 ConVar 超时次数", FCVAR_NONE, true, 0.0);

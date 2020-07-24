@@ -2126,7 +2126,10 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 		if(item[i][0] == EOS)
 			continue;
 		
-		CheatCommand(client, "give", item[i]);
+		if(StrEqual(item[i], "ammo", false))
+			AddAmmo(client, 999);
+		else
+			CheatCommand(client, "give", item[i]);
 	}
 
 	GiveSkillPoint(client, -2);

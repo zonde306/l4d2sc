@@ -33,6 +33,14 @@
 					}
 				}
 			}
+			
+			"CTerrorPlayer::IsInvulnerable"
+			{
+				"signature"		"CTerrorPlayer::IsInvulnerable"
+				"callconv"		"thiscall"
+				"return"		"bool"
+				"this"			"entity"
+			}
 		}
 
 		"Signatures"
@@ -114,6 +122,18 @@
 				"linux"			"@_ZN13CTerrorPlayer12OnCarryEndedEbbb"
 				"mac"			"@__ZN13CTerrorPlayer12OnCarryEndedEbbb"
 				"windows"		""
+			}
+			
+			/*
+			 * CTerrorPlayer::IsInvulnerable(CTerrorPlayer *this)
+			 */
+			"CTerrorPlayer::IsInvulnerable"
+			{
+				"library"	"server"
+				"linux"		"@_ZNK13CTerrorPlayer14IsInvulnerableEv"
+				"windows"	"\x56\x8B\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x84\x2A\x74\x2A\xB0\x2A\x5E\xC3"
+				/* 56 8B ? 8B ? 8B ? ? ? ? ? ? ? 84 ? 74 ? B0 ? 5E C3 */
+				/* Search: "weapon_%s" for "CTerrorPlayer::RestoreWeapons", vtable down, called from "CTerrorPlayer::CanBeShoved" */
 			}
 		}
 	}

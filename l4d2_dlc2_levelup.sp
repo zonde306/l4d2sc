@@ -4545,10 +4545,13 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 		// AcceptEntityInput(subject, "SetHealth", client, subject);
 	}
 	*/
-
+	
 	if(client != subject && health >= 50)
 		g_ttDefibUsed[client] += 1;
-
+	
+	if((g_clSkill_2[subject] & SKL_2_HealBouns) || (g_clSkill_2[client] & SKL_2_HealBouns))
+		AddHealth(subject, 50, false);
+	
 	if(g_iRoundEvent == 19)
 	{
 		int newHealth = GetEntProp(subject, Prop_Data, "m_iHealth");

@@ -243,6 +243,7 @@ char g_sLastWeapon[MAXPLAYERS+1][64];
 int g_iLastWeaponClip[MAXPLAYERS+1];
 bool g_bLastWeaponDual[MAXPLAYERS+1];
 // int g_iOldRealHealth[MAXPLAYERS+1];
+int g_iLastWeaponAmmo[MAXPLAYERS+1];
 
 //装备附加
 new g_iRoundEvent = 0;
@@ -7259,6 +7260,12 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	// 希望不会冲突吧
 	if(g_clSkill_4[client] & SKL_4_ClipSize)
 		SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", RoundToZero(GetDefaultClip(weapon) * 1.5));
+	
+	if(g_iLastWeaponAmmo[client] > 0)
+	{
+		SetEntProp(client, Prop_Send, "m_iAmmo", g_iLastWeaponAmmo[client], _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+		g_iLastWeaponAmmo[client] = 0;
+	}
 }
 
 public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool dontBroadcast)
@@ -9027,7 +9034,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 
 		weaponId = GetPlayerWeaponSlot(client, 0);
-		if((g_clSkill_3[client] & SKL_3_MoreAmmo) && (buttons & IN_USE) && IsValidEntity(weaponId))
+		if(((g_clSkill_3[client] & SKL_3_MoreAmmo) || (g_clSkill_4[client] & SKL_4_ClipSize)) && (buttons & IN_USE) && IsValidEntity(weaponId))
 		{
 			int entity = GetClientAimTarget(client, false);
 			if(!IsValidEntity(entity) || !IsValidEdict(entity))
@@ -9039,18 +9046,26 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				GetEntityClassname(entity, className, 64);
 				GetEntityClassname(weaponId, weaponName, 64);
 				
-				if(StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false) ||	// 弹药堆
-					(StrContains(className, weaponName, false) == 0 && className[strlen(weaponName)] == '_'))	// weapon_*_spawn
+				float origin[3], position[3];
+				GetClientAbsOrigin(client, origin);
+				GetEntPropVector(entity, Prop_Send, "m_vecOrigin", position);
+				
+				static ConVar cv_usedst;
+				if(cv_usedst == null)
+					cv_usedst = FindConVar("player_use_radius");
+				
+				if(GetVectorDistance(origin, position, false) <= cv_usedst.FloatValue)
 				{
-					float origin[3], position[3];
-					GetClientAbsOrigin(client, origin);
-					GetEntPropVector(entity, Prop_Send, "m_vecOrigin", position);
-
-					static ConVar cv_usedst;
-					if(cv_usedst == null)
-						cv_usedst = FindConVar("player_use_radius");
-					if(GetVectorDistance(origin, position, false) <= cv_usedst.FloatValue)
+					if(StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false) ||	// 弹药堆
+						(StrContains(className, weaponName, false) == 0 && className[strlen(weaponName)] == '_'))	// weapon_*_spawn
+					{
 						AddAmmo(client, 999, GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType"));
+					}
+					else if(StrEqual(className, "upgrade_ammo_explosive", false) || StrEqual(className, "upgrade_ammo_incendiary", false))
+					{
+						g_iLastWeaponAmmo[client] = GetEntProp(weaponId, Prop_Send, "m_iClip1") +
+							GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType"));
+					}
 				}
 			}
 		}

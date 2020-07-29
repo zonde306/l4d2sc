@@ -392,6 +392,8 @@ public Action Timer_CheckBan(Handle timer, any data)
 				
 				// 下一个被忽略的等下次再处理吧
 				RemoveFromArray(fsArray, i);
+				
+				break;
 			}
 		}
 	}

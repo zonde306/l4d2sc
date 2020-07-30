@@ -13,7 +13,7 @@ public Plugin myinfo =
 };
 
 Handle g_Timer_AutoRestart = null;
-ConVar g_CV_ConfigPath, g_CV_AutoRestart, g_CV_RestartWait, g_CV_AdminEnable, g_CV_AdminTimeout, g_CV_RestartMode, g_CV_AdminRestart, g_CV_Accelerator;
+ConVar g_CV_ConfigPath, g_CV_AutoRestart, g_CV_RestartWait, g_CV_AdminEnable, g_CV_AdminTimeout, g_CV_RestartMode, g_CV_AdminRestart, g_CV_Accelerator, g_CV_AutoHidden;
 
 public void OnPluginStart()
 {
@@ -23,6 +23,7 @@ public void OnPluginStart()
 	g_CV_RestartWait = CreateConVar("l4d2_auto_hidden_wait", "10", "最后一个玩家离开后等待多少秒重启", FCVAR_NONE, true, 0.0, true, 3600.0);
 	g_CV_AdminEnable = CreateConVar("l4d2_auto_hidden_enable", "1", "管理员加入可以解除隐藏", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_CV_AdminRestart = CreateConVar("l4d2_auto_hidden_timeout_restart", "1", "临时解除隐藏超时重启", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_CV_AutoHidden = CreateConVar("l4d2_auto_hidden_non_empty", "1", "服务器有人时自动隐藏", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_CV_AdminTimeout = CreateConVar("l4d2_auto_hidden_timeout", "600", "解除隐藏超时时间(秒)", FCVAR_NONE, true, 0.0, true, 3600.0);
 	g_CV_Accelerator = CreateConVar("l4d2_auto_hidden_accelerator", "", "要卸载的扩展");
 	
@@ -62,6 +63,20 @@ public void OnClientConnected(int client)
 	
 	Handle timer = g_Timer_AutoRestart;
 	g_Timer_AutoRestart = null;
+	
+	if(g_CV_AutoHidden.BoolValue)
+	{
+		static ConVar sv_tags;
+		if(sv_tags == null)
+			sv_tags = FindConVar("sv_tags");
+		if(sv_tags != null)
+		{
+			char tags[64];
+			sv_tags.GetString(tags, 64);
+			if(StrContains(tags, "hidden", false) == -1)
+				sv_tags.SetString("hidden");
+		}
+	}
 	
 	if(timer)
 		KillTimer(timer);

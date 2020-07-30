@@ -167,6 +167,7 @@ float g_fNextCalmTime[MAXPLAYERS+1] = { 0.0, ... };
 int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
 bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
 // bool g_bIsInvulnerable[MAXPLAYERS+1];
+bool g_bDeadlineHint[MAXPLAYERS+1];
 
 enum
 {
@@ -1153,6 +1154,7 @@ void Initialization(int client, bool invalid = false)
 	g_fNextCalmTime[client] = 0.0;
 	g_cdCanTeleport[client] = true;
 	g_bIsHitByVomit[client] = false;
+	g_bDeadlineHint[client] = false;
 	// g_bIsInvulnerable[client] = false;
 	g_sLastWeapon[client][0] = '\0';
 	g_iLastWeaponClip[client] = -1;
@@ -1204,7 +1206,10 @@ bool ClientSaveToFileLoad(int client)
 			g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
 			
 			if(prev > 0)
+			{
 				PrintToServer("玩家 %N 的存档过期了", client);
+				g_bDeadlineHint[client] = true;
+			}
 		}
 	}
 	
@@ -1843,6 +1848,12 @@ void StatusChooseMenuFunc(int client)
 	menu.ExitButton = true;
 	menu.ExitBackButton = false;
 	menu.Display(client, MENU_TIME_FOREVER);
+	
+	if(g_bDeadlineHint[client])
+	{
+		g_bDeadlineHint[client] = false;
+		PrintToLeft(client, "你的存档过期了。。。");
+	}
 }
 
 public int MenuHandler_MainMenu(Menu menu, MenuAction action, int client, int selected)
@@ -10134,7 +10145,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				}
 				g_csSlapCount[client] += 300;
 				CreateTimer(0.1, CommandSlapTank, client);
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04决定游行太空,记得打开你的降落伞以免跌成大便!", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04决定游行太空,记得打开你的降落伞以免落地过猛!", client);
 			}
 			case 19:
 			{
@@ -10150,6 +10161,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				SetEntPropFloat(client,Prop_Send,"m_healthBuffer", 0.0);
 				PerformGlow(client, 3, 4713783, GetRandomInt(-32767,32767) * 128);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04成功练成了葵花宝典,生命值上升为1000.", client);
+				PrintToLeft(client, "你被强化了，快上");
 			}
 			case 20:
 			{
@@ -10582,12 +10594,14 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				if(GetEntProp(client, Prop_Send, "m_isIncapacitated"))
+				if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge"))
 				{
-					CheatCommand(client, "give", "health");
+					// CheatCommand(client, "give", "health");
+					L4D2_RunScript("script", "GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(client));
 				}
 				SetEntProp(client,Prop_Send,"m_iHealth", 1);
 				SetEntPropFloat(client,Prop_Send,"m_healthBuffer", 0.0);
+				SetEntPropFloat(client,Prop_Send,"m_healthBufferTime", GetGameTime());
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成圣女贞德受荆棘之苦血量变成1.", client);
 			}
 			case 54:

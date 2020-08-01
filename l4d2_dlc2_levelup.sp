@@ -71,6 +71,7 @@ enum()
 	SKL_1_NoRecoil = 512,
 	SKL_1_KeepClip = 1024,
 	SKL_1_ReviveBlock = 2048,
+	SKL_1_DisplayHealth = 4096,
 
 	SKL_2_Chainsaw = 1,
 	SKL_2_Excited = 2,
@@ -168,6 +169,7 @@ int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
 bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
 // bool g_bIsInvulnerable[MAXPLAYERS+1];
 bool g_bDeadlineHint[MAXPLAYERS+1];
+StringMap g_mTotalDamage[MAXPLAYERS+1];
 
 enum
 {
@@ -1156,11 +1158,13 @@ void Initialization(int client, bool invalid = false)
 	g_bIsHitByVomit[client] = false;
 	g_bDeadlineHint[client] = false;
 	// g_bIsInvulnerable[client] = false;
-	g_sLastWeapon[client][0] = '\0';
+	g_sLastWeapon[client][0] = EOS;
 	g_iLastWeaponClip[client] = -1;
 	g_bLastWeaponDual[client] = false;
 	// g_iOldRealHealth[client] = 0;
-
+	StringMap toDelete = g_mTotalDamage[client];
+	g_mTotalDamage[client] = null;
+	
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
 		g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
 		g_ttPaincEvent[client] = g_ttRescued[client] = 0;
@@ -1170,6 +1174,9 @@ void Initialization(int client, bool invalid = false)
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
+	
+	if(toDelete != null)
+		delete toDelete;
 }
 
 //读档
@@ -2238,6 +2245,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器无后坐力(可能无效)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("保守-武器换弹夹时保留原弹夹(就像CS一样)",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("坚毅-拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
+	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("察觉-显示攻击目标伤害和血量",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -3807,7 +3815,7 @@ public void OnGameFrame()
 
 		g_iWeaponSpeedTotal = 0;
 	}
-
+	
 	// 修改武器弹夹大小
 	{
 		for(int i = 1; i <= MaxClients; ++i)
@@ -3816,7 +3824,7 @@ public void OnGameFrame()
 				PlayerHook_OnReloadThink(i);
 		}
 	}
-
+	
 	static float nextSecond;
 	float curTime = GetEngineTime();
 	if(nextSecond <= curTime)
@@ -4499,12 +4507,15 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			ClientCommand(attacker, "play \"ui/littlereward.wav\"");
 		
 		damage += float(extraChanceDamage);
+		damagetype |= DMG_CRIT;
 		
+		/*
 		if(g_pCvarAllow.BoolValue)
 		{
 			// PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
 			PrintCenterText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
 		}
+		*/
 	}
 	
 	damage += float(extraDamage);
@@ -4851,6 +4862,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 			ClientCommand(attacker, "play \"ui/littlereward.wav\"");
 			damage += float(extraChanceDamage);
+			damagetype |= DMG_CRIT;
 			
 			if(g_clSkill_3[attacker] & SKL_3_Kickback)
 			{
@@ -4867,8 +4879,10 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 				}
 			}
 			
+			/*
 			if(g_pCvarAllow.BoolValue)
 				PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
+			*/
 		}
 		
 		damage += float(extraDamage);
@@ -4886,6 +4900,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 				ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 			
 			damage += extraChanceDamage / 10.0;
+			damagetype |= DMG_CRIT;
 			
 			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !IsSurvivorHeld(victim))
 			{
@@ -4917,9 +4932,11 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	if(!IsValidClient(victim))
 		return;
 
-	decl String:weapon[64];
+	static char weapon[64];
 	GetEventString(event, "weapon", weapon, sizeof(weapon));
-	new dmg = GetEventInt(event, "dmg_health");
+	int dmg = GetEventInt(event, "dmg_health");
+	int dmg_type = event.GetInt("type");
+	
 	if (attackPlayer && (StrEqual(weapon, "tank_claw") || StrEqual(weapon, "tank_rock")) &&
 		GetClientTeam(victim) == 2 && !GetEntProp(victim, Prop_Send, "m_isIncapacitated"))
 	{
@@ -4987,6 +5004,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				}
 			}
 		}
+		
 		if (StrEqual(weapon, "smg") || StrEqual(weapon, "smg_silenced") || StrEqual(weapon, "smg_mp5")
 			|| StrEqual(weapon, "rifle") || StrEqual(weapon, "rifle_sg552") || StrEqual(weapon, "rifle_ak47")
 			|| StrEqual(weapon, "autoshotgun") || StrEqual(weapon, "shotgun_spas") || StrEqual(weapon, "rifle_m60")
@@ -5030,6 +5048,32 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				AddHealth(attacker, 5);
 			}
 		}
+		
+		if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && (dmg_type & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)) && !IsFakeClient(attacker))
+		{
+			if(!(dmg_type & DMG_BUCKSHOT))
+			{
+				if(dmg_type & DMG_CRIT)
+					PrintCenterText(attacker, "对 %N 造成 %d 暴击伤害，剩余 %d", victim, dmg, GetEntProp(victim, Prop_Data, "m_iHealth"));
+				else
+					PrintCenterText(attacker, "对 %N 造成 %d 伤害，剩余 %d", victim, dmg, GetEntProp(victim, Prop_Data, "m_iHealth"));
+			}
+			else
+			{
+				if(g_mTotalDamage[attacker] == null)
+				{
+					g_mTotalDamage[attacker] = CreateTrie();
+					RequestFrame(NotifyDamageInfo, attacker);
+				}
+				
+				int history = 0;
+				static char eRef[12];
+				IntToString(EntIndexToEntRef(victim), eRef, sizeof(eRef));
+				
+				g_mTotalDamage[attacker].GetValue(eRef, history);
+				g_mTotalDamage[attacker].SetValue(eRef, history + dmg);
+			}
+		}
 	}
 	else if(attackPlayer && GetClientTeam(victim) == 2 && GetClientTeam(attacker) == 3 && IsPlayerAlive(attacker) &&
 		GetEntProp(victim, Prop_Send, "m_isIncapacitated") && IsSurvivorHeld(victim))
@@ -5047,7 +5091,6 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		}
 	}
 	
-	int dmg_type = event.GetInt("type");
 	int attackerId = event.GetInt("attackerentid");
 	if(GetClientTeam(victim) == 2 && !(dmg_type & (DMG_FALL|DMG_BURN|DMG_BLAST|DMG_BLAST|DMG_SHOCK|DMG_DROWN|DMG_SLOWBURN)))
 	{
@@ -6968,17 +7011,46 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	int damage = event.GetInt("amount");
 	int type = event.GetInt("type");
 	
-	if(!IsValidAliveClient(client) || !IsValidEntity(victim) || damage <= 0 || !(type & DMG_BULLET) ||
-		!(g_clSkill_5[client] & SKL_5_OneInfected) || GetRandomInt(0, 3))
+	if(!IsValidAliveClient(client) || !IsValidEntity(victim) || damage <= 0)
 		return;
 	
 	static char classname[64];
-	GetEdictClassname(victim, classname, 64);
+	GetEntityClassname(victim, classname, 64);
+	
+	if((g_clSkill_1[client] & SKL_1_DisplayHealth) && (type & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)) && !IsFakeClient(client))
+	{
+		if(!(type & DMG_BUCKSHOT))
+		{
+			if(type & DMG_CRIT)
+				PrintCenterText(client, "对 %s 造成 %d 暴击伤害，剩余 %d", classname, damage, GetEntProp(victim, Prop_Data, "m_iHealth"));
+			else
+				PrintCenterText(client, "对 %s 造成 %d 伤害，剩余 %d", classname, damage, GetEntProp(victim, Prop_Data, "m_iHealth"));
+		}
+		else
+		{
+			if(g_mTotalDamage[client] == null)
+			{
+				g_mTotalDamage[client] = CreateTrie();
+				RequestFrame(NotifyDamageInfo, client);
+			}
+			
+			int history = 0;
+			static char eRef[12];
+			IntToString(EntIndexToEntRef(victim), eRef, sizeof(eRef));
+			
+			g_mTotalDamage[client].GetValue(eRef, history);
+			g_mTotalDamage[client].SetValue(eRef, history + damage);
+		}
+	}
+	
+	if(!(type & DMG_BULLET) || !(g_clSkill_5[client] & SKL_5_OneInfected) || GetRandomInt(0, 3))
+		return;
+	
 	int weapon = GetEntProp(client, Prop_Send, "m_hActiveWeapon");
 	if(!StrEqual(classname, "infected", false) || !IsValidEntity(weapon))
 		return;
 	
-	GetEdictClassname(weapon, classname, 64);
+	GetEntityClassname(weapon, classname, 64);
 	if(StrContains(classname, "smg", false) != -1 || StrContains(classname, "rifle", false) != -1 ||
 		StrContains(classname, "sniper", false) != -1 || StrContains(classname, "shotgun", false) != -1)
 	{
@@ -6992,6 +7064,65 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 		// SDKHooks_TakeDamage(victim, weapon, client, cv_zombie.FloatValue, type, weapon);
 		SetEntityHealth(victim, 0);
 	}
+}
+
+public void NotifyDamageInfo(any client)
+{
+	if(g_mTotalDamage[client] == null)
+		return;
+	
+	if(g_mTotalDamage[client].Size <= 0)
+	{
+		delete g_mTotalDamage[client];
+		g_mTotalDamage[client] = null;
+		return;
+	}
+	
+	StringMapSnapshot snap = g_mTotalDamage[client].Snapshot();
+	int size = snap.Length;
+	
+	static char eRef[12];
+	static char msg[255];
+	msg[0] = EOS;
+	
+	for(int i = 0; i < size; ++i)
+	{
+		snap.GetKey(i, eRef, sizeof(eRef));
+		int entity = StringToInt(eRef);
+		if(entity == INVALID_ENT_REFERENCE)
+			continue;
+		
+		entity = EntRefToEntIndex(entity);
+		if(entity <= 0 || !IsValidEntity(entity))
+			continue;
+		
+		int dmg = -1;
+		if(!g_mTotalDamage[client].GetValue(eRef, dmg) || dmg <= 0)
+			continue;
+		
+		if(IsValidClient(entity))
+		{
+			Format(msg, sizeof(msg), "%s%N|伤害%d|剩余%d\n", msg, entity, dmg, GetEntProp(entity, Prop_Data, "m_iHealth"));
+		}
+		else
+		{
+			static char classname[64];
+			if(!GetEntityClassname(entity, classname, sizeof(classname)))
+				continue;
+			
+			if(!strcmp(classname, "infected", false))
+				Format(msg, sizeof(msg), "%s普感%d|伤害%d|剩余%d\n", msg, entity, dmg, GetEntProp(entity, Prop_Data, "m_iHealth"));
+			else if(!strcmp(classname, "witch", false))
+				Format(msg, sizeof(msg), "%s萌妹%d|伤害%d|剩余%d\n", msg, entity, dmg, GetEntProp(entity, Prop_Data, "m_iHealth"));
+		}
+	}
+	
+	if(msg[0] != EOS)
+		PrintCenterText(client, msg);
+	
+	delete snap;
+	delete g_mTotalDamage[client];
+	g_mTotalDamage[client] = null;
 }
 
 public void Event_RoundWin(Event event, const char[] eventName, bool dontBroadcast)

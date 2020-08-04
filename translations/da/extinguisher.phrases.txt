@@ -10,11 +10,11 @@
 	}
 	"Ext_ChatTagFreezerspray"
 	{
-		"da"	"{olive}[Frysestråle {default}"
+		"da"	"{olive}[FrysestrÃ¥le {default}"
 	}
 	"Ext_ChatTagBlastpushback"
 	{
-		"da"	"{olive}[Højtryk blæser] {default}"
+		"da"	"{olive}[HÃ¸jtryk blÃ¦ser] {default}"
 	}
 	"Ext_WeaponName"
 	{
@@ -22,11 +22,11 @@
 	}
 	"Ext_Blocked"
 	{
-		"da"	"Du kan kun bruge en brandslukker hvis du bære '{olive}<WEAPON>{default}'."
+		"da"	"Du kan kun bruge en brandslukker hvis du bÃ¦re '{olive}<WEAPON>{default}'."
 	}
 	"Ext_Broken"
 	{
-		"da"	"var ødelagt af {olive}<NAME>{default}."
+		"da"	"var Ã¸delagt af {olive}<NAME>{default}."
 	}
 	"Ext_EquipFull"
 	{
@@ -34,47 +34,47 @@
 	}
 	"Ext_EquipHasCheck"
 	{
-		"da"	"Du bære den allerede. Du skal have en '{olive}<WEAPON>{default}' for at bruge den"
+		"da"	"Du bÃ¦re den allerede. Du skal have en '{olive}<WEAPON>{default}' for at bruge den"
 	}
 	"Ext_EquipHasCombo"
 	{
-		"da"	"Du bære den allerede! Flammekaster (primær angrebs knap), Brandslukker (zoom-knapen) og Højtryk-blæser (Langsomt gå + zoom knappen). Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
+		"da"	"Du bÃ¦re den allerede! Flammekaster (primÃ¦r angrebs knap), Brandslukker (zoom-knapen) og HÃ¸jtryk-blÃ¦ser (Langsomt gÃ¥ + zoom knappen). Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
 	}
 	"Ext_EquipCombo"
 	{
-		"da"	"båret. Flammekaster (primær angrebs-knap) og Brandslukker (zoom-knappen). Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
+		"da"	"bÃ¥ret. Flammekaster (primÃ¦r angrebs-knap) og Brandslukker (zoom-knappen). Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
 	}
 	"Ext_EquipUseExtinguisher"
 	{
-		"da"	"båret. Sluk molotov cocktail og fyrværkeri. Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
+		"da"	"bÃ¥ret. Sluk molotov cocktail og fyrvÃ¦rkeri. Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
 	}
 	"Ext_EquipUseFlamethrower"
 	{
-		"da"	"båret. Brænd fjender og sæt ild til physike genstande. Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
+		"da"	"bÃ¥ret. BrÃ¦nd fjender og sÃ¦t ild til physike genstande. Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
 	}
 	"Ext_EquipUseFreezerspray"
 	{
-		"da"	"båret. Spray og skub fjender for at gøre dem langsommere. Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
+		"da"	"bÃ¥ret. Spray og skub fjender for at gÃ¸re dem langsommere. Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
 	}
 	"Ext_EquipUseBlastpushback"
 	{
-		"da"	"båret. Blæser overlevende og specielle inficerede væk fra dig."
+		"da"	"bÃ¥ret. BlÃ¦ser overlevende og specielle inficerede vÃ¦k fra dig."
 	}
 	"Ext_EmptyExtinguisher"
 	{
-		"da"	"Brandslukker benzin: Tømt!"
+		"da"	"Brandslukker benzin: TÃ¸mt!"
 	}
 	"Ext_EmptyFlamethrower"
 	{
-		"da"	"Flammekaster benzin: Tømt!"
+		"da"	"Flammekaster benzin: TÃ¸mt!"
 	}
 	"Ext_EmptyFreezerspray"
 	{
-		"da"	"Frysestråle benzin: Tømt!"
+		"da"	"FrysestrÃ¥le benzin: TÃ¸mt!"
 	}
 	"Ext_EmptyBlastpushback"
 	{
-		"da"	"Blæser benzin: Tømt!"
+		"da"	"BlÃ¦ser benzin: TÃ¸mt!"
 	}
 	"Ext_FuelExtinguisher"
 	{
@@ -90,15 +90,15 @@
 	}
 	"Ext_FuelBlastpushback"
 	{
-		"da"	"Blæser benzin:"
+		"da"	"BlÃ¦ser benzin:"
 	}
 	"Ext_Incapped"
 	{
-		"da"	"Du kan bruge ildslukkeren mens du er nede. Tryk på genladsknappen (eller {olive}!dropext{default} i chatten)."
+		"da"	"Du kan bruge ildslukkeren mens du er nede. Tryk pÃ¥ genladsknappen (eller {olive}!dropext{default} i chatten)."
 	}
 	"Ext_Refuel"
 	{
-		"da"	"Du kan genopfylde ildslukkere der er blevet smidt mens du holder en benzin dunk. Sigt på ildslukkeren og hold SKYD (venstre mus). Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
+		"da"	"Du kan genopfylde ildslukkere der er blevet smidt mens du holder en benzin dunk. Sigt pÃ¥ ildslukkeren og hold SKYD (venstre mus). Genlad for at smide den (eller skriv {olive}!dropext{default} i chatten)."
 	}
 	"Ext_Refueled"
 	{

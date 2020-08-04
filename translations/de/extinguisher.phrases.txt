@@ -2,7 +2,7 @@
 {
 	"Ext_ChatTagExtinguisher"
 	{
-		"de"	"{olive}[Feuerlöscher] {default}"
+		"de"	"{olive}[FeuerlÃ¶scher] {default}"
 	}
 	"Ext_ChatTagFlamethrower"
 	{
@@ -22,47 +22,47 @@
 	}
 	"Ext_Blocked"
 	{
-		"de"	"Du kannst Feuerlöscher nur benutzen, wenn du folgende Waffe hast: '{olive}<WEAPON>{default}'"
+		"de"	"Du kannst FeuerlÃ¶scher nur benutzen, wenn du folgende Waffe hast: '{olive}<WEAPON>{default}'"
 	}
 	"Ext_Broken"
 	{
-		"de"	"wurde zerstört von {olive}<NAME>{default}."
+		"de"	"wurde zerstÃ¶rt von {olive}<NAME>{default}."
 	}
 	"Ext_EquipFull"
 	{
-		"de"	"Zu viele Spieler benutzen bereits Feuerlöscher."
+		"de"	"Zu viele Spieler benutzen bereits FeuerlÃ¶scher."
 	}
 	"Ext_EquipHasCheck"
 	{
-		"de"	"Bereits angelegt! Benötigt folgende Waffe zum Benutzen: '{olive}<WEAPON>{default}'"
+		"de"	"Bereits angelegt! BenÃ¶tigt folgende Waffe zum Benutzen: '{olive}<WEAPON>{default}'"
 	}
 	"Ext_EquipHasCombo"
 	{
-		"de"	"Bereits angelegt! Flammenwerfer (Primäre Angriffstaste), Feuerlöscher (Zoomtaste) und Pressluftflasche (Gehen + Zoomtaste). {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
+		"de"	"Bereits angelegt! Flammenwerfer (PrimÃ¤re Angriffstaste), FeuerlÃ¶scher (Zoomtaste) und Pressluftflasche (Gehen + Zoomtaste). {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
 	}
 	"Ext_EquipCombo"
 	{
-		"de"	"angelegt. Flammenwerfer (Primäre Angriffstaste) und Feuerlöscher (Zoomtaste). {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
+		"de"	"angelegt. Flammenwerfer (PrimÃ¤re Angriffstaste) und FeuerlÃ¶scher (Zoomtaste). {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
 	}
 	"Ext_EquipUseExtinguisher"
 	{
-		"de"	"angelegt. Lösche Molotows und Feuerwerk Explosionen. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
+		"de"	"angelegt. LÃ¶sche Molotows und Feuerwerk Explosionen. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
 	}
 	"Ext_EquipUseFlamethrower"
 	{
-		"de"	"angelegt. Verbrenne Gegner und entzünde 'prop_physics'. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
+		"de"	"angelegt. Verbrenne Gegner und entzÃ¼nde 'prop_physics'. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
 	}
 	"Ext_EquipUseFreezerspray"
 	{
-		"de"	"angelegt. Sprühe Gegner ein und stoße sie weg, um sie langsamer zu machen. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
+		"de"	"angelegt. SprÃ¼he Gegner ein und stoÃŸe sie weg, um sie langsamer zu machen. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
 	}
 	"Ext_EquipUseBlastpushback"
 	{
-		"de"	"angelegt. Schießt Überlebende und besondere Infizierte weg von dir. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
+		"de"	"angelegt. SchieÃŸt Ãœberlebende und besondere Infizierte weg von dir. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
 	}
 	"Ext_EmptyExtinguisher"
 	{
-		"de"	"Feuerlöscher-Treibstoff: Leer!"
+		"de"	"FeuerlÃ¶scher-Treibstoff: Leer!"
 	}
 	"Ext_EmptyFlamethrower"
 	{
@@ -78,7 +78,7 @@
 	}
 	"Ext_FuelExtinguisher"
 	{
-		"de"	"Feuerlöscher-Treibstoff:"
+		"de"	"FeuerlÃ¶scher-Treibstoff:"
 	}
 	"Ext_FuelFlamethrower"
 	{
@@ -94,14 +94,14 @@
 	}
 	"Ext_Incapped"
 	{
-		"de"	"Du kannst den Feuerlöscher benutzen während du außer Gefecht gesetzt bist. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
+		"de"	"Du kannst den FeuerlÃ¶scher benutzen wÃ¤hrend du auÃŸer Gefecht gesetzt bist. {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
 	}
 	"Ext_Refuel"
 	{
-		"de"	"Du kannst abgelegte Feuerlöscher mit einem Kanister nachfüllen. Ziele auf den Feuerlöscher während du den Kanister hältst und halte SCHIEßEN (linke Maustaste). {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
+		"de"	"Du kannst abgelegte FeuerlÃ¶scher mit einem Kanister nachfÃ¼llen. Ziele auf den FeuerlÃ¶scher wÃ¤hrend du den Kanister hÃ¤ltst und halte SCHIEÃŸEN (linke Maustaste). {olive}Nachladen{default} zum Ablegen (oder {olive}!dropext{default} im Chat)."
 	}
 	"Ext_Refueled"
 	{
-		"de"	"Wurde nachgefüllt!"
+		"de"	"Wurde nachgefÃ¼llt!"
 	}
 }

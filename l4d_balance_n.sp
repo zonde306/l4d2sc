@@ -60,30 +60,31 @@ int AdustTick;
 int DirectorStopTick;
 bool DirectorStoped;
 
-Handle l4d_balance_difficulty_min;
-Handle l4d_balance_difficulty_max;
+ConVar l4d_balance_difficulty_min;
+ConVar l4d_balance_difficulty_max;
 
-Handle l4d_balance_enable; 
-Handle l4d_balance_reaction_time; 
-Handle l4d_balance_setting_password; 
+ConVar l4d_balance_enable; 
+ConVar l4d_balance_reaction_time; 
+ConVar l4d_balance_setting_password;
+ConVar l4d_balance_hud;
 
-Handle l4d_balance_include_bot;
+ConVar l4d_balance_include_bot;
 
-Handle l4d_balance_health_increment; 
-Handle l4d_balance_health_witch;
-Handle l4d_balance_health_tank; 
-Handle l4d_balance_health_hunter;
-Handle l4d_balance_health_smoker; 
-Handle l4d_balance_health_boomer;
-Handle l4d_balance_health_charger; 
-Handle l4d_balance_health_jockey; 
-Handle l4d_balance_health_spitter; 
-Handle l4d_balance_health_zombie; 
+ConVar l4d_balance_health_increment; 
+ConVar l4d_balance_health_witch;
+ConVar l4d_balance_health_tank; 
+ConVar l4d_balance_health_hunter;
+ConVar l4d_balance_health_smoker; 
+ConVar l4d_balance_health_boomer;
+ConVar l4d_balance_health_charger; 
+ConVar l4d_balance_health_jockey; 
+ConVar l4d_balance_health_spitter; 
+ConVar l4d_balance_health_zombie; 
 
-Handle l4d_balance_limit_special; 
-Handle l4d_balance_limit_special_add; 
-Handle l4d_balance_limit_common;
-Handle l4d_balance_limit_common_add;
+ConVar l4d_balance_limit_special; 
+ConVar l4d_balance_limit_special_add; 
+ConVar l4d_balance_limit_common;
+ConVar l4d_balance_limit_common_add;
 
 public void OnPluginStart()
 {
@@ -92,40 +93,47 @@ public void OnPluginStart()
 	l4d_balance_enable = CreateConVar("l4d_balance_enable", "1", "是否开启插件", FCVAR_NONE, true, 0.0, true, 1.0);
 	l4d_balance_reaction_time = CreateConVar("l4d_balance_reaction_time", "10", "平衡反应时间", FCVAR_NONE, true, 1.0, true, 30.0); 
 	
-	l4d_balance_difficulty_min = 	CreateConVar("l4d_balance_difficulty_min", "25", "最小难度", FCVAR_NONE, true, 0.0, true, 100.0);
-	l4d_balance_difficulty_max = 	CreateConVar("l4d_balance_difficulty_max", "75", "最大难度", FCVAR_NONE, true, 0.0, true, 100.0);	
-	l4d_balance_include_bot = 	 	CreateConVar("l4d_balance_include_bot", "0", "平衡是否包括机器人.0=不包括.1=包括", FCVAR_NONE, true, 0.0, true, 1.0); 
+	l4d_balance_difficulty_min = 	CreateConVar("l4d_balance_difficulty_min", "30", "最小难度", FCVAR_NONE, true, 0.0, true, 100.0);
+	l4d_balance_difficulty_max = 	CreateConVar("l4d_balance_difficulty_max", "90", "最大难度", FCVAR_NONE, true, 0.0, true, 100.0);	
+	l4d_balance_include_bot = 	 	CreateConVar("l4d_balance_include_bot", "1", "平衡是否包括机器人.0=不包括.1=包括", FCVAR_NONE, true, 0.0, true, 1.0); 
+	l4d_balance_hud = 	 			CreateConVar("l4d_balance_hud", "1", "自动开启HUD", FCVAR_NONE, true, 0.0, true, 1.0); 
 	l4d_balance_setting_password = 	CreateConVar("l4d_balance_setting_password", "", "password for seting diffulty"); 
 
-	l4d_balance_health_increment = 	CreateConVar("l4d_balance_health_add", "20", "没加入一名生还者，特感血量加多少(百分比)", FCVAR_NONE, true); 	
-	l4d_balance_health_tank = 		CreateConVar("l4d_balance_health_tank", "8000", "tank 初始血量"); 	
-	l4d_balance_health_witch =		CreateConVar("l4d_balance_health_witch", "1000", "witch 初始血量");
-	l4d_balance_health_hunter =		CreateConVar("l4d_balance_health_hunter", "250", "hunter 初始血量"); 
-	l4d_balance_health_smoker = 	CreateConVar("l4d_balance_health_smoker", "250", "smoker 初始血量"); 
-	l4d_balance_health_boomer =		CreateConVar("l4d_balance_health_boomer", "50", "boomer 初始血量"); 
-	l4d_balance_health_charger = 	CreateConVar("l4d_balance_health_charger", "600", "charger 初始血量"); 
-	l4d_balance_health_jockey = 	CreateConVar("l4d_balance_health_jockey", "325", "jockey 初始血量"); 
-	l4d_balance_health_spitter = 	CreateConVar("l4d_balance_health_spitter", "100", "spitter 初始血量"); 
-	l4d_balance_health_zombie = 	CreateConVar("l4d_balance_health_zombie", "50", "zombie 初始血量"); 
+	l4d_balance_health_increment = 	CreateConVar("l4d_balance_health_add", "20", "每加入一名生还者，特感血量加多少(百分比)", FCVAR_NONE, true); 	
+	l4d_balance_health_tank = 		CreateConVar("l4d_balance_health_tank", "8000", "tank 初始血量", FCVAR_NONE, true, 1.0); 	
+	l4d_balance_health_witch =		CreateConVar("l4d_balance_health_witch", "1000", "witch 初始血量", FCVAR_NONE, true, 1.0);
+	l4d_balance_health_hunter =		CreateConVar("l4d_balance_health_hunter", "250", "hunter 初始血量", FCVAR_NONE, true, 1.0); 
+	l4d_balance_health_smoker = 	CreateConVar("l4d_balance_health_smoker", "250", "smoker 初始血量", FCVAR_NONE, true, 1.0); 
+	l4d_balance_health_boomer =		CreateConVar("l4d_balance_health_boomer", "50", "boomer 初始血量", FCVAR_NONE, true, 1.0); 
+	l4d_balance_health_charger = 	CreateConVar("l4d_balance_health_charger", "600", "charger 初始血量", FCVAR_NONE, true, 1.0); 
+	l4d_balance_health_jockey = 	CreateConVar("l4d_balance_health_jockey", "325", "jockey 初始血量", FCVAR_NONE, true, 1.0); 
+	l4d_balance_health_spitter = 	CreateConVar("l4d_balance_health_spitter", "100", "spitter 初始血量", FCVAR_NONE, true, 1.0); 
+	l4d_balance_health_zombie = 	CreateConVar("l4d_balance_health_zombie", "50", "普感 初始血量", FCVAR_NONE, true, 1.0); 
 
-	l4d_balance_limit_special	= 	CreateConVar("l4d_balance_limit_special", "4", "初始特感上限");
-	l4d_balance_limit_special_add = CreateConVar("l4d_balance_limit_special_add", "1.5", "没加入一名生还者，特感上限增加多少");
-	l4d_balance_limit_common = 		CreateConVar("l4d_balance_limit_common", "30", "初始普感上限"); 
-	l4d_balance_limit_common_add = 	CreateConVar("l4d_balance_limit_common_add", "6.5", "没加入一名生还者，普感上限增加多少"); 
+	l4d_balance_limit_special	= 	CreateConVar("l4d_balance_limit_special", "4", "初始特感上限", FCVAR_NONE, true, 0.0);
+	l4d_balance_limit_special_add = CreateConVar("l4d_balance_limit_special_add", "1.5", "每加入一名生还者，特感上限增加多少", FCVAR_NONE, true, 0.0);
+	l4d_balance_limit_common = 		CreateConVar("l4d_balance_limit_common", "30", "初始普感上限", FCVAR_NONE, true, 0.0); 
+	l4d_balance_limit_common_add = 	CreateConVar("l4d_balance_limit_common_add", "6.5", "每加入一名生还者，普感上限增加多少", FCVAR_NONE, true, 0.0); 
  	
 	AutoExecConfig(true, "l4d_balance");
 	
 	RegConsoleCmd("sm_balance", sm_balance); 
 	RegConsoleCmd("sm_difficulty", sm_difficulty); 
 	RegConsoleCmd("sm_dinfo", sm_dinfo); 
-	HookEvent("player_spawn", player_spawn);	
+	HookEvent("player_spawn", player_spawn);
+	HookEvent("player_first_spawn", player_first_spawn);
 	HookEvent("player_death", player_death); 
 	
-	HookEvent("round_start", round_start);
-	HookEvent("round_end", round_end);
-	HookEvent("finale_win", map_transition);
-	HookEvent("mission_lost", round_end);
-	HookEvent("map_transition",  map_transition);	  	
+	HookEvent("round_start", round_start, EventHookMode_PostNoCopy);
+	HookEvent("round_end", round_end, EventHookMode_PostNoCopy);
+	HookEvent("finale_win", map_transition, EventHookMode_PostNoCopy);
+	HookEvent("mission_lost", round_end, EventHookMode_PostNoCopy);
+	HookEvent("round_start_pre_entity",  round_end, EventHookMode_PostNoCopy);
+	HookEvent("round_start_post_nav",  round_end, EventHookMode_PostNoCopy);
+	HookEvent("map_transition",  map_transition, EventHookMode_PostNoCopy);
+	HookEvent("player_left_start_area", player_left_start_area, EventHookMode_PostNoCopy);
+	HookEvent("survival_round_start", player_left_start_area, EventHookMode_PostNoCopy);
+	// HookEvent("door_unlocked", door_unlocked);
 	ResetAllState();
 }
 
@@ -196,7 +204,7 @@ public Action sm_difficulty(int client, int args)
 	}
 }
 
-public Action player_spawn(Event hEvent, const char[] strName, bool DontBroadcast)
+public void player_spawn(Event hEvent, const char[] strName, bool DontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid")); 
 	if(client > 0)
@@ -206,8 +214,25 @@ public Action player_spawn(Event hEvent, const char[] strName, bool DontBroadcas
 	}
 }
 
-public Action player_death(Event hEvent, const char[] strName, bool DontBroadcast)
+public void player_first_spawn(Event hEvent, const char[] strName, bool DontBroadcast)
 {
+	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
+	if(client > 0 && client <= MaxClients && IsClientInGame(client) && GetClientTeam(client) == 3)
+	{
+		int zClass = GetEntProp(client, Prop_Send, "m_zombieClass");
+		if(zClass == 8)
+		{
+			SetEntProp(client, Prop_Data, "m_iHealth", GetConVarInt(l4d_balance_health_tank));
+			SetEntProp(client, Prop_Data, "m_iMaxHealth", GetConVarInt(l4d_balance_health_tank));
+		}
+	}
+}
+
+public void player_death(Event hEvent, const char[] strName, bool DontBroadcast)
+{
+	if(!GetConVarBool(l4d_balance_hud))
+		return;
+	
 	int client = GetClientOfUserId(GetEventInt(hEvent, "userid"));
 	if(client > 0)
 	{
@@ -216,20 +241,34 @@ public Action player_death(Event hEvent, const char[] strName, bool DontBroadcas
 	}
 }
 
-public Action round_start(Event event, const char[] name, bool dontBroadcast)
+public void round_start(Event event, const char[] name, bool dontBroadcast)
 {
 	int flags = GetConVarFlags(FindConVar("z_max_player_zombies"));
 	SetConVarBounds(FindConVar("z_max_player_zombies"), ConVarBound_Upper, false);
 	SetConVarFlags(FindConVar("z_max_player_zombies"), flags & ~FCVAR_NOTIFY);
 
-	if(GameMode != 1) return;
-	CreateTimer(1.0, TimerUpdatePlayer, 0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);	
-	CreateTimer(1.5, TimerShowHud, 0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-	CreateTimer(30.0, TimerDelayStartAjust, 0, TIMER_FLAG_NO_MAPCHANGE);			
+	if(GameMode != 1) return;		
 	ResetAllState();
 }
 
-public Action round_end(Event event, const char[] name, bool dontBroadcast)
+public void player_left_start_area(Event event, const char[] name, bool dontBroadcast)
+{
+	if(GameMode != 1) return;	
+	CreateTimer(1.0, TimerUpdatePlayer, 0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);	
+	CreateTimer(1.5, TimerShowHud, 0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(30.0, TimerDelayStartAjust, 0, TIMER_FLAG_NO_MAPCHANGE);	
+	PrintToServer("balance: player_left_start_area");
+}
+
+public void door_unlocked(Event event, const char[] name, bool dontBroadcast)
+{
+	if(GameMode != 1) return;	
+	CreateTimer(1.0, TimerUpdatePlayer, 0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);	
+	CreateTimer(1.5, TimerShowHud, 0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(30.0, TimerDelayStartAjust, 0, TIMER_FLAG_NO_MAPCHANGE);
+}
+
+public void round_end(Event event, const char[] name, bool dontBroadcast)
 {
 	ResetAllState();
 	for (int i = 1; i <= MaxClients; i++)
@@ -247,7 +286,7 @@ public Action round_end(Event event, const char[] name, bool dontBroadcast)
 	}	
 }
 
-public Action map_transition(Event event, const char[] name, bool dontBroadcast)
+public void map_transition(Event event, const char[] name, bool dontBroadcast)
 {
 	int totalaverage = AllTotalIntensity / AllTotalTick; 
 	PrintToServer("\x04[balance] \x01Map Change"); 

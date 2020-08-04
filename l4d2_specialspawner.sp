@@ -79,6 +79,8 @@ public OnPluginStart() {
 	HookEvent("mission_lost", OnRoundOver, EventHookMode_PostNoCopy);
 	HookEvent("map_transition", OnRoundOver, EventHookMode_PostNoCopy);
 	HookEvent("round_end", OnRoundOver, EventHookMode_PostNoCopy);
+	HookEvent("round_start_pre_entity", OnRoundOver, EventHookMode_PostNoCopy);
+	HookEvent("round_start_post_nav", OnRoundOver, EventHookMode_PostNoCopy);
 	HookEvent("survival_round_start", OnSurvivalRoundStart, EventHookMode_PostNoCopy);
 	// Faster spawns
 	HookEvent("player_death", OnPlayerDeath, EventHookMode_PostNoCopy);
@@ -182,6 +184,7 @@ public void OnGamemodeCoop(const char[] output, int caller, int activator, float
 	// PrintToChatAll("聊天框输入 4jk/5jk/6jk/7jk/8jk/9jk/10jk/11jk/12jk 切换为Jockey模式并设置数量。");
 	// PrintToChatAll("聊天框输入 4si/5si/6si/7si/8si/9si/10si/11si/12si 设置特感数量。");
 	// PrintToChatAll("聊天框输入 5s/10s/15s/20s/25s/30s/35s/40s/45s 设置刷特间隔。");
+	PrintToServer("SpecialSpawnner: start");
 }
 
 public void OnGamemodeVersus(const char[] output, int caller, int activator, float delay)
@@ -263,7 +266,8 @@ public void OnClientPutInServer(int client)
 public void OnRoundOver(Event event, const char[] name, bool dontBroadcast) {
 	EndSpawnTimer();
 	g_bAlreadyStart = false;
-	PrintToChatAll("\x03[SS]\x01 刷特感停止。");
+	// PrintToChatAll("\x03[SS]\x01 刷特感停止。");
+	PrintToServer("SpecialSpawnner: stop");
 }
 
 public void Event_PaincEventStart(Event event, const char[] name, bool dontBroadcast)

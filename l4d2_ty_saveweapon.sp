@@ -77,6 +77,8 @@ public void OnPluginStart()
 	HookEvent("player_spawn",   			Event_PlayerSpawn);
 	HookEvent("player_bot_replace", 		Event_Player_Bot_Replace);
 	HookEvent("bot_player_replace", 		Event_Bot_Player_Replace);
+	HookEvent("player_left_start_area", 	Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("door_unlocked", 				Event_DoorUnlocked);
 	
 	g_hNoob 								= CreateConVar("l4d2_ty_noob",							"0", "开局给冲锋枪", FCVAR_NOTIFY);
 	g_hClearAfterCampaign 					= CreateConVar("l4d2_ty_clear_after_campaign", 			"1", "开局缓存武器模型", FCVAR_NOTIFY);
@@ -201,7 +203,23 @@ public Action timer_Give(Handle handle, int userid)
 // --------------------------------------
 // Turns off appropriation after 10 sec, to prevent idle bots from getting different stuff
 // --------------------------------------
-public Action timer_StopAppropriate(Handle handle, int client) {g_bCanAppropriate = false;}
+public Action timer_StopAppropriate(Handle handle, int client)
+{
+	g_bCanAppropriate = false;
+}
+
+public void Event_PlayerLeftStartArea(Handle event, char[] name, bool dontBroadcast)
+{
+	g_bCanAppropriate = false;
+}
+
+public void Event_DoorUnlocked(Handle event, char[] name, bool dontBroadcast)
+{
+	if(!GetEventBool(event, "checkpoint"))
+		return;
+	
+	g_bCanAppropriate = false;
+}
 
 // --------------------------------------
 // Bot -> Player

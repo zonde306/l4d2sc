@@ -6770,8 +6770,9 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	
 	if(award == 81)
 	{
-		// 克局过后没有死亡
-		// GiveSkillPoint(client, 1);
+		if(!g_pCvarAllow.BoolValue)
+			// 克局过后没有死亡
+			GiveSkillPoint(client, 1);
 
 		// if(g_pCvarAllow.BoolValue)
 			// PrintToChat(client, "\x03[提示]\x01 你因为克局过后没有死亡获得 \x051\x01 天赋点。");

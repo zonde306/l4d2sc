@@ -1,16 +1,68 @@
-#define PLUGIN_VERSION		"1.9"
+/*
+*	Extinguisher and Flamethrower
+*	Copyright (C) 2020 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
-/*=======================================================================================
+
+
+#define PLUGIN_VERSION		"1.13"
+
+/*======================================================================================
 	Plugin Info:
 
 *	Name	:	[L4D & L4D2] Extinguisher and Flamethrower
 *	Author	:	SilverShot
 *	Descrp	:	Usable Extinguishers.
-*	Link	:	http://forums.alliedmods.net/showthread.php?t=160232
-*	Plugins	:	http://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
+*	Link	:	https://forums.alliedmods.net/showthread.php?t=160232
+*	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
 ========================================================================================
 	Change Log:
+
+1.13 (15-Jul-2020)
+	- Fixed players getting stuck when an extinguisher breaks during pick up. Thanks to "xZk" for reporting.
+	- Fixed L4D1 throwing errors from blocking glow cvars. Thanks to no one for reporting.
+	- Made compatible with the "Weapon Charms" plugin version 1.7+ only.
+
+1.12 (15-May-2020)
+	- Fixed the Blast Pushback type not flinging players when they are too close.
+	- Fixed the Extinguisher not displaying after reviving someone.
+	- Replaced "point_hurt" entity with "SDKHooks_TakeDamage" function.
+
+1.11 (10-May-2020)
+	- Added better error log message when gamedata file is missing.
+	- Blocked glow convars being generated for L4D1 which does not support glows.
+	- Fixed Blast Pushback type making players stumble instead of throwing them due to 1.9.2 changes.
+	- Various changes to tidy up code.
+	- Various optimizations and fixes.
+
+1.10 (01-Apr-2020)
+	- Fixed "IsAllowedGameMode" from throwing errors when the "_tog" cvar was changed before MapStart.
+	- Removed "colors.inc" dependency.
+	- Updated these translation file encodings to UTF-8 (to display all characters correctly): Danish (da), German (de).
+
+1.9.3 (04-Mar-2020)
+	- Minor changes to source, has no affect.
+
+1.9.2 (10-Oct-2019)
+	- Fixed entity leak - not deleting an entity after use.
+	- Blast Pushback now pushes Common and Witches away.
+
+1.9.1 (28-Jun-2019)
+	- Changed PrecacheParticle method.
 
 1.9 (05-May-2018)
 	- Converted plugin source to the latest syntax utilizing methodmaps. Requires SourceMod 1.8 or newer.
@@ -93,19 +145,19 @@
 	If I have used your code and not credited you, please let me know.
 
 *	Thanks to "DJ_WEST" For Chainsaw Refueling code showing usage of point_prop_use_target.
-	http://forums.alliedmods.net/showthread.php?t=121983
+	https://forums.alliedmods.net/showthread.php?t=121983
 
 ======================================================================================*/
 
 #pragma semicolon 1
 
-#include <colors>
 #pragma newdecls required
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 
 #define CVAR_FLAGS				FCVAR_NOTIFY
+#define GAMEDATA				"l4d_extinguisher"
 #define CONFIG_SPAWNS			"data/l4d_extinguisher.cfg"
 #define MAX_ALLOWED				32
 
@@ -130,7 +182,7 @@
 
 ConVar g_hCvarAllow, g_hCvarBreak, g_hCvarCheck, g_hCvarCombo, g_hCvarDamage, g_hCvarFlame, g_hCvarFreq, g_hCvarFriend, g_hCvarFuel, g_hCvarGlowB, g_hCvarGlowE, g_hCvarGlowF, g_hCvarGlowRan, g_hCvarGlowS, g_hCvarGrab, g_hCvarHint, g_hCvarIncap, g_hCvarMax, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarPush, g_hCvarPushFuel, g_hCvarPushTime, g_hCvarRandom, g_hCvarRange, g_hCvarRemove, g_hCvarSpray, g_hCvarTime, g_hCvarTimeOut, g_hCvarTimed, g_hCvarType, g_hCvarView, g_hCvarVomit, g_hCvarWeapon;
 int g_iCvarBreak, g_iCvarCheck, g_iCvarCombo, g_iCvarDamage, g_iCvarFlame, g_iCvarFriend, g_iCvarFuel, g_iCvarGlowB, g_iCvarGlowE, g_iCvarGlowF, g_iCvarGlowRan, g_iCvarGlowS, g_iCvarGrab, g_iCvarHint, g_iCvarIncap, g_iCvarMax, g_iCvarPush, g_iCvarPushFuel, g_iCvarRandom, g_iCvarRemove, g_iCvarSpray, g_iCvarTime, g_iCvarType, g_iCvarView, g_iCvarVomit;
-bool g_bCvarAllow;
+bool g_bCvarAllow, g_bMapStarted;
 char g_sCvarWeapon[32];
 float g_fCvarFreq, g_fCvarPushTime, g_fCvarRange, g_fCvarTimed, g_fCvarTimeout;
 
@@ -146,8 +198,7 @@ int g_iPlayerData[MAXPLAYERS+1][6];	// [0] = prop_dynamic, [1] = info_particle, 
 int g_iRefuel[MAXPLAYERS+1][3];		// [0] = Gascan Index, [1] = point_prop_use_target, [2] = g_iDropped extinguisher index.
 int g_iGunSlot[MAXPLAYERS+1];		// [0] = Primary Slot, [1] = Melee, [2] = Melee slot when incapped (returns to 0 after).
 int g_iHooked[MAXPLAYERS+1];		// SDKHooks PreThink 0=Off/1=On.
-Handle g_hTimeout[MAXPLAYERS+1];
-Handle g_hTimepre[MAXPLAYERS+1];
+float g_fTimeout[MAXPLAYERS+1];		// Timeouts
 
 
 enum ()
@@ -184,6 +235,12 @@ enum ()
 	INDEX_BLOCK
 }
 
+// "Weapon Charms" plugin compatibility
+bool g_bCharmsPlugin;
+native void Charms_Create(int client, int index = 0);
+native void Charms_Delete(int client);
+native int Charms_GetIndex(int client);
+
 
 
 // ====================================================================================================
@@ -191,11 +248,11 @@ enum ()
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "灭火器",
+	name = "[L4D & L4D2] Extinguisher and Flamethrower",
 	author = "SilverShot",
 	description = "Usable Extinguishers.",
 	version = PLUGIN_VERSION,
-	url = "http://forums.alliedmods.net/showthread.php?t=160232"
+	url = "https://forums.alliedmods.net/showthread.php?t=160232"
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -208,20 +265,41 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
 	}
+
+	MarkNativeAsOptional("Charms_Create");
+	MarkNativeAsOptional("Charms_Delete");
+	MarkNativeAsOptional("Charms_GetIndex");
+
 	return APLRes_Success;
+}
+
+public void OnLibraryAdded(const char[] name)
+{
+	if( strcmp(name, "charms_silvers") == 0 )
+		g_bCharmsPlugin = true;
+}
+
+public void OnLibraryRemoved(const char[] name)
+{
+	if( strcmp(name, "charms_silvers") == 0 )
+		g_bCharmsPlugin = false;
 }
 
 public void OnPluginStart()
 {
 	// SDK Calls
-	Handle hGameConf = LoadGameConfigFile("l4d_extinguisher");
-	if( hGameConf == null )
-		SetFailState("Failed to load gamedata: l4d_extinguisher.txt");
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", GAMEDATA);
+	if( FileExists(sPath) == false ) SetFailState("\n==========\nMissing required file: \"%s\".\nRead installation instructions again.\n==========", sPath);
+
+	Handle hGameData = LoadGameConfigFile(GAMEDATA);
+	if( hGameData == null ) SetFailState("Failed to load \"%s.txt\" gamedata.", GAMEDATA);
 
 	StartPrepSDKCall(SDKCall_Player);
-	if( PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "CTerrorPlayer::OnITExpired") == false )
+	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnITExpired") == false )
 		SetFailState("Failed to find signature: CTerrorPlayer::OnITExpired");
 
+	delete hGameData;
 	g_hSdkVomit = EndPrepSDKCall();
 
 	if( g_hSdkVomit == null )
@@ -229,7 +307,6 @@ public void OnPluginStart()
 
 
 	// Translations
-	char sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "translations/extinguisher.phrases.txt");
 	if( !FileExists(sPath) )
 		SetFailState("Required translation file is missing: 'translations/extinguisher.phrases.txt'");
@@ -247,11 +324,14 @@ public void OnPluginStart()
 	g_hCvarFreq = CreateConVar(			"l4d_extinguisher_frequency",	"0.1",			"How often the damage trace fires, igniting entities etc.", CVAR_FLAGS);
 	g_hCvarFriend = CreateConVar(		"l4d_extinguisher_friendly",	"1",			"0=Off, 1=Friendly fire, allow survivors to hurt each other, 2=Only hurt survivors from the Blast type.", CVAR_FLAGS);
 	g_hCvarFuel = CreateConVar(			"l4d_extinguisher_fuel",		"1000",			"0=Infinite, How much fuel each Extinguisher has. Consumption is based on how often the PreThink fires.", CVAR_FLAGS);
+	if( g_bLeft4Dead2 )
+	{
 	g_hCvarGlowRan = CreateConVar(		"l4d_extinguisher_glow",		"150",			"0=Glow Off. Any other value sets the range at which extinguishers glow.", CVAR_FLAGS);
 	g_hCvarGlowB = CreateConVar(		"l4d_extinguisher_glow_blast",	"255 255 0",	"0=Valve default. Any other value sets glow color for blast pushback.", CVAR_FLAGS);
 	g_hCvarGlowE = CreateConVar(		"l4d_extinguisher_glow_extin",	"0 255 0",		"0=Valve default. Any other value sets glow color for extinguishers.", CVAR_FLAGS);
 	g_hCvarGlowF = CreateConVar(		"l4d_extinguisher_glow_flame",	"255 0 0",		"0=Valve default. Any other value sets glow color for flamethrowers.", CVAR_FLAGS);
 	g_hCvarGlowS = CreateConVar(		"l4d_extinguisher_glow_spray",	"0 150 255",	"0=Valve default. Any other value sets glow color for freezer sprays.", CVAR_FLAGS);
+	}
 	g_hCvarGrab = CreateConVar(			"l4d_extinguisher_grab",		"32",			"0=Off, How many pre-existing extinguishers on maps can this plugin cater for.", CVAR_FLAGS);
 	g_hCvarHint = CreateConVar(			"l4d_extinguisher_hint",		"1",			"0=Off, 1=Display hints from translation file, 2=Not when Broken, 3=Not when Refueled, 4=Not when Broken or Refueled.", CVAR_FLAGS);
 	g_hCvarIncap = CreateConVar(		"l4d_extinguisher_incap",		"1",			"0=Off, 1=Allow the Extinguisher to be used when incapacitated.", CVAR_FLAGS);
@@ -273,7 +353,7 @@ public void OnPluginStart()
 	g_hCvarView = CreateConVar(			"l4d_extinguisher_view",		"1",			"When clients hold the Extinguisher: 0=Show it, 1=Show it and hide their weapon, 2=Show their weapon and hide Extinguisher, 3=Same as 2 but others can see the Extinguisher.", CVAR_FLAGS);
 	g_hCvarVomit = CreateConVar(		"l4d_extinguisher_vomit",		"5",			"Remove the boomer vomit effect from players on the first spray. 0=Off, 1=Extinguisher, 2=Flamethrower, 4=Blast type, 7=All.", CVAR_FLAGS);
 	g_hCvarWeapon = CreateConVar(		"l4d_extinguisher_weapon",		"",				"\"\"=All (must set l4d_extinguisher_check to 0). Weapon entity name to replace and use for the Extinguisher.", CVAR_FLAGS);
-	CreateConVar(						"l4d_extinguisher_version",		PLUGIN_VERSION,	"Extinguisher plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
+	CreateConVar(						"l4d_extinguisher_version",		PLUGIN_VERSION,	"Extinguisher plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,				"l4d_extinguisher");
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
@@ -290,11 +370,14 @@ public void OnPluginStart()
 	g_hCvarFreq.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarFriend.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarFuel.AddChangeHook(ConVarChanged_Cvars);
+	if( g_bLeft4Dead2 )
+	{
+	g_hCvarGlowRan.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarGlowB.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarGlowE.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarGlowF.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarGlowS.AddChangeHook(ConVarChanged_Cvars);
-	g_hCvarGlowRan.AddChangeHook(ConVarChanged_Cvars);
+	}
 	g_hCvarGrab.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarHint.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarIncap.AddChangeHook(ConVarChanged_Cvars);
@@ -349,6 +432,7 @@ void ResetPlugin()
 
 	for( int i = 1; i <= MaxClients; i++ )
 	{
+		g_fTimeout[i] = 0.0;
 		g_iHooked[i] = 0;
 
 		int entity = g_iRefuel[i][1];
@@ -370,6 +454,8 @@ void ResetPlugin()
 
 public void OnMapStart()
 {
+	g_bMapStarted = true;
+
 	PrecacheModel(MODEL_EXTINGUISHER, true);
 	PrecacheModel(MODEL_BOUNDING, true);
 
@@ -391,6 +477,7 @@ public void OnMapStart()
 
 public void OnMapEnd()
 {
+	g_bMapStarted = false;
 	ResetPlugin();
 }
 
@@ -424,11 +511,14 @@ void GetCvars()
 	g_fCvarFreq = g_hCvarFreq.FloatValue;
 	g_iCvarFriend = g_hCvarFriend.BoolValue;
 	g_iCvarFuel = g_hCvarFuel.IntValue;
+	if( g_bLeft4Dead2 )
+	{
+	g_iCvarGlowRan = g_hCvarGlowRan.IntValue;
 	g_iCvarGlowB = GetColor(g_hCvarGlowB);
 	g_iCvarGlowE = GetColor(g_hCvarGlowE);
 	g_iCvarGlowF = GetColor(g_hCvarGlowF);
 	g_iCvarGlowS = GetColor(g_hCvarGlowS);
-	g_iCvarGlowRan = g_hCvarGlowRan.IntValue;
+	}
 	g_iCvarGrab = g_hCvarGrab.IntValue;
 	g_iCvarHint = g_hCvarHint.IntValue;
 	g_iCvarIncap = g_hCvarIncap.BoolValue;
@@ -446,19 +536,27 @@ void GetCvars()
 	g_iCvarType = g_hCvarType.IntValue;
 	g_iCvarView = g_hCvarView.IntValue;
 	g_iCvarVomit = g_hCvarVomit.IntValue;
-	g_hCvarWeapon.GetString(g_sCvarWeapon, sizeof g_sCvarWeapon);
+	g_hCvarWeapon.GetString(g_sCvarWeapon, sizeof(g_sCvarWeapon));
 }
 
-int GetColor(ConVar cvar)
+int GetColor(ConVar hCvar)
 {
-	char sTemp[12], sColors[3][4];
-	cvar.GetString(sTemp, sizeof(sTemp));
-	ExplodeString(sTemp, " ", sColors, 3, 4);
+	char sTemp[12];
+	hCvar.GetString(sTemp, sizeof(sTemp));
 
-	int color;
+	if( sTemp[0] == 0 )
+		return 0;
+
+	char sColors[3][4];
+	int color = ExplodeString(sTemp, " ", sColors, sizeof(sColors), sizeof(sColors[]));
+
+	if( color != 3 )
+		return 0;
+
 	color = StringToInt(sColors[0]);
 	color += 256 * StringToInt(sColors[1]);
 	color += 65536 * StringToInt(sColors[2]);
+
 	return color;
 }
 
@@ -492,17 +590,24 @@ bool IsAllowedGameMode()
 	int iCvarModesTog = g_hCvarModesTog.IntValue;
 	if( iCvarModesTog != 0 )
 	{
+		if( g_bMapStarted == false )
+			return false;
+
 		g_iCurrentMode = 0;
 
 		int entity = CreateEntityByName("info_gamemode");
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		AcceptEntityInput(entity, "Kill");
+		if( IsValidEntity(entity) )
+		{
+			DispatchSpawn(entity);
+			HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+			ActivateEntity(entity);
+			AcceptEntityInput(entity, "PostSpawnActivate");
+			if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+				RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+		}
 
 		if( g_iCurrentMode == 0 )
 			return false;
@@ -516,7 +621,7 @@ bool IsAllowedGameMode()
 	Format(sGameMode, sizeof(sGameMode), ",%s,", sGameMode);
 
 	g_hCvarModes.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) == -1 )
@@ -524,7 +629,7 @@ bool IsAllowedGameMode()
 	}
 
 	g_hCvarModesOff.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) != -1 )
@@ -562,6 +667,7 @@ void LateLoad()
 
 				if( strcmp(sTemp, "gascan") == 0 )
 				{
+					g_iRefuel[i][0] = EntIndexToEntRef(weapon);
 					SDKHook(i, SDKHook_PreThink, OnPreThink);
 				}
 			}
@@ -709,7 +815,18 @@ public void Event_ReviveSuccess(Event event, const char[] name, bool dontBroadca
 	{
 		client = GetClientOfUserId(client);
 		if( client )
+		{
 			g_iPlayerData[client][INDEX_BLOCK] &= ~ENUM_INREVIVE;
+
+			int iWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+			if( iWeapon > 0 )
+			{
+				if( iWeapon == GetPlayerWeaponSlot(client, g_iGunSlot[client]) )
+					MoveExtinguisher(client, true);
+				else
+					MoveExtinguisher(client, false);
+			}
+		}
 	}
 
 	int userid = event.GetInt("subject");
@@ -739,9 +856,7 @@ public Action tmrReviveSuccess(Handle timer, any client)
 		{
 			MoveExtinguisher(client, true);
 
-			if( g_hTimeout[client] != null )
-				delete g_hTimeout[client];
-			g_hTimeout[client] = CreateTimer(0.5, tmrTimeout, client);
+			g_fTimeout[client] = GetGameTime() + 0.5;
 		}
 		else
 		{
@@ -794,7 +909,18 @@ public void Event_ReviveEnd(Event event, const char[] name, bool dontBroadcast)
 	{
 		client = GetClientOfUserId(client);
 		if( client )
+		{
 			g_iPlayerData[client][INDEX_BLOCK] &= ~ENUM_INREVIVE;
+
+			int iWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+			if( iWeapon > 0 )
+			{
+				if( iWeapon == GetPlayerWeaponSlot(client, g_iGunSlot[client]) )
+					MoveExtinguisher(client, true);
+				else
+					MoveExtinguisher(client, false);
+			}
+		}
 	}
 
 	client = event.GetInt("subject");
@@ -982,9 +1108,7 @@ public void Event_GascanDropped(Event event, const char[] name, bool dontBroadca
 
 			g_iRefuel[client][0] = 0;
 
-			if( g_hTimeout[client] != null )
-				delete g_hTimeout[client];
-			g_hTimeout[client] = CreateTimer(0.5, tmrTimeout, client);
+			g_fTimeout[client] = GetGameTime() + 0.5;
 		}
 
 		CreateTimer(0.0, tmrReviveSuccess, userid);
@@ -1051,12 +1175,11 @@ void LoadExtinguishers()
 			CreateButton(entity, ENUM_WALLEXT);
 	}
 
-
 	if( !g_iCvarRandom )
 		return;
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 		return;
 
@@ -1184,7 +1307,7 @@ public Action CmdDrop(int client, int args)
 
 				GetCmdArg(1, arg1, sizeof(arg1));
 
-				if ((target_count = ProcessTargetString(
+				if( (target_count = ProcessTargetString(
 						arg1,
 						client,
 						target_list,
@@ -1192,13 +1315,13 @@ public Action CmdDrop(int client, int args)
 						COMMAND_FILTER_ALIVE,
 						target_name,
 						sizeof(target_name),
-						tn_is_ml)) <= 0)
+						tn_is_ml)) <= 0 )
 				{
 					ReplyToTargetError(client, target_count);
 					return Plugin_Handled;
 				}
 
-				for (int i = 0; i < target_count; i++)
+				for( int i = 0; i < target_count; i++ )
 					DropExtinguisher(target_list[i]);
 			}
 		}
@@ -1233,7 +1356,7 @@ public Action CmdGive(int client, int args)
 			bool tn_is_ml;
 			char target_name[MAX_TARGET_LENGTH];
 
-			if ((target_count = ProcessTargetString(
+			if( (target_count = ProcessTargetString(
 				arg1,
 				client,
 				target_list,
@@ -1241,14 +1364,14 @@ public Action CmdGive(int client, int args)
 				COMMAND_FILTER_ALIVE,
 				target_name,
 				sizeof(target_name),
-				tn_is_ml)) <= 0)
+				tn_is_ml)) <= 0 )
 			{
 				ReplyToTargetError(client, target_count);
 				return Plugin_Handled;
 			}
 
 			int target;
-			for (int i = 0; i < target_count; i++)
+			for( int i = 0; i < target_count; i++ )
 			{
 				target = target_list[i];
 				if( GetClientTeam(target) == 2 )
@@ -1298,7 +1421,7 @@ public Action CmdExtWep(int client, int args)
 {
 	if( g_bCvarAllow )
 	{
-		if( strcmp(g_sCvarWeapon, "") == 0 )
+		if( g_sCvarWeapon[0] == 0 )
 		{
 			ReplyToCommand(client, "[Extinguisher] Cannot give weapon, l4d_extinguisher_weapon string is empty!");
 			return Plugin_Handled;
@@ -1315,7 +1438,7 @@ public Action CmdExtWep(int client, int args)
 			bool tn_is_ml;
 			char target_name[MAX_TARGET_LENGTH];
 
-			if ((target_count = ProcessTargetString(
+			if( (target_count = ProcessTargetString(
 				arg1,
 				client,
 				target_list,
@@ -1323,14 +1446,14 @@ public Action CmdExtWep(int client, int args)
 				COMMAND_FILTER_ALIVE,
 				target_name,
 				sizeof(target_name),
-				tn_is_ml)) <= 0)
+				tn_is_ml)) <= 0 )
 			{
 				ReplyToTargetError(client, target_count);
 				return Plugin_Handled;
 			}
 
 			int target;
-			for (int i = 0; i < target_count; i++)
+			for( int i = 0; i < target_count; i++ )
 			{
 				target = target_list[i];
 				GiveWeapon(target);
@@ -1371,12 +1494,12 @@ public Action CmdExtSave(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Extinguisher] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Extinguisher] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		File hCfg = OpenFile(sPath, "w");
@@ -1466,14 +1589,13 @@ public Action CmdExtDelete(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Extinguisher] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Extinguisher] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
 	float vPos[3], vEntPos[3];
 	bool bDelete;
-	int aim;
-	aim = GetClientAimTarget(client, false);
+	int aim = GetClientAimTarget(client, false);
 
 	if( aim != -1 )
 	{
@@ -1512,7 +1634,7 @@ public Action CmdExtDelete(int client, int args)
 
 	// Load config
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		PrintToChat(client, "%tWarning: Cannot find the extinguisher config (\x05%s\x01).", "Ext_ChatTagExtinguisher", CONFIG_SPAWNS);
@@ -1568,7 +1690,7 @@ public Action CmdExtDelete(int client, int args)
 				hFile.DeleteKey(sTemp);
 				bMove = true;
 			}
-			else if ( i == iCount ) // No extinguishers... exit
+			else if( i == iCount ) // No extinguishers... exit
 			{
 				PrintToChat(client, "%tWarning: Cannot find the extinguisher inside the config.", "Ext_ChatTagExtinguisher");
 				delete hFile;
@@ -1642,12 +1764,12 @@ public Action CmdExtWipe(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Extinguisher] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Extinguisher] Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+	BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 	if( !FileExists(sPath) )
 	{
 		CPrintToChat(client, "%tError: Cannot find the extinguisher config (\x05%s\x01).", "Ext_ChatTagExtinguisher", sPath);
@@ -1744,12 +1866,17 @@ public int AngMenuHandler(Menu menu, MenuAction action, int client, int index)
 				if( entity && EntRefToEntIndex(entity) == aim )
 				{
 					GetEntPropVector(entity, Prop_Send, "m_angRotation", vAng);
-					if( index == 0 ) vAng[0] += 5.0;
-					else if( index == 1 ) vAng[1] += 5.0;
-					else if( index == 2 ) vAng[2] += 5.0;
-					else if( index == 4 ) vAng[0] -= 5.0;
-					else if( index == 5 ) vAng[1] -= 5.0;
-					else if( index == 6 ) vAng[2] -= 5.0;
+
+					switch( index )
+					{
+						case 0: vAng[0] += 5.0;
+						case 1: vAng[1] += 5.0;
+						case 2: vAng[2] += 5.0;
+						case 4: vAng[0] -= 5.0;
+						case 5: vAng[1] -= 5.0;
+						case 6: vAng[2] -= 5.0;
+					}
+
 					TeleportEntity(entity, NULL_VECTOR, vAng, NULL_VECTOR);
 					CPrintToChat(client, "%tNew angles: %f %f %f", "Ext_ChatTagExtinguisher", vAng[0], vAng[1], vAng[2]);
 					break;
@@ -1816,12 +1943,17 @@ public int PosMenuHandler(Menu menu, MenuAction action, int client, int index)
 				if( entity && EntRefToEntIndex(entity) == aim )
 				{
 					GetEntPropVector(entity, Prop_Send, "m_vecOrigin", vPos);
-					if( index == 0 ) vPos[0] += 0.5;
-					else if( index == 1 ) vPos[1] += 0.5;
-					else if( index == 2 ) vPos[2] += 0.5;
-					else if( index == 4 ) vPos[0] -= 0.5;
-					else if( index == 5 ) vPos[1] -= 0.5;
-					else if( index == 6 ) vPos[2] -= 0.5;
+
+					switch( index )
+					{
+						case 0: vPos[0] += 0.5;
+						case 1: vPos[1] += 0.5;
+						case 2: vPos[2] += 0.5;
+						case 4: vPos[0] -= 0.5;
+						case 5: vPos[1] -= 0.5;
+						case 6: vPos[2] -= 0.5;
+					}
+
 					TeleportEntity(entity, vPos, NULL_VECTOR, NULL_VECTOR);
 					CPrintToChat(client, "%tNew origin: %f %f %f", "Ext_ChatTagExtinguisher", vPos[0], vPos[1], vPos[2]);
 					break;
@@ -1844,7 +1976,7 @@ public Action CmdExtSet(int client, int args)
 
 	if( !client )
 	{
-		ReplyToCommand(client, "[Extinguisher] Commands may only be used in-game on a dedicated server..");
+		ReplyToCommand(client, "[Extinguisher] Commands can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
@@ -1852,7 +1984,7 @@ public Action CmdExtSet(int client, int args)
 	if( aim != -1 )
 	{
 		char sPath[PLATFORM_MAX_PATH];
-		BuildPath(Path_SM, sPath, sizeof(sPath), "%s", CONFIG_SPAWNS);
+		BuildPath(Path_SM, sPath, sizeof(sPath), CONFIG_SPAWNS);
 		if( !FileExists(sPath) )
 		{
 			CPrintToChat(client, "%tError: Cannot find the extinguisher config (\x05%s\x01).", "Ext_ChatTagExtinguisher", sPath);
@@ -2020,20 +2152,6 @@ public Action CmdExtGlow(int client, int args)
 // ====================================================================================================
 //					TIMEOUT / TRACE / HURT / PUSH - PRETHINK
 // ====================================================================================================
-public Action tmrTimeout(Handle timer, any client)
-{
-	g_hTimeout[client] = null;
-}
-
-public Action tmrTimepre(Handle timer, any client)
-{
-	g_hTimepre[client] = null;
-
-	if( g_hTimeout[client] != null )
-		delete g_hTimeout[client];
-	g_hTimeout[client] = CreateTimer(g_fCvarPushTime, tmrTimeout, client);
-}
-
 public Action tmrTrace(Handle timer)
 {
 	bool destroy = true;
@@ -2105,9 +2223,6 @@ void TraceAttack(int client, bool bHullTrace, int iPushEntity, bool bFirstTrace)
 
 	if( entity > 0 && entity <= MaxClients )
 	{
-		if( iPushEntity && type == TYPE_BLASTPUSHBACK )
-			PushEntity(client, vPos, vEnd);
-
 		if( bFirstTrace && g_iCvarVomit )
 		{
 			int vomit;
@@ -2132,10 +2247,13 @@ void TraceAttack(int client, bool bHullTrace, int iPushEntity, bool bFirstTrace)
 			ExtinguishEntity(entity);
 
 		HurtEntity(entity, client);
+
+		if( iPushEntity && type == TYPE_BLASTPUSHBACK )
+			PushEntity(client, vPos, vEnd);
 	}
 	else
 	{
-		char classname[16];
+		static char classname[16];
 		GetEdictClassname(entity, classname, sizeof(classname));
 
 		if( type == TYPE_FLAMETHROWER && strcmp(classname, "prop_physics") == 0 )
@@ -2149,9 +2267,13 @@ void TraceAttack(int client, bool bHullTrace, int iPushEntity, bool bFirstTrace)
 			AcceptEntityInput(entity, "AddOutput", client, client);
 			AcceptEntityInput(entity, "Ignite", client, client);
 		}
-		else if( strcmp(classname, "infected") == 0 || strcmp(classname, "witch") == 0 )
+		else
 		{
-			HurtEntity(entity, client);
+			int dmgtype;
+			if( strcmp(classname, "infected") == 0 )		dmgtype = 1;
+			else if( strcmp(classname, "witch") == 0 )		dmgtype = 2;
+
+			HurtEntity(entity, client, dmgtype);
 
 			if( iPushEntity && type == TYPE_BLASTPUSHBACK )
 				PushEntity(client, vPos, vEnd);
@@ -2173,23 +2295,23 @@ void TraceAttack(int client, bool bHullTrace, int iPushEntity, bool bFirstTrace)
 	}
 }
 
-void HurtEntity(int target, int client)
+void HurtEntity(int target, int client, int dmgtype = 0)
 {
-	char sTemp[16];
-
-	int entity = CreateEntityByName("point_hurt");
-	Format(sTemp, sizeof(sTemp), "ext%d%d", EntIndexToEntRef(entity), client);
-	DispatchKeyValue(target, "targetname", sTemp);
-	DispatchKeyValue(entity, "DamageTarget", sTemp);
-	IntToString(g_iCvarDamage, sTemp, sizeof(sTemp));
-	DispatchKeyValue(entity, "Damage", sTemp);
 	if( g_iPlayerData[client][INDEX_TYPE] == TYPE_FLAMETHROWER )
-		DispatchKeyValue(entity, "DamageType", "8");
+	{
+		SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), DMG_BURN);
+	}
+	else if( target > MaxClients && g_iPlayerData[client][INDEX_TYPE] == TYPE_BLASTPUSHBACK )
+	{
+		if( dmgtype == 1 )
+			SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), g_bLeft4Dead2 ? DMG_AIRBOAT : DMG_BUCKSHOT); // Common L4D2 / L4D1
+		else
+			SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), DMG_BLAST); // Witch
+	}
 	else
-		DispatchKeyValue(entity, "DamageType", "0");
-	DispatchSpawn(entity);
-	AcceptEntityInput(entity, "Hurt", client > 0 ? client : -1);
-	RemoveEdict(entity);
+	{
+		SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), DMG_GENERIC);
+	}
 }
 
 void PushEntity(int client, float vAng[3], float vPos[3])
@@ -2220,11 +2342,10 @@ public void OnTouching(const char[] output, int caller, int activator, float del
 	if( activator == client )
 		return;
 
-	float vPos[3], vAng[3];
-	GetEntPropVector(caller, Prop_Data, "m_vecOrigin", vPos);
-	GetEntPropVector(caller, Prop_Data, "m_angRotation", vAng);
+	float vAng[3];
+	GetEntPropVector(client, Prop_Data, "m_angRotation", vAng);
 
-	MakeVectorFromPoints(vAng, vPos, vAng);
+	GetAngleVectors(vAng, vAng, NULL_VECTOR, NULL_VECTOR);
 	NormalizeVector(vAng, vAng);
 	ScaleVector(vAng, float(g_iCvarPush));
 	vAng[2] = 300.0 + (g_iCvarPush / 10);
@@ -2339,8 +2460,6 @@ public void OnPreThink(int client)
 
 				if( g_iCvarHint )
 				{
-					SetGlobalTransTarget(client);
-
 					char sTemp[256], sWeapon[64];
 					Format(sTemp, sizeof(sTemp), "%T%T", "Ext_ChatTagExtinguisher", client, "Ext_Blocked", client);
 					Format(sWeapon, sizeof(sWeapon), "%T", "Ext_WeaponName", LANG_SERVER);
@@ -2368,9 +2487,7 @@ public void OnPreThink(int client)
 			s_iEquipped[client] = 1;
 
 			// Timeout before use
-			if( g_hTimeout[client] != null )
-				delete g_hTimeout[client];
-			g_hTimeout[client] = CreateTimer(0.4, tmrTimeout, client);
+			g_fTimeout[client] = GetGameTime() + 0.4;
 		}
 
 
@@ -2401,7 +2518,7 @@ public void OnPreThink(int client)
 		// --------------------------------------------------
 		// ---------- ATTACK : SHOOT!
 		// --------------------------------------------------
-		else if( (buttons & IN_ATTACK || buttons & IN_ZOOM) && g_iPlayerData[client][INDEX_BLOCK] == 0 && g_hTimeout[client] == null )
+		else if( (buttons & IN_ATTACK || buttons & IN_ZOOM) && g_iPlayerData[client][INDEX_BLOCK] == 0 && GetGameTime() > g_fTimeout[client] )
 		{
 			int type;
 
@@ -2425,16 +2542,16 @@ public void OnPreThink(int client)
 
 
 			// --------------------------------------------------
-			// Fuel is empty... kill particles and show hint. Set timeout so this doesnt trigger again... bad method but meh.
+			// Fuel is empty... kill particles and show hint. Set timeout so this doesn't trigger again.
 			// --------------------------------------------------
 			if( g_iCvarFuel && fuel <= 0 )
 			{
+				g_fTimeout[client] = GetGameTime() + 10.0;
+
 				if( g_iCvarRemove > 1 )
 					KillAttachments(client, true);
 				else
 					KillAttachments(client, false);
-
-				g_hTimeout[client] = CreateTimer(10.0, tmrTimeout, client);
 
 				if( g_iCvarHint )
 				{
@@ -2474,11 +2591,9 @@ public void OnPreThink(int client)
 				{
 					if( type == TYPE_BLASTPUSHBACK )
 					{
-						TraceAttack(client, true, g_iCvarPush, true);
+						g_fTimeout[client] = GetGameTime() + g_fCvarPushTime;
 
-						if( g_hTimepre[client] != null )
-							delete g_hTimepre[client];
-						g_hTimepre[client] = CreateTimer(0.5, tmrTimepre, client);
+						TraceAttack(client, true, g_iCvarPush, true);
 
 						// FUEL
 						if( g_iCvarPushFuel )
@@ -2521,7 +2636,6 @@ public void OnPreThink(int client)
 					if( percent != (fuel -= type == TYPE_BLASTPUSHBACK ? g_iCvarPushFuel : 1) * 10 / g_iCvarFuel )
 					{
 						char sTemp[12];
-						// sTemp[0] = '\x0';
 						for( int i = 0; i < 10; i++ )
 						{
 							if( i < percent )
@@ -2555,20 +2669,11 @@ public void OnPreThink(int client)
 			// Timeout, stop shooting
 			if( g_iPlayerData[client][INDEX_TYPE] == TYPE_BLASTPUSHBACK )
 			{
-				if( g_hTimepre[client] != null )
-				{
-					delete g_hTimepre[client];
-				}
-
-				if( g_hTimeout[client] != null )
-					delete g_hTimeout[client];
-				g_hTimeout[client] = CreateTimer(g_fCvarPushTime, tmrTimeout, client);
+				g_fTimeout[client] = GetGameTime() + g_fCvarPushTime;
 			}
 			else
 			{
-				if( g_hTimeout[client] != null )
-					delete g_hTimeout[client];
-				g_hTimeout[client] = CreateTimer(g_fCvarTimeout, tmrTimeout, client);
+				g_fTimeout[client] = GetGameTime() + g_fCvarTimeout;
 			}
 		}
 	}
@@ -2676,14 +2781,17 @@ void CreateEffects(int client)
 	// SOUND
 	// ====================================================================================================
 	if( iType == TYPE_FLAMETHROWER )
-		if( g_bLeft4Dead2 )
-			EmitSoundToAll(SOUND_FIRE_L4D2, particle, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 0.0);
-		else
-			EmitSoundToAll(SOUND_FIRE_L4D1, particle, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 0.0);
+	{
+		EmitSoundToAll(g_bLeft4Dead2 ? SOUND_FIRE_L4D2 : SOUND_FIRE_L4D1, particle, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 0.0);
+	}
 	else if( iType == TYPE_BLASTPUSHBACK )
+	{
 		EmitSoundToAll(SOUND_BLAST, particle, SNDCHAN_AUTO, SNDLEVEL_TRAIN, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 0.0);
+	}
 	else
+	{
 		EmitSoundToAll(SOUND_SPRAY, particle, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 0.0);
+	}
 
 
 	// ====================================================================================================
@@ -2772,14 +2880,13 @@ void CreateEffects(int client)
 // ====================================================================================================
 public void OnEntityCreated(int entity, const char[] classname)
 {
-	if( g_bCvarAllow && g_iLoadStatus )
+	if( g_bCvarAllow && g_iLoadStatus && g_iCvarType & ENUM_EXTINGUISHER )
 	{
-		if( g_iCvarType & ENUM_EXTINGUISHER )
+		if( (g_iCvarSpray & (1<<0) && strcmp(classname, "inferno") == 0) || g_bLeft4Dead2 &&
+			((g_iCvarSpray & (1<<1) && (strcmp(classname, "fire_cracker_blast") == 0)) ||
+			(g_iCvarSpray & (1<<2) && strcmp(classname, "insect_swarm") == 0)) )
 		{
-			if( (g_iCvarSpray & (1<<0) && strcmp(classname, "inferno") == 0) || g_bLeft4Dead2 &&
-				((g_iCvarSpray & (1<<1) && (strcmp(classname, "fire_cracker_blast") == 0)) ||
-				(g_iCvarSpray & (1<<2) && strcmp(classname, "insect_swarm") == 0)) )
-				SDKHook(entity, SDKHook_Spawn, OnSpawnInferno);
+			SDKHook(entity, SDKHook_Spawn, OnSpawnInferno);
 		}
 	}
 }
@@ -2821,6 +2928,8 @@ public void OnSpawnInferno(int entity)
 		GetEntPropVector(entity, Prop_Data, "m_vecOrigin", vPos);
 		TeleportEntity(trigger, vPos, NULL_VECTOR, NULL_VECTOR);
 
+		SetVariantString("!activator");
+		AcceptEntityInput(trigger, "SetParent", entity);
 		SetVariantString("OnUser1 !self:Enable::0.1:-1");
 		AcceptEntityInput(trigger, "AddOutput");
 		AcceptEntityInput(trigger, "FireUser1");
@@ -2846,19 +2955,16 @@ public void OnTouchInferno(const char[] output, int entity, int client, float de
 
 			for( int i = 0; i < MAX_ALLOWED; i++ )
 			{
-				if( g_iInferno[i][0] == entity )
+				if( g_iInferno[i][0] == entity && g_iInferno[i][2]++ >= g_iCvarTime )
 				{
-					if( g_iInferno[i][2]++ >= g_iCvarTime )
-					{
-						if( IsValidEntRef(g_iInferno[i][1]) )
-							AcceptEntityInput(g_iInferno[i][1], "Kill");
-						AcceptEntityInput(entity, "Kill");
+					if( IsValidEntRef(g_iInferno[i][1]) )
+						AcceptEntityInput(g_iInferno[i][1], "Kill");
+					AcceptEntityInput(entity, "Kill");
 
-						g_iInferno[i][0] = 0;
-						g_iInferno[i][1] = 0;
-						g_iInferno[i][2] = 0;
-						return;
-					}
+					g_iInferno[i][0] = 0;
+					g_iInferno[i][1] = 0;
+					g_iInferno[i][2] = 0;
+					return;
 				}
 			}
 		}
@@ -2883,7 +2989,7 @@ bool CreateButton(int entity, int arraytype, int iType = 0)
 	if( arraytype == ENUM_WALLEXT )
 	{
 		char sModelName[48];
-		GetEntPropString(entity, Prop_Data, "m_ModelName", sModelName, sizeof sModelName);
+		GetEntPropString(entity, Prop_Data, "m_ModelName", sModelName, sizeof(sModelName));
 
 		if( strcmp(sModelName, MODEL_EXTINGUISHER, false) != 0 )
 			return false;
@@ -3044,12 +3150,10 @@ public void OnPressed(const char[] output, int caller, int activator, float dela
 	{
 		if( g_iCvarHint )
 		{
-			if( strcmp(g_sCvarWeapon, "") == 0 )
+			if( g_sCvarWeapon[0] == 0 )
 				CPrintToChat(activator, "%t%t", "Ext_ChatTagExtinguisher", "Ext_EquipHasCombo");
 			else
 			{
-				SetGlobalTransTarget(activator);
-
 				char sTemp[256], sWeapon[64];
 				Format(sTemp, sizeof(sTemp), "%T%T", "Ext_ChatTagExtinguisher", activator, "Ext_EquipHasCheck", activator);
 				Format(sWeapon, sizeof(sWeapon), "%T", "Ext_WeaponName", LANG_SERVER);
@@ -3070,8 +3174,6 @@ public void OnPressed(const char[] output, int caller, int activator, float dela
 	{
 		if( g_iCvarHint )
 		{
-			SetGlobalTransTarget(activator);
-
 			char sTemp[256], sWeapon[64];
 			Format(sTemp, sizeof(sTemp), "%T%T", "Ext_ChatTagExtinguisher", activator, "Ext_Blocked", activator);
 			Format(sWeapon, sizeof(sWeapon), "%T", "Ext_WeaponName", LANG_SERVER);
@@ -3226,9 +3328,12 @@ public void OnHealthChanged(const char[] output, int caller, int activator, floa
 	int client = GetEntPropEnt(iButton, Prop_Data, "m_hActivator");
 	if( client != -1 )
 	{
-		SetEntPropEnt(iButton, Prop_Data, "m_hActivator", -1);
 		if( client > 0 && client <= MaxClients && IsClientInGame(client) )
-			SetEntPropEnt(client, Prop_Data, "m_hUseEntity", -1);
+		{
+			SetEntPropEnt(client, Prop_Send, "m_useActionOwner", -1);
+			SetEntPropEnt(client, Prop_Send, "m_useActionTarget", -1);
+			SetEntProp(client, Prop_Send, "m_iCurrentUseAction", 0);
+		}
 	}
 
 	if( iType == TYPE_FLAMETHROWER || GetRandomInt(0, 2) == 1 )
@@ -3333,6 +3438,16 @@ public Action tmrStopSound(Handle timer, any entity)
 // ====================================================================================================
 //					MOVE EXTINGUISHER - PARENT TO HAND / BACK
 // ====================================================================================================
+void OnMoveCharm(int client)
+{
+	client = GetClientOfUserId(client);
+	if( client ) Charms_Delete(client);
+
+	// Because charms resets
+	if( g_iCvarView == 1 )
+		SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 0);
+}
+
 void MoveExtinguisher(int client, bool bWeaponSlot = false)
 {
 	int entity = g_iPlayerData[client][INDEX_PROP];
@@ -3342,7 +3457,6 @@ void MoveExtinguisher(int client, bool bWeaponSlot = false)
 		float vPos[3], vAng[3];
 
 		AcceptEntityInput(entity, "ClearParent");
-
 		SetVariantString("!activator");
 		AcceptEntityInput(entity, "SetParent", client);
 
@@ -3350,6 +3464,12 @@ void MoveExtinguisher(int client, bool bWeaponSlot = false)
 
 		if( bWeaponSlot )
 		{
+			if( g_bCharmsPlugin )
+			{
+				Charms_Delete(client);
+				RequestFrame(OnMoveCharm, GetClientUserId(client));
+			}
+
 			if( g_iCvarView == 1 )
 				SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 0);
 
@@ -3376,8 +3496,16 @@ void MoveExtinguisher(int client, bool bWeaponSlot = false)
 		}
 		else
 		{
+			if( g_bCharmsPlugin )
+			{
+				Charms_Create(client);
+			}
+
 			if( g_iCvarView == 1 )
-				SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 1);
+			{
+				if( !g_bCharmsPlugin || Charms_GetIndex(client) == 0 )
+					SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 1);
+			}
 
 			vAng[0] = 260.0;
 			vAng[2] = 10.0;
@@ -3409,8 +3537,16 @@ void DropExtinguisher(int client)
 		if( iValidWeapon )
 			SetEntPropFloat(iValidWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.2);
 
+		if( g_bCharmsPlugin )
+		{
+			Charms_Create(client);
+		}
+
 		if( g_iCvarView == 1 )
-			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 1);
+		{
+			if( !g_bCharmsPlugin || Charms_GetIndex(client) == 0 )
+				SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 1);
+		}
 
 		int index;
 		for( int i = 0; i < MAX_ALLOWED; i++ )
@@ -3474,8 +3610,6 @@ void GiveExtinguisher(int client)
 	{
 		if( g_iCvarHint )
 		{
-			SetGlobalTransTarget(client);
-
 			char sTemp[256], sWeapon[64];
 			Format(sTemp, sizeof(sTemp), "%T%T", "Ext_ChatTagExtinguisher", client, "Ext_Blocked", client);
 			Format(sWeapon, sizeof(sWeapon), "%T", "Ext_WeaponName", LANG_SERVER);
@@ -3509,17 +3643,13 @@ void GiveExtinguisher(int client)
 		SetEntPropFloat(iWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 10.0);
 		MoveExtinguisher(client, true);
 
-		if( g_hTimeout[client] != null )
-			delete g_hTimeout[client];
-		g_hTimeout[client] = CreateTimer(g_fCvarTimeout, tmrTimeout, client);
+		g_fTimeout[client] = GetGameTime() + g_fCvarTimeout;
 	}
 	else
 		MoveExtinguisher(client, false);
 
 	if( g_iCvarHint )
 	{
-		SetGlobalTransTarget(client);
-
 		char sTemp[256];
 		int type = g_iPlayerData[client][INDEX_TYPE];
 
@@ -3599,8 +3729,16 @@ void KillAttachments(int client, bool all)
 {
 	if( all )
 	{
+		if( g_bCharmsPlugin )
+		{
+			Charms_Delete(client);
+		}
+
 		if( g_iCvarView == 1 )
-			SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 1);
+		{
+			if( !g_bCharmsPlugin || Charms_GetIndex(client) == 0 )
+				SetEntProp(client, Prop_Send, "m_bDrawViewmodel", 1);
+		}
 
 		int iWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 		int iValidWeapon = HasWeapon(client, iWeapon);
@@ -3633,10 +3771,7 @@ void KillAttachments(int client, bool all)
 
 		StopSound(entity, SNDCHAN_AUTO, SOUND_BLAST);
 		StopSound(entity, SNDCHAN_AUTO, SOUND_SPRAY);
-		if( g_bLeft4Dead2 )
-			StopSound(entity, SNDCHAN_AUTO, SOUND_FIRE_L4D2);
-		else
-			StopSound(entity, SNDCHAN_AUTO, SOUND_FIRE_L4D1);
+		StopSound(entity, SNDCHAN_AUTO, g_bLeft4Dead2 ? SOUND_FIRE_L4D2 : SOUND_FIRE_L4D1);
 	}
 
 	entity = g_iPlayerData[client][INDEX_LIGHT];
@@ -3714,38 +3849,34 @@ void KillEnts()
 //					STUFF
 // ====================================================================================================
 // Returns if the player has a valid weapon or not. Valid entity ID on success, 0 on failure, 1 on melee weapons.
-int HasWeapon(int client, int iWeapon, bool test = false)
+int HasWeapon(int client, int weapon, bool test = false)
 {
-	if( iWeapon == -1 || g_iGunSlot[client] == 3 )
+	if( weapon == -1 || g_iGunSlot[client] == 3 )
 		return 0;
 
-	if( g_iCvarCheck == 0 && strcmp(g_sCvarWeapon, "") == 0 )
+	if( g_iCvarCheck == 0 && g_sCvarWeapon[0] == 0 )
 	{
 		if( g_iGunSlot[client] != 0 )
 		{
-			if( GetPlayerWeaponSlot(client, 1) == iWeapon )
+			if( GetPlayerWeaponSlot(client, 1) == weapon )
 			{
 				char sTemp[16];
-				GetEdictClassname(iWeapon, sTemp, sizeof(sTemp));
-				if( strcmp(sTemp, "weapon_melee") == 0 )
+				GetEdictClassname(weapon, sTemp, sizeof(sTemp));
+				if( strcmp(sTemp[7], "melee") == 0 )
 				{
 					if( test )
 						return 1;
-					else
-						return 0;
 				}
 				else
-					return iWeapon;
+					return weapon;
 			}
-			return 0;
 		}
 		else
 		{
-			if( GetPlayerWeaponSlot(client, 0) == iWeapon )
-				return iWeapon;
-			else
-				return 0;
+			if( GetPlayerWeaponSlot(client, 0) == weapon )
+				return weapon;
 		}
+		return 0;
 	}
 
 	char sWeapon[32];
@@ -3770,12 +3901,12 @@ int GetSurvivorType(int client)
 	if( !g_bLeft4Dead2 )
 		return 1; // All models should use the "louis" position, since L4D1 models have no weapon_bone attachment.
 
-	char sModel[30];
+	char sModel[32];
 	GetEntPropString(client, Prop_Data, "m_ModelName", sModel, sizeof(sModel));
 
-	if( sModel[26] == 't' )								// t = Teenangst
+	if( sModel[29] == 'a' )				// t = Teenangst
 		return 1;
-	else if( sModel[26] == 'm' && sModel[27] == 'a')	// ma = Manager
+	else if( sModel[29] == 'a')			// ma = Manager
 		return 1;
 	else
 		return 0;
@@ -3786,14 +3917,10 @@ int GetRandomType(int iType)
 	if( g_iCvarCombo ) return 1;
 
 	int iCount, iArray[4];
-	if( iType & ENUM_EXTINGUISHER )
-		iArray[iCount++] = 1;
-	if( iType & ENUM_FLAMETHROWER )
-		iArray[iCount++] = 2;
-	if( iType & ENUM_FREEZERSPRAY )
-		iArray[iCount++] = 3;
-	if( iType & ENUM_BLASTPUSHBACK )
-		iArray[iCount++] = 4;
+	if( iType & ENUM_EXTINGUISHER )		iArray[iCount++] = 1;
+	if( iType & ENUM_FLAMETHROWER )		iArray[iCount++] = 2;
+	if( iType & ENUM_FREEZERSPRAY )		iArray[iCount++] = 3;
+	if( iType & ENUM_BLASTPUSHBACK )	iArray[iCount++] = 4;
 	return iArray[GetRandomInt(0, iCount -1)];
 }
 
@@ -3804,17 +3931,36 @@ bool IsValidEntRef(int entity)
 	return false;
 }
 
-void PrecacheParticle(const char[] ParticleName)
+void PrecacheParticle(const char[] sEffectName)
 {
-	int Particle = CreateEntityByName("info_particle_system");
-	DispatchKeyValue(Particle, "effect_name", ParticleName);
-	DispatchSpawn(Particle);
-	ActivateEntity(Particle);
-	AcceptEntityInput(Particle, "start");
-	Particle = EntIndexToEntRef(Particle);
-	SetVariantString("OnUser1 !self:Kill::0.1:-1");
-	AcceptEntityInput(Particle, "AddOutput");
-	AcceptEntityInput(Particle, "FireUser1");
+	static int table = INVALID_STRING_TABLE;
+	if( table == INVALID_STRING_TABLE )
+	{
+		table = FindStringTable("ParticleEffectNames");
+	}
+
+	if( FindStringIndex(table, sEffectName) == INVALID_STRING_INDEX )
+	{
+		bool save = LockStringTables(false);
+		AddToStringTable(table, sEffectName);
+		LockStringTables(save);
+	}
+}
+
+void CPrintToChat(int client, char[] message, any ...)
+{
+	static char buffer[256];
+	VFormat(buffer, sizeof(buffer), message, 3);
+
+	ReplaceString(buffer, sizeof(buffer), "{default}",		"\x01");
+	ReplaceString(buffer, sizeof(buffer), "{white}",		"\x01");
+	ReplaceString(buffer, sizeof(buffer), "{cyan}",			"\x03");
+	ReplaceString(buffer, sizeof(buffer), "{lightgreen}",	"\x03");
+	ReplaceString(buffer, sizeof(buffer), "{orange}",		"\x04");
+	ReplaceString(buffer, sizeof(buffer), "{green}",		"\x04"); // Actually orange in L4D2, but replicating colors.inc behaviour
+	ReplaceString(buffer, sizeof(buffer), "{olive}",		"\x05");
+
+	PrintToChat(client, buffer);
 }
 
 
@@ -3839,7 +3985,7 @@ bool SetTeleportEndPoint(int client, float vPos[3], float vAng[3])
 
 	Handle trace = TR_TraceRayFilterEx(vPos, vAng, MASK_SHOT, RayType_Infinite, FilterExcludeSelf, client);
 
-	if(TR_DidHit(trace))
+	if( TR_DidHit(trace) )
 	{
 		float vNorm[3];
 		TR_GetEndPosition(vPos, trace);
@@ -3860,6 +4006,7 @@ bool SetTeleportEndPoint(int client, float vPos[3], float vAng[3])
 		delete trace;
 		return false;
 	}
+
 	delete trace;
 	return true;
 }

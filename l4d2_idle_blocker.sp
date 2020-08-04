@@ -24,6 +24,7 @@ ConVar g_ConVar_BlockReleaseDuration;
 ConVar g_ConVar_BlockGasCanIdle;
 ConVar g_ConVar_BlockGasCanDuration;
 ConVar g_ConVar_BlockDefibIdle;
+ConVar g_ConVar_BlockAirIdle;
 
 float g_fVomitFadeTimer[MAXPLAYERS+1];
 float g_fReleasedTimer[MAXPLAYERS+1];
@@ -44,6 +45,7 @@ public void OnPluginStart()
 	g_ConVar_BlockReleaseIdle = CreateConVar("l4d2_idle_block_release_idle", "1", "是否开启禁止解除控制闲置", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_ConVar_BlockReleaseDuration = CreateConVar("l4d2_idle_block_release_duration", "5.0", "禁止解除控制闲置持续时间", FCVAR_NONE, true, 0.1);
 	g_ConVar_BlockGasCanIdle  = CreateConVar("l4d2_idle_block_gascan_idle", "1", "是否开启禁止点油闲置", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_ConVar_BlockAirIdle  = CreateConVar("l4d2_idle_block_air_idle", "1", "是否开启禁止空中闲置", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_ConVar_BlockGasCanDuration = CreateConVar("l4d2_idle_block_gascan_duration", "9.0", "禁止点油闲置持续时间", FCVAR_NONE, true, 0.1);
 	
 	AutoExecConfig(true, "l4d2_idle_blocker");
@@ -432,7 +434,16 @@ public Action Command_Away(int client, const char[] command, int argc)
 	{
 		if(g_fGasCanTimer[client] > time)
 		{
-			PrintToChat(client, "禁止点燃油桶闲置。");
+			PrintToChat(client, "禁止点燃油桶闲置/切换队伍。");
+			return Plugin_Handled;
+		}
+	}
+	
+	if(g_ConVar_BlockAirIdle.BoolValue)
+	{
+		if(GetEntPropEnt(client, Prop_Send, "m_hGroundEntity") == -1)
+		{
+			PrintToChat(client, "禁止空中闲置/切换队伍。");
 			return Plugin_Handled;
 		}
 	}

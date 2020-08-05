@@ -7885,7 +7885,12 @@ int GetDefaultClip(int weapon)
 	
 	int clip = -1;
 	if(g_WeaponClipSize.GetValue(className, clip) && clip > 0)
+	{
+		if(HasEntProp(weapon, Prop_Send, "m_hasDualWeapons") && GetEntProp(weapon, Prop_Send, "m_hasDualWeapons", 1))
+			return clip * 2;
+		
 		return clip;
+	}
 	
 	if(StrContains(className, "smg", false) != -1 || StrEqual(className, "weapon_rifle", false) ||
 		StrEqual(className, "weapon_rifle_sg552", false))

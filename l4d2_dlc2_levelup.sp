@@ -7536,11 +7536,11 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 				}
 				*/
 				
-				Handle trace = TR_TraceRayFilterEx(fBeamOneStart, vEnd, MASK_SHOT, RayType_EndPoint, TraceRayDontHitSelf, client);
+				Handle trace = TR_TraceRayFilterEx(fBeamOneStart, fEyeAngles, MASK_SHOT, RayType_Infinite, TraceRayDontHitSelf, client);
 				if(TR_DidHit(trace))
 				{
-					// TR_GetEndPosition(fBeamOneEnd, trace);
 					fBeamOneEnd = vEnd;
+					// TR_GetEndPosition(fBeamOneEnd, trace);
 					TR_GetPlaneNormal(trace, fBeamEndNormals);
 					delete trace;
 					
@@ -7551,7 +7551,7 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 					GetAngleVectors(fBeamTwoDirection, fBeamForwards, NULL_VECTOR, NULL_VECTOR);
 					
 					for(int i = 0;i < 3; i++)
-						fBeamTwoEnd[i] = fBeamOneEnd[i] + fBeamForwards[i] * 1024.0;
+						fBeamTwoEnd[i] = fBeamOneEnd[i] + fBeamForwards[i] * 8192.0;
 					
 					float dotProduct = GetVectorDotProduct(fBeamEndNormals, fBeamForwards);
 					ScaleVector(fBeamEndNormals, dotProduct);
@@ -7585,7 +7585,7 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 						}
 						
 						// 子弹效果
-						TE_SetupBeamPoints(fBeamTwoStart, fBeamTwoEnd, g_BeamSprite, g_HaloSprite, 0, 0, 0.06, 0.1, 0.8, 1, 0.0, {200, 200, 200, 230}, 0);
+						TE_SetupBeamPoints(fBeamTwoStart, fBeamTwoEnd, g_BeamSprite, g_HaloSprite, 0, 0, 0.06, 0.05, 0.08, 1, 0.0, {200, 200, 200, 230}, 0);
 						TE_SendToAll();
 					}
 					else

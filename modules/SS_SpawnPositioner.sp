@@ -49,10 +49,10 @@ new laserCache;
  */
 
 SpawnPositioner_OnModuleStart() {
-	hCvarSpawnPositionerMode = CreateConVar( "ss_spawnpositioner_mode", "2", "[ 0 = 禁用, 1 = 仅径向重新定位, 2 = 具有径向回退的网格重新定位 ]" );
+	hCvarSpawnPositionerMode = CreateConVar( "ss_spawnpositioner_mode", "0", "[ 0 = 禁用, 1 = 仅径向重新定位, 2 = 具有径向回退的网格重新定位 ]" );
 	HookConVarChange( hCvarSpawnPositionerMode, ConVarChanged:SpawnPositionerMode );
 	hCvarMaxSearchAttempts = CreateConVar( "ss_spawn_max_search_attempts", "500", "最大尝试使每个SI生成以找到可接受的位置来将它们重新定位" );
-	hCvarSpawnSearchHeight = CreateConVar( "ss_spawn_search_height", "50", "尝试找到有效的产卵位置将相对于幸存者从该高度向下移动");
+	hCvarSpawnSearchHeight = CreateConVar( "ss_spawn_search_height", "50", "尝试找到有效的刷出位置将相对于幸存者从该高度向下移动");
 	hCvarSpawnProximityMin = CreateConVar( "ss_spawn_proximity_min", "500", "刷SI最近距离", FCVAR_PLUGIN, true, 1.0 );
 	hCvarSpawnProximityMax = CreateConVar( "ss_spawn_proximity_max", "650", "刷SI最远距离", FCVAR_PLUGIN, true, float(GetConVarInt(hCvarSpawnProximityMin)) );
 	// N.B. the hCvarSpawnProximityFlow___ cvars are not a lower and upper bound;

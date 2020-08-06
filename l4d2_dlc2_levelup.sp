@@ -40,9 +40,10 @@
 #define g_flSoHPumpI		0.5
 #define g_flSoHPumpE		0.6
 #define TRACE_TOLERANCE		25.0
+#define g_flRicochetAngle	100.0
 
 Handle g_pfnFindUseEntity = null;
-StringMap g_WeaponClipSize;
+StringMap g_WeaponClipSize, g_WeaponDamage;
 
 const int g_iMaxClip = 254;					// 游戏所允许的最大弹夹数量 8bit，但是 255 会被显示为 0，超过会溢出
 const int g_iMaxAmmo = 1023;				// 游戏所允许的最大子弹数量 10bit，超过会溢出
@@ -85,6 +86,7 @@ enum()
 	SKL_2_DoubleJump = 512,
 	SKL_2_ProtectiveSuit = 1024,
 	SKL_2_Magnum = 2048,
+	SKL_2_LadderGun = 4096,
 
 	SKL_3_Sacrifice = 1,
 	SKL_3_Respawn = 2,
@@ -98,6 +100,7 @@ enum()
 	SKL_3_Parachute = 512,
 	SKL_3_MoreAmmo = 1024,
 	SKL_3_TempSanctuary = 2048,
+	SKL_3_Ricochet = 4096,
 
 	SKL_4_ClawHeal = 1,
 	SKL_4_DmgExtra = 2,
@@ -170,6 +173,7 @@ bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
 // bool g_bIsInvulnerable[MAXPLAYERS+1];
 bool g_bDeadlineHint[MAXPLAYERS+1];
 StringMap g_mTotalDamage[MAXPLAYERS+1];
+int g_iExtraAmmo[MAXPLAYERS+1];
 
 enum
 {
@@ -180,6 +184,10 @@ enum
 	JF_CanBunnyHop = 8,
 	JF_HasFirstJump = 16
 };
+
+#define LG_MODE_MANUAL 1
+#define LG_MODE_AUTO 2
+MoveType mtLastMoveType[MAXPLAYERS+1];
 
 int g_iJumpFlags[MAXPLAYERS+1] = 0;
 // int g_iTotalDamage[MAXPLAYERS+1][MAXPLAYERS+1] = 0;
@@ -212,9 +220,13 @@ new Float:g_fOldMovement[MAXPLAYERS+1];
 new g_clAngryMode[MAXPLAYERS+1];
 new g_clAngryPoint[MAXPLAYERS+1];
 
-#define SPRITE_BEAM		"materials/sprites/laserbeam.vmt"
-#define SPRITE_HALO		"materials/sprites/halo01.vmt"
-#define SPRITE_GLOW		"materials/sprites/glow.vmt"
+#define SPRITE_BEAM			"materials/sprites/laserbeam.vmt"
+#define SPRITE_HALO			"materials/sprites/halo01.vmt"
+#define SPRITE_GLOW			"materials/sprites/glow.vmt"
+#define Ricochet_Tracer		"weapon_tracers_incendiary"
+#define Ricochet_Tracer1	"weapon_tracers_explosive"
+#define Ricochet_Tracer2	"weapon_tracers"
+#define Ricochet_Sound		"weapons/fx/rics/ric1.wav"
 
 static const char g_sndShoveInfected[][] = {
 	"player/survivor/hit/rifle_swing_hit_infected7.wav",
@@ -419,6 +431,7 @@ public OnPluginStart()
 	HookConVarChange(g_hCvarZombieHealth, ConVarChaged_ZombieHealth);
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
 	g_WeaponClipSize = new StringMap();
+	g_WeaponDamage = new StringMap();
 	
 	CreateTimer(1.0, Timer_RestoreDefault);
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
@@ -496,6 +509,7 @@ public OnPluginStart()
 	HookEvent("player_now_it", Event_PlayerHitByVomit);
 	HookEvent("player_no_longer_it", Event_PlayerVomitTimeout);
 	HookEvent("player_shoved", Event_PlayerShoved);
+	HookEvent("bullet_impact", Event_BulletImpact);
 	
 	// 检查第一回合用
 	HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -789,7 +803,12 @@ public OnMapStart()
 	GetConVarString(cv_particle, g_particle, sizeof(g_particle));
 	GetConVarString(cv_sndPortalERROR, g_sndPortalERROR, sizeof(g_sndPortalERROR));
 	GetConVarString(cv_sndPortalFX, g_sndPortalFX, sizeof(g_sndPortalFX));
+	
 	PrecacheParticle(g_particle);
+	PrecacheParticle(Ricochet_Tracer);
+	PrecacheParticle(Ricochet_Tracer1);
+	PrecacheParticle(Ricochet_Tracer2);
+	
 	PrecacheSound(g_sndPortalERROR, true);
 	PrecacheSound(g_sndPortalFX, true);
 	PrecacheSound(SOUND_FREEZE, true);
@@ -799,6 +818,7 @@ public OnMapStart()
 	PrecacheSound(SOUND_WARP, true);
 	PrecacheSound(SOUND_Ball, true);
 	PrecacheSound(SOUND_Bomb, true);
+	PrecacheSound(Ricochet_Sound, true);
 
 	if ( !IsModelPrecached( STAR_1_MDL ))		PrecacheModel( STAR_1_MDL );
 	if ( !IsModelPrecached( STAR_2_MDL ))		PrecacheModel( STAR_2_MDL );
@@ -1164,6 +1184,8 @@ void Initialization(int client, bool invalid = false)
 	// g_iOldRealHealth[client] = 0;
 	StringMap toDelete = g_mTotalDamage[client];
 	g_mTotalDamage[client] = null;
+	mtLastMoveType[client] = MOVETYPE_WALK;
+	g_iExtraAmmo[client] = 0;
 	
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
 		g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
@@ -2273,6 +2295,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("踏空-在空中按跳跃可以再次起跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
 	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("防化服-受到胆汁影响时间减半/防止胆汁期间被特感故意攻击",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
 	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("炮台-倒地手枪换成马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
+	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("固定-在梯子不动可以掏出武器",(g_clSkill_2[client]&SKL_2_LadderGun)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2301,6 +2324,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("降落-在空中按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
 	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("备用-更多后备弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
 	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("避难所-受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
+	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("跳弹-子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -7474,6 +7498,106 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 	}
 }
 
+public void Event_BulletImpact(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(client))
+		return;
+	
+	float vEnd[3];
+	vEnd[0] = event.GetFloat("x");
+	vEnd[1] = event.GetFloat("y");
+	vEnd[2] = event.GetFloat("z");
+	
+	if(g_clSkill_3[client] & SKL_3_Ricochet)
+	{
+		float vAngles[3], vOrigin[3], vDir[3], vResult[3], vPlane[3];
+		GetClientEyeAngles(client, vAngles);
+		GetClientEyePosition(client, vOrigin);
+		GetAngleVectors(vAngles, vDir, NULL_VECTOR, NULL_VECTOR);
+		
+		int mode = 2;
+		float damage = 15.0;
+		int type = DMG_BULLET;
+		int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+		if(weapon > MaxClients && IsValidEntity(weapon) && HasEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded"))
+		{
+			int upgrade = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
+			int ammo = GetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded");
+			if(ammo > 0 && (upgrade & 1))
+				mode = 0;
+			else if(ammo > 0 && (upgrade & 2))
+				mode = 1;
+			
+			static char classname[64];
+			GetEntityClassname(weapon, classname, sizeof(classname));
+			bool got = (g_WeaponDamage.GetValue(classname, damage) && damage > 0.0);
+			if(StrContains(classname, "shotgun", false) > -1)
+			{
+				type = DMG_BUCKSHOT;
+				
+				if(!got)
+					damage = 5.0;
+			}
+		}
+		
+		Handle TraceRay = TR_TraceRayFilterEx(vOrigin, vAngles, MASK_SOLID, RayType_Infinite, TraceRayDontHitTeam, 2);
+		if (TR_DidHit(TraceRay))
+		{
+			TR_GetPlaneNormal(TraceRay, vPlane);
+			delete TraceRay;
+			
+			if(RadToDeg(ArcCosine(GetVectorDotProduct(vDir, vPlane))) <= g_flRicochetAngle)
+			{
+				TE_SetupSparks(vEnd, vDir, GetRandomInt(1, 2), GetRandomInt(1, 2));
+				TE_SendToAll();
+				
+				NormalizeVector(vDir, vDir);
+				ScaleVector(vPlane, 2.0);
+				ScaleVector(vPlane, GetVectorDotProduct(vDir, vPlane));
+				ScaleVector(vPlane, GetVectorLength(vDir));
+				SubtractVectors(vDir, vPlane, vResult);
+				GetVectorAngles(vResult, vAngles);
+				
+				vAngles[0] += GetRandomFloat(-5.0, 5.0);
+				vAngles[1] += GetRandomFloat(-5.0, 5.0);
+				
+				TraceRay = TR_TraceRayFilterEx(vEnd, vAngles, MASK_SOLID, RayType_Infinite, TraceRayDontHitTeam, 2);
+				if (TR_DidHit(TraceRay))
+				{
+					TR_GetEndPosition(vResult, TraceRay);
+					int iTarget = TR_GetEntityIndex(TraceRay);
+					delete TraceRay;
+					
+					DisplayRicochet(vEnd, vResult, mode);
+					EmitSoundToAll(Ricochet_Sound, (iTarget > 0 ? iTarget : SOUND_FROM_WORLD), SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, _, vEnd);
+					
+					// TODO: 计算暴击和额外伤害
+					// FIXME: 未触发 TraceAttack
+					if(iTarget > 0 && damage > 0.0 && (!IsValidClient(iTarget) || GetClientTeam(iTarget) == 3))
+						SDKHooks_TakeDamage(iTarget, client, client, damage, type);
+				}
+				else
+				{
+					delete TraceRay;
+				}
+			}
+		}
+		else
+		{
+			delete TraceRay;
+		}
+	}
+}
+
+public bool TraceRayDontHitTeam(int entity, int mask, any data)
+{
+	if(IsValidClient(entity) && GetClientTeam(entity) == data)
+		return false;
+	
+	return true;
+}
+
 void UpdateVomitDuration(any client)
 {
 	if(!IsValidAliveClient(client))
@@ -7873,6 +7997,9 @@ public void OnGetWeaponsInfo(int pThis, const char[] classname)
 	static char value[64];
 	InfoEditor_GetString(pThis, "clip_size", value, 64);
 	g_WeaponClipSize.SetValue(classname, StringToInt(value));
+	
+	InfoEditor_GetString(pThis, "damage", value, 64);
+	g_WeaponDamage.SetValue(classname, StringToFloat(value));
 }
 
 int GetDefaultClip(int weapon)
@@ -7940,35 +8067,48 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 	new iCid=GetClientOfUserId(GetEventInt(event,"userid"));
 	if (!IsValidAliveClient(iCid) || GetClientTeam(iCid) != 2)
 		return;
-
+	
+	int weapon = GetEntPropEnt(iCid, Prop_Send, "m_hActiveWeapon");
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		return;
+	
+	int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+	
 	if ((g_clSkill_4[iCid] & SKL_4_FastReload))
 		SoH_OnReload(iCid);
 	
 	if((g_clSkill_1[iCid] & SKL_1_KeepClip) && g_iReloadWeaponKeepClip[iCid] > 0)
 	{
-		int weapon = GetEntPropEnt(iCid, Prop_Send, "m_hActiveWeapon");
 		int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
 		// PrintToChat(iCid, "clip size: %d", clip);
 		
 		if(clip == 0)
 		{
-			int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 			SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponKeepClip[iCid]);
 			SetEntProp(iCid, Prop_Send, "m_iAmmo", GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType) - g_iReloadWeaponKeepClip[iCid], _, ammoType);
 			g_iReloadWeaponKeepClip[iCid] = 0;
 		}
 	}
 	
-	if((g_clSkill_4[iCid] & SKL_4_ClipSize))
+	if(g_clSkill_4[iCid] & SKL_4_ClipSize)
 	{
-		int weapon = GetEntPropEnt(iCid, Prop_Send, "m_hActiveWeapon");
-		if(IsValidEntity(weapon))
-		{
-			// 检查换子弹
-			HookPlayerReload(iCid, RoundToZero(GetDefaultClip(weapon) * 1.5));
-			// PrintToLeft(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
-			// PrintToChat(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
-		}
+		// 检查换子弹
+		HookPlayerReload(iCid, RoundToZero(GetDefaultClip(weapon) * 1.5));
+		// PrintToLeft(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
+		// PrintToChat(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
+	}
+	
+	if((g_clSkill_3[iCid] & SKL_3_MoreAmmo) && g_iExtraAmmo[iCid] > 0)
+	{
+		int ammo = GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType);
+		int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
+		int amount = g_iMaxAmmo - ammo - clip - GetDefaultClip(weapon) + 1;
+		if(amount > g_iExtraAmmo[iCid])
+			amount = g_iExtraAmmo[iCid];
+		
+		g_iExtraAmmo[iCid] -= amount;
+		SetEntProp(iCid, Prop_Send, "m_iAmmo", ammo + amount, _, ammoType);
+		PrintToLeft(iCid, "扩展备弹剩余 %d", g_iExtraAmmo[iCid]);
 	}
 }
 
@@ -8806,9 +8946,15 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	}
 	
 	if(maxAmmo + maxClip > g_iMaxAmmo)
+	{
+		g_iExtraAmmo[client] = maxAmmo + maxClip - g_iMaxAmmo;
 		maxAmmo = g_iMaxAmmo - clip;
+	}
 	else
+	{
+		g_iExtraAmmo[client] = 0;
 		maxAmmo += maxClip - clip;
+	}
 	
 	int oldAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
 	int newAmmo = oldAmmo + amount;
@@ -9217,6 +9363,37 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 		}
+		
+		if((g_clSkill_2[client] & SKL_2_LadderGun))
+		{
+			MoveType mtAmbulatoryStyle = GetEntityMoveType(client);
+			if (mtAmbulatoryStyle == MOVETYPE_FLY)
+			{
+				if (mtLastMoveType[client] != MOVETYPE_LADDER)
+				{
+					// return Plugin_Continue;
+				}
+				else if (IsMoving(client) || (buttons & IN_JUMP))
+				{
+					SetEntityMoveType(client, MOVETYPE_LADDER);
+				}
+			}
+			else if (mtAmbulatoryStyle == MOVETYPE_LADDER)
+			{
+				if(!IsMoving(client))
+				{
+					if (mtLastMoveType[client] == MOVETYPE_FLY)
+					{
+						// return Plugin_Continue;
+					}
+					else
+					{
+						SetEntityMoveType(client, MOVETYPE_FLY);
+						mtLastMoveType[client] = mtAmbulatoryStyle;	
+					}
+				}
+			}
+		}
 	}
 
 	if(!(flags & FL_ONGROUND) && (buttons & IN_USE) && (g_clSkill_3[client] & SKL_3_Parachute))
@@ -9321,6 +9498,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		g_fNextCalmTime[client] += GetEngineTime() + 1.0;
 	
 	return Plugin_Changed;
+}
+
+bool:IsMoving(client)
+{
+	decl Float:fVelocity[3];
+	GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", fVelocity);
+	return (GetVectorLength(fVelocity) > 0.0);
 }
 
 public Action Timer_GunShovedReset(Handle timer, any client)
@@ -9730,6 +9914,49 @@ stock bool:AttachParticle(ent, String:particleType[], Float:time=10.0)
 		}
 	}
 	return false;
+}
+
+void DisplayRicochet(float vStart[3], float vEnd[3], int mode)
+{  
+ 	char szName[16];
+	int iEntity = CreateEntityByName("info_particle_target");
+	
+	if (iEntity == -1)
+		return;
+	
+	Format(szName, sizeof szName, "IInfo%d", iEntity);
+	DispatchKeyValue(iEntity, "targetname", szName);	
+	
+	TeleportEntity(iEntity, vEnd, NULL_VECTOR, NULL_VECTOR); 
+	ActivateEntity(iEntity); 
+	
+	SetVariantString("OnUser4 !self:Kill::1.1:-1");
+	AcceptEntityInput(iEntity, "AddOutput");
+	AcceptEntityInput(iEntity, "FireUser4");
+	
+	iEntity = CreateEntityByName("info_particle_system");
+	
+	if (iEntity == -1)
+		return;
+	
+	switch (mode)
+	{
+		case 0: DispatchKeyValue(iEntity, "effect_name", Ricochet_Tracer);
+		case 1: DispatchKeyValue(iEntity, "effect_name", Ricochet_Tracer1);
+		case 2: DispatchKeyValue(iEntity, "effect_name", Ricochet_Tracer2);
+	}
+	
+	DispatchKeyValue(iEntity, "cpoint1", szName);
+	
+	TeleportEntity(iEntity, vStart, NULL_VECTOR, NULL_VECTOR);
+	DispatchSpawn(iEntity);
+	ActivateEntity(iEntity); 
+	
+	AcceptEntityInput(iEntity, "Start");
+	
+	SetVariantString("OnUser4 !self:Kill::1.1:-1");
+	AcceptEntityInput(iEntity, "AddOutput");
+	AcceptEntityInput(iEntity, "FireUser4");
 }
 
 public void ParticleHook_OnThink(const char[] output, int caller, int activator, float delay)

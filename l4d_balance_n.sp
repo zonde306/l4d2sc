@@ -4,7 +4,7 @@
 #pragma newdecls required
 #include <sourcemod>
 #include <sdktools>
-#include <sdktools_functions>
+// #include <sdktools_functions>
 
 #define ZOMBIECLASS_SURVIVOR	9
 #define ZOMBIECLASS_SMOKER	1

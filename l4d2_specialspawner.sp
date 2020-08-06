@@ -23,6 +23,7 @@ new bool:bShowSpawnerHUD[MAXPLAYERS];
 new Float:g_fTimeLOS[100000]; // not sure what the largest possible userid is
 bool g_bAlreadyStart = false;
 bool g_bTweakMode = false;
+bool g_bSpecialMode = false;
 ConVar g_pCvarTweakSize, g_pCvarTweakInterval, g_pCvarTweakHunter, g_pCvarTweakJockey;
 
 // Modules
@@ -129,6 +130,7 @@ public OnConfigsExecuted() {
 	LoadCacheSpawnLimits();
 	LoadCacheSpawnWeights(); 
 	hTimerHUD = CreateTimer( 0.1, Timer_DrawSpawnerHUD, _, TIMER_REPEAT | TIMER_FLAG_NO_MAPCHANGE );
+	EnableDirector();
 }
 
 public Action:L4D_OnFirstSurvivorLeftSafeArea(client) { 
@@ -185,6 +187,11 @@ public void OnGamemodeCoop(const char[] output, int caller, int activator, float
 	// PrintToChatAll("聊天框输入 4si/5si/6si/7si/8si/9si/10si/11si/12si 设置特感数量。");
 	// PrintToChatAll("聊天框输入 5s/10s/15s/20s/25s/30s/35s/40s/45s 设置刷特间隔。");
 	PrintToServer("SpecialSpawnner: start");
+	
+	if(g_bSpecialMode)
+		DisableDirector();
+	else
+		EnableDirector();
 }
 
 public void OnGamemodeVersus(const char[] output, int caller, int activator, float delay)
@@ -197,6 +204,7 @@ public void OnGamemodeVersus(const char[] output, int caller, int activator, flo
 	ResetConVar( FindConVar("z_spawn_range") );
 	ResetConVar( FindConVar("z_discard_range") );
 	*/
+	EnableDirector();
 }
 
 // 突变模式兼容
@@ -231,6 +239,16 @@ public Action L4D_OnGetScriptValueInt(const char[] key, int &retVal)
 	return Plugin_Continue;
 }
 
+stock void DisableDirector()
+{
+	SetConVarBool( FindConVar("director_no_specials"), true );
+}
+
+stock void EnableDirector()
+{
+	ResetConVar( FindConVar("director_no_specials") );
+}
+
 public OnSurvivalRoundStart(Event event, const char[] name, bool dontBroadcast) {
 	/*
 	g_bHasSpawnTimerStarted = false;
@@ -251,7 +269,9 @@ public void OnClientDisconnect_Post(int client)
 	}
 	
 	g_bTweakMode = false;
+	g_bSpecialMode = false;
 	EndSpawnTimer();
+	EnableDirector();
 }
 
 public void OnClientPutInServer(int client)
@@ -575,6 +595,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 				hSpawnLimits[SI_CHARGER].IntValue = sepc;
 				hSpawnSize.IntValue = count - sepc;
 				g_bTweakMode = true;
+				g_bSpecialMode = false;
 				
 				char message[255];
 				Format(message, 255, "\x03[SS]\x01 特感数量调整为 \x05%d\x01，每波刷 \x05%d\x01 只。", count, count - sepc);
@@ -642,6 +663,8 @@ public Action Command_Say(int client, const char[] command, int argc)
 				hSpawnLimits[SI_CHARGER].IntValue = 0;
 				hSpawnSize.IntValue = count - sepc;
 				g_bTweakMode = true;
+				g_bSpecialMode = true;
+				DisableDirector();
 				
 				char message[255];
 				Format(message, 255, "\x03[SS]\x01 Hunter 数量调整为 \x05%d\x01，每波 \x05%d\x01 只。", count, count - sepc);
@@ -679,6 +702,8 @@ public Action Command_Say(int client, const char[] command, int argc)
 				hSpawnLimits[SI_CHARGER].IntValue = 0;
 				hSpawnSize.IntValue = count - sepc;
 				g_bTweakMode = true;
+				g_bSpecialMode = true;
+				DisableDirector();
 				
 				char message[255];
 				Format(message, 255, "\x03[SS]\x01 Jockey 数量调整为 \x05%d\x01，每波 \x05%d\x01 只。", count, count - sepc);

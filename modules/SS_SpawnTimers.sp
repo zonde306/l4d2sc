@@ -3,7 +3,9 @@ ConVar hSpawnTimeMode;
 ConVar hSpawnTimeMin;
 ConVar hSpawnTimeMax;
 
-new Handle:hCvarIncapAllowance;
+ConVar hCvarIncapAllowance;
+ConVar hCvarIntensityAllowance;
+ConVar hCvarIntensity;
 
 new Float:SpawnTimes[MAXPLAYERS];
 new Float:IntervalEnds[NUM_TYPES_INFECTED];
@@ -14,12 +16,14 @@ SpawnTimers_OnModuleStart() {
 	// Timer
 	hSpawnTimeMin = CreateConVar("ss_time_min", "12.0", "最小刷SI时间(秒)", FCVAR_PLUGIN, true, 0.0);
 	hSpawnTimeMax = CreateConVar("ss_time_max", "15.0", "最大刷SI时间(秒)", FCVAR_PLUGIN, true, 1.0);
-	hSpawnTimeMode = CreateConVar("ss_time_mode", "1", "时间选择模式 [ 0 = 随机 | 1 = 递增 | 2 = 递减 ]", FCVAR_PLUGIN, true, 0.0, true, 2.0);
+	hSpawnTimeMode = CreateConVar("ss_time_mode", "2", "时间选择模式 [ 0 = 随机 | 1 = 递增 | 2 = 递减 ]", FCVAR_PLUGIN, true, 0.0, true, 2.0);
 	HookConVarChange(hSpawnTimeMin, ConVarChanged:CalculateSpawnTimes);
 	HookConVarChange(hSpawnTimeMax, ConVarChanged:CalculateSpawnTimes);
 	HookConVarChange(hSpawnTimeMode, ConVarChanged:CalculateSpawnTimes);
 	// Grace period
-	hCvarIncapAllowance = CreateConVar( "ss_incap_allowance", "7", "有倒地幸存者时的宽限期(秒)" );
+	hCvarIncapAllowance = CreateConVar( "ss_incap_allowance", "7", "每名倒地幸存者时的宽限期(秒)", FCVAR_PLUGIN, true, 0.0 );
+	hCvarIntensityAllowance = CreateConVar( "ss_intensity_allowance", "5", "每名高压幸存者时的宽限期(秒)", FCVAR_PLUGIN, true, 0.0 );
+	hCvarIntensity = CreateConVar( "ss_intensity", "80", "压力多大时为高压", FCVAR_PLUGIN, true, 1.0, true, 100.0 );
 	// sets SpawnTimeMin, SpawnTimeMax, and SpawnTimes[]
 	SetSpawnTimes(); 
 }
@@ -84,15 +88,21 @@ public Action:SpawnInfectedAuto(Handle:timer) {
 	g_bHasSpawnTimerStarted = false; 
 	// Grant grace period before allowing a wave to spawn if there are incapacitated survivors
 	new numIncappedSurvivors = 0;
+	int numHighIntensitySurvivors = 0;
+	int highIntensity = GetConVarInt(hCvarIntensity);
 	for (new i = 1; i <= MaxClients; i++ ) {
-		if( IsSurvivor(i) && IsIncapacitated(i) && !IsPinned(i) ) {
-			numIncappedSurvivors++;			
+		if( IsSurvivor(i) ) {
+			if( IsIncapacitated(i) /*&& !IsPinned(i)*/ )
+				numIncappedSurvivors++;
+			else if( GetEntProp(i, Prop_Send, "m_clientIntensity") >= highIntensity )
+				numHighIntensitySurvivors++;
 		}
 	}
-	if( numIncappedSurvivors > 0 && numIncappedSurvivors != GetConVarInt(FindConVar("survivor_limit")) ) { // grant grace period
-		new gracePeriod = numIncappedSurvivors * GetConVarInt(hCvarIncapAllowance);
-		CreateTimer( float(gracePeriod), Timer_GracePeriod, _, TIMER_FLAG_NO_MAPCHANGE );
-		// Client_PrintToChatAll(true, "{G}%ds {O}grace period {N}was granted because of {G}%d {N}incapped survivor(s)", gracePeriod, numIncappedSurvivors);
+	if( ( numIncappedSurvivors > 0 || numHighIntensitySurvivors > 0 ) && numIncappedSurvivors < GetConVarInt(FindConVar("survivor_limit")) ) { // grant grace period
+		float gracePeriod = numIncappedSurvivors * GetConVarFloat(hCvarIncapAllowance) + numHighIntensitySurvivors * GetConVarFloat(hCvarIntensityAllowance);
+		CreateTimer( gracePeriod, Timer_GracePeriod, _, TIMER_FLAG_NO_MAPCHANGE );
+		// Client_PrintToChatAll(true, "{G}%.0fs {O}grace period {N}was granted because of {G}%d {N}incapped survivor(s)", gracePeriod, numIncappedSurvivors);
+		PrintToServer("SpecialSpawnner: grace period %.0f of %d incapped and %d intensity", gracePeriod, numIncappedSurvivors, numHighIntensitySurvivors);
 	} else { // spawn immediately
 		GenerateAndExecuteSpawnQueue();
 	}

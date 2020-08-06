@@ -15,6 +15,8 @@
 #define SOUND_BAD					"npc/moustachio/strengthattract05.wav"
 #define SOUND_WARP					"ambient/energy/zap7.wav"
 #define SOUND_Ball					"physics/destruction/explosivegasleak.wav"
+#define PARTICLE_BLOOD				"blood_impact_infected_01"
+
 #define g_flSoH_rate 0.4
 #define ZC_SMOKER			1
 #define ZC_BOOMER			2
@@ -40,7 +42,6 @@
 #define g_flSoHPumpI		0.5
 #define g_flSoHPumpE		0.6
 #define TRACE_TOLERANCE		25.0
-#define g_flRicochetAngle	100.0
 
 Handle g_pfnFindUseEntity = null;
 StringMap g_WeaponClipSize, g_WeaponDamage;
@@ -220,13 +221,11 @@ new Float:g_fOldMovement[MAXPLAYERS+1];
 new g_clAngryMode[MAXPLAYERS+1];
 new g_clAngryPoint[MAXPLAYERS+1];
 
-#define SPRITE_BEAM			"materials/sprites/laserbeam.vmt"
-#define SPRITE_HALO			"materials/sprites/halo01.vmt"
-#define SPRITE_GLOW			"materials/sprites/glow.vmt"
-#define Ricochet_Tracer		"weapon_tracers_incendiary"
-#define Ricochet_Tracer1	"weapon_tracers_explosive"
-#define Ricochet_Tracer2	"weapon_tracers"
-#define Ricochet_Sound		"weapons/fx/rics/ric1.wav"
+#define SPRITE_BEAM					"materials/sprites/laserbeam.vmt"
+#define SPRITE_HALO					"materials/sprites/halo01.vmt"
+#define SPRITE_GLOW					"materials/sprites/glow.vmt"
+#define SOUND_IMPACT1				"physics/flesh/flesh_impact_bullet1.wav"
+#define SOUND_IMPACT2				"physics/concrete/concrete_impact_bullet1.wav"
 
 static const char g_sndShoveInfected[][] = {
 	"player/survivor/hit/rifle_swing_hit_infected7.wav",
@@ -805,9 +804,6 @@ public OnMapStart()
 	GetConVarString(cv_sndPortalFX, g_sndPortalFX, sizeof(g_sndPortalFX));
 	
 	PrecacheParticle(g_particle);
-	PrecacheParticle(Ricochet_Tracer);
-	PrecacheParticle(Ricochet_Tracer1);
-	PrecacheParticle(Ricochet_Tracer2);
 	
 	PrecacheSound(g_sndPortalERROR, true);
 	PrecacheSound(g_sndPortalFX, true);
@@ -818,7 +814,8 @@ public OnMapStart()
 	PrecacheSound(SOUND_WARP, true);
 	PrecacheSound(SOUND_Ball, true);
 	PrecacheSound(SOUND_Bomb, true);
-	PrecacheSound(Ricochet_Sound, true);
+	PrecacheSound(SOUND_IMPACT1);
+	PrecacheSound(SOUND_IMPACT2);
 
 	if ( !IsModelPrecached( STAR_1_MDL ))		PrecacheModel( STAR_1_MDL );
 	if ( !IsModelPrecached( STAR_2_MDL ))		PrecacheModel( STAR_2_MDL );
@@ -2326,7 +2323,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("降落-在空中按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
 	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("备用-更多后备弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
 	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("避难所-受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
-	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("跳弹-子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
+	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("跳弹-子弹击中墙壁可以反弹(霰弹和小手枪除外)",(g_clSkill_3[client]&SKL_3_Ricochet)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -7513,81 +7510,95 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 	
 	if(g_clSkill_3[client] & SKL_3_Ricochet)
 	{
-		float vAngles[3], vOrigin[3], vDir[3], vResult[3], vPlane[3];
-		GetClientEyeAngles(client, vAngles);
-		GetClientEyePosition(client, vOrigin);
-		GetAngleVectors(vAngles, vDir, NULL_VECTOR, NULL_VECTOR);
-		
-		int mode = 2;
-		float damage = 15.0;
-		int type = DMG_BULLET;
+		float damage = 10.0;
 		int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-		if(weapon > MaxClients && IsValidEntity(weapon) && HasEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded"))
+		if(weapon > MaxClients && IsValidEntity(weapon))
 		{
-			int upgrade = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
-			int ammo = GetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded");
-			if(ammo > 0 && (upgrade & 1))
-				mode = 0;
-			else if(ammo > 0 && (upgrade & 2))
-				mode = 1;
-			
 			static char classname[64];
-			GetEntityClassname(weapon, classname, sizeof(classname));
-			bool got = (g_WeaponDamage.GetValue(classname, damage) && damage > 0.0);
-			if(StrContains(classname, "shotgun", false) > -1)
+			if(GetEntityClassname(weapon, classname, 64) && 
+				(StrContains(classname, "smg", false) > -1 || StrContains(classname, "rifle", false) > -1 ||
+				StrContains(classname, "sniper", false) > -1 || StrContains(classname, "magnum", false) > -1))
 			{
-				type = DMG_BUCKSHOT;
+				float fEyeAngles[3], fBeamOneStart[3], fBeamOneEnd[3], fBeamEndNormals[3], fBeamTwoDirection[3], fBeamForwards[3], fBeamTwoStart[3], fBeamTwoEnd[3];
+				GetClientEyeAngles(client, fEyeAngles);
+				GetClientEyePosition(client, fBeamOneStart);
 				
-				if(!got)
-					damage = 5.0;
-			}
-		}
-		
-		Handle TraceRay = TR_TraceRayFilterEx(vOrigin, vAngles, MASK_SOLID, RayType_Infinite, TraceRayDontHitTeam, 2);
-		if (TR_DidHit(TraceRay))
-		{
-			TR_GetPlaneNormal(TraceRay, vPlane);
-			delete TraceRay;
-			
-			if(RadToDeg(ArcCosine(GetVectorDotProduct(vDir, vPlane))) <= g_flRicochetAngle)
-			{
-				TE_SetupSparks(vEnd, vDir, GetRandomInt(1, 2), GetRandomInt(1, 2));
-				TE_SendToAll();
-				
-				NormalizeVector(vDir, vDir);
-				ScaleVector(vPlane, 2.0);
-				ScaleVector(vPlane, GetVectorDotProduct(vDir, vPlane));
-				ScaleVector(vPlane, GetVectorLength(vDir));
-				SubtractVectors(vDir, vPlane, vResult);
-				GetVectorAngles(vResult, vAngles);
-				
-				vAngles[0] += GetRandomFloat(-5.0, 5.0);
-				vAngles[1] += GetRandomFloat(-5.0, 5.0);
-				
-				TraceRay = TR_TraceRayFilterEx(vEnd, vAngles, MASK_SOLID, RayType_Infinite, TraceRayDontHitTeam, 2);
-				if (TR_DidHit(TraceRay))
+				// 反弹降低伤害
+				if(g_WeaponDamage.GetValue(classname, damage) && damage > 0.0)
 				{
-					TR_GetEndPosition(vResult, TraceRay);
-					int iTarget = TR_GetEntityIndex(TraceRay);
-					delete TraceRay;
+					// PrintCenterText(client, "dmg %.0f", damage);
+					damage /= 2;
+				}
+				/*
+				else
+				{
+					PrintCenterText(client, "no dmg");
+				}
+				*/
+				
+				Handle trace = TR_TraceRayFilterEx(fBeamOneStart, vEnd, MASK_SHOT, RayType_EndPoint, TraceRayDontHitSelf, client);
+				if(TR_DidHit(trace))
+				{
+					// TR_GetEndPosition(fBeamOneEnd, trace);
+					fBeamOneEnd = vEnd;
+					TR_GetPlaneNormal(trace, fBeamEndNormals);
+					delete trace;
 					
-					DisplayRicochet(vEnd, vResult, mode);
-					EmitSoundToAll(Ricochet_Sound, (iTarget > 0 ? iTarget : SOUND_FROM_WORLD), SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, _, vEnd);
+					for(int i = 0;i < 3; i++)
+						fBeamTwoDirection[i] = fBeamOneEnd[i] - fBeamOneStart[i];
 					
-					// TODO: 计算暴击和额外伤害
-					// FIXME: 未触发 TraceAttack
-					if(iTarget > 0 && damage > 0.0 && (!IsValidClient(iTarget) || GetClientTeam(iTarget) == 3))
-						SDKHooks_TakeDamage(iTarget, client, client, damage, type);
+					GetVectorAngles(fBeamTwoDirection, fBeamTwoDirection);
+					GetAngleVectors(fBeamTwoDirection, fBeamForwards, NULL_VECTOR, NULL_VECTOR);
+					
+					for(int i = 0;i < 3; i++)
+						fBeamTwoEnd[i] = fBeamOneEnd[i] + fBeamForwards[i] * 1024.0;
+					
+					float dotProduct = GetVectorDotProduct(fBeamEndNormals, fBeamForwards);
+					ScaleVector(fBeamEndNormals, dotProduct);
+					ScaleVector(fBeamEndNormals, 2.0);
+					
+					float vBounceVec[3];
+					SubtractVectors(fBeamForwards, fBeamEndNormals, vBounceVec);
+					
+					float fBeamTwoFinalDirection[3];
+					GetVectorAngles(vBounceVec, fBeamTwoFinalDirection);
+					
+					fBeamTwoStart = fBeamOneEnd;
+					
+					trace = TR_TraceRayFilterEx(fBeamTwoStart, fBeamTwoFinalDirection, MASK_SHOT, RayType_Infinite, TraceRayDontHitTeam, 2);
+					if(TR_DidHit(trace))
+					{
+						TR_GetEndPosition(fBeamTwoEnd, trace);
+						int iTarget = TR_GetEntityIndex(trace);
+						delete trace;
+						
+						// TODO: 计算暴击和额外伤害
+						// FIXME: 未触发 TraceAttack
+						if(iTarget > 0 && damage > 0.0)
+						{
+							EmitSoundToAll(SOUND_IMPACT1, iTarget,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
+							SDKHooks_TakeDamage(iTarget, weapon, client, damage, DMG_BULLET, weapon, NULL_VECTOR, fBeamTwoEnd);
+						}
+						else
+						{
+							EmitSoundToAll(SOUND_IMPACT2, 0,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
+						}
+						
+						// 子弹效果
+						TE_SetupBeamPoints(fBeamTwoStart, fBeamTwoEnd, g_BeamSprite, g_HaloSprite, 0, 0, 0.06, 0.1, 0.8, 1, 0.0, {200, 200, 200, 230}, 0);
+						TE_SendToAll();
+					}
+					else
+					{
+						delete trace;
+					}
 				}
 				else
 				{
-					delete TraceRay;
+					// PrintCenterText(client, "no hit");
+					delete trace;
 				}
 			}
-		}
-		else
-		{
-			delete TraceRay;
 		}
 	}
 }
@@ -8000,7 +8011,7 @@ public void OnGetWeaponsInfo(int pThis, const char[] classname)
 	InfoEditor_GetString(pThis, "clip_size", value, 64);
 	g_WeaponClipSize.SetValue(classname, StringToInt(value));
 	
-	InfoEditor_GetString(pThis, "damage", value, 64);
+	InfoEditor_GetString(pThis, "Damage", value, 64);
 	g_WeaponDamage.SetValue(classname, StringToFloat(value));
 }
 
@@ -9938,49 +9949,6 @@ stock bool:AttachParticle(ent, String:particleType[], Float:time=10.0)
 		}
 	}
 	return false;
-}
-
-void DisplayRicochet(float vStart[3], float vEnd[3], int mode)
-{  
- 	char szName[16];
-	int iEntity = CreateEntityByName("info_particle_target");
-	
-	if (iEntity == -1)
-		return;
-	
-	Format(szName, sizeof szName, "IInfo%d", iEntity);
-	DispatchKeyValue(iEntity, "targetname", szName);	
-	
-	TeleportEntity(iEntity, vEnd, NULL_VECTOR, NULL_VECTOR); 
-	ActivateEntity(iEntity); 
-	
-	SetVariantString("OnUser4 !self:Kill::1.1:-1");
-	AcceptEntityInput(iEntity, "AddOutput");
-	AcceptEntityInput(iEntity, "FireUser4");
-	
-	iEntity = CreateEntityByName("info_particle_system");
-	
-	if (iEntity == -1)
-		return;
-	
-	switch (mode)
-	{
-		case 0: DispatchKeyValue(iEntity, "effect_name", Ricochet_Tracer);
-		case 1: DispatchKeyValue(iEntity, "effect_name", Ricochet_Tracer1);
-		case 2: DispatchKeyValue(iEntity, "effect_name", Ricochet_Tracer2);
-	}
-	
-	DispatchKeyValue(iEntity, "cpoint1", szName);
-	
-	TeleportEntity(iEntity, vStart, NULL_VECTOR, NULL_VECTOR);
-	DispatchSpawn(iEntity);
-	ActivateEntity(iEntity); 
-	
-	AcceptEntityInput(iEntity, "Start");
-	
-	SetVariantString("OnUser4 !self:Kill::1.1:-1");
-	AcceptEntityInput(iEntity, "AddOutput");
-	AcceptEntityInput(iEntity, "FireUser4");
 }
 
 public void ParticleHook_OnThink(const char[] output, int caller, int activator, float delay)

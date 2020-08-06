@@ -1701,6 +1701,7 @@ public Action OnClientCommand(int client, int argc)
 }
 */
 
+/*
 stock void PrintToLeft(int client, const char[] text, any ...)
 {
 	if(!IsValidClient(client) || IsFakeClient(client))
@@ -1725,6 +1726,7 @@ stock void PrintToLeftAll(const char[] text, any ...)
 	bf.WriteString(buffer);
 	EndMessage();
 }
+*/
 
 public Action Command_Away(int client, const char[] command, int argc)
 {
@@ -1881,7 +1883,7 @@ void StatusChooseMenuFunc(int client)
 	if(g_bDeadlineHint[client])
 	{
 		g_bDeadlineHint[client] = false;
-		PrintToLeft(client, "你的存档过期了。。。");
+		PrintHintText(client, "你的存档过期了。。。");
 	}
 }
 
@@ -2020,7 +2022,7 @@ public int MenuHandler_RespawnOther(Menu menu, MenuAction action, int client, in
 	GiveSkillPoint(client, -3);
 	g_timerRespawn[subject] = CreateTimer(3.0, Timer_RespawnPlayer, subject);
 	PrintToChat(client, "\x03[提示]\x01 你选择的玩家 \x04%N\x01 将会在 \x053\x01 秒后复活。", subject);
-	PrintToLeft(subject, "有个神秘的队友对你进行续命\n你将会在 3 秒后活过来");
+	PrintHintText(subject, "有个神秘的队友对你进行续命\n你将会在 3 秒后活过来");
 
 	RespawnOther(client, false);
 	return 0;
@@ -8108,7 +8110,7 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 		
 		g_iExtraAmmo[iCid] -= amount;
 		SetEntProp(iCid, Prop_Send, "m_iAmmo", ammo + amount, _, ammoType);
-		PrintToLeft(iCid, "扩展备弹剩余 %d", g_iExtraAmmo[iCid]);
+		PrintCenterText(iCid, "扩展备弹剩余 %d", g_iExtraAmmo[iCid]);
 	}
 }
 
@@ -8894,7 +8896,8 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 
 			// 主武器
 			clip = GetEntProp(primary, Prop_Send, "m_iClip1");
-			// maxAmmo += maxClip - clip;
+			if(clip > 0)
+				maxAmmo += maxClip - clip;
 		}
 	}
 	else if(secondry > MaxClients && IsValidEntity(secondry) &&
@@ -8908,7 +8911,8 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 
 			// 副武器
 			clip = GetEntProp(secondry, Prop_Send, "m_iClip1");
-			// maxAmmo += maxClip - clip;
+			if(clip > 0)
+				maxAmmo += maxClip - clip;
 		}
 	}
 	else if(grenade > MaxClients && IsValidEntity(grenade) &&
@@ -8945,24 +8949,36 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 		}
 	}
 	
-	if(maxAmmo + maxClip > g_iMaxAmmo)
+	// 实际可用上限，来自于游戏限制
+	int available = maxAmmo + maxClip;
+	if(available > g_iMaxAmmo)
 	{
-		g_iExtraAmmo[client] = maxAmmo + maxClip - g_iMaxAmmo;
-		maxAmmo = g_iMaxAmmo - clip;
+		// g_iExtraAmmo[client] = maxAmmo + maxClip - g_iMaxAmmo;
+		// maxAmmo = g_iMaxAmmo - clip;
+		available = g_iMaxAmmo - clip + 1;	// 满弹夹时无法填装的，所以这里可以+1
 	}
 	else
 	{
 		g_iExtraAmmo[client] = 0;
-		maxAmmo += maxClip - clip;
+		// maxAmmo += maxClip - clip;
 	}
 	
 	int oldAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
-	int newAmmo = oldAmmo + amount;
+	int newAmmo = oldAmmo + amount + maxClip - clip;
 	if(newAmmo < 0)
 		newAmmo = 0;
+	
+	// 理论上限
 	if(limit && maxAmmo > 0 && newAmmo > maxAmmo)
 		newAmmo = maxAmmo;
-
+	
+	// 实际上限
+	if(available > 0 && newAmmo > available)
+	{
+		g_iExtraAmmo[client] = newAmmo - available;
+		newAmmo = available;
+	}
+	
 	SetEntProp(client, Prop_Send, "m_iAmmo", newAmmo, _, ammoType);
 	if(!noSound && newAmmo > oldAmmo)
 	{
@@ -9222,7 +9238,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		int weaponId = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 		if(IsValidEntity(weaponId))
 		{
-			char classname[64];
+			static char classname[64];
 			GetEntityClassname(weaponId, classname, 64);
 			int clip = GetEntProp(weaponId, Prop_Send, "m_iClip1");
 			bool isReloading = view_as<bool>(GetEntProp(weaponId, Prop_Send, "m_bInReload"));
@@ -9250,6 +9266,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					g_iBulletFired[client] = 0;
 					// PrintToLeft(client, "连续开枪停止");
 				}
+			}
+			
+			if((g_iRoundEvent == 2 || NCJ_2 /*|| g_csHasGodMode[client]*/) && (buttons & IN_RELOAD) &&
+				(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
+				StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1))
+			{
+				// 临时无限子弹时防止填装
+				buttons &= ~IN_RELOAD;
 			}
 			
 			if((g_clSkill_1[client] & SKL_1_KeepClip) && !isReloading && (buttons & IN_RELOAD) && StrContains(classname, "shotgun", false) == -1)
@@ -10525,7 +10549,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				SetEntPropFloat(client,Prop_Send,"m_healthBuffer", 0.0);
 				PerformGlow(client, 3, 4713783, GetRandomInt(-32767,32767) * 128);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04成功练成了葵花宝典,生命值上升为1000.", client);
-				PrintToLeft(client, "你被强化了，快上");
+				PrintHintText(client, "你被强化了，快上");
 			}
 			case 20:
 			{

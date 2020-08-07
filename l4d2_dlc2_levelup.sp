@@ -74,6 +74,7 @@ enum()
 	SKL_1_KeepClip = 1024,
 	SKL_1_ReviveBlock = 2048,
 	SKL_1_DisplayHealth = 4096,
+	SKL_1_ShoveFatigue = 8192,
 
 	SKL_2_Chainsaw = 1,
 	SKL_2_Excited = 2,
@@ -1125,7 +1126,7 @@ void GenerateRandomStats(int client)
 	g_clAngryMode[client] = GetRandomInt(0, 7);
 	
 	// 技能
-	g_clSkill_1[client] = GetRandomInt(0, 8191);
+	g_clSkill_1[client] = GetRandomInt(0, 16383);
 	g_clSkill_2[client] = GetRandomInt(0, 8191);
 	g_clSkill_3[client] = GetRandomInt(0, 8191);
 	g_clSkill_4[client] = GetRandomInt(0, 8191);
@@ -2262,11 +2263,12 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("轻盈-你可以跳得更高(重力降低)",(g_clSkill_1[client]&SKL_1_Gravity)));
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("谨慎-免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("手速-半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
-	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(限量，抵挡部分伤害，就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
+	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器自带激光/无后坐力(可能无效)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("保守-武器换弹夹时保留原弹夹(就像CS一样)",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("坚毅-拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("察觉-显示攻击目标伤害和血量",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("充沛-推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2294,7 +2296,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("踏空-在空中按跳跃可以再次起跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
 	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("防化服-受到胆汁影响时间减半/防止胆汁期间被特感故意攻击",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
 	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("炮台-倒地手枪换成马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
-	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("固定-在梯子不动可以掏出武器",(g_clSkill_2[client]&SKL_2_LadderGun)));
+	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("固定-在梯子上不动可以掏出武器",(g_clSkill_2[client]&SKL_2_LadderGun)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -9384,6 +9386,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				SetEntPropFloat(client, Prop_Send, "m_flNextShoveTime", GetGameTime() + g_hCvarShovTime.FloatValue + (penalty * g_fIncapShovePenalty));
 				
 				DoShoveSimulation(client, weaponId);
+			}
+			
+			if((g_clSkill_1[client] & SKL_1_ShoveFatigue) && (buttons & IN_ATTACK2))
+			{
+				SetEntProp(client, Prop_Send, "m_iShovePenalty", 0);
 			}
 		}
 

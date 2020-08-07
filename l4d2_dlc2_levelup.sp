@@ -507,6 +507,7 @@ public OnPluginStart()
 	HookEvent("weapon_drop", Event_WeaponDropped);
 	HookEvent("ammo_pickup", Event_AmmoPickup);
 	HookEvent("item_pickup", Event_WeaponPickuped);
+	HookEvent("player_use", Event_PlayerUsed);
 	HookEvent("upgrade_pack_added", Event_UpgradePickup);
 	HookEvent("player_now_it", Event_PlayerHitByVomit);
 	HookEvent("player_no_longer_it", Event_PlayerVomitTimeout);
@@ -7332,6 +7333,26 @@ public void UpdateWeaponAmmo(any data)
 	}
 }
 
+public void UpdateLaserSign(any data)
+{
+	DataPack pack = view_as<DataPack>(data);
+	pack.Reset();
+	
+	int client = pack.ReadCell();
+	if(!IsValidAliveClient(client))
+		return;
+	
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		return;
+	
+	if((g_clSkill_1[client] & SKL_1_NoRecoil) && HasEntProp(weapon, Prop_Send, "m_upgradeBitVec"))
+	{
+		int flags = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
+		SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flags | 4);
+	}
+}
+
 public void Event_AmmoPickup(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -7371,6 +7392,7 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 		data.WriteString(classname);
 		data.WriteCell(false);
 		
+		// 捡起固定刷武器只会触发 item_pickup，不会触发 player_use
 		RequestFrame(UpdateWeaponAmmo, data);
 	}
 	
@@ -7382,6 +7404,37 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 		
 		RequestFrame(NotifyWeaponRange, data);
 	}
+	
+	// PrintToChat(client, "item_pickup");
+}
+
+public void Event_PlayerUsed(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	int item = event.GetInt("targetid");
+	if(item <= MaxClients || !IsValidEntity(item))
+		return;
+	
+	static char classname[64];
+	if(!GetEntityClassname(item, classname, sizeof(classname)))
+		return;
+	
+	if(StrContains(classname, "smg", false) == -1 && StrContains(classname, "rifle", false) == -1 &&
+		StrContains(classname, "sniper", false) == -1 && StrContains(classname, "shotgun", false) == -1 &&
+		StrContains(classname, "grenade_launcher", false) == -1)
+		return;
+	
+	DataPack data = CreateDataPack();
+	data.WriteCell(client);
+	// data.WriteCell(item);
+	
+	// 捡起地上零散武器只会触发 player_use，而不会触发 item_pickup
+	g_iExtraAmmo[client] = 0;
+	RequestFrame(UpdateLaserSign, data);
+	// PrintToChat(client, "player_use");
 }
 
 public void Event_WeaponDropped(Event event, const char[] eventName, bool dontBroadcast)

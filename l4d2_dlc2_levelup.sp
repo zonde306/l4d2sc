@@ -501,7 +501,7 @@ public OnPluginStart()
 	// HookEvent("stashwhacker_game_won", Event_StashwhackerTrigged);
 	// HookEvent("scavenge_gas_can_destroyed", Event_GascanDestoryed);
 	HookEvent("survivor_rescued", Event_SurvivorRescued);
-	// HookEvent("weapon_drop", Event_WeaponDropped);
+	HookEvent("weapon_drop", Event_WeaponDropped);
 	HookEvent("ammo_pickup", Event_AmmoPickup);
 	HookEvent("item_pickup", Event_WeaponPickuped);
 	HookEvent("upgrade_pack_added", Event_UpgradePickup);
@@ -1125,9 +1125,9 @@ void GenerateRandomStats(int client)
 	g_clAngryMode[client] = GetRandomInt(0, 7);
 	
 	// 技能
-	g_clSkill_1[client] = GetRandomInt(0, 4095);
-	g_clSkill_2[client] = GetRandomInt(0, 4095);
-	g_clSkill_3[client] = GetRandomInt(0, 4095);
+	g_clSkill_1[client] = GetRandomInt(0, 8191);
+	g_clSkill_2[client] = GetRandomInt(0, 8191);
+	g_clSkill_3[client] = GetRandomInt(0, 8191);
 	g_clSkill_4[client] = GetRandomInt(0, 8191);
 	g_clSkill_5[client] = GetRandomInt(0, 8191);
 	
@@ -2263,7 +2263,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("谨慎-免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("手速-半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(限量，抵挡部分伤害，就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
-	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器无后坐力(可能无效)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
+	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器自带激光/无后坐力(可能无效)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("保守-武器换弹夹时保留原弹夹(就像CS一样)",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("坚毅-拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("察觉-显示攻击目标伤害和血量",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
@@ -7308,7 +7308,9 @@ public void UpdateWeaponAmmo(any data)
 	if(weapon > MaxClients && IsValidEntity(weapon))
 		GetEntityClassname(weapon, className, 64);
 	if(weapon < MaxClients || !IsValidEntity(weapon) || !StrEqual(className, classname, false))
-		GetEntityClassname((weapon = GetPlayerWeaponSlot(client, 1)), className, 64);
+		weapon = GetPlayerWeaponSlot(client, 1);
+	if(weapon > MaxClients && IsValidEntity(weapon))
+		GetEntityClassname(weapon, className, 64);
 	if(weapon < MaxClients || !IsValidEntity(weapon) || !StrEqual(className, classname, false))
 		return;
 	
@@ -7316,6 +7318,12 @@ public void UpdateWeaponAmmo(any data)
 		SetEntProp(weapon, Prop_Send, "m_iClip1", RoundToZero(GetDefaultClip(weapon) * 1.5));
 	
 	AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+	
+	if((g_clSkill_1[client] & SKL_1_NoRecoil) && HasEntProp(weapon, Prop_Send, "m_upgradeBitVec"))
+	{
+		int flags = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
+		SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flags | 4);
+	}
 }
 
 public void Event_AmmoPickup(Event event, const char[] eventName, bool dontBroadcast)
@@ -7367,6 +7375,23 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 		data.WriteString(classname);
 		
 		RequestFrame(NotifyWeaponRange, data);
+	}
+}
+
+public void Event_WeaponDropped(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	int weapon = event.GetInt("propid");
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		return;
+	
+	if((g_clSkill_1[client] & SKL_1_NoRecoil) && HasEntProp(weapon, Prop_Send, "m_upgradeBitVec"))
+	{
+		int flags = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
+		SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flags & ~4);
 	}
 }
 

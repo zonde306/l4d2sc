@@ -290,7 +290,7 @@ KeyValues g_kvSavePlayer[MAXPLAYERS+1];
 
 //附加
 float g_ctPainPills[MAXPLAYERS+1], g_ctFullHealth[MAXPLAYERS+1], g_ctDefibrillator[MAXPLAYERS+1],
-	g_ctPipeBomb[MAXPLAYERS+1], g_ctGodMode[MAXPLAYERS+1], g_ctSelfHeal[MAXPLAYERS+1];
+	g_ctPipeBomb[MAXPLAYERS+1], g_ctGodMode[MAXPLAYERS+1], g_ctSelfHeal[MAXPLAYERS+1], g_ctConvTemp[MAXPLAYERS+1];
 
 new g_tkSkillType[MAXPLAYERS+1];
 new g_stFallDamageKilled = 0;
@@ -3916,8 +3916,11 @@ public void OnGameFrame()
 					}
 				}
 				
-				if((g_clSkill_4[i] & SKL_4_TempRespite) && !IsPlayerIncapped(i) && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
+				if((g_clSkill_4[i] & SKL_4_TempRespite) && g_ctConvTemp[i] > 0.0 && g_ctConvTemp[i] <= curTime &&
+					!IsPlayerIncapped(i) && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
 				{
+					g_ctConvTemp[i] = curTime + 2.0;
+					
 					int tempHealth = GetPlayerTempHealth(i);
 					if(tempHealth > 0)
 					{
@@ -3932,7 +3935,7 @@ public void OnGameFrame()
 					}
 				}
 				
-				if(IsPlayerHaveEffect(i, 12))
+				if(IsPlayerHaveEffect(i, 13))
 				{
 					int tempHealth = GetPlayerTempHealth(i);
 					if(tempHealth > 0)
@@ -3988,7 +3991,7 @@ public void OnGameFrame()
 			if((g_clSkill_3[i] & SKL_3_GodMode) && g_ctGodMode[i] > 0.0 && g_ctGodMode[i] <= curTime)
 			{
 				g_ctGodMode[i] = -curTime - 14.0;
-				g_csHasGodMode[i] = IsPlayerHaveEffect(i, 9);
+				g_csHasGodMode[i] = !!IsPlayerHaveEffect(i, 9);
 				
 				// SetEntProp(i, Prop_Data, "m_takedamage", 0, 1);
 				// EmitSoundToClient(client, g_soundLevel);
@@ -4757,6 +4760,12 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		
 		CheatCommand(client, "give", "pistol_magnum");
 		CreateTimer(0.1, Timer_CheckHavePistol, client);
+	}
+	
+	if(g_fFreezeTime[client] > GetEngineTime() && IsPlayerHaveEffect(client, 16))
+	{
+		// 取消冰冻效果
+		g_fFreezeTime[client] = GetEngineTime();
 	}
 
 	if(g_iRoundEvent == 14)
@@ -7322,7 +7331,7 @@ public void UpdateWeaponAmmo(any data)
 		return;
 	
 	if(fullClip && (g_clSkill_4[client] & SKL_4_ClipSize))
-		SetEntProp(weapon, Prop_Send, "m_iClip1", RoundToZero(GetDefaultClip(weapon) * 1.5));
+		SetEntProp(weapon, Prop_Send, "m_iClip1", CalcPlayerClip(client, weapon));
 	
 	AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
 	
@@ -7508,8 +7517,11 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 		return;
 	
 	// 希望不会冲突吧
-	if(g_clSkill_4[client] & SKL_4_ClipSize)
-		SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", RoundToZero(GetDefaultClip(weapon) * 1.5));
+	int maxClip = CalcPlayerClip(client, weapon);
+	if(maxClip > 255)
+		maxClip = 255;
+	if(maxClip > 0)
+		SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", maxClip);
 	
 	if((g_clSkill_1[client] & SKL_1_KeepClip) && g_iReloadWeaponUpgradeClip[client] > 0)
 	{
@@ -7896,6 +7908,8 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	g_ctFullHealth[client] = (g_clSkill_2[client] & SKL_2_FullHealth ? curTime + 200.0 : 0.0);
 	g_ctSelfHeal[client] = (g_clSkill_3[client] & SKL_3_SelfHeal ? curTime + 150.0 : 0.0);
 	g_ctGodMode[client] = (g_clSkill_3[client] & SKL_3_GodMode ? curTime + 80.0 : 0.0);
+	g_ctConvTemp[client] = (g_clSkill_4[client] & SKL_4_TempRespite ? curTime + 2.0 : 0.0);
+	g_csHasGodMode[client] = false;
 
 	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	// SDKUnhook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
@@ -8180,6 +8194,26 @@ int GetDefaultClip(int weapon)
 	return 0;
 }
 
+int CalcPlayerClip(int client, int weapon)
+{
+	float scale = 1.0;
+	
+	for(int i = 0; i < 4; ++i)
+	{
+		if(g_clCurEquip[client][i] == -1)
+			continue;
+		
+		// 装备附加技能
+		if(g_eqmEffects[client][g_clCurEquip[client][i]] == 14)
+			scale += 0.15;
+	}
+	
+	if(g_clSkill_4[client] & SKL_4_ClipSize)
+		scale += 0.5;
+	
+	return RoundToZero(GetDefaultClip(weapon) * scale);
+}
+
 public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new iCid=GetClientOfUserId(GetEventInt(event,"userid"));
@@ -8211,7 +8245,7 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 	if(g_clSkill_4[iCid] & SKL_4_ClipSize)
 	{
 		// 检查换子弹
-		HookPlayerReload(iCid, RoundToZero(GetDefaultClip(weapon) * 1.5));
+		HookPlayerReload(iCid, CalcPlayerClip(iCid, weapon));
 		// PrintToLeft(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
 		// PrintToChat(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
 	}
@@ -8260,7 +8294,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			hasGetAmmo = true;
 			weaponSpeed = 0.8;
 		}
-		else if(g_iRoundEvent == 2 || NCJ_2/* || g_csHasGodMode[client]*/)
+		else if(g_iRoundEvent == 2 || NCJ_2 || g_csHasGodMode[client])
 		{
 			// 临时无限子弹
 			SetEntProp(weapon, Prop_Send, "m_iClip1", 2);
@@ -8984,12 +9018,28 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 			default:
 				return false;
 		}
-
+		
+		/*
 		if(maxAmmo < 0)
 			return false;
-
+		*/
+		
+		float scale = 1.0;
+		
+		for(int i = 0; i < 4; ++i)
+		{
+			if(g_clCurEquip[client][i] == -1)
+				continue;
+			
+			// 装备附加技能
+			if(g_eqmEffects[client][g_clCurEquip[client][i]] == 15)
+				scale += 0.25;
+		}
+		
 		if(g_clSkill_3[client] & SKL_3_MoreAmmo)
-			maxAmmo = RoundToNearest(maxAmmo * 2.0);
+			scale += 1.0;
+		
+		maxAmmo = RoundToZero(maxAmmo * scale);
 	}
 	else
 	{
@@ -9392,7 +9442,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 			
-			if((g_iRoundEvent == 2 || NCJ_2 /*|| g_csHasGodMode[client]*/) && (buttons & IN_RELOAD) &&
+			if((g_iRoundEvent == 2 || NCJ_2 || g_csHasGodMode[client]) && (buttons & IN_RELOAD) &&
 				(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
 				StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1))
 			{
@@ -9410,7 +9460,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			if((g_clSkill_4[client] & SKL_4_ClipSize) && !isReloading && (buttons & IN_RELOAD) &&
 				defaultClip > 0 && clip >= defaultClip)
 			{
-				if(clip < RoundToNearest(defaultClip * 1.5))
+				int maxClip = CalcPlayerClip(client, weaponId);
+				if(clip < maxClip)
 				{
 					if(StrContains(classname, "shotgun", false) != -1)
 					{
@@ -11762,32 +11813,38 @@ bool RebuildEquipStr(int client, int index)
 
 	switch(g_eqmEffects[client][index])
 	{
-		case 0:
-			strcopy(g_esEffects[client][index], 128, "倒地被救起时恢复HP+40");
 		case 1:
-			strcopy(g_esEffects[client][index], 128, "使用药丸时兴奋30秒");
+			strcopy(g_esEffects[client][index], 128, "倒地被救起时恢复HP+40");
 		case 2:
-			strcopy(g_esEffects[client][index], 128, "使用怒气技时怒气值恢复10");
+			strcopy(g_esEffects[client][index], 128, "使用药丸时兴奋30秒");
 		case 3:
-			strcopy(g_esEffects[client][index], 128, "倒地被救起时兴奋15秒");
+			strcopy(g_esEffects[client][index], 128, "使用怒气技时怒气值恢复10");
 		case 4:
-			strcopy(g_esEffects[client][index], 128, "倒地时反伤HP+100并点燃攻击者");
+			strcopy(g_esEffects[client][index], 128, "倒地被救起时兴奋15秒");
 		case 5:
-			strcopy(g_esEffects[client][index], 128, "暴击时追加伤害上限+200");
+			strcopy(g_esEffects[client][index], 128, "倒地时反伤HP+100并点燃攻击者");
 		case 6:
-			strcopy(g_esEffects[client][index], 128, "霸气天赋伤害上限+300,附加回血功能");
+			strcopy(g_esEffects[client][index], 128, "暴击时追加伤害上限+200");
 		case 7:
-			strcopy(g_esEffects[client][index], 128, "主武器暴击率+5");
+			strcopy(g_esEffects[client][index], 128, "霸气天赋伤害上限+300,附加回血功能");
 		case 8:
-			strcopy(g_esEffects[client][index], 128, "无敌天赋附加无限子弹功能");
+			strcopy(g_esEffects[client][index], 128, "主武器暴击率+5");
 		case 9:
-			strcopy(g_esEffects[client][index], 128, "死亡时反伤杀害者3000伤害");
+			strcopy(g_esEffects[client][index], 128, "无敌天赋附加无限子弹功能");
 		case 10:
-			strcopy(g_esEffects[client][index], 128, "近战击中坦克时冰冻坦克5秒");
+			strcopy(g_esEffects[client][index], 128, "死亡时反伤杀害者3000伤害");
 		case 11:
-			strcopy(g_esEffects[client][index], 128, "每次暴击能恢复5点HP");
+			strcopy(g_esEffects[client][index], 128, "近战击中坦克时冰冻坦克5秒");
 		case 12:
+			strcopy(g_esEffects[client][index], 128, "每次暴击能恢复5点HP");
+		case 13:
 			strcopy(g_esEffects[client][index], 128, "虚血不会衰减");
+		case 14:
+			strcopy(g_esEffects[client][index], 128, "弹夹子弹+15%");
+		case 15:
+			strcopy(g_esEffects[client][index], 128, "备用子弹+25%");
+		case 16:
+			strcopy(g_esEffects[client][index], 128, "倒地取消冰冻效果");
 		default:
 			strcopy(g_esEffects[client][index], 128, "");
 	}
@@ -11802,17 +11859,17 @@ bool RebuildEquipStr(int client, int index)
 	return true;
 }
 
-stock bool IsPlayerHaveEffect(int client, int effect)
+stock int IsPlayerHaveEffect(int client, int effect)
 {
-	bool ExtraAdd = false;
+	int ExtraAdd = 0;
 	for(int i = 0; i < 4; i++)
 	{
 		if(g_clCurEquip[client][i] != -1)
 		{
 			if(g_eqmEffects[client][g_clCurEquip[client][i]] == effect)
 			{
-				ExtraAdd = true;
-				break;
+				ExtraAdd += 1;
+				// break;
 			}
 		}
 	}

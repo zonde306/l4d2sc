@@ -3479,7 +3479,7 @@ public int MenuHandler_EquipSkill(Menu menu, MenuAction action, int client, int 
 
 
 		GiveSkillPoint(client, -3);
-		g_eqmEffects[client][index] = GetRandomInt(1, 12);
+		g_eqmEffects[client][index] = GetRandomInt(1, 16);
 		RebuildEquipStr(client, index);
 
 		PrintToChat(client, "\x03[提示]\x01 改造后：%s", FormatEquip(client, index));
@@ -3595,7 +3595,7 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 		else extratalent = GetRandomInt(1, 4);
 		if(extratalent == 1)
 		{
-			g_eqmEffects[client][index] = GetRandomInt(1, 12);
+			g_eqmEffects[client][index] = GetRandomInt(1, 16);
 		}
 		else
 		{
@@ -11731,7 +11731,7 @@ int GiveEquipment(int client, int index = -1, int parts = -1)
 	g_eqmPrefix[client][index] = GetRandomInt(1, 5);
 	g_eqmParts[client][index] = (0 <= parts <= 3 ? parts : GetRandomInt(0, 3));
 	g_eqmUpgrade[client][index] = (GetRandomInt(0, 1) ? GetRandomInt(0, 5) : 0);
-	g_eqmEffects[client][index] = (!GetRandomInt(0, 2) ? GetRandomInt(0, 12) : 0);
+	g_eqmEffects[client][index] = (!GetRandomInt(0, 2) ? GetRandomInt(0, 16) : 0);
 
 	switch(g_eqmParts[client][index])
 	{

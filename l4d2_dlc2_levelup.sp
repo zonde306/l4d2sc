@@ -9542,7 +9542,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				defaultClip > 0 && clip >= defaultClip)
 			{
 				int maxClip = CalcPlayerClip(client, weaponId);
-				if(clip < maxClip)
+				int ammoType = GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType");
+				int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
+				if(clip < maxClip && ammo > 0)
 				{
 					if(StrContains(classname, "shotgun", false) != -1)
 					{
@@ -9558,10 +9560,18 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					}
 					else
 					{
-						int ammoType = GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType");
 						SetEntProp(weaponId, Prop_Send, "m_iClip1", 0);
-						SetEntProp(client, Prop_Send, "m_iAmmo", GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) +
-							clip, _, ammoType);
+						
+						if(ammo + clip > g_iMaxAmmo)
+						{
+							// AddAmmo 有限制的，应该不会触发的吧
+							SetEntProp(client, Prop_Send, "m_iAmmo", g_iMaxAmmo, _, ammoType);
+							g_iExtraAmmo[client] += ammo + clip - g_iMaxAmmo;
+						}
+						else
+						{
+							SetEntProp(client, Prop_Send, "m_iAmmo", ammo + clip, _, ammoType);
+						}
 						
 						g_iReloadWeaponOldClip[client] = 0;
 					}

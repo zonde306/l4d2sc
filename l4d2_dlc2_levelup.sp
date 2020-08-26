@@ -32,6 +32,26 @@
 #define TEAM_INFECTED		3
 #define CVAR_FLAGS			FCVAR_PROTECTED|FCVAR_NOT_CONNECTED|FCVAR_DONTRECORD
 
+#define AMMOTYPE_PISTOL				1
+#define AMMOTYPE_MAGNUM				2
+#define AMMOTYPE_ASSAULTRIFLE		3
+#define AMMOTYPE_MINIGUN			4
+#define AMMOTYPE_SMG				5
+#define AMMOTYPE_M60				6
+#define AMMOTYPE_SHOTGUN			7
+#define AMMOTYPE_AUTOSHOTGUN		8
+#define AMMOTYPE_HUNTINGRIFLE		9
+#define AMMOTYPE_SNIPERRIFLE		10
+#define AMMOTYPE_TURRET				11
+#define AMMOTYPE_PIPEBOMB			12
+#define AMMOTYPE_MOLOTOV			13
+#define AMMOTYPE_VOMITJAR			14
+#define AMMOTYPE_PAINPILLS			15
+#define AMMOTYPE_FIRSTAID			16
+#define AMMOTYPE_GRENADELAUNCHER	17
+#define AMMOTYPE_ADRENALINE			18
+#define AMMOTYPE_CHAINSAW			19
+
 #define g_flSoHAutoS		0.666666
 #define g_flSoHAutoI		0.4
 #define g_flSoHAutoE		0.675
@@ -7397,7 +7417,7 @@ public void UpdateWeaponAmmo(any data)
 	if(weapon < MaxClients || !IsValidEntity(weapon) || !StrEqual(className, classname, false))
 		return;
 	
-	if(fullClip && (g_clSkill_4[client] & SKL_4_ClipSize))
+	if(fullClip)
 		SetEntProp(weapon, Prop_Send, "m_iClip1", CalcPlayerClip(client, weapon));
 	
 	AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
@@ -7466,7 +7486,7 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 		DataPack data = CreateDataPack();
 		data.WriteCell(client);
 		data.WriteString(classname);
-		data.WriteCell(false);
+		data.WriteCell(true);
 		
 		// 捡起固定刷武器只会触发 item_pickup，不会触发 player_use
 		RequestFrame(UpdateWeaponAmmo, data);
@@ -8348,8 +8368,9 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		return;
 
 	float weaponSpeed = 1.0;
-	if(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
-		StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1)
+	bool isShotgun = (StrContains(classname, "shotgun", false) != -1);
+	bool isSniper = (StrContains(classname, "sniper", false) != -1 || StrContains(classname, "hunting", false) != -1);
+	if(isShotgun || isSniper || StrContains(classname, "smg", false) != -1 || StrContains(classname, "rifle", false) != -1)
 	{
 		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 		bool hasGetAmmo = false;
@@ -8367,7 +8388,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			SetEntProp(weapon, Prop_Send, "m_iClip1", 2);
 			hasGetAmmo = true;
 		}
-		else if((g_clSkill_5[client] & SKL_5_InfAmmo) && !GetRandomInt(0, 2))
+		else if((g_clSkill_5[client] & SKL_5_InfAmmo) && !((isShotgun || isSniper) ? GetRandomInt(0, 2) : GetRandomInt(0, 3)))
 		{
 			// 自动获得子弹(手枪本来就是无限子弹的)
 			// GivePlayerAmmo(client, 1, ammoType, true);
@@ -8987,26 +9008,6 @@ stock bool AddHealth(int client, int amount, bool limit = true)
 	return true;
 }
 
-#define AMMOTYPE_PISTOL				1
-#define AMMOTYPE_MAGNUM				2
-#define AMMOTYPE_ASSAULTRIFLE		3
-#define AMMOTYPE_MINIGUN			4
-#define AMMOTYPE_SMG				5
-#define AMMOTYPE_M60				6
-#define AMMOTYPE_SHOTGUN			7
-#define AMMOTYPE_AUTOSHOTGUN		8
-#define AMMOTYPE_HUNTINGRIFLE		9
-#define AMMOTYPE_SNIPERRIFLE		10
-#define AMMOTYPE_TURRET				11
-#define AMMOTYPE_PIPEBOMB			12
-#define AMMOTYPE_MOLOTOV			13
-#define AMMOTYPE_VOMITJAR			14
-#define AMMOTYPE_PAINPILLS			15
-#define AMMOTYPE_FIRSTAID			16
-#define AMMOTYPE_GRENADELAUNCHER	17
-#define AMMOTYPE_ADRENALINE			18
-#define AMMOTYPE_CHAINSAW			19
-
 stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = false, bool limit = true)
 {
 	if(!IsValidAliveClient(client) || amount == 0)
@@ -9125,15 +9126,12 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	if(primary > MaxClients && IsValidEntity(primary) &&
 		GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
 	{
-		maxClip = GetDefaultClip(primary);
+		maxClip = CalcPlayerClip(client, primary);
 		if(maxClip > 0)
 		{
-			if(g_clSkill_4[client] & SKL_4_ClipSize)
-				maxClip = RoundToNearest(maxClip * 1.5);
-
 			// 主武器
 			clip = GetEntProp(primary, Prop_Send, "m_iClip1");
-			if(clip > 0)
+			if(clip > -1)
 				maxAmmo += maxClip - clip;
 		}
 	}
@@ -9148,7 +9146,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 
 			// 副武器
 			clip = GetEntProp(secondry, Prop_Send, "m_iClip1");
-			if(clip > 0)
+			if(clip > -1)
 				maxAmmo += maxClip - clip;
 		}
 	}
@@ -9192,7 +9190,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	{
 		// g_iExtraAmmo[client] = maxAmmo + maxClip - g_iMaxAmmo;
 		// maxAmmo = g_iMaxAmmo - clip;
-		available = g_iMaxAmmo - clip + 1;	// 满弹夹时无法填装的，所以这里可以+1
+		available = g_iMaxAmmo - clip;	// 满弹夹时无法填装的，所以这里或许可以+1
 	}
 	else
 	{
@@ -9201,7 +9199,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	}
 	
 	int oldAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
-	int newAmmo = oldAmmo + amount + maxClip - clip;
+	int newAmmo = oldAmmo + g_iExtraAmmo[client] + amount;
 	if(newAmmo < 0)
 		newAmmo = 0;
 	
@@ -9209,7 +9207,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	if(limit && maxAmmo > 0 && newAmmo > maxAmmo)
 		newAmmo = maxAmmo;
 	
-	// 实际上限
+	// 实际上限(由于引擎限制)
 	if(available > 0 && newAmmo > available)
 	{
 		g_iExtraAmmo[client] = newAmmo - available;
@@ -9222,7 +9220,8 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 		// 在弹药增加的情况下才是需要播放声音
 		ClientCommand(client, "play \"items/itempickup.wav\"");
 	}
-
+	
+	// PrintToChat(client, "ammo +%d, ov %d, nv %d, cl %d, ex %d, lim %d, ava %d, mc %d", amount, oldAmmo, newAmmo, clip, g_iExtraAmmo[client], maxAmmo, available, maxClip);
 	return (oldAmmo != newAmmo);
 }
 
@@ -9621,10 +9620,18 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			if(GetVectorDistance(origin, position, false) <= cv_usedst.FloatValue)
 			{
-				if(StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false) ||	// 弹药堆
-					(StrContains(className, weaponName, false) == 0 && className[strlen(weaponName)] == '_'))	// weapon_*_spawn
+				bool isAmmo = (StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false));	// 弹药堆
+				bool isSpawnner = (StrContains(className, weaponName, false) == 0 && className[strlen(weaponName)] == '_');	// weapon_*_spawn
+				
+				if(isAmmo || isSpawnner)
 				{
-					AddAmmo(client, 999, GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType"));
+					DataPack data = CreateDataPack();
+					data.WriteCell(client);
+					data.WriteString(weaponName);
+					data.WriteCell(isSpawnner);
+					
+					// AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+					RequestFrame(UpdateWeaponAmmo, data);
 				}
 				else if(StrEqual(className, "upgrade_ammo_explosive", false) || StrEqual(className, "upgrade_ammo_incendiary", false))
 				{

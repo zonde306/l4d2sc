@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.17"
+#define PLUGIN_VERSION		"1.18"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -37,6 +37,17 @@
 
 ========================================================================================
 	Change Log:
+
+1.18 (20-Aug-2020)
+	- Thanks to "Forgetest" for reporting the following issues and testing multiple fixes.
+	- Fixed natives using "L4D2CT_VersusStartTimer" from reading the incorrect address.
+	- Fixed native "L4D2_IsValidWeapon" returning false when the classname is missing "weapon_".
+	- Fixed address "g_pGameRules" being incorrect after certain map or mode changes, this broke the following natives:
+		"L4D2_GetVersusCompletionPlayer", "L4D_GetVersusMaxCompletionScore" and "L4D_SetVersusMaxCompletionScore".
+
+	- Note: native "L4D2_IsValidWeapon" and various "*WeaponAttribute" natives still returns invalid for CSS weapons.
+		This only happens on the servers first load until map is changed and the CSS weapons are precached using whichever method
+		your server uses to enable CSS weapons. Plugins using or modifying CSS weapons might need to be updated with this in mind.
 
 1.17 (20-Jul-2020)
 	- Added native (L4D2 only): "L4D2_IsReachable" to check if a position is accessible to a Survivor Bot.
@@ -1677,12 +1688,7 @@ public void OnMapStart()
 
 
 	// Putting this here so g_pGameRules is valid.
-	static bool loaded;
-	if( !loaded )
-	{
-		loaded = true;
-		LoadGameDataRules();
-	}
+	LoadGameDataRules();
 
 
 
@@ -1742,24 +1748,24 @@ public void OnMapStart()
 			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "SpitterLimit",			1);
 			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "JockeyLimit",			1);
 			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "ChargerLimit",			1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TankLimit",				1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "DominatorLimit",			1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "WitchLimit",				1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TankLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "DominatorLimit",		1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "WitchLimit",			1);
 			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "CommonLimit",			1);
 
 			// Challenge mode required?
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_MaxSpecials",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_MaxSpecials",		1);
 			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_BaseSpecialLimit",	1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_SmokerLimit",			1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_BoomerLimit",			1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_HunterLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_SmokerLimit",		1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_BoomerLimit",		1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_HunterLimit",		1);
 			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_SpitterLimit",		1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_JockeyLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_JockeyLimit",		1);
 			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_ChargerLimit",		1);
 			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_TankLimit",			1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_DominatorLimit",		1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_WitchLimit",			1);
-			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_CommonLimit",			1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_DominatorLimit",	1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_WitchLimit",		1);
+			SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "cm_CommonLimit",		1);
 
 			// These also exist, required?
 			// SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TotalSmokers",			1);
@@ -2754,189 +2760,6 @@ void LoadGameData()
 
 
 
-	// ====================================================================================================
-	//									OFFSETS
-	// ====================================================================================================
-	// Various
-	#if DEBUG
-	PrintToServer("Various Offsets:");
-	#endif
-
-	// g_bLinuxOS = hGameData.GetOffset("OS") == 1;
-
-	m_iCampaignScores = hGameData.GetOffset("m_iCampaignScores");
-	ValidateOffset(m_iCampaignScores, "m_iCampaignScores");
-
-	m_fTankSpawnFlowPercent = hGameData.GetOffset("m_fTankSpawnFlowPercent");
-	ValidateOffset(m_fTankSpawnFlowPercent, "m_fTankSpawnFlowPercent");
-
-	m_fWitchSpawnFlowPercent = hGameData.GetOffset("m_fWitchSpawnFlowPercent");
-	ValidateOffset(m_fWitchSpawnFlowPercent, "m_fWitchSpawnFlowPercent");
-
-	m_iTankPassedCount = hGameData.GetOffset("m_iTankPassedCount");
-	ValidateOffset(m_iTankPassedCount, "m_iTankPassedCount");
-
-	m_bTankThisRound = hGameData.GetOffset("m_bTankThisRound");
-	ValidateOffset(m_bTankThisRound, "m_bTankThisRound");
-
-	m_bWitchThisRound = hGameData.GetOffset("m_bWitchThisRound");
-	ValidateOffset(m_bWitchThisRound, "m_bWitchThisRound");
-
-	InvulnerabilityTimer = hGameData.GetOffset("InvulnerabilityTimer");
-	ValidateOffset(InvulnerabilityTimer, "InvulnerabilityTimer");
-
-	m_iTankTickets = hGameData.GetOffset("m_iTankTickets");
-	ValidateOffset(m_iTankTickets, "m_iTankTickets");
-
-	m_flow = hGameData.GetOffset("m_flow");
-	ValidateOffset(m_flow, "m_flow");
-
-	m_PendingMobCount = hGameData.GetOffset("m_PendingMobCount");
-	ValidateOffset(m_PendingMobCount, "m_PendingMobCount");
-
-	m_fMapMaxFlowDistance = hGameData.GetOffset("m_fMapMaxFlowDistance");
-	ValidateOffset(m_fMapMaxFlowDistance, "m_fMapMaxFlowDistance");
-
-	m_rescueCheckTimer = hGameData.GetOffset("m_rescueCheckTimer");
-	ValidateOffset(m_rescueCheckTimer, "m_rescueCheckTimer");
-
-
-
-	if( g_bLeft4Dead2 )
-	{
-		SpawnTimer = hGameData.GetOffset("SpawnTimer");
-		ValidateOffset(SpawnTimer, "SpawnTimer");
-
-		MobSpawnTimer = hGameData.GetOffset("MobSpawnTimer");
-		ValidateOffset(MobSpawnTimer, "MobSpawnTimer");
-
-		OnBeginRoundSetupTime = hGameData.GetOffset("OnBeginRoundSetupTime");
-		ValidateOffset(OnBeginRoundSetupTime, "OnBeginRoundSetupTime");
-
-		VersusMaxCompletionScore = hGameData.GetOffset("VersusMaxCompletionScore");
-		ValidateOffset(VersusMaxCompletionScore, "VersusMaxCompletionScore");
-
-		m_iTankCount = hGameData.GetOffset("m_iTankCount");
-		ValidateOffset(SpawnTimer, "SpawnTimer");
-
-		m_iWitchCount = hGameData.GetOffset("m_iWitchCount");
-		ValidateOffset(m_iWitchCount, "m_iWitchCount");
-
-		OvertimeGraceTimer = hGameData.GetOffset("OvertimeGraceTimer");
-		ValidateOffset(OvertimeGraceTimer, "OvertimeGraceTimer");
-
-		m_iShovePenalty = hGameData.GetOffset("m_iShovePenalty");
-		ValidateOffset(m_iShovePenalty, "m_iShovePenalty");
-
-		m_fNextShoveTime = hGameData.GetOffset("m_fNextShoveTime");
-		ValidateOffset(m_fNextShoveTime, "m_fNextShoveTime");
-
-		m_preIncapacitatedHealth = hGameData.GetOffset("m_preIncapacitatedHealth");
-		ValidateOffset(m_preIncapacitatedHealth, "m_preIncapacitatedHealth");
-
-		m_preIncapacitatedHealthBuffer = hGameData.GetOffset("m_preIncapacitatedHealthBuffer");
-		ValidateOffset(m_preIncapacitatedHealthBuffer, "m_preIncapacitatedHealthBuffer");
-
-		m_maxFlames = hGameData.GetOffset("m_maxFlames");
-		ValidateOffset(m_maxFlames, "m_maxFlames");
-
-		// l4d2timers.inc offsets
-		L4D2CountdownTimer_Offsets[0] = hGameData.GetOffset("L4D2CountdownTimer_MobSpawnTimer");
-		L4D2CountdownTimer_Offsets[1] = hGameData.GetOffset("L4D2CountdownTimer_SmokerSpawnTimer");
-		L4D2CountdownTimer_Offsets[2] = hGameData.GetOffset("L4D2CountdownTimer_BoomerSpawnTimer");
-		L4D2CountdownTimer_Offsets[3] = hGameData.GetOffset("L4D2CountdownTimer_HunterSpawnTimer");
-		L4D2CountdownTimer_Offsets[4] = hGameData.GetOffset("L4D2CountdownTimer_SpitterSpawnTimer");
-		L4D2CountdownTimer_Offsets[5] = hGameData.GetOffset("L4D2CountdownTimer_JockeySpawnTimer");
-		L4D2CountdownTimer_Offsets[6] = hGameData.GetOffset("L4D2CountdownTimer_ChargerSpawnTimer");
-		L4D2CountdownTimer_Offsets[7] = hGameData.GetOffset("L4D2CountdownTimer_VersusStartTimer");
-		L4D2CountdownTimer_Offsets[8] = hGameData.GetOffset("L4D2CountdownTimer_UpdateMarkersTimer");
-		L4D2IntervalTimer_Offsets[0] = hGameData.GetOffset("L4D2IntervalTimer_SmokerDeathTimer");
-		L4D2IntervalTimer_Offsets[1] = hGameData.GetOffset("L4D2IntervalTimer_BoomerDeathTimer");
-		L4D2IntervalTimer_Offsets[2] = hGameData.GetOffset("L4D2IntervalTimer_HunterDeathTimer");
-		L4D2IntervalTimer_Offsets[3] = hGameData.GetOffset("L4D2IntervalTimer_SpitterDeathTimer");
-		L4D2IntervalTimer_Offsets[4] = hGameData.GetOffset("L4D2IntervalTimer_JockeyDeathTimer");
-		L4D2IntervalTimer_Offsets[5] = hGameData.GetOffset("L4D2IntervalTimer_ChargerDeathTimer");
-
-		// l4d2weapons.inc offsets
-		L4D2IntWeapon_Offsets[0] = hGameData.GetOffset("L4D2IntWeapon_Damage");
-		L4D2IntWeapon_Offsets[1] = hGameData.GetOffset("L4D2IntWeapon_Bullets");
-		L4D2IntWeapon_Offsets[2] = hGameData.GetOffset("L4D2IntWeapon_ClipSize");
-		L4D2FloatWeapon_Offsets[0] = hGameData.GetOffset("L4D2FloatWeapon_MaxPlayerSpeed");
-		L4D2FloatWeapon_Offsets[1] = hGameData.GetOffset("L4D2FloatWeapon_SpreadPerShot");
-		L4D2FloatWeapon_Offsets[2] = hGameData.GetOffset("L4D2FloatWeapon_MaxSpread");
-		L4D2FloatWeapon_Offsets[3] = hGameData.GetOffset("L4D2FloatWeapon_SpreadDecay");
-		L4D2FloatWeapon_Offsets[4] = hGameData.GetOffset("L4D2FloatWeapon_MinDuckingSpread");
-		L4D2FloatWeapon_Offsets[5] = hGameData.GetOffset("L4D2FloatWeapon_MinStandingSpread");
-		L4D2FloatWeapon_Offsets[6] = hGameData.GetOffset("L4D2FloatWeapon_MinInAirSpread");
-		L4D2FloatWeapon_Offsets[7] = hGameData.GetOffset("L4D2FloatWeapon_MaxMovementSpread");
-		L4D2FloatWeapon_Offsets[8] = hGameData.GetOffset("L4D2FloatWeapon_PenetrationNumLayers");
-		L4D2FloatWeapon_Offsets[9] = hGameData.GetOffset("L4D2FloatWeapon_PenetrationPower");
-		L4D2FloatWeapon_Offsets[10] = hGameData.GetOffset("L4D2FloatWeapon_PenetrationMaxDist");
-		L4D2FloatWeapon_Offsets[11] = hGameData.GetOffset("L4D2FloatWeapon_CharPenetrationMaxDist");
-		L4D2FloatWeapon_Offsets[12] = hGameData.GetOffset("L4D2FloatWeapon_Range");
-		L4D2FloatWeapon_Offsets[13] = hGameData.GetOffset("L4D2FloatWeapon_RangeModifier");
-		L4D2FloatWeapon_Offsets[14] = hGameData.GetOffset("L4D2FloatWeapon_CycleTime");
-		L4D2FloatWeapon_Offsets[15] = hGameData.GetOffset("L4D2FloatWeapon_ScatterPitch");
-		L4D2FloatWeapon_Offsets[16] = hGameData.GetOffset("L4D2FloatWeapon_ScatterYaw");
-		L4D2BoolMeleeWeapon_Offsets[0] = hGameData.GetOffset("L4D2BoolMeleeWeapon_Decapitates");
-		L4D2IntMeleeWeapon_Offsets[0] = hGameData.GetOffset("L4D2IntMeleeWeapon_DamageFlags");
-		L4D2IntMeleeWeapon_Offsets[1] = hGameData.GetOffset("L4D2IntMeleeWeapon_RumbleEffect");
-		L4D2FloatMeleeWeapon_Offsets[0] = hGameData.GetOffset("L4D2FloatMeleeWeapon_Damage");
-		L4D2FloatMeleeWeapon_Offsets[1] = hGameData.GetOffset("L4D2FloatMeleeWeapon_RefireDelay");
-		L4D2FloatMeleeWeapon_Offsets[2] = hGameData.GetOffset("L4D2FloatMeleeWeapon_WeaponIdleTime");
-	} else {
-		VersusStartTimer = hGameData.GetOffset("VersusStartTimer");
-		ValidateOffset(VersusStartTimer, "VersusStartTimer");
-
-		#if DEBUG
-		PrintToServer("VersusStartTimer = %d", VersusStartTimer);
-		#endif
-	}
-
-
-
-	#if DEBUG
-	PrintToServer("m_iCampaignScores = %d", m_iCampaignScores);
-	PrintToServer("m_fTankSpawnFlowPercent = %d", m_fTankSpawnFlowPercent);
-	PrintToServer("m_fWitchSpawnFlowPercent = %d", m_fWitchSpawnFlowPercent);
-	PrintToServer("m_iTankPassedCount = %d", m_iTankPassedCount);
-	PrintToServer("m_bTankThisRound = %d", m_bTankThisRound);
-	PrintToServer("m_bWitchThisRound = %d", m_bWitchThisRound);
-	PrintToServer("InvulnerabilityTimer = %d", InvulnerabilityTimer);
-	PrintToServer("m_iTankTickets = %d", m_iTankTickets);
-	PrintToServer("m_flow = %d", m_flow);
-	PrintToServer("m_PendingMobCount = %d", m_PendingMobCount);
-	PrintToServer("m_fMapMaxFlowDistance = %d", m_fMapMaxFlowDistance);
-	PrintToServer("m_rescueCheckTimer = %d", m_rescueCheckTimer);
-
-	if( g_bLeft4Dead2 )
-	{
-		PrintToServer("SpawnTimer = %d", SpawnTimer);
-		PrintToServer("MobSpawnTimer = %d", MobSpawnTimer);
-		PrintToServer("OnBeginRoundSetupTime = %d", OnBeginRoundSetupTime);
-		PrintToServer("VersusMaxCompletionScore = %d", VersusMaxCompletionScore);
-		PrintToServer("m_iTankCount = %d", m_iTankCount);
-		PrintToServer("m_iWitchCount = %d", m_iWitchCount);
-		PrintToServer("OvertimeGraceTimer = %d", OvertimeGraceTimer);
-		PrintToServer("m_iShovePenalty = %d", m_iShovePenalty);
-		PrintToServer("m_fNextShoveTime = %d", m_fNextShoveTime);
-		PrintToServer("m_preIncapacitatedHealth = %d", m_preIncapacitatedHealth);
-		PrintToServer("m_preIncapacitatedHealthBuffer = %d", m_preIncapacitatedHealthBuffer);
-		PrintToServer("m_maxFlames = %d", m_maxFlames);
-		PrintToServer("");
-
-		for( int i = 0; i < sizeof(L4D2CountdownTimer_Offsets); i++ )		PrintToServer("L4D2CountdownTimer_Offsets[%d] == %d", i, L4D2CountdownTimer_Offsets[i]);
-		for( int i = 0; i < sizeof(L4D2IntervalTimer_Offsets); i++ )		PrintToServer("L4D2IntervalTimer_Offsets[%d] == %d", i, L4D2IntervalTimer_Offsets[i]);
-		for( int i = 0; i < sizeof(L4D2IntWeapon_Offsets); i++ )			PrintToServer("L4D2IntWeapon_Offsets[%d] == %d", i, L4D2IntWeapon_Offsets[i]);
-		for( int i = 0; i < sizeof(L4D2FloatWeapon_Offsets); i++ )			PrintToServer("L4D2FloatWeapon_Offsets[%d] == %d", i, L4D2FloatWeapon_Offsets[i]);
-		for( int i = 0; i < sizeof(L4D2BoolMeleeWeapon_Offsets); i++ )		PrintToServer("L4D2BoolMeleeWeapon_Offsets[%d] == %d", i, L4D2BoolMeleeWeapon_Offsets[i]);
-		for( int i = 0; i < sizeof(L4D2IntMeleeWeapon_Offsets); i++ )		PrintToServer("L4D2IntMeleeWeapon_Offsets[%d] == %d", i, L4D2IntMeleeWeapon_Offsets[i]);
-		for( int i = 0; i < sizeof(L4D2FloatMeleeWeapon_Offsets); i++ )		PrintToServer("L4D2FloatMeleeWeapon_Offsets[%d] == %d", i, L4D2FloatMeleeWeapon_Offsets[i]);
-	}
-	#endif
-
-
-
 	// =========================
 	// Pointer Offsets
 	// =========================
@@ -3041,6 +2864,189 @@ void LoadGameData()
 		PrintToServer("%12d == ScavengeModePtr", ScavengeModePtr);
 	}
 	PrintToServer("");
+	#endif
+
+
+
+	// ====================================================================================================
+	//									OFFSETS
+	// ====================================================================================================
+	// Various
+	#if DEBUG
+	PrintToServer("Various Offsets:");
+	#endif
+
+	// g_bLinuxOS = hGameData.GetOffset("OS") == 1;
+
+	m_iCampaignScores = hGameData.GetOffset("m_iCampaignScores");
+	ValidateOffset(m_iCampaignScores, "m_iCampaignScores");
+
+	m_fTankSpawnFlowPercent = hGameData.GetOffset("m_fTankSpawnFlowPercent");
+	ValidateOffset(m_fTankSpawnFlowPercent, "m_fTankSpawnFlowPercent");
+
+	m_fWitchSpawnFlowPercent = hGameData.GetOffset("m_fWitchSpawnFlowPercent");
+	ValidateOffset(m_fWitchSpawnFlowPercent, "m_fWitchSpawnFlowPercent");
+
+	m_iTankPassedCount = hGameData.GetOffset("m_iTankPassedCount");
+	ValidateOffset(m_iTankPassedCount, "m_iTankPassedCount");
+
+	m_bTankThisRound = hGameData.GetOffset("m_bTankThisRound");
+	ValidateOffset(m_bTankThisRound, "m_bTankThisRound");
+
+	m_bWitchThisRound = hGameData.GetOffset("m_bWitchThisRound");
+	ValidateOffset(m_bWitchThisRound, "m_bWitchThisRound");
+
+	InvulnerabilityTimer = hGameData.GetOffset("InvulnerabilityTimer");
+	ValidateOffset(InvulnerabilityTimer, "InvulnerabilityTimer");
+
+	m_iTankTickets = hGameData.GetOffset("m_iTankTickets");
+	ValidateOffset(m_iTankTickets, "m_iTankTickets");
+
+	m_flow = hGameData.GetOffset("m_flow");
+	ValidateOffset(m_flow, "m_flow");
+
+	m_PendingMobCount = hGameData.GetOffset("m_PendingMobCount");
+	ValidateOffset(m_PendingMobCount, "m_PendingMobCount");
+
+	m_fMapMaxFlowDistance = hGameData.GetOffset("m_fMapMaxFlowDistance");
+	ValidateOffset(m_fMapMaxFlowDistance, "m_fMapMaxFlowDistance");
+
+	m_rescueCheckTimer = hGameData.GetOffset("m_rescueCheckTimer");
+	ValidateOffset(m_rescueCheckTimer, "m_rescueCheckTimer");
+
+
+
+	if( g_bLeft4Dead2 )
+	{
+		SpawnTimer = hGameData.GetOffset("SpawnTimer");
+		ValidateOffset(SpawnTimer, "SpawnTimer");
+
+		MobSpawnTimer = hGameData.GetOffset("MobSpawnTimer");
+		ValidateOffset(MobSpawnTimer, "MobSpawnTimer");
+
+		OnBeginRoundSetupTime = hGameData.GetOffset("OnBeginRoundSetupTime");
+		ValidateOffset(OnBeginRoundSetupTime, "OnBeginRoundSetupTime");
+
+		VersusMaxCompletionScore = hGameData.GetOffset("VersusMaxCompletionScore");
+		ValidateOffset(VersusMaxCompletionScore, "VersusMaxCompletionScore");
+
+		m_iTankCount = hGameData.GetOffset("m_iTankCount");
+		ValidateOffset(SpawnTimer, "SpawnTimer");
+
+		m_iWitchCount = hGameData.GetOffset("m_iWitchCount");
+		ValidateOffset(m_iWitchCount, "m_iWitchCount");
+
+		OvertimeGraceTimer = hGameData.GetOffset("OvertimeGraceTimer");
+		ValidateOffset(OvertimeGraceTimer, "OvertimeGraceTimer");
+
+		m_iShovePenalty = hGameData.GetOffset("m_iShovePenalty");
+		ValidateOffset(m_iShovePenalty, "m_iShovePenalty");
+
+		m_fNextShoveTime = hGameData.GetOffset("m_fNextShoveTime");
+		ValidateOffset(m_fNextShoveTime, "m_fNextShoveTime");
+
+		m_preIncapacitatedHealth = hGameData.GetOffset("m_preIncapacitatedHealth");
+		ValidateOffset(m_preIncapacitatedHealth, "m_preIncapacitatedHealth");
+
+		m_preIncapacitatedHealthBuffer = hGameData.GetOffset("m_preIncapacitatedHealthBuffer");
+		ValidateOffset(m_preIncapacitatedHealthBuffer, "m_preIncapacitatedHealthBuffer");
+
+		m_maxFlames = hGameData.GetOffset("m_maxFlames");
+		ValidateOffset(m_maxFlames, "m_maxFlames");
+
+		// l4d2timers.inc offsets
+		L4D2CountdownTimer_Offsets[0] = hGameData.GetOffset("L4D2CountdownTimer_MobSpawnTimer") + view_as<int>(g_pDirector);
+		L4D2CountdownTimer_Offsets[1] = hGameData.GetOffset("L4D2CountdownTimer_SmokerSpawnTimer") + view_as<int>(g_pDirector);
+		L4D2CountdownTimer_Offsets[2] = hGameData.GetOffset("L4D2CountdownTimer_BoomerSpawnTimer") + view_as<int>(g_pDirector);
+		L4D2CountdownTimer_Offsets[3] = hGameData.GetOffset("L4D2CountdownTimer_HunterSpawnTimer") + view_as<int>(g_pDirector);
+		L4D2CountdownTimer_Offsets[4] = hGameData.GetOffset("L4D2CountdownTimer_SpitterSpawnTimer") + view_as<int>(g_pDirector);
+		L4D2CountdownTimer_Offsets[5] = hGameData.GetOffset("L4D2CountdownTimer_JockeySpawnTimer") + view_as<int>(g_pDirector);
+		L4D2CountdownTimer_Offsets[6] = hGameData.GetOffset("L4D2CountdownTimer_ChargerSpawnTimer") + view_as<int>(g_pDirector);
+		L4D2CountdownTimer_Offsets[7] = hGameData.GetOffset("L4D2CountdownTimer_VersusStartTimer") + VersusModePtr;
+		L4D2CountdownTimer_Offsets[8] = hGameData.GetOffset("L4D2CountdownTimer_UpdateMarkersTimer") + view_as<int>(g_pDirector);
+		L4D2IntervalTimer_Offsets[0] = hGameData.GetOffset("L4D2IntervalTimer_SmokerDeathTimer") + view_as<int>(g_pDirector);
+		L4D2IntervalTimer_Offsets[1] = hGameData.GetOffset("L4D2IntervalTimer_BoomerDeathTimer") + view_as<int>(g_pDirector);
+		L4D2IntervalTimer_Offsets[2] = hGameData.GetOffset("L4D2IntervalTimer_HunterDeathTimer") + view_as<int>(g_pDirector);
+		L4D2IntervalTimer_Offsets[3] = hGameData.GetOffset("L4D2IntervalTimer_SpitterDeathTimer") + view_as<int>(g_pDirector);
+		L4D2IntervalTimer_Offsets[4] = hGameData.GetOffset("L4D2IntervalTimer_JockeyDeathTimer") + view_as<int>(g_pDirector);
+		L4D2IntervalTimer_Offsets[5] = hGameData.GetOffset("L4D2IntervalTimer_ChargerDeathTimer") + view_as<int>(g_pDirector);
+
+		// l4d2weapons.inc offsets
+		L4D2IntWeapon_Offsets[0] = hGameData.GetOffset("L4D2IntWeapon_Damage");
+		L4D2IntWeapon_Offsets[1] = hGameData.GetOffset("L4D2IntWeapon_Bullets");
+		L4D2IntWeapon_Offsets[2] = hGameData.GetOffset("L4D2IntWeapon_ClipSize");
+		L4D2FloatWeapon_Offsets[0] = hGameData.GetOffset("L4D2FloatWeapon_MaxPlayerSpeed");
+		L4D2FloatWeapon_Offsets[1] = hGameData.GetOffset("L4D2FloatWeapon_SpreadPerShot");
+		L4D2FloatWeapon_Offsets[2] = hGameData.GetOffset("L4D2FloatWeapon_MaxSpread");
+		L4D2FloatWeapon_Offsets[3] = hGameData.GetOffset("L4D2FloatWeapon_SpreadDecay");
+		L4D2FloatWeapon_Offsets[4] = hGameData.GetOffset("L4D2FloatWeapon_MinDuckingSpread");
+		L4D2FloatWeapon_Offsets[5] = hGameData.GetOffset("L4D2FloatWeapon_MinStandingSpread");
+		L4D2FloatWeapon_Offsets[6] = hGameData.GetOffset("L4D2FloatWeapon_MinInAirSpread");
+		L4D2FloatWeapon_Offsets[7] = hGameData.GetOffset("L4D2FloatWeapon_MaxMovementSpread");
+		L4D2FloatWeapon_Offsets[8] = hGameData.GetOffset("L4D2FloatWeapon_PenetrationNumLayers");
+		L4D2FloatWeapon_Offsets[9] = hGameData.GetOffset("L4D2FloatWeapon_PenetrationPower");
+		L4D2FloatWeapon_Offsets[10] = hGameData.GetOffset("L4D2FloatWeapon_PenetrationMaxDist");
+		L4D2FloatWeapon_Offsets[11] = hGameData.GetOffset("L4D2FloatWeapon_CharPenetrationMaxDist");
+		L4D2FloatWeapon_Offsets[12] = hGameData.GetOffset("L4D2FloatWeapon_Range");
+		L4D2FloatWeapon_Offsets[13] = hGameData.GetOffset("L4D2FloatWeapon_RangeModifier");
+		L4D2FloatWeapon_Offsets[14] = hGameData.GetOffset("L4D2FloatWeapon_CycleTime");
+		L4D2FloatWeapon_Offsets[15] = hGameData.GetOffset("L4D2FloatWeapon_ScatterPitch");
+		L4D2FloatWeapon_Offsets[16] = hGameData.GetOffset("L4D2FloatWeapon_ScatterYaw");
+		L4D2BoolMeleeWeapon_Offsets[0] = hGameData.GetOffset("L4D2BoolMeleeWeapon_Decapitates");
+		L4D2IntMeleeWeapon_Offsets[0] = hGameData.GetOffset("L4D2IntMeleeWeapon_DamageFlags");
+		L4D2IntMeleeWeapon_Offsets[1] = hGameData.GetOffset("L4D2IntMeleeWeapon_RumbleEffect");
+		L4D2FloatMeleeWeapon_Offsets[0] = hGameData.GetOffset("L4D2FloatMeleeWeapon_Damage");
+		L4D2FloatMeleeWeapon_Offsets[1] = hGameData.GetOffset("L4D2FloatMeleeWeapon_RefireDelay");
+		L4D2FloatMeleeWeapon_Offsets[2] = hGameData.GetOffset("L4D2FloatMeleeWeapon_WeaponIdleTime");
+	} else {
+		VersusStartTimer = hGameData.GetOffset("VersusStartTimer");
+		ValidateOffset(VersusStartTimer, "VersusStartTimer");
+
+		#if DEBUG
+		PrintToServer("VersusStartTimer = %d", VersusStartTimer);
+		#endif
+	}
+
+
+
+	#if DEBUG
+	PrintToServer("m_iCampaignScores = %d", m_iCampaignScores);
+	PrintToServer("m_fTankSpawnFlowPercent = %d", m_fTankSpawnFlowPercent);
+	PrintToServer("m_fWitchSpawnFlowPercent = %d", m_fWitchSpawnFlowPercent);
+	PrintToServer("m_iTankPassedCount = %d", m_iTankPassedCount);
+	PrintToServer("m_bTankThisRound = %d", m_bTankThisRound);
+	PrintToServer("m_bWitchThisRound = %d", m_bWitchThisRound);
+	PrintToServer("InvulnerabilityTimer = %d", InvulnerabilityTimer);
+	PrintToServer("m_iTankTickets = %d", m_iTankTickets);
+	PrintToServer("m_flow = %d", m_flow);
+	PrintToServer("m_PendingMobCount = %d", m_PendingMobCount);
+	PrintToServer("m_fMapMaxFlowDistance = %d", m_fMapMaxFlowDistance);
+	PrintToServer("m_rescueCheckTimer = %d", m_rescueCheckTimer);
+
+	if( g_bLeft4Dead2 )
+	{
+		PrintToServer("SpawnTimer = %d", SpawnTimer);
+		PrintToServer("MobSpawnTimer = %d", MobSpawnTimer);
+		PrintToServer("OnBeginRoundSetupTime = %d", OnBeginRoundSetupTime);
+		PrintToServer("VersusMaxCompletionScore = %d", VersusMaxCompletionScore);
+		PrintToServer("m_iTankCount = %d", m_iTankCount);
+		PrintToServer("m_iWitchCount = %d", m_iWitchCount);
+		PrintToServer("OvertimeGraceTimer = %d", OvertimeGraceTimer);
+		PrintToServer("m_iShovePenalty = %d", m_iShovePenalty);
+		PrintToServer("m_fNextShoveTime = %d", m_fNextShoveTime);
+		PrintToServer("m_preIncapacitatedHealth = %d", m_preIncapacitatedHealth);
+		PrintToServer("m_preIncapacitatedHealthBuffer = %d", m_preIncapacitatedHealthBuffer);
+		PrintToServer("m_maxFlames = %d", m_maxFlames);
+		PrintToServer("");
+
+		for( int i = 0; i < sizeof(L4D2CountdownTimer_Offsets); i++ )		PrintToServer("L4D2CountdownTimer_Offsets[%d] == %d", i, L4D2CountdownTimer_Offsets[i]);
+		for( int i = 0; i < sizeof(L4D2IntervalTimer_Offsets); i++ )		PrintToServer("L4D2IntervalTimer_Offsets[%d] == %d", i, L4D2IntervalTimer_Offsets[i]);
+		for( int i = 0; i < sizeof(L4D2IntWeapon_Offsets); i++ )			PrintToServer("L4D2IntWeapon_Offsets[%d] == %d", i, L4D2IntWeapon_Offsets[i]);
+		for( int i = 0; i < sizeof(L4D2FloatWeapon_Offsets); i++ )			PrintToServer("L4D2FloatWeapon_Offsets[%d] == %d", i, L4D2FloatWeapon_Offsets[i]);
+		for( int i = 0; i < sizeof(L4D2BoolMeleeWeapon_Offsets); i++ )		PrintToServer("L4D2BoolMeleeWeapon_Offsets[%d] == %d", i, L4D2BoolMeleeWeapon_Offsets[i]);
+		for( int i = 0; i < sizeof(L4D2IntMeleeWeapon_Offsets); i++ )		PrintToServer("L4D2IntMeleeWeapon_Offsets[%d] == %d", i, L4D2IntMeleeWeapon_Offsets[i]);
+		for( int i = 0; i < sizeof(L4D2FloatMeleeWeapon_Offsets); i++ )		PrintToServer("L4D2FloatMeleeWeapon_Offsets[%d] == %d", i, L4D2FloatMeleeWeapon_Offsets[i]);
+	}
 	#endif
 
 
@@ -3753,6 +3759,12 @@ int GetWeaponPointer()
 	static char weaponName[32];
 	GetNativeString(1, weaponName, sizeof(weaponName));
 
+	// Add "weapon_" if missing, required for usage with stored StringMap.
+	if( strncmp(weaponName, "weapon_", 7) )
+	{
+		Format(weaponName, sizeof(weaponName), "weapon_%s", weaponName);
+	}
+
 	int ptr;
 	if( g_aWeaponPtrs.GetValue(weaponName, ptr) == false )
 	{
@@ -3994,7 +4006,7 @@ public int Native_CTimerReset(Handle plugin, int numParams)
 	int off = L4D2CountdownTimer_Offsets[id];
 	float timestamp = GetGameTime();
 
-	StoreToAddress(g_pDirector + view_as<Address>(off + 8), view_as<int>(timestamp), NumberType_Int32);
+	StoreToAddress(view_as<Address>(off + 8), view_as<int>(timestamp), NumberType_Int32);
 }
 
 public int Native_CTimerStart(Handle plugin, int numParams)
@@ -4006,8 +4018,8 @@ public int Native_CTimerStart(Handle plugin, int numParams)
 	float duration = GetNativeCell(2);
 	float timestamp = GetGameTime() + duration;
 
-	StoreToAddress(g_pDirector + view_as<Address>(off + 4), view_as<int>(duration), NumberType_Int32);
-	StoreToAddress(g_pDirector + view_as<Address>(off + 8), view_as<int>(timestamp), NumberType_Int32);
+	StoreToAddress(view_as<Address>(off + 4), view_as<int>(duration), NumberType_Int32);
+	StoreToAddress(view_as<Address>(off + 8), view_as<int>(timestamp), NumberType_Int32);
 }
 
 public int Native_CTimerInvalidate(Handle plugin, int numParams)
@@ -4018,7 +4030,7 @@ public int Native_CTimerInvalidate(Handle plugin, int numParams)
 	int off = L4D2CountdownTimer_Offsets[id];
 	float timestamp = -1.0;
 
-	StoreToAddress(g_pDirector + view_as<Address>(off + 8), view_as<int>(timestamp), NumberType_Int32);
+	StoreToAddress(view_as<Address>(off + 8), view_as<int>(timestamp), NumberType_Int32);
 }
 
 public int Native_CTimerHasStarted(Handle plugin, int numParams)
@@ -4027,7 +4039,7 @@ public int Native_CTimerHasStarted(Handle plugin, int numParams)
 
 	int id = GetNativeCell(1);
 	int off = L4D2CountdownTimer_Offsets[id];
-	float timestamp = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 8), NumberType_Int32));
+	float timestamp = view_as<float>(LoadFromAddress(view_as<Address>(off + 8), NumberType_Int32));
 
 	return (timestamp >= 0.0);
 }
@@ -4038,7 +4050,7 @@ public int Native_CTimerIsElapsed(Handle plugin, int numParams)
 
 	int id = GetNativeCell(1);
 	int off = L4D2CountdownTimer_Offsets[id];
-	float timestamp = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 8), NumberType_Int32));
+	float timestamp = view_as<float>(LoadFromAddress(view_as<Address>(off + 8), NumberType_Int32));
 
 	return (GetGameTime() >= timestamp);
 }
@@ -4049,8 +4061,8 @@ public any Native_CTimerGetElapsedTime(Handle plugin, int numParams)
 
 	int id = GetNativeCell(1);
 	int off = L4D2CountdownTimer_Offsets[id];
-	float duration = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 4), NumberType_Int32));
-	float timestamp = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 8), NumberType_Int32));
+	float duration = view_as<float>(LoadFromAddress(view_as<Address>(off + 4), NumberType_Int32));
+	float timestamp = view_as<float>(LoadFromAddress(view_as<Address>(off + 8), NumberType_Int32));
 
 	return GetGameTime() - timestamp + duration;
 }
@@ -4061,7 +4073,7 @@ public any Native_CTimerGetRemainingTime(Handle plugin, int numParams)
 
 	int id = GetNativeCell(1);
 	int off = L4D2CountdownTimer_Offsets[id];
-	float timestamp = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 8), NumberType_Int32));
+	float timestamp = view_as<float>(LoadFromAddress(view_as<Address>(off + 8), NumberType_Int32));
 
 	return (timestamp - GetGameTime());
 }
@@ -4072,8 +4084,8 @@ public any Native_CTimerGetCountdownDuration(Handle plugin, int numParams)
 
 	int id = GetNativeCell(1);
 	int off = L4D2CountdownTimer_Offsets[id];
-	float duration = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 4), NumberType_Int32));
-	float timestamp = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 8), NumberType_Int32));
+	float duration = view_as<float>(LoadFromAddress(view_as<Address>(off + 4), NumberType_Int32));
+	float timestamp = view_as<float>(LoadFromAddress(view_as<Address>(off + 8), NumberType_Int32));
 
 	return (timestamp > 0.0) ? duration : 0.0;
 }
@@ -4089,7 +4101,7 @@ public int Native_ITimerStart(Handle plugin, int numParams)
 	int off = L4D2IntervalTimer_Offsets[id];
 	float timestamp = GetGameTime();
 
-	StoreToAddress(g_pDirector + view_as<Address>(off + 4), view_as<int>(timestamp), NumberType_Int32);
+	StoreToAddress(view_as<Address>(off + 4), view_as<int>(timestamp), NumberType_Int32);
 }
 
 public int Native_ITimerInvalidate(Handle plugin, int numParams)
@@ -4100,7 +4112,7 @@ public int Native_ITimerInvalidate(Handle plugin, int numParams)
 	int off = L4D2IntervalTimer_Offsets[id];
 	float timestamp = -1.0;
 
-	StoreToAddress(g_pDirector + view_as<Address>(off + 4), view_as<int>(timestamp), NumberType_Int32);
+	StoreToAddress(view_as<Address>(off + 4), view_as<int>(timestamp), NumberType_Int32);
 }
 
 public int Native_ITimerHasStarted(Handle plugin, int numParams)
@@ -4109,7 +4121,7 @@ public int Native_ITimerHasStarted(Handle plugin, int numParams)
 
 	int id = GetNativeCell(1);
 	int off = L4D2IntervalTimer_Offsets[id];
-	float timestamp = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 4), NumberType_Int32));
+	float timestamp = view_as<float>(LoadFromAddress(view_as<Address>(off + 4), NumberType_Int32));
 
 	return (timestamp > 0.0);
 }
@@ -4120,7 +4132,7 @@ public any Native_ITimerGetElapsedTime(Handle plugin, int numParams)
 
 	int id = GetNativeCell(1);
 	int off = L4D2IntervalTimer_Offsets[id];
-	float timestamp = view_as<float>(LoadFromAddress(g_pDirector + view_as<Address>(off + 4), NumberType_Int32));
+	float timestamp = view_as<float>(LoadFromAddress(view_as<Address>(off + 4), NumberType_Int32));
 
 	return (timestamp > 0.0 ? (GetGameTime() - timestamp) : 99999.9);
 }
@@ -4289,7 +4301,7 @@ public any Direct_GetSIClassDeathTimer(Handle plugin, int numParams)
 	if( class < 1 || class > 6 ) return CTimer_Null;
 
 	int offset = L4D2IntervalTimer_Offsets[class];
-	return view_as<IntervalTimer>(g_pDirector + view_as<Address>(offset));
+	return view_as<IntervalTimer>(view_as<Address>(offset));
 }
 
 public any Direct_GetSIClassSpawnTimer(Handle plugin, int numParams)
@@ -4300,7 +4312,7 @@ public any Direct_GetSIClassSpawnTimer(Handle plugin, int numParams)
 	if( class < 1 || class > 6 ) return CTimer_Null;
 
 	int offset = L4D2CountdownTimer_Offsets[class];
-	return view_as<CountdownTimer>(g_pDirector + view_as<Address>(offset));
+	return view_as<CountdownTimer>(view_as<Address>(offset));
 }
 
 public int Direct_GetTankPassedCount(Handle plugin, int numParams)
@@ -4442,10 +4454,10 @@ public any Direct_GetVSStartTimer(Handle plugin, int numParams)
 	if( g_bLeft4Dead2 )
 		offset = L4D2CountdownTimer_Offsets[7]; // L4D2CountdownTimer_VersusStartTimer
 	else
-		offset = VersusStartTimer;
+		offset = VersusModePtr + VersusStartTimer;
 
 	ValidateAddress(offset, "VersusStartTimer");
-	return view_as<CountdownTimer>(view_as<Address>(VersusModePtr + offset));
+	return view_as<CountdownTimer>(view_as<Address>(offset));
 }
 
 public any Direct_GetScavengeRoundSetupTimer(Handle plugin, int numParams)

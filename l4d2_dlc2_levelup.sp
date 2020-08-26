@@ -8250,7 +8250,7 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 		// PrintToChat(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
 	}
 	
-	if((g_clSkill_3[iCid] & SKL_3_MoreAmmo) && g_iExtraAmmo[iCid] > 0)
+	if(/*(g_clSkill_3[iCid] & SKL_3_MoreAmmo) && */g_iExtraAmmo[iCid] > 0)
 	{
 		int ammo = GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType);
 		int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
@@ -8379,7 +8379,11 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			if(++g_iBulletFired[client] > 25 && ammo > 0 && clip > 1)
 			{
 				// 将备用弹药移动到弹夹里
-				SetEntProp(client, Prop_Send, "m_iAmmo", ammo - 1, _, ammoType);
+				if(g_iExtraAmmo[client] > 0)
+					g_iExtraAmmo[client] -= 1;
+				else
+					SetEntProp(client, Prop_Send, "m_iAmmo", ammo - 1, _, ammoType);
+				
 				SetEntProp(weapon, Prop_Send, "m_iClip1", clip + 1);
 			}
 			else if(g_iBulletFired[client] == 25)

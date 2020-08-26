@@ -1267,10 +1267,14 @@ bool ClientSaveToFileLoad(int client)
 
 	// 技能和属性
 	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", g_pCvarStartPoints.IntValue);
+	
+	// 这个还是不要保存比较好
 	// g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
 	g_clAngryPoint[client] = 0;
-	// g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);
-	g_clAngryMode[client] = 0;
+	
+	if(g_pCvarAllow.BoolValue)
+		g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);
+	
 	g_clSkill_1[client] = g_kvSavePlayer[client].GetNum("skill_1", 0);
 	g_clSkill_2[client] = g_kvSavePlayer[client].GetNum("skill_2", 0);
 	g_clSkill_3[client] = g_kvSavePlayer[client].GetNum("skill_3", 0);
@@ -2210,45 +2214,108 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 	{
 		case 0:
 		{
-			g_clAngryMode[client] = 1;
+			if(g_clAngryMode[client] != 1)
+			{
+				g_clAngryMode[client] = 1;
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03王者之仁德\x01,效果:\x03全员恢复满血\x01.");
+			}
+			else
+			{
+				g_clAngryMode[client] = 0;
+				PrintToChat(client, "\x03[提示]\x01 已取消选择。");
+			}
+			
 			StatusSelectMenuFuncNCJ(client);
-			PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03王者之仁德\x01,效果:\x03全员恢复满血\x01.");
 		}
 		case 1:
 		{
-			g_clAngryMode[client] = 2;
+			if(g_clAngryMode[client] != 2)
+			{
+				g_clAngryMode[client] = 2;
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03霸者之号令\x01,效果:\x03全员暴击率+100,持续40秒\x01.");
+			}
+			else
+			{
+				g_clAngryMode[client] = 0;
+				PrintToChat(client, "\x03[提示]\x01 已取消选择。");
+			}
+			
 			StatusSelectMenuFuncNCJ(client);
-			PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03霸者之号令\x01,效果:\x03全员暴击率+100,持续40秒\x01.");
 		}
 		case 2:
 		{
-			g_clAngryMode[client] = 3;
+			if(g_clAngryMode[client] != 3)
+			{
+				g_clAngryMode[client] = 3;
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03智者之教诲\x01,效果:\x03全员天赋点+1\x01.");
+			}
+			else
+			{
+				g_clAngryMode[client] = 0;
+				PrintToChat(client, "\x03[提示]\x01 已取消选择。");
+			}
+			
 			StatusSelectMenuFuncNCJ(client);
-			PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03智者之教诲\x01,效果:\x03全员天赋点+1\x01.");
 		}
 		case 3:
 		{
-			g_clAngryMode[client] = 4;
+			if(g_clAngryMode[client] != 4)
+			{
+				g_clAngryMode[client] = 4;
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03强者之霸气\x01,效果:\x03特感全员受到2500伤害\x01.");
+			}
+			else
+			{
+				g_clAngryMode[client] = 0;
+				PrintToChat(client, "\x03[提示]\x01 已取消选择。");
+			}
+			
 			StatusSelectMenuFuncNCJ(client);
-			PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03强者之霸气\x01,效果:\x03特感全员受到2500伤害\x01.");
 		}
 		case 4:
 		{
-			g_clAngryMode[client] = 5;
+			if(g_clAngryMode[client] != 5)
+			{
+				g_clAngryMode[client] = 5;
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03热血沸腾\x01,效果:\x03全员兴奋,持续50秒\x01.");
+			}
+			else
+			{
+				g_clAngryMode[client] = 0;
+				PrintToChat(client, "\x03[提示]\x01 已取消选择。");
+			}
+			
 			StatusSelectMenuFuncNCJ(client);
-			PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03热血沸腾\x01,效果:\x03全员兴奋,持续50秒\x01.");
 		}
 		case 5:
 		{
-			g_clAngryMode[client] = 6;
+			if(g_clAngryMode[client] != 6)
+			{
+				g_clAngryMode[client] = 6;
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03背水一战\x01,效果:\x03自身HP减半,全员获得无限高爆子弹,持续60秒\x01.");
+			}
+			else
+			{
+				g_clAngryMode[client] = 0;
+				PrintToChat(client, "\x03[提示]\x01 已取消选择。");
+			}
+			
 			StatusSelectMenuFuncNCJ(client);
-			PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03背水一战\x01,效果:\x03自身HP减半,全员获得无限高爆子弹,持续60秒\x01.");
 		}
 		case 6:
 		{
-			g_clAngryMode[client] = 7;
+			if(g_clAngryMode[client] != 7)
+			{
+				g_clAngryMode[client] = 7;
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03嗜血如命\x01,效果:\x03全员获得嗜血天赋,持续75秒\x01.");
+			}
+			else
+			{
+				g_clAngryMode[client] = 0;
+				PrintToChat(client, "\x03[提示]\x01 已取消选择。");
+			}
+			
 			StatusSelectMenuFuncNCJ(client);
-			PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03嗜血如命\x01,效果:\x03全员获得嗜血天赋,持续75秒\x01.");
 		}
 	}
 

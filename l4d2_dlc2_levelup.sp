@@ -6803,6 +6803,8 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		g_sLastWeapon[subject][0] = EOS;
 	}
 	
+	RegPlayerHook(subject, false);
+	
 	if(g_iRoundEvent == 14)
 	{
 		SetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 0);
@@ -7261,7 +7263,7 @@ public void Event_RoundWin(Event event, const char[] eventName, bool dontBroadca
 
 		GiveSkillPoint(i, 1);
 
-		if(g_pCvarAllow.BoolValue && IsFakeClient(i))
+		if(g_pCvarAllow.BoolValue && !IsFakeClient(i))
 			PrintToChat(i, "\x03[提示]\x01 你因为过关时还活着获得了 \x051\x01 天赋点。");
 	}
 }
@@ -7897,24 +7899,33 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 		if(oldTeam <= 1 && newTeam >= 2)
 		{
 			ClientSaveToFileLoad(client);
-			RegPlayerHook(client, false);
+			// RegPlayerHook(client, false);
+			CreateTimer(0.6, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 			// PrintToServer("读取 %N 的数据，原因：加入队伍");
 		}
 		else if(oldTeam >= 2 && newTeam >= 2)
 		{
-			RegPlayerHook(client, false);
+			// RegPlayerHook(client, false);
+			CreateTimer(0.1, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		}
 	}
 	else if(newTeam == 2 && g_pCvarAllow.BoolValue)
 	{
 		GenerateRandomStats(client);
-		RegPlayerHook(client, false);
+		// RegPlayerHook(client, false);
+		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		PrintToServer("为生还者机器人 %N 生成随机属性", client);
 	}
 	
 	// Initialization(client);
 	g_iJumpFlags[client] = JF_None;
 	g_bCanGunShover[client] = true;
+}
+
+public Action Timer_RegPlayerHook(Handle timer, any client)
+{
+	if(IsValidAliveClient(client))
+		RegPlayerHook(client, false);
 }
 
 public void Event_PlayerEnterStartArea(Event event, const char[] eventName, bool dontBroadcast)

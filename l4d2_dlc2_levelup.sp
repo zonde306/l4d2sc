@@ -9597,7 +9597,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				useTarget = FindUseEntity(client);
 		}
 		
-		if ((g_clSkill_4[client] & SKL_4_DuckShover) && g_bCanGunShover[client] && (flags & FL_DUCKING) && (buttons & IN_ATTACK2))
+		if ((g_clSkill_4[client] & SKL_4_DuckShover) && g_bCanGunShover[client] && (flags & FL_DUCKING) && (buttons & IN_ATTACK2) && (buttons & IN_DUCK))
 		{
 			g_bCanGunShover[client] = false;
 			new Float:pos[3];
@@ -9616,6 +9616,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					continue;
 
 				Charge(i, client, 750.0);
+				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_AIRBOAT);
 			}
 
 			new newcolor1[4];

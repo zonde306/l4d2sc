@@ -6672,6 +6672,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 		if(weapon > MaxClients && IsValidEntity(weapon))
 			RemoveEntity(weapon);
 		
+		/*
 		if(StrContains(g_sLastWeapon[subject], "weapon_", false) == 0)
 		{
 			ReplaceString(g_sLastWeapon[subject], sizeof(g_sLastWeapon[]), "weapon_", "", false);
@@ -6686,6 +6687,13 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 		{
 			CheatCommand(subject, "give", g_sLastWeapon[subject]);
 		}
+		*/
+		
+		DataPack data = CreateDataPack();
+		data.WriteCell(subject);
+		data.WriteString(g_sLastWeapon[subject]);
+		data.WriteCell(g_bLastWeaponDual[subject]);
+		CreateTimer(0.1, Timer_DelayGivePistol, data);
 		
 		g_sLastWeapon[subject][0] = EOS;
 	}
@@ -6808,6 +6816,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		if(weapon > MaxClients && IsValidEntity(weapon))
 			RemoveEntity(weapon);
 		
+		/*
 		if(StrContains(g_sLastWeapon[subject], "weapon_", false) == 0)
 		{
 			ReplaceString(g_sLastWeapon[subject], sizeof(g_sLastWeapon[]), "weapon_", "", false);
@@ -6822,6 +6831,13 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		{
 			CheatCommand(subject, "give", g_sLastWeapon[subject]);
 		}
+		*/
+		
+		DataPack data = CreateDataPack();
+		data.WriteCell(subject);
+		data.WriteString(g_sLastWeapon[subject]);
+		data.WriteCell(g_bLastWeaponDual[subject]);
+		CreateTimer(0.1, Timer_DelayGivePistol, data);
 		
 		g_sLastWeapon[subject][0] = EOS;
 	}
@@ -6835,7 +6851,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	}
 }
 
-public Action Timer_SetWeaponClip(Handle timer, any client)
+public Action Timer_DelaySetClip(Handle timer, any client)
 {
 	if(!IsValidAliveClient(client) || g_iLastWeaponClip[client] < 0)
 		return Plugin_Continue;
@@ -6845,6 +6861,32 @@ public Action Timer_SetWeaponClip(Handle timer, any client)
 		return Plugin_Continue;
 	
 	SetEntProp(weapon, Prop_Send, "m_iClip1", g_iLastWeaponClip[client]);
+	return Plugin_Continue;
+}
+
+public Action Timer_DelayGivePistol(Handle timer, any pack)
+{
+	DataPack data = view_as<DataPack>(pack);
+	data.Reset();
+	
+	char classname[64];
+	int subject = data.ReadCell();
+	data.ReadString(classname, 64);
+	int dual = data.ReadCell();
+	ReplaceString(classname, 64, "weapon_", "", false);
+	
+	if(!IsValidAliveClient(subject) || classname[0] == EOS)
+		return Plugin_Continue;
+	
+	int weapon = GetPlayerWeaponSlot(subject, 1);
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+	{
+		CheatCommand(subject, "give", classname);
+		if(dual)
+			CheatCommand(subject, "give", classname);
+	}
+	
+	CreateTimer(0.1, Timer_DelaySetClip, subject);
 	return Plugin_Continue;
 }
 

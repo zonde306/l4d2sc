@@ -72,6 +72,8 @@ const int g_iMaxHealHealth = 1268;			// 游戏所允许的最大治疗量，超�
 const float g_fIncapShovePenalty = 0.1;		// 连续倒地推惩罚时间
 const int g_iIncapShoveNumTrace = 11;
 const float g_fIncapShoveDegree = 90.0;
+const float g_fJumpHeight = 35.0;			// 跳跃高度
+const float g_fJumpHeightDucking = 52.0;	// 跳跃高度(蹲下)
 
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1) && !GetEntProp(%1, Prop_Send, "m_isGhost"))
@@ -189,6 +191,7 @@ new bool:g_bCanGunShover[MAXPLAYERS+1] = false;
 // new bool:g_bCanDoubleJump[MAXPLAYERS+1] = false;
 // new bool:g_bHanFirstRelease[MAXPLAYERS+1] = false;
 float g_fMaxSpeedModify[MAXPLAYERS+1] = { 1.0, ... };
+float g_fMaxGravityModify[MAXPLAYERS+1] = { 1.0, ... };
 float g_fNextCalmTime[MAXPLAYERS+1] = { 0.0, ... };
 int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
 bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
@@ -1196,6 +1199,7 @@ void Initialization(int client, bool invalid = false)
 	g_timerRespawn[client] = null;
 	g_fFreezeTime[client] = 0.0;
 	g_fMaxSpeedModify[client] = 1.0;
+	g_fMaxGravityModify[client] = 1.0;
 	g_fNextCalmTime[client] = 0.0;
 	g_cdCanTeleport[client] = true;
 	g_bIsHitByVomit[client] = false;
@@ -2355,7 +2359,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("自愈-倒地被救起恢复HP+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("凶狠-主武器暴击率+5",(g_clSkill_1[client]&SKL_1_DmgExtra)));
 	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("手控-手枪无限子弹不用换弹夹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
-	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("轻盈-你可以跳得更高(重力降低)",(g_clSkill_1[client]&SKL_1_Gravity)));
+	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("轻盈-你可以跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("谨慎-免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("手速-半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
@@ -3181,7 +3185,7 @@ char FormatEquip(int client, int index, char[] buffer = "", int len = 0)
 	if(g_clCurEquip[client][g_eqmParts[client][index]] == index)
 		StrCat(extrastr, sizeof(extrastr), " √");
 
-	FormatEx(text, 255, "%s%s%s 伤害+%d 血量+%d 速度+%d％ 暴击+%d 重力-%d％ %s", g_esPrefix[client][index],
+	FormatEx(text, 255, "%s%s%s 伤害+%d 血量+%d 速度+%d％ 暴击+%d 跳跃+%d％ %s", g_esPrefix[client][index],
 		g_esUpgrade[client][index], g_esParts[client][index],g_eqmDamage[client][index], g_eqmHealth[client][index],
 		g_eqmSpeed[client][index], g_eqmUpgrade[client][index], g_eqmGravity[client][index], extrastr);
 
@@ -4535,7 +4539,7 @@ public void EntityHook_OnProjectileSpawned(int entity)
 public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
-	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 || GetClientTeam(attacker) != 2)
+	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 || GetClientTeam(attacker) != 2 || (damagetype & DMG_FALL))
 		return Plugin_Continue;
 	
 	static char victimName[64];
@@ -4896,7 +4900,7 @@ public Action Timer_CheckHavePistol(Handle timer, any client)
 public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
-	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || damage <= 0.0 || hitbox <= 0)
+	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || damage <= 0.0 || hitbox <= 0 || (damagetype & DMG_FALL))
 		return Plugin_Continue;
 	
 	int attackerTeam = GetClientTeam(attacker);
@@ -7326,6 +7330,34 @@ public void Event_PlayerJump(Event event, const char[] eventName, bool dontBroad
 
 	g_iJumpFlags[client] = JF_HasJumping|JF_HasFirstJump;
 	// PrintCenterText(client, "起跳 %d", !!(g_iJumpFlags[client] & JF_CanBunnyHop));
+	
+	// 在这里是无法获取到向上速度的，必须等待下一帧
+	if(g_fMaxGravityModify[client] >= 0.0)
+		RequestFrame(ApplyJumpVelocity, client);
+}
+
+float CaclJumpVelocity(int client)
+{
+	bool ducking = ((GetClientButtons(client) & IN_DUCK) && (GetEntityFlags(client) & FL_DUCKING));
+	
+	// GetEntityGravity 返回 0.0，好像用不了
+	float height = SquareRoot(2.0 * g_hCvarGravity.FloatValue * (ducking ? g_fJumpHeightDucking : g_fJumpHeight)/* / GetEntityGravity(client)*/);
+	// PrintToChat(client, "d=%d, gg=%d, pg=%.2f, h=%.0f, jh=%.0f", ducking, g_hCvarGravity.IntValue, GetEntityGravity(client), height, (ducking ? g_fJumpHeightDucking : g_fJumpHeight));
+	
+	return height;
+}
+
+public void ApplyJumpVelocity(any client)
+{
+	if(!IsValidAliveClient(client) || g_fMaxGravityModify[client] < 0.0)
+		return;
+	
+	float velocity[3];
+	GetEntDataVector(client, g_iVelocityO, velocity);
+	// velocity[0] *= g_fMaxGravityModify[client];
+	// velocity[1] *= g_fMaxGravityModify[client];
+	velocity[2] *= g_fMaxGravityModify[client];
+	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 }
 
 public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroadcast)
@@ -8008,15 +8040,16 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	
 	int gravity = 100;
 	if((g_clSkill_1[client] & SKL_1_Gravity))
-		gravity -= 20;
+		gravity += 20;
 
 	for(int i = 0; i < 4; ++i)
 	{
 		if(g_clCurEquip[client][i] > -1)
-			gravity -= g_eqmGravity[client][g_clCurEquip[client][i]];
+			gravity += g_eqmGravity[client][g_clCurEquip[client][i]];
 	}
 
-	SetEntityGravity(client, gravity / 100.0);
+	// SetEntityGravity(client, gravity / 100.0);
+	g_fMaxGravityModify[client] = gravity / 100.0;
 
 	float curTime = GetEngineTime();
 	g_ctPainPills[client] = (g_clSkill_2[client] & SKL_2_PainPills ? curTime + 120.0 : 0.0);
@@ -9845,14 +9878,18 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		float velocity[3];
 		// GetEntPropVector(client, Prop_Send, "m_vecVelocity[0]", velocity);
 		GetEntDataVector(client, g_iVelocityO, velocity);
+		
+		float upVel = CaclJumpVelocity(client);
+		if(velocity[2] < upVel)
+			velocity[2] = upVel;
 
-		if(velocity[2] < 300.0)
-			velocity[2] = 300.0;
-
-		// 降落，减少掉落速度
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 		// CreateTimer(1.0, Timer_DoubleJumpReset, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
-
+		
+		Event event = CreateEvent("player_jump");
+		event.SetInt("userid", GetClientUserId(client));
+		event.Fire();
+		
 		// PrintCenterText(client, "双重跳 %d", !!(g_iJumpFlags[client] & JF_CanBunnyHop));
 	}
 
@@ -9881,7 +9918,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			GetEntDataVector(client, g_iVelocityO, velocity);
 
 			// 提供一个向上的速度
-			velocity[2] = 300.0;
+			velocity[2] = CaclJumpVelocity(client);
 
 			// 因为引擎的问题，必须要把 m_hGroundEntity 设置为 -1 才能在地面上设置向上速度
 			// 否则会被摩擦力阻止小于 300.0 的向上速度，即使玩家是完全静止的

@@ -685,6 +685,7 @@ public OnPluginStart()
 		}
 	}
 	
+	// 缓存以及读取
 	if(g_bLateLoad)
 		OnMapStart();
 }
@@ -711,6 +712,7 @@ public void OnPluginEnd()
 	}
 	*/
 	
+	// 清理以及保存
 	OnMapEnd();
 }
 
@@ -1217,7 +1219,8 @@ void Initialization(int client, bool invalid = false)
 	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	// SDKUnhook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
-	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
+	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
+	// SDKUnhook(client, SDKHook_PreThink, PlayerHook_OnPreThink);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	
 	if(toDelete != null)
@@ -2356,7 +2359,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("谨慎-免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("手速-半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
-	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器自带激光/无后坐力(可能无效)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
+	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器自带激光/无后坐力/取消屏幕摇晃(不含倒地)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("保守-武器换弹夹时保留原弹夹(就像CS一样)/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("坚毅-拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("察觉-显示攻击目标伤害和血量",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
@@ -8028,12 +8031,14 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	// SDKUnhook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
-	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
+	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
+	// SDKUnhook(client, SDKHook_PreThink, PlayerHook_OnPreThink);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKHook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	// SDKHook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
 	SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
-	SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThink);
+	SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
+	// SDKHook(client, SDKHook_PreThink, PlayerHook_OnPreThink);
 	SDKHook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	
 	if(GetClientTeam(client) == 2)
@@ -8051,8 +8056,34 @@ void RegPlayerHook(int client, bool fullHealth = false)
 
 public void PlayerHook_OnPreThink(int client)
 {
+	if(g_clSkill_1[client] & SKL_1_NoRecoil)
+	{
+		// 无后坐力
+		SetEntProp(client, Prop_Send, "m_iShotsFired", 0);
+		// ChangeEdictState(client, FindDataMapInfo(client, "m_iShotsFired"));
+		SetEntPropVector(client, Prop_Send, "m_vecPunchAngle", Float:{0.0, 0.0, 0.0});
+		// ChangeEdictState(client, FindDataMapInfo(client, "m_vecPunchAngle"));
+		SetEntPropVector(client, Prop_Send, "m_vecPunchAngleVel", Float:{0.0, 0.0, 0.0});
+		// ChangeEdictState(client, FindDataMapInfo(client, "m_vecPunchAngleVel"));
+	}
+}
+
+public void PlayerHook_OnPreThinkPost(int client)
+{
+	if(g_clSkill_1[client] & SKL_1_NoRecoil)
+	{
+		// 无后坐力
+		SetEntProp(client, Prop_Send, "m_iShotsFired", 0);
+		// ChangeEdictState(client, FindDataMapInfo(client, "m_iShotsFired"));
+		SetEntPropVector(client, Prop_Send, "m_vecPunchAngle", Float:{0.0, 0.0, 0.0});
+		// ChangeEdictState(client, FindDataMapInfo(client, "m_vecPunchAngle"));
+		SetEntPropVector(client, Prop_Send, "m_vecPunchAngleVel", Float:{0.0, 0.0, 0.0});
+		// ChangeEdictState(client, FindDataMapInfo(client, "m_vecPunchAngleVel"));
+	}
+	
 	// 移动速度，比 m_flLaggedMovementValue 好（不会更改跳跃速度）
-	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", GetEntPropFloat(client, Prop_Send, "m_flMaxspeed") * g_fMaxSpeedModify[client]);
+	if(g_fMaxSpeedModify[client] >= 0.0)
+		SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", GetEntPropFloat(client, Prop_Send, "m_flMaxspeed") * g_fMaxSpeedModify[client]);
 }
 
 public int PlayerHook_OnGetMaxHealth(int client)
@@ -8549,14 +8580,6 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		}
 		
 		g_fNextCalmTime[client] = GetEngineTime() + 6.0;
-	}
-
-	if((g_clSkill_1[client] & SKL_1_NoRecoil) && !GetEntProp(client, Prop_Send, "m_isIncapacitated"))
-	{
-		// 无后坐力
-		SetEntProp(client, Prop_Send, "m_iShotsFired", 0);
-		SetEntPropVector(client, Prop_Send, "m_vecPunchAngle", Float:{0.0, 0.0, 0.0});
-		SetEntPropVector(client, Prop_Send, "m_vecPunchAngleVel", Float:{0.0, 0.0, 0.0});
 	}
 	
 	int pbDuration = IsPlayerHaveEffect(client, 21);
@@ -9480,11 +9503,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 {
 	if(!IsValidAliveClient(client))
 		return Plugin_Continue;
-
+	
+	if(g_fFreezeTime[client] > GetEngineTime())
+		return Plugin_Handled;
+	
 	// 用于检查玩家状态
 	int flags = GetEntityFlags(client);
 	int useTarget = -1;
-
+	
 	if(GetClientTeam(client) == 2 && !IsSurvivorHeld(client))
 	{
 		if(buttons & IN_USE)
@@ -9536,8 +9562,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			bool isReloading = view_as<bool>(GetEntProp(weaponId, Prop_Send, "m_bInReload"));
 
 			if((buttons & IN_ATTACK) && (g_clSkill_1[client] & SKL_1_RapidFire) && !isReloading &&
-				GetEntityMoveType(client) != MOVETYPE_LADDER)
+				GetEntityMoveType(client) != MOVETYPE_LADDER &&
+				!GetEntProp(client, Prop_Send, "m_usingMountedGun") &&
+				!GetEntProp(client, Prop_Send, "m_usingMountedWeapon") &&
+				!(GetEntProp(client, Prop_Data, "m_afButtonPressed") & IN_ATTACK2) &&
+				GetEntPropFloat(weaponId, Prop_Send, "m_flCycle") <= 0.0 &&
+				!GetEntProp(weaponId, Prop_Send, "m_bInReload")
+			)
 			{
+				/*
 				if((StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "pistol", false) != -1 ||
 					StrContains(classname, "sniper", false) != -1 || StrEqual(classname, "weapon_hunting_rifle", false) ||
 					StrEqual(classname, "weapon_grenade_launcher", false)) &&
@@ -9547,6 +9580,23 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					// 应该(也许)不会触发spam检测吧
 					buttons &= ~IN_ATTACK;
 				}
+				*/
+				
+				SetEntProp(weaponId, Prop_Send, "m_isHoldingFireButton", 0);
+				ChangeEdictState(weaponId, FindDataMapInfo(weaponId, "m_isHoldingFireButton"));
+				
+				/*
+				if(StrContains(classname, "pistol_magnum", false) != -1)
+				{
+					SetEntPropFloat(iWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.2);
+					ChangeEdictState(iWeapon, FindDataMapInfo(iWeapon, "m_flNextPrimaryAttack"));
+				}
+				else if(StrContains(classname, "pistol", false) != -1)
+				{
+					SetEntPropFloat(iWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.4);
+					ChangeEdictState(iWeapon, FindDataMapInfo(iWeapon, "m_flNextPrimaryAttack"));
+				}
+				*/
 			}
 
 			if(!(buttons & IN_ATTACK) || clip <= 0 || GetEntProp(weaponId, Prop_Send, "m_bInReload") ||
@@ -10854,6 +10904,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				float position[3];
 				GetClientAbsOrigin(client, position);
 				CreateExplosion(client, 1000.0, position, 255.0);
+				ForcePlayerSuicide(client);
 				
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04昨晚初恋表白被拒绝,觉得生无可恋,决定引爆自身的炸弹.", client);
 			}

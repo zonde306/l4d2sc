@@ -306,6 +306,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
+const int g_iMaxEqmEffects = 23;
 
 //玩家基本资料
 char g_szSavePath[256];
@@ -2475,12 +2476,12 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 
 	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("烈火-主武器1/3几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("碎骨-主武器1/3几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("冰封-主武器击中特感有几率减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("冰封-主武器/近战击中特感有几率减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_DmgExtra), mps("狂暴-牺牲暴击伤害大大增加暴击率",(g_clSkill_5[client]&SKL_5_DmgExtra)));
-	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("嗜血-主武器击中特感时有几率速度增加并吸血",(g_clSkill_5[client]&SKL_5_Vampire)));
+	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("嗜血-近战击中特感时有几率速度增加并吸血",(g_clSkill_5[client]&SKL_5_Vampire)));
 	menu.AddItem(tr("5_%d",SKL_5_InfAmmo), mps("节省-主武器开枪有1/3几率回收子弹",(g_clSkill_5[client]&SKL_5_InfAmmo)));
 	menu.AddItem(tr("5_%d",SKL_5_OneInfected), mps("精准-主武器1/4几率可以一枪杀死普感",(g_clSkill_5[client]&SKL_5_OneInfected)));
-	menu.AddItem(tr("5_%d",SKL_5_Missiles), mps("爆发-榴弹发射器爆炸伤害增加且可以导致僵直",(g_clSkill_5[client]&SKL_5_Missiles)));
+	menu.AddItem(tr("5_%d",SKL_5_Missiles), mps("爆发-榴弹发射器/土制爆炸伤害增加且可以导致失衡",(g_clSkill_5[client]&SKL_5_Missiles)));
 	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("持久-冲锋枪一次性射出25发子弹后消耗改为备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
 	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("潜行-不移动/静步走可降低被特感攻击几率(不能开枪)",(g_clSkill_5[client]&SKL_5_Sneak)));
 	
@@ -3573,7 +3574,7 @@ public int MenuHandler_EquipSkill(Menu menu, MenuAction action, int client, int 
 
 
 		GiveSkillPoint(client, -3);
-		g_eqmEffects[client][index] = GetRandomInt(1, 21);
+		g_eqmEffects[client][index] = GetRandomInt(1, g_iMaxEqmEffects);
 		RebuildEquipStr(client, index);
 
 		PrintToChat(client, "\x03[提示]\x01 改造后：%s", FormatEquip(client, index));
@@ -3689,7 +3690,7 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 		else extratalent = GetRandomInt(1, 4);
 		if(extratalent == 1)
 		{
-			g_eqmEffects[client][index] = GetRandomInt(1, 21);
+			g_eqmEffects[client][index] = GetRandomInt(1, g_iMaxEqmEffects);
 		}
 		else
 		{
@@ -4970,9 +4971,9 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		// 榴弹伤害增加
 		if(g_clSkill_5[attacker] & SKL_5_Missiles)
 		{
-			static char classname[17];
+			static char classname[22];
 			GetEdictClassname(inflictor, classname, sizeof(classname));
-			if(strcmp(classname, "grenade_launcher") == 0)
+			if(!strcmp(classname, "grenade_launcher") || !strcmp(classname, "pipe_bomb_projectile"))
 			{
 				float vPos[3];
 				GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
@@ -4981,11 +4982,14 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 				L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(%.0f,%.0f,%.0f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
 				
 				damage *= 5;
+				if(classname[0] == 'p')
+					damage *= 2;
+				
 				return Plugin_Changed;
 			}
 		}
 		
-		// 忽略非主武器的攻击
+		// 忽略非主武器的射击
 		if(ammotype <= 2 || ammotype >= 12 || !(damagetype & DMG_BULLET))
 			return Plugin_Continue;
 		
@@ -5022,9 +5026,17 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 				if(GetRandomInt(1,4) > RanChance)
 				{
 					// Charge(victim, attacker, 250.0, 250.0);
+					/*
 					float vPos[3];
 					GetClientAbsOrigin(attacker, vPos);
 					L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(%.0f,%.0f,%.0f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
+					*/
+					
+					float vAng[3], vDir[3];
+					GetClientEyeAngles(attacker, vAng);
+					GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
+					ScaleVector(vDir, 300.0 * (1 + IsPlayerHaveEffect(attacker, 23)));
+					TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
 				}
 			}
 			
@@ -5159,7 +5171,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			|| StrEqual(weapon, "autoshotgun") || StrEqual(weapon, "shotgun_spas") || StrEqual(weapon, "rifle_m60")
 			|| StrEqual(weapon, "sniper_awp") || StrEqual(weapon, "sniper_military") || StrEqual(weapon, "sniper_scout")
 			|| StrEqual(weapon, "hunting_rifle") || StrEqual(weapon, "pumpshotgun") || StrEqual(weapon, "shotgun_chrome")
-			|| StrEqual(weapon, "grenade_launcher") || StrEqual(weapon, "rifle_desert"))
+			|| StrEqual(weapon, "grenade_launcher") || StrEqual(weapon, "rifle_desert") || StrEqual(weapon, "melee"))
 		{
 			if ((g_clSkill_5[attacker] & SKL_5_RetardBullet) && !GetRandomInt(0, 2))
 			{
@@ -5169,25 +5181,9 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 					new Float:vec[3];
 					GetClientEyePosition(victim, vec);
 					EmitAmbientSound(SOUND_FREEZE, vec, victim, SNDLEVEL_RAIDSIREN);
-					g_fOldMovement[victim] = GetEntPropFloat(victim, Prop_Data, "m_flLaggedMovementValue");
-					SetEntPropFloat(victim, Prop_Data, "m_flLaggedMovementValue", g_fOldMovement[victim] * 0.55);
+					g_fOldMovement[victim] = GetEntPropFloat(victim, Prop_Send, "m_flVelocityModifier");
+					SetEntPropFloat(victim, Prop_Send, "m_flVelocityModifier", g_fOldMovement[victim] * 0.55);
 					CreateTimer(1.0, Timer_StopRetard, victim);
-				}
-			}
-			if (((g_clSkill_5[attacker] & SKL_5_Vampire) || NCJ_3) && !GetRandomInt(0, 2))
-			{
-				// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+1);
-				
-				int health = dmg / 50;
-				AddHealth(attacker, (health > 1 ? health : 1));
-				// ClientCommand(attacker, "play \"ui/littlereward.wav\"");
-				
-				if (!g_bHasVampire[attacker])
-				{
-					g_bHasVampire[attacker] = true;
-					g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Data, "m_flLaggedMovementValue");
-					SetEntPropFloat(attacker, Prop_Data, "m_flLaggedMovementValue", g_fOldMovement[attacker] * 0.95);
-					CreateTimer(1.0, Timer_StopVampire, attacker);
 				}
 			}
 			
@@ -5195,6 +5191,23 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			{
 				// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+5);
 				AddHealth(attacker, 5);
+			}
+		}
+		
+		if (StrEqual(weapon, "melee") && ((g_clSkill_5[attacker] & SKL_5_Vampire) || NCJ_3) && !GetRandomInt(0, 2))
+		{
+			// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+1);
+			
+			int health = dmg / 30;
+			AddHealth(attacker, (health > 1 ? health : 1));
+			// ClientCommand(attacker, "play \"ui/littlereward.wav\"");
+			
+			if (!g_bHasVampire[attacker])
+			{
+				g_bHasVampire[attacker] = true;
+				g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Send, "m_flVelocityModifier");
+				SetEntPropFloat(attacker, Prop_Send, "m_flVelocityModifier", g_fOldMovement[attacker] * 1.15);
+				CreateTimer(1.0, Timer_StopVampire, attacker);
 			}
 		}
 		
@@ -5538,14 +5551,14 @@ public Action:Timer_StopVampire(Handle:timer, any:client)
 {
 	if(g_bHasVampire[client]) g_bHasVampire[client] = false;
 	if (!client || !IsClientInGame(client) || !IsPlayerAlive(client)) return;
-	SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", g_fOldMovement[client]);
+	SetEntPropFloat(client, Prop_Send, "m_flVelocityModifier", g_fOldMovement[client]);
 }
 
 public Action:Timer_StopRetard(Handle:timer, any:client)
 {
 	if(g_bHasRetarding[client]) g_bHasRetarding[client] = false;
 	if (!client || !IsClientInGame(client) || !IsPlayerAlive(client)) return;
-	SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", g_fOldMovement[client]);
+	SetEntPropFloat(client, Prop_Send, "m_flVelocityModifier", g_fOldMovement[client]);
 }
 
 public Action:BoomerIce(Handle:Timer, any:target)
@@ -10313,6 +10326,17 @@ public Action Timer_DoubleJumpReset(Handle timer, any client)
 }
 */
 
+public Action L4D2_OnStagger(int target, int source)
+{
+	if(!IsValidAliveClient(target))
+		return Plugin_Continue;
+	
+	if(IsPlayerHaveEffect(target, 22))
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
 public OnClientPostAdminCheck(client)
 {
 	CreateTimer(5.0, AutoMenuOpen, client);
@@ -12000,7 +12024,7 @@ int GiveEquipment(int client, int index = -1, int parts = -1)
 	g_eqmPrefix[client][index] = GetRandomInt(1, 5);
 	g_eqmParts[client][index] = (0 <= parts <= 3 ? parts : GetRandomInt(0, 3));
 	g_eqmUpgrade[client][index] = (GetRandomInt(0, 1) ? GetRandomInt(0, 5) : 0);
-	g_eqmEffects[client][index] = (!GetRandomInt(0, 2) ? GetRandomInt(0, 21) : 0);
+	g_eqmEffects[client][index] = (!GetRandomInt(0, 2) ? GetRandomInt(0, g_iMaxEqmEffects) : 0);
 
 	switch(g_eqmParts[client][index])
 	{
@@ -12124,6 +12148,10 @@ bool RebuildEquipStr(int client, int index)
 			strcopy(g_esEffects[client][index], 128, "顽强天赋触发时处死控制者");
 		case 21:
 			strcopy(g_esEffects[client][index], 128, "土雷引怪持续时间加倍");
+		case 22:
+			strcopy(g_esEffects[client][index], 128, "避免失衡效果");
+		case 23:
+			strcopy(g_esEffects[client][index], 128, "轰炸效果加倍");
 		default:
 			strcopy(g_esEffects[client][index], 128, "");
 	}

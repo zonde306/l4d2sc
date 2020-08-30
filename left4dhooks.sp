@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.18"
+#define PLUGIN_VERSION		"1.20"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -38,6 +38,13 @@
 ========================================================================================
 	Change Log:
 
+1.20 (28-Aug-2020)
+	- Changed forward "L4D_OnEnterGhostState" hook from pre to post hook. Thanks to "Forgetest" for reporting.
+	- Fixed forward "L4D_OnShovedBySurvivor" client and target order being wrong. Thanks to "Forgetest" for reporting.
+
+1.19 (27-Aug-2020)
+	- Fixed native "L4D2Direct_TryOfferingTankBot" from crashing the server. Thanks to "disawar1" for reporting.
+
 1.18 (20-Aug-2020)
 	- Thanks to "Forgetest" for reporting the following issues and testing multiple fixes.
 	- Fixed natives using "L4D2CT_VersusStartTimer" from reading the incorrect address.
@@ -55,9 +62,9 @@
 	- Fixed native "L4D_GetHighestFlowSurvivor" throwing errors in 1.11. Thanks to "yuzumi" for reporting.
 	- Removed some useless "view_as" code. Might remove more in the future.
 
-	- Updated: Test plugin to reflect above changes.
 	- Updated: L4D2 GameData file.
 	- Updated: Plugin and Include file.
+	- Updated: Test plugin to reflect above changes.
 
 1.16a (16-Jun-2020)
 	- Fixed using the wrong offset for "m_PendingMobCount". Thanks to "fbef0102" for reporting.
@@ -86,8 +93,8 @@
 	- Fixed "L4D_OnTryOfferingTankBot" not returning a valid client index.
 	- Thanks to "Mis" for requesting changes and reporting bugs.
 
-	- Updated: Test plugin to reflect above changes.
 	- Updated: Plugin and Include file.
+	- Updated: Test plugin to reflect above changes.
 
 1.13 (05-May-2020)
 	- Added better error log message when gamedata file is missing.
@@ -95,8 +102,8 @@
 	- Made all natives optional from the include file. Thanks to "Crasher_3637" for requesting.
 	- Optional natives can be set by plugins with "#undef REQUIRE_PLUGIN" before "#include <left4dhooks>" and "#define REQUIRE_PLUGIN" after.
 
-	- Updated: Test plugin to reflect above changes.
 	- Updated: Plugin and Include file.
+	- Updated: Test plugin to reflect above changes.
 
 1.12 (09-Apr-2020)
 	- Added commands "sm_l4dd_detours" and "sm_l4dd_reload" as wrappers to "sm_l4dhooks_detours" and "sm_l4dhooks_reload".
@@ -109,8 +116,8 @@
 	- Optimized native "L4D2_GetVScriptOutput" to reuse the same entity for multiple calls in the same frame.
 	- Maximum native "L4D2_GetVScriptOutput" code allowed seems to be 1006 characters.
 
-	- Updated: Test plugin to reflect above changes.
 	- Updated: Plugin, Include and GameData files.
+	- Updated: Test plugin to reflect above changes.
 
 1.10 (14-Mar-2020)
 	- Added natives (L4D1 & L4D2): "L4D_IsAnySurvivorInStartArea", "L4D_IsInFirstCheckpoint" and "L4D_IsInLastCheckpoint".
@@ -120,8 +127,8 @@
 	- Fixed missing "L4D2IWA_ClipSize" offset. Now this works: L4D2_SetIntWeaponAttribute("weapon_rifle", L4D2IWA_ClipSize, 100);
 	- See include for details.
 
-	- Updated: Test plugin to reflect above changes.
 	- Updated: Plugin, Include and GameData files.
+	- Updated: Test plugin to reflect above changes.
 
 1.9 (10-Mar-2020)
 	- Added native (L4D2 only): "L4D2_GetVScriptOutput" to execute VScript code and get return data.
@@ -132,8 +139,8 @@
 	- See the "NATIVES - Silvers" section inside the include file for details.
 	- Thanks to "Nuki" for requesting.
 
-	- Updated: Test plugin to reflect above changes.
 	- Updated: Plugin, Include and GameData files.
+	- Updated: Test plugin to reflect above changes.
 
 1.8 (08-Mar-2020)
 	- Added AutoExecConfig to generate a cvars config saved to "cfgs/sourcemod/left4dhooks.cfg".
@@ -148,8 +155,8 @@
 	- Fixed native "L4D2Direct_GetFlowDistance" sometimes causing server crashes.
 	- Fixed natives "L4D_IsFirstMapInScenario" and "L4D_IsMissionFinalMap" sometimes returning incorrect values. Thanks to "Accelerator74".
 
-	- Updated: Test plugin to reflect above changes.
 	- Updated: Plugin, Include and GameData files.
+	- Updated: Test plugin to reflect above changes.
 
 1.6 (02-Mar-2020)
 	- Fixed the animation hook throwing an "Exception reported: Client is not connected" error.
@@ -176,8 +183,8 @@
 	- Fixed native "L4D_CreateRescuableSurvivors" from not working. Now spawns all dead survivors into rescuable rooms.
 	- Removed "L4D_OnGetRandomPZSpawnPosition" forward due to spawning specials at 0,0,0 when modifying any value.
 
-	- Updated: Test plugin to reflect above changes.
 	- Updated: Plugin, Include and GameData files.
+	- Updated: Test plugin to reflect above changes.
 
 1.4 (28-Feb-2020)
 	- AnimHooks no longer affect the same client index if the previous user disconnected and someone else connected.
@@ -196,8 +203,8 @@
 	- Existing plugins with the new "AnimHook" hook can now use normal model "m_nSequence" sequence numbers in the post hook.
 	- Thanks to "Accelerator74" for reporting the fix.
 
-	- Updated: Test plugin to demonstrate each change.
 	- Updated: Plugin, Include and GameData files.
+	- Updated: Test plugin to demonstrate each change.
 
 1.2 (27-Feb-2020)
 	- Wildcarded the following signatures to be compatible with 3rd party plugin detours:
@@ -1440,7 +1447,7 @@ void SetupDetours(GameData hGameData = null)
 	CreateDetour(hGameData, MobRushStart,						INVALID_FUNCTION,		"OnMobRushStart",						"L4D_OnMobRushStart");
 	CreateDetour(hGameData, SpawnITMob,							INVALID_FUNCTION,		"SpawnITMob",							"L4D_OnSpawnITMob");
 	CreateDetour(hGameData, SpawnMob,							INVALID_FUNCTION,		"SpawnMob",								"L4D_OnSpawnMob");
-	CreateDetour(hGameData, EnterGhostState,					INVALID_FUNCTION,		"OnEnterGhostState",					"L4D_OnEnterGhostState");
+	CreateDetour(hGameData, EnterGhostStatePre,					EnterGhostState,		"OnEnterGhostState",					"L4D_OnEnterGhostState");
 	CreateDetour(hGameData, IsTeamFullPre,						INVALID_FUNCTION,		"IsTeamFull",							"L4D_OnIsTeamFull");
 	CreateDetour(hGameData, ClearTeamScores,					INVALID_FUNCTION,		"ClearTeamScores",						"L4D_OnClearTeamScores");
 	CreateDetour(hGameData, SetCampaignScores,					INVALID_FUNCTION,		"SetCampaignScores",					"L4D_OnSetCampaignScores");
@@ -2258,7 +2265,7 @@ void LoadGameData()
 	} else {
 		PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 		PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
-		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
 		g_hSDK_Call_TryOfferingTankBot = EndPrepSDKCall();
 		if( g_hSDK_Call_TryOfferingTankBot == null )
 			LogError("Failed to create SDKCall: TryOfferingTankBot");
@@ -3231,7 +3238,7 @@ public int Native_IsAnySurvivorInStartArea(Handle plugin, int numParams)
 		ValidateAddress(g_pDirector, "g_pDirector");
 		ValidateNatives(g_hSDK_Call_IsAnySurvivorInStartArea, "IsAnySurvivorInStartArea");
 
-		// PrintToServer("#### CALL g_hSDK_Call_IsAnySurvivorInStartArea");
+		//PrintToServer("#### CALL g_hSDK_Call_IsAnySurvivorInStartArea");
 		return SDKCall(g_hSDK_Call_IsAnySurvivorInStartArea, g_pDirector);
 	} else {
 		for( int i = 1; i <= MaxClients; i++ )
@@ -3323,7 +3330,7 @@ public int Native_ForceNextStage(Handle plugin, int numParams)
 	ValidateAddress(g_pDirector, "g_pDirector");
 	ValidateNatives(g_hSDK_Call_ForceNextStage, "ForceNextStage");
 
-	// PrintToServer("#### CALL g_hSDK_Call_ForceNextStage");
+	//PrintToServer("#### CALL g_hSDK_Call_ForceNextStage");
 	SDKCall(g_hSDK_Call_ForceNextStage, g_pDirector);
 }
 
@@ -5603,6 +5610,11 @@ public MRESReturn SpawnMob(Handle hReturn, Handle hParams)
 	return MRES_Ignored;
 }
 
+public MRESReturn EnterGhostStatePre(int pThis, Handle hReturn, Handle hParams)
+{
+	//PrintToServer("##### DTR EnterGhostStatePre");
+}
+
 public MRESReturn EnterGhostState(int pThis, Handle hReturn, Handle hParams)
 {
 	//PrintToServer("##### DTR EnterGhostState");
@@ -6177,8 +6189,8 @@ public MRESReturn ShovedBySurvivor(int pThis, Handle hReturn, Handle hParams)
 
 	Action aResult = Plugin_Continue;
 	Call_StartForward(g_hForward_ShovedBySurvivor);
-	Call_PushCell(pThis);
 	Call_PushCell(a1);
+	Call_PushCell(pThis);
 	Call_PushArray(a2, 3);
 	Call_Finish(aResult);
 

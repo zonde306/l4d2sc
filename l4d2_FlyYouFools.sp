@@ -34,7 +34,7 @@ public OnPluginStart()
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("tank_spawn", Event_TankSpawn);
 	HookEvent("tank_killed", Event_TankDeath);	
-	HookEvent("player_incapacitated", Event_PlayerIncapped);
+	//HookEvent("player_incapacitated", Event_PlayerIncapped);
 	
 	AutoExecConfig(true, "l4d2_FlyYouFools");
 	
@@ -59,7 +59,7 @@ public Action:Event_TankSpawn(Handle:event, const String:name[], bool:dontBroadc
 {
 	bIsTankInPlay = true;
 	TankClient = GetClientOfUserId(GetEventInt(event, "userid"));
-	CreateTimer(0.1, BotControlTimer, _, TIMER_REPEAT);
+	CreateTimer(0.1, BotControlTimer, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public Action:Event_TankDeath(Handle:event, const String:name[], bool:dontBroadcast)	

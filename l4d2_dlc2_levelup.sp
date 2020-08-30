@@ -4547,7 +4547,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	GetEntityClassname(victim, victimName, 64);
 	
 	if(StrEqual(victimName, "infected", false) && (g_clSkill_5[attacker] & SKL_5_OneInfected) &&
-		(damagetype & DMG_BULLET) && ammotype > 2 && ammotype < 12 && !GetRandomInt(0, 3))
+		(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && ammotype > 2 && ammotype < 12 && !GetRandomInt(0, 3))
 	{
 		/*
 		static ConVar cv_zombie;
@@ -4610,7 +4610,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		extraChanceDamage = extraChanceDamage / 3 + GetRandomInt(10, 30);
 	
 	// 忽略非主武器的攻击
-	if(ammotype <= 2 || ammotype >= 12 || !(damagetype & DMG_BULLET))
+	if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
 		return Plugin_Continue;
 	
 	// 狙击枪伤害增加
@@ -4969,7 +4969,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)
 	{
 		// 榴弹伤害增加
-		if(g_clSkill_5[attacker] & SKL_5_Missiles)
+		if((g_clSkill_5[attacker] & SKL_5_Missiles) && inflictor > MaxClients)
 		{
 			static char classname[22];
 			GetEdictClassname(inflictor, classname, sizeof(classname));
@@ -4990,14 +4990,14 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		}
 		
 		// 忽略非主武器的射击
-		if(ammotype <= 2 || ammotype >= 12 || !(damagetype & DMG_BULLET))
+		if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
 			return Plugin_Continue;
 		
 		// 狙击枪伤害增加
 		if(ammotype == 10 && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
 		{
 			static char className[64];
-			if(IsValidEntity(inflictor) && IsValidEdict(inflictor))
+			if(inflictor > MaxClients)
 			{
 				GetEntityClassname(inflictor, className, 64);
 				if(StrEqual(className, "weapon_sniper_awp", false))

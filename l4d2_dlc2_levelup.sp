@@ -79,6 +79,8 @@ const float g_fJumpHeightDucking = 52.0;	// 跳跃高度(蹲下)
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1) && !GetEntProp(%1, Prop_Send, "m_isGhost"))
 #define IsSurvivorHeld(%1)		(GetEntPropEnt(%1, Prop_Send, "m_jockeyAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pummelAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pounceAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_tongueOwner") > 0 || GetEntPropEnt(%1, Prop_Send, "m_carryAttacker") > 0)
 #define mps(%1,%2)				tr("%s %s", %1, (%2 ? "√" : ""))
+#define IsNullVector(%1)		(%1[0] == NULL_VECTOR[0] || %1[1] == NULL_VECTOR[1] || %1[2] == NULL_VECTOR[2])
+
 int g_clSkill_1[MAXPLAYERS+1], g_clSkill_2[MAXPLAYERS+1], g_clSkill_3[MAXPLAYERS+1], g_clSkill_4[MAXPLAYERS+1], g_clSkill_5[MAXPLAYERS+1];
 
 enum()
@@ -245,11 +247,18 @@ new Float:g_fOldMovement[MAXPLAYERS+1];
 new g_clAngryMode[MAXPLAYERS+1];
 new g_clAngryPoint[MAXPLAYERS+1];
 
+float g_fForgiveOfTK[MAXPLAYERS+1];
+float g_fForgiveOfFF[MAXPLAYERS+1];
+int g_iForgiveTKTarget[MAXPLAYERS+1];
+int g_iForgiveFFTarget[MAXPLAYERS+1];
+
 #define SPRITE_BEAM					"materials/sprites/laserbeam.vmt"
 #define SPRITE_HALO					"materials/sprites/halo01.vmt"
 #define SPRITE_GLOW					"materials/sprites/glow.vmt"
 #define SOUND_IMPACT1				"physics/flesh/flesh_impact_bullet1.wav"
 #define SOUND_IMPACT2				"physics/concrete/concrete_impact_bullet1.wav"
+#define SOUND_STEEL					"physics/metal/metal_solid_impact_hard5.wav"
+// #define SOUND_WARP					"ambient/energy/zap9.wav"
 
 static const char g_sndShoveInfected[][] = {
 	"player/survivor/hit/rifle_swing_hit_infected7.wav",
@@ -846,6 +855,8 @@ public OnMapStart()
 	PrecacheSound(SOUND_Bomb, true);
 	PrecacheSound(SOUND_IMPACT1);
 	PrecacheSound(SOUND_IMPACT2);
+	PrecacheSound(SOUND_STEEL);
+	// PrecacheSound(SOUND_WARP);
 
 	if ( !IsModelPrecached( STAR_1_MDL ))		PrecacheModel( STAR_1_MDL );
 	if ( !IsModelPrecached( STAR_2_MDL ))		PrecacheModel( STAR_2_MDL );
@@ -1216,6 +1227,10 @@ void Initialization(int client, bool invalid = false)
 	g_iExtraAmmo[client] = 0;
 	g_iReloadWeaponUpgrade[client] = 0;
 	g_iReloadWeaponUpgradeClip[client] = 0;
+	g_fForgiveOfTK[client] = 0.0;
+	g_fForgiveOfFF[client] = 0.0;
+	g_iForgiveTKTarget[client] = 0;
+	g_iForgiveFFTarget[client] = 0;
 	
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
 		g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
@@ -1555,7 +1570,7 @@ void StatusSelectMenuFuncCS(int client)
 	menu.SetTitle("========= 全体传送 =========");
 	menu.DrawText("确定将所有生还者传送到身边？");
 	menu.DrawText(tr("需要 2 点，现有 %d 点", g_clSkillPoint[client]));
-	menu.DrawText("警告：传送导致队友死亡会受到惩罚");
+	menu.DrawText("警告：传送导致队友受伤会受到惩罚");
 	menu.DrawItem("是");
 	menu.DrawItem("否");
 	menu.DrawItem("", ITEMDRAW_NOTEXT);
@@ -1662,10 +1677,11 @@ public Action Timer_TeamTeleport(Handle timer, any data)
 		tmpOrigin[2] = position[2] + 1.0;
 
 		TeleportEntity(i, tmpOrigin, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
-		ClientCommand(i, "play \"%s\"", SOUND_GOOD);
+		// ClientCommand(i, "play \"%s\"", SOUND_GOOD);
 	}
 
-	ClientCommand(client, "play \"%s\"", SOUND_GOOD);
+	// ClientCommand(client, "play \"%s\"", SOUND_GOOD);
+	EmitAmbientSound(SOUND_WARP, position, client, SNDLEVEL_HELICOPTER);
 	PrintToChat(client, "\x03[\x05提示\x03]\x04 传送完毕。");
 	CreateTimer(5.0, Timer_TeamTeleportCheck, client);
 
@@ -2367,7 +2383,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器自带激光/无后坐力/取消屏幕摇晃(例如被攻击)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("保守-武器换弹夹时保留原弹夹(就像CS一样)/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("坚毅-拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
-	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("察觉-显示攻击目标伤害和血量",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("察觉-显示攻击目标伤害和血量/刷特感提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("充沛-推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
 	menu.ExitButton = true;
@@ -4406,6 +4422,8 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	if(g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -GetEngineTime())
 	{
 		// 无敌模式伤害免疫
+		if(!IsNullVector(damagePosition))
+			EmitAmbientSound(SOUND_STEEL, damagePosition, victim, SNDLEVEL_DISHWASHER);
 		return Plugin_Handled;
 	}
 	
@@ -4714,7 +4732,28 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	*/
 	
 	if(client != subject && health >= 50)
+	{
 		g_ttDefibUsed[client] += 1;
+		if(g_fForgiveOfFF[client] >= GetEngineTime() && g_iForgiveFFTarget[client] == GetClientUserId(subject))
+		{
+			g_fForgiveOfFF[client] = 0.0;
+			g_iForgiveFFTarget[client] = 0;
+			g_ttDefibUsed[client]--;
+			
+			GiveSkillPoint(client, 1);
+			if(g_pCvarAllow.BoolValue && !IsFakeClient(client))
+				PrintToChat(client, "\x03[\x05提示\x03]\x04 你因为给队友 打包 而获得了 \x051\x01 天赋点。");
+		}
+		
+		if(g_ttDefibUsed[client] >= g_pCvarDefibUsed.IntValue)
+		{
+			GiveSkillPoint(client, 1);
+			g_ttDefibUsed[client] -= g_pCvarDefibUsed.IntValue;
+
+			if(g_pCvarAllow.BoolValue && !IsFakeClient(client))
+				PrintToChat(client, "\x03[\x05提示\x03]\x04 你因为多次给队友 电击/打包 而获得了 \x051\x01 天赋点。");
+		}
+	}
 	
 	if((g_clSkill_2[subject] & SKL_2_HealBouns) || (g_clSkill_2[client] & SKL_2_HealBouns))
 		AddHealth(subject, 50, false);
@@ -5291,10 +5330,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 						{
 							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
 							{
-								if((GetEntProp(i,Prop_Send,"m_iHealth") < GetEntProp(i,Prop_Send,"m_iMaxHealth")) || GetEntProp(i, Prop_Send, "m_isIncapacitated"))
-								{
-									CheatCommand(i, "give", "health");
-								}
+								CheatCommand(i, "give", "health");
 							}
 						}
 						
@@ -5351,7 +5387,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 						
 						for(new i = 1; i <= MaxClients; i++)
 						{
-							if(IsClientConnected(i) && GetClientTeam(i) == team)
+							if(IsClientInGame(i) && GetClientTeam(i) == team)
 							{
 								GiveSkillPoint(i, 1);
 							}
@@ -5469,7 +5505,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			int tempHealth = GetPlayerTempHealth(victim);
 			int health = GetEntProp(victim, Prop_Data, "m_iHealth");
 			int maxHealth = GetEntProp(victim, Prop_Send, "m_iMaxHealth");
-			if(g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0 &&
+			if((g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0) &&
 				!GetEntProp(victim, Prop_Send, "m_isIncapacitated", 1) &&
 				!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
 			{
@@ -5756,7 +5792,7 @@ int DropItem( int client, const char[] Model )
 		AcceptEntityInput(entity, "AddOutput", client, entity);
 		AcceptEntityInput(entity, "FireUser1", client, entity);
 
-		EmitAmbientSound("ui/gift_drop.wav", vecPos, entity);
+		EmitAmbientSound("ui/gift_drop.wav", vecPos, entity, SNDLEVEL_CAR);
 	}
 
 	return entity;
@@ -6028,7 +6064,8 @@ void RewardPicker(int client)
 							vec[1] += GetRandomFloat(0.1,0.9);
 							vec[2] += GetRandomFloat(0.1,0.9);
 							TeleportEntity(client, vec, NULL_VECTOR, NULL_VECTOR);
-							EmitSoundToClient( client, REWARD_SOUND );
+							// EmitSoundToClient( client, REWARD_SOUND );
+							EmitAmbientSound(SOUND_WARP, vec, client, SNDLEVEL_HELICOPTER);
 
 							if(g_pCvarAllow.BoolValue)
 								PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,原来是任意门,\x03被随机传送到一个队友身旁\x04.",client);
@@ -6337,7 +6374,7 @@ public Action:Timer_RespawnPlayer(Handle:timer, any:client)
 			
 			// PrintToChatAll("\x03[\x05提示\x03]\x04玩家\x03%s\x04顺利复活.", playername);
 			PrintToChat(client, "\x03[提示]\x01 复活完毕。");
-			ClientCommand(client, "play \"ui/helpful_event_1.wav\"");
+			// ClientCommand(client, "play \"ui/helpful_event_1.wav\"");
 
 			new Float:position[3];
 			new Float:anglestarget[3];
@@ -6345,6 +6382,7 @@ public Action:Timer_RespawnPlayer(Handle:timer, any:client)
 			position[2] + 0.2;
 			GetClientAbsAngles(teletarget, anglestarget);
 			TeleportEntity(client, position, anglestarget, NULL_VECTOR);
+			EmitAmbientSound(SOUND_WARP, position, client, SNDLEVEL_HELICOPTER);
 		}
 	}
 }
@@ -6659,7 +6697,18 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 
 	if(IsValidAliveClient(client) && subject != client)
 	{
-		g_ttDefibUsed[client] ++;
+		g_ttDefibUsed[client]++;
+		if(g_fForgiveOfTK[client] >= GetEngineTime() && g_iForgiveTKTarget[client] == GetClientUserId(subject))
+		{
+			g_fForgiveOfTK[client] = 0.0;
+			g_iForgiveTKTarget[client] = 0;
+			g_ttDefibUsed[client]--;
+			
+			GiveSkillPoint(client, 3);
+			if(g_pCvarAllow.BoolValue && !IsFakeClient(client))
+				PrintToChat(client, "\x03[\x05提示\x03]\x04 你因为给队友 电击 而获得了 \x053\x01 天赋点。");
+		}
+		
 		if(g_ttDefibUsed[client] >= g_pCvarDefibUsed.IntValue)
 		{
 			GiveSkillPoint(client, 1);
@@ -6710,7 +6759,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 		
 		g_sLastWeapon[subject][0] = EOS;
 	}
-
+	
 	if(g_iRoundEvent == 19)
 	{
 		/*
@@ -6987,8 +7036,13 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	if(award == 84)
 	{
 		// 把队友干掉了
-
 		GiveSkillPoint(client, -3);
+		
+		if(IsValidClient(subject))
+		{
+			g_fForgiveOfTK[client] = GetEngineTime() + 45.0;
+			g_iForgiveTKTarget[client] = GetClientUserId(subject);
+		}
 
 		if(!bot && g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为干掉队友而失去了 \x053\x01 天赋点。");
@@ -6997,8 +7051,13 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	if(award == 85 || award == 89)
 	{
 		// 把队友打趴下了
-
 		GiveSkillPoint(client, -1);
+		
+		if(IsValidClient(subject))
+		{
+			g_fForgiveOfFF[client] = GetEngineTime() + 45.0;
+			g_iForgiveFFTarget[client] = GetClientUserId(subject);
+		}
 
 		if(!bot && g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为放倒队友而失去了 \x051\x01 天赋点。");
@@ -7309,12 +7368,15 @@ public void NotifyDamageInfo(any client)
 		
 		if(IsValidClient(entity))
 		{
-			Format(msg, sizeof(msg), "%s%N|伤害%d|剩余%d\n", msg, entity, dmg, GetEntProp(entity, Prop_Data, "m_iHealth"));
+			if(IsPlayerAlive(entity))
+				Format(msg, sizeof(msg), "%s%N|伤害%d|剩余%d\n", msg, entity, dmg, GetEntProp(entity, Prop_Data, "m_iHealth"));
+			else
+				Format(msg, sizeof(msg), "%s%N|伤害%d|击杀\n", msg, entity, dmg);
 		}
 		else
 		{
 			static char classname[64];
-			if(!GetEntityClassname(entity, classname, sizeof(classname)))
+			if(!GetEdictClassname(entity, classname, sizeof(classname)))
 				continue;
 			
 			if(!strcmp(classname, "infected", false))
@@ -7358,6 +7420,34 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	{
 		SetEntProp(client, Prop_Send, "m_ArmorValue", 127);
 		SetEntProp(client, Prop_Send, "m_bHasHelmet", 1);
+	}
+	
+	int zClass = GetEntProp(client, Prop_Send, "m_zombieClass");
+	if(zClass != ZC_SURVIVOR && zClass != ZC_WITCH)
+	{
+		for(int i = 1; i <= MaxClients; ++i)
+		{
+			if(!IsClientInGame(i) || !(g_clSkill_1[i] & SKL_1_DisplayHealth))
+				continue;
+			
+			switch(zClass)
+			{
+				case ZC_SMOKER:
+					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSmoker");
+				case ZC_BOOMER:
+					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnBoomer");
+				case ZC_HUNTER:
+					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnHunter");
+				case ZC_SPITTER:
+					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSpitter");
+				case ZC_JOCKEY:
+					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnJockey");
+				case ZC_CHARGER:
+					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnCharger");
+				case ZC_TANK:
+					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnTank");
+			}
+		}
 	}
 }
 

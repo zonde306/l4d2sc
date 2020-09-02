@@ -5,7 +5,7 @@
 #include <geoip>
 #include <l4d2_skill_detect>
 #include <left4dhooks>
-#include <l4d_info_editor>
+// #include <l4d_info_editor>
 #include <dhooks>
 
 #define SOUND_Bomb					"weapons/grenade_launcher/grenadefire/grenade_launcher_explode_1.wav"
@@ -64,7 +64,7 @@
 #define TRACE_TOLERANCE		25.0
 
 Handle g_pfnFindUseEntity = null;
-StringMap g_WeaponClipSize, g_WeaponDamage;
+// StringMap g_WeaponClipSize, g_WeaponDamage;
 
 const int g_iMaxClip = 254;					// 游戏所允许的最大弹夹数量 8bit，但是 255 会被显示为 0，超过会溢出
 const int g_iMaxAmmo = 1023;				// 游戏所允许的最大子弹数量 10bit，超过会溢出
@@ -465,8 +465,8 @@ public OnPluginStart()
 
 	HookConVarChange(g_hCvarZombieHealth, ConVarChaged_ZombieHealth);
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
-	g_WeaponClipSize = new StringMap();
-	g_WeaponDamage = new StringMap();
+	// g_WeaponClipSize = new StringMap();
+	// g_WeaponDamage = new StringMap();
 	
 	CreateTimer(1.0, Timer_RestoreDefault);
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
@@ -843,6 +843,7 @@ public OnMapStart()
 	GetConVarString(cv_sndPortalFX, g_sndPortalFX, sizeof(g_sndPortalFX));
 	
 	PrecacheParticle(g_particle);
+	PrecacheParticle(PARTICLE_BLOOD);
 	
 	PrecacheSound(g_sndPortalERROR, true);
 	PrecacheSound(g_sndPortalFX, true);
@@ -7912,26 +7913,26 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 	
 	if(g_clSkill_3[client] & SKL_3_Ricochet)
 	{
-		float damage = 10.0;
 		int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 		if(weapon > MaxClients && IsValidEntity(weapon))
 		{
 			static char classname[64];
-			if(GetEntityClassname(weapon, classname, 64) && 
+			if(GetEdictClassname(weapon, classname, 64) && 
 				(StrContains(classname, "smg", false) > -1 || StrContains(classname, "rifle", false) > -1 ||
 				StrContains(classname, "sniper", false) > -1 || StrContains(classname, "magnum", false) > -1))
 			{
 				float fEyeAngles[3], fBeamOneStart[3], fBeamOneEnd[3], fBeamEndNormals[3], fBeamTwoDirection[3], fBeamForwards[3], fBeamTwoStart[3], fBeamTwoEnd[3];
 				GetClientEyeAngles(client, fEyeAngles);
 				GetClientEyePosition(client, fBeamOneStart);
+				float damage = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage) * 0.5;
 				
 				// 反弹降低伤害
+				/*
 				if(g_WeaponDamage.GetValue(classname, damage) && damage > 0.0)
 				{
 					// PrintCenterText(client, "dmg %.0f", damage);
 					damage /= 2;
 				}
-				/*
 				else
 				{
 					PrintCenterText(client, "no dmg");
@@ -7976,18 +7977,21 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 						
 						// TODO: 计算暴击和额外伤害
 						// FIXME: 未触发 TraceAttack
-						if(iTarget > 0 && damage > 0.0)
+						if(iTarget > 0 && damage > 0.0 && GetVectorDistance(fBeamTwoStart, fBeamTwoEnd) <= L4D2_GetFloatWeaponAttribute(classname, L4D2FWA_Range))
 						{
-							EmitSoundToAll(SOUND_IMPACT1, iTarget,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
+							// EmitSoundToAll(SOUND_IMPACT1, iTarget,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
+							EmitAmbientSound(SOUND_IMPACT1, fBeamTwoEnd, iTarget, SNDLEVEL_TRAFFIC);
 							SDKHooks_TakeDamage(iTarget, weapon, client, damage, DMG_BULLET, weapon, NULL_VECTOR, fBeamTwoEnd);
+							ShowParticle(fBeamTwoEnd, PARTICLE_BLOOD, 0.5);
 						}
 						else
 						{
-							EmitSoundToAll(SOUND_IMPACT2, 0,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
+							// EmitSoundToAll(SOUND_IMPACT2, 0,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
+							EmitAmbientSound(SOUND_IMPACT2, fBeamTwoEnd, 0, SNDLEVEL_TRAFFIC);
 						}
 						
 						// 子弹效果
-						TE_SetupBeamPoints(fBeamTwoStart, fBeamTwoEnd, g_BeamSprite, g_HaloSprite, 0, 0, 0.06, 0.05, 0.08, 1, 0.0, {200, 200, 200, 230}, 0);
+						TE_SetupBeamPoints(fBeamTwoStart, fBeamTwoEnd, g_BeamSprite, 0, 0, 0, 0.06, 0.01, 0.08, 1, 0.0, {200, 200, 200, 230}, 0);
 						TE_SendToAll();
 					}
 					else
@@ -8449,6 +8453,7 @@ public Action:Superman(Handle:timer, any:client)
 	if(!IsFakeClient(client)) PrintToChat(client, "\x03[\x05提示\x03]\x04无敌能力失效.");
 }
 
+/*
 public void OnGetWeaponsInfo(int pThis, const char[] classname)
 {
 	static char value[64];
@@ -8458,6 +8463,7 @@ public void OnGetWeaponsInfo(int pThis, const char[] classname)
 	InfoEditor_GetString(pThis, "Damage", value, 64);
 	g_WeaponDamage.SetValue(classname, StringToFloat(value));
 }
+*/
 
 int GetDefaultClip(int weapon)
 {
@@ -8465,8 +8471,12 @@ int GetDefaultClip(int weapon)
 		return -1;
 
 	char className[64];
-	GetEntityClassname(weapon, className, 64);
+	if(!GetEdictClassname(weapon, className, 64))
+		return -1;
 	
+	return L4D2_GetIntWeaponAttribute(className, L4D2IWA_ClipSize);
+	
+	/*
 	int clip = -1;
 	if(g_WeaponClipSize.GetValue(className, clip) && clip > 0)
 	{
@@ -8475,7 +8485,9 @@ int GetDefaultClip(int weapon)
 		
 		return clip;
 	}
+	*/
 	
+	/*
 	if(StrContains(className, "smg", false) != -1 || StrEqual(className, "weapon_rifle", false) ||
 		StrEqual(className, "weapon_rifle_sg552", false))
 		return 50;
@@ -8517,6 +8529,7 @@ int GetDefaultClip(int weapon)
 		return 1;
 
 	return 0;
+	*/
 }
 
 int CalcPlayerClip(int client, int weapon)
@@ -12055,7 +12068,8 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 	ActivateEntity(entity);
 
 	AcceptEntityInput(entity, "Explode", -1, entity);
-	EmitSoundToAll("weapons/hegrenade/explode5.wav", entity, SNDCHAN_WEAPON, SNDLEVEL_SCREAMING, SND_NOFLAGS, SNDVOL_NORMAL, 100, _, origin, NULL_VECTOR, false, 0.0);
+	// EmitSoundToAll("weapons/hegrenade/explode5.wav", entity, SNDCHAN_WEAPON, SNDLEVEL_SCREAMING, SND_NOFLAGS, SNDVOL_NORMAL, 100, _, origin, NULL_VECTOR, false, 0.0);
+	EmitAmbientSound("weapons/hegrenade/explode5.wav", origin, entity, SNDLEVEL_SCREAMING);
 
 	SetVariantString("OnUser1 !self:Kill::1:1");
 	AcceptEntityInput(entity, "AddOutput", attacker, entity);

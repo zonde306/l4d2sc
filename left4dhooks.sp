@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.20"
+#define PLUGIN_VERSION		"1.21"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -37,6 +37,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.21 (01-Sep-2020)
+	- Removed teleporting the old and new tank players when using "L4D_ReplaceTank" native.
 
 1.20 (28-Aug-2020)
 	- Changed forward "L4D_OnEnterGhostState" hook from pre to post hook. Thanks to "Forgetest" for reporting.
@@ -3597,16 +3600,16 @@ public int Native_ReplaceTank(Handle plugin, int numParams)
 	if( newtank <= 0 || newtank > MaxClients || !IsClientInGame(newtank) )
 		ThrowNativeError(SP_ERROR_PARAM, "Invalid newtank client %d.", newtank);
 
-	float vAng[3], vOld[3], vNew[3];
-	GetClientEyeAngles(oldtank, vAng);
-	GetClientEyePosition(oldtank, vOld);
-	GetClientAbsOrigin(newtank, vNew);
+	// float vAng[3], vOld[3], vNew[3];
+	// GetClientEyeAngles(oldtank, vAng);
+	// GetClientEyePosition(oldtank, vOld);
+	// GetClientAbsOrigin(newtank, vNew);
 
 	//PrintToServer("#### CALL g_hSDK_Call_ReplaceTank");
 	SDKCall(g_hSDK_Call_ReplaceTank, g_pZombieManager, oldtank, newtank);
 
-	TeleportEntity(oldtank, vOld, vAng, NULL_VECTOR);
-	TeleportEntity(newtank, vNew, NULL_VECTOR, NULL_VECTOR);
+	// TeleportEntity(oldtank, vOld, vAng, NULL_VECTOR);
+	// TeleportEntity(newtank, vNew, NULL_VECTOR, NULL_VECTOR);
 	return 0;
 }
 

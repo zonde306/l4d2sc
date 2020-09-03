@@ -315,7 +315,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 23;
+const int g_iMaxEqmEffects = 28;
 
 //玩家基本资料
 char g_szSavePath[256];
@@ -491,6 +491,7 @@ public OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_entered_start_area", Event_PlayerEnterStartArea);
 	HookEvent("player_first_spawn", Event_PlayerSpawn);
+	HookEvent("player_first_spawn", Event_PlayerSpawnNotify);
 	HookEvent("bot_player_replace", Event_PlayerReplaceBot);
 	// HookEvent("spit_burst", Event_SpitBurst);
 	HookEvent("player_incapacitated", Event_PlayerIncapacitated);
@@ -618,6 +619,7 @@ public OnPluginStart()
 				g_tShoveRange.SetValue("weapon_rifle_m60",			150);
 				g_tShoveRange.SetValue("weapon_grenade_launcher",	110);
 				
+				/*
 				g_tShoveRange.SetValue("weapon_pipe_bomb",			90);
 				g_tShoveRange.SetValue("weapon_molotov",			90);
 				g_tShoveRange.SetValue("weapon_vomitjar",			90);
@@ -627,6 +629,7 @@ public OnPluginStart()
 				g_tShoveRange.SetValue("weapon_defibrillator",		90);
 				g_tShoveRange.SetValue("weapon_upgradepack_incendiary",		90);
 				g_tShoveRange.SetValue("weapon_upgradepack_explosive",		90);
+				*/
 				
 				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Hooked.");
 			}
@@ -2372,20 +2375,20 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 一级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("强身-HP上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("疾步-速度+10%",(g_clSkill_1[client]&SKL_1_Movement)));
-	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("自愈-倒地被救起恢复HP+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("凶狠-主武器暴击率+5",(g_clSkill_1[client]&SKL_1_DmgExtra)));
-	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("手控-手枪无限子弹不用换弹夹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
-	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("轻盈-你可以跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
-	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("谨慎-免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
-	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("手速-半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
-	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("护甲-复活自带护甲(就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
-	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("稳定-武器自带激光/无后坐力/取消屏幕摇晃(例如被攻击)",(g_clSkill_1[client]&SKL_1_NoRecoil)));
-	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("保守-武器换弹夹时保留原弹夹(就像CS一样)/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
-	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("坚毅-拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
-	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("察觉-显示攻击目标伤害和血量/刷特感提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("充沛-推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
+	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("「强身」HP上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+10%",(g_clSkill_1[client]&SKL_1_Movement)));
+	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("「自愈」倒地被救起恢复HP+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("「凶狠」暴击率+5",(g_clSkill_1[client]&SKL_1_DmgExtra)));
+	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限弹夹子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
+	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
+	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
+	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
+	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活自带护甲(就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
+	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力/取消摇晃",(g_clSkill_1[client]&SKL_1_NoRecoil)));
+	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装不卸下弹夹/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
+	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
+	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示目标血量/刷特感提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2401,19 +2404,19 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 二级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("狂锯-无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
-	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("热血-杀死特感1/4几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
-	menu.AddItem(tr("2_%d",SKL_2_PainPills), mps("嗜药-每120秒获得一个药丸",(g_clSkill_2[client]&SKL_2_PainPills)));
-	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("永康-每200秒恢复全血",(g_clSkill_2[client]&SKL_2_FullHealth)));
-	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("电疗-每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
-	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("擅医-打包成功恢复HP+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
-	menu.AddItem(tr("2_%d",SKL_2_PipeBomb), mps("爆破-每100秒获得一个土制",(g_clSkill_2[client]&SKL_2_PipeBomb)));
-	menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("顽强-倒地时1/4几率自救",(g_clSkill_2[client]&SKL_2_SelfHelp)));
-	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("自守-倒地被控自动推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
-	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("踏空-在空中按跳跃可以再次起跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
-	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("防化服-受到胆汁影响时间减半/防止胆汁期间被特感故意攻击",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
-	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("炮台-倒地手枪换成马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
-	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("固定-在梯子上不动可以掏出武器",(g_clSkill_2[client]&SKL_2_LadderGun)));
+	menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("「狂锯」无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
+	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」杀死特感1/4几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
+	menu.AddItem(tr("2_%d",SKL_2_PainPills), mps("「嗜药」每120秒获得一个药丸",(g_clSkill_2[client]&SKL_2_PainPills)));
+	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」每200秒恢复全血",(g_clSkill_2[client]&SKL_2_FullHealth)));
+	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("「电疗」每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
+	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("「擅医」打包成功恢复HP+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
+	menu.AddItem(tr("2_%d",SKL_2_PipeBomb), mps("「爆破」每100秒获得一个土制",(g_clSkill_2[client]&SKL_2_PipeBomb)));
+	menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("「顽强」倒地时1/4几率自救",(g_clSkill_2[client]&SKL_2_SelfHelp)));
+	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("「自守」倒地被控自动推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
+	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("「踏空」允许二级跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
+	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」受到胆汁影响时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
+	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地手枪换成马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
+	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("「固定」在梯子上不动可以掏出武器",(g_clSkill_2[client]&SKL_2_LadderGun)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2430,19 +2433,19 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.SetTitle("========= 三级天赋 =========");
 	menu.SetTitle(tr("========= 三级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("牺牲-死亡时1/3几率与全图感染者同归于尽",(g_clSkill_3[client]&SKL_3_Sacrifice)));
-	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("永生-死亡时复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
-	menu.AddItem(tr("3_%d",SKL_3_IncapFire), mps("纵火-倒地时点燃攻击者和周围的普感",(g_clSkill_3[client]&SKL_3_IncapFire)));
-	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("妙手-救起队友时随机获得物品或天赋点",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
-	menu.AddItem(tr("3_%d",SKL_3_Freeze), mps("释冰-倒地时冻结攻击者和周围特感12秒",(g_clSkill_3[client]&SKL_3_Freeze)));
-	menu.AddItem(tr("3_%d",SKL_3_Kickback), mps("轰炸-暴击时1/2几率附加击退效果",(g_clSkill_3[client]&SKL_3_Kickback)));
-	menu.AddItem(tr("3_%d",SKL_3_GodMode), mps("无敌-每80秒获得9秒无敌时间",(g_clSkill_3[client]&SKL_3_GodMode)));
-	menu.AddItem(tr("3_%d",SKL_3_SelfHeal), mps("暴疗-每150秒恢复80HP",(g_clSkill_3[client]&SKL_3_SelfHeal)));
-	menu.AddItem(tr("3_%d",SKL_3_BunnyHop), mps("灵活-按住空格自动连跳",(g_clSkill_3[client]&SKL_3_BunnyHop)));
-	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("降落-在空中按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
-	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("备用-更多后备弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
-	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("守备-受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
-	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("跳弹-子弹击中墙壁可以反弹(霰弹和小手枪除外)",(g_clSkill_3[client]&SKL_3_Ricochet)));
+	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡时1/3几率与全图感染者同归于尽",(g_clSkill_3[client]&SKL_3_Sacrifice)));
+	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("「永生」死亡时复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
+	menu.AddItem(tr("3_%d",SKL_3_IncapFire), mps("「纵火」倒地时点燃攻击者和周围的普感",(g_clSkill_3[client]&SKL_3_IncapFire)));
+	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("「妙手」救起队友时随机获得物品或天赋点",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
+	menu.AddItem(tr("3_%d",SKL_3_Freeze), mps("「释冰」倒地时冻结攻击者和周围特感12秒",(g_clSkill_3[client]&SKL_3_Freeze)));
+	menu.AddItem(tr("3_%d",SKL_3_Kickback), mps("「轰炸」暴击时1/2几率附加击退效果",(g_clSkill_3[client]&SKL_3_Kickback)));
+	menu.AddItem(tr("3_%d",SKL_3_GodMode), mps("「无敌」每80秒获得9秒无敌时间",(g_clSkill_3[client]&SKL_3_GodMode)));
+	menu.AddItem(tr("3_%d",SKL_3_SelfHeal), mps("「暴疗」每150秒恢复80HP(可转换)",(g_clSkill_3[client]&SKL_3_SelfHeal)));
+	menu.AddItem(tr("3_%d",SKL_3_BunnyHop), mps("「灵活」按住空格自动连跳",(g_clSkill_3[client]&SKL_3_BunnyHop)));
+	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("「降落」在空中按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
+	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("「储备」更多后备弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
+	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("「守备」受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
+	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("「跳弹」子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2458,24 +2461,24 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 四级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("坚韧-被坦克击中随机恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
-	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("狂妄-主武器暴击率+10",(g_clSkill_4[client]&SKL_4_DmgExtra)));
-	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("霸气-蹲下右键可以弹开周围的特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
-	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("疾射-武器攻击速度提升",(g_clSkill_4[client]&SKL_4_FastFired)));
-	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("神狙-AWP射速加快无限备用子弹(对Scout也加快射速)",(g_clSkill_4[client]&SKL_4_SniperExtra)));
-	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("嗜弹-武器上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
-	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("扫射-M60无限子弹不用换弹夹(减射速,搭配疾射抵消)",(g_clSkill_4[client]&SKL_4_MachStrafe)));
-	menu.AddItem(tr("4_%d",SKL_4_MoreDmgExtra), mps("残忍-暴击时追加伤害上限+200",(g_clSkill_4[client]&SKL_4_MoreDmgExtra)));
-	menu.AddItem(tr("4_%d",SKL_4_Defensive), mps("御策-受到普感攻击时伤害减半或返回三倍伤害",(g_clSkill_4[client]&SKL_4_Defensive)));
-	menu.AddItem(tr("4_%d",SKL_4_ClipSize), mps("弹夹-更多弹夹子弹",(g_clSkill_4[client]&SKL_4_ClipSize)));
+	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("「坚韧」被坦克击中随机恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
+	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+10",(g_clSkill_4[client]&SKL_4_DmgExtra)));
+	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("「霸气」蹲下右键可以弹开周围的特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
+	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」武器攻击速度提升",(g_clSkill_4[client]&SKL_4_FastFired)));
+	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("「神狙」AWP射速加快无限备用子弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
+	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("「嗜弹」武器上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
+	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("「扫射」M60无限弹夹子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
+	menu.AddItem(tr("4_%d",SKL_4_MoreDmgExtra), mps("「残忍」暴击伤害上限+200",(g_clSkill_4[client]&SKL_4_MoreDmgExtra)));
+	menu.AddItem(tr("4_%d",SKL_4_Defensive), mps("「御策」被普感锤伤害减半或反伤",(g_clSkill_4[client]&SKL_4_Defensive)));
+	menu.AddItem(tr("4_%d",SKL_4_ClipSize), mps("「弹夹」更多弹夹子弹",(g_clSkill_4[client]&SKL_4_ClipSize)));
 	
 	if(g_pfnOnSwingStart != null)
-		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("力大-可以推牛(Charger)/倒地可以推(倒地可推任何敌人)",(g_clSkill_4[client]&SKL_4_Shove)));
+		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("「力大」可以推牛/倒地可以推",(g_clSkill_4[client]&SKL_4_Shove)));
 	else
-		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("力大-可以推牛(Charger)",(g_clSkill_4[client]&SKL_4_Shove)));
+		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("「力大」可以推牛",(g_clSkill_4[client]&SKL_4_Shove)));
 	
-	menu.AddItem(tr("4_%d",SKL_4_TempRespite), mps("喘息-虚血会慢慢恢复为实血",(g_clSkill_4[client]&SKL_4_TempRespite)));
-	menu.AddItem(tr("4_%d",SKL_4_Terror), mps("支配-对特感扔胆汁会让它攻击特感",(g_clSkill_4[client]&SKL_4_Terror)));
+	menu.AddItem(tr("4_%d",SKL_4_TempRespite), mps("「喘息」虚血会慢慢恢复为实血",(g_clSkill_4[client]&SKL_4_TempRespite)));
+	menu.AddItem(tr("4_%d",SKL_4_Terror), mps("「支配」对特感扔胆汁会让它攻击特感",(g_clSkill_4[client]&SKL_4_Terror)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2491,24 +2494,24 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 五级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("烈火-主武器1/3几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("碎骨-主武器1/3几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("冰封-主武器/近战击中特感有几率减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_DmgExtra), mps("狂暴-牺牲暴击伤害大大增加暴击率",(g_clSkill_5[client]&SKL_5_DmgExtra)));
-	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("嗜血-近战击中特感时有几率速度增加并吸血",(g_clSkill_5[client]&SKL_5_Vampire)));
-	menu.AddItem(tr("5_%d",SKL_5_InfAmmo), mps("节省-主武器开枪有1/3几率回收子弹",(g_clSkill_5[client]&SKL_5_InfAmmo)));
-	menu.AddItem(tr("5_%d",SKL_5_OneInfected), mps("精准-主武器1/4几率可以一枪杀死普感",(g_clSkill_5[client]&SKL_5_OneInfected)));
-	menu.AddItem(tr("5_%d",SKL_5_Missiles), mps("爆发-榴弹发射器/土制爆炸伤害增加且可以导致失衡",(g_clSkill_5[client]&SKL_5_Missiles)));
-	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("持久-冲锋枪一次性射出25发子弹后消耗改为备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
-	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("潜行-不移动/静步走可降低被特感攻击几率(不能开枪)",(g_clSkill_5[client]&SKL_5_Sneak)));
+	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("「烈火」主武器1/3几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("「碎骨」主武器1/3几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("「冰封」主武器/近战击中特感有几率减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_DmgExtra), mps("「狂暴」牺牲暴击伤害大大增加暴击率",(g_clSkill_5[client]&SKL_5_DmgExtra)));
+	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("「嗜血」近战击中特感时有几率吸血",(g_clSkill_5[client]&SKL_5_Vampire)));
+	menu.AddItem(tr("5_%d",SKL_5_InfAmmo), mps("「节省」主武器开枪有1/3几率回收子弹",(g_clSkill_5[client]&SKL_5_InfAmmo)));
+	menu.AddItem(tr("5_%d",SKL_5_OneInfected), mps("「精准」主武器1/4几率可以秒普感",(g_clSkill_5[client]&SKL_5_OneInfected)));
+	menu.AddItem(tr("5_%d",SKL_5_Missiles), mps("「爆发」榴弹/土制伤害大幅增加且可以导致失衡",(g_clSkill_5[client]&SKL_5_Missiles)));
+	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("「持久」冲锋枪25连射后改为消耗备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
+	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("「潜行」降低被特感发现的几率",(g_clSkill_5[client]&SKL_5_Sneak)));
 	
 	if(g_tMeleeRange != null && g_hDetourTestMeleeSwingCollision != null)
-		menu.AddItem(tr("5_%d",SKL_5_MeleeRange), mps("刀客-增加近战武器攻击范围(视武器而定)",(g_clSkill_5[client]&SKL_5_MeleeRange)));
+		menu.AddItem(tr("5_%d",SKL_5_MeleeRange), mps("「刀客」增加近战武器攻击范围",(g_clSkill_5[client]&SKL_5_MeleeRange)));
 	
 	if(g_tShoveRange != null && g_hDetourTestSwingCollision != null)
-		menu.AddItem(tr("5_%d",SKL_5_ShoveRange), mps("枪托-增加推的攻击范围(视武器而定)",(g_clSkill_5[client]&SKL_5_ShoveRange)));
+		menu.AddItem(tr("5_%d",SKL_5_ShoveRange), mps("「枪托」增加推的攻击范围",(g_clSkill_5[client]&SKL_5_ShoveRange)));
 	
-	menu.AddItem(tr("5_%d",SKL_3_TempRegen), mps("抗性-受伤消耗实血时有1/2几率恢复等量虚血",(g_clSkill_5[client]&SKL_3_TempRegen)));
+	menu.AddItem(tr("5_%d",SKL_3_TempRegen), mps("「抗性」受伤消耗实血时有1/2几率恢复等量虚血",(g_clSkill_5[client]&SKL_3_TempRegen)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4005,8 +4008,16 @@ public void OnGameFrame()
 					g_ctPipeBomb[i] = curTime + 100.0;
 					if(GetPlayerWeaponSlot(i, 2) == -1)
 					{
-						CheatCommand(i, "give", "pipe_bomb");
-						PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03爆破\x04天赋获得土雷。");
+						if(IsPlayerHaveEffect(i, 28))
+						{
+							CheatCommand(i, "give", "vomitjar");
+							PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03爆破\x04天赋+\x05装备\x04效果而获得胆汁。");
+						}
+						else
+						{
+							CheatCommand(i, "give", "pipe_bomb");
+							PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03爆破\x04天赋获得土雷。");
+						}
 					}
 					else
 					{
@@ -4019,8 +4030,17 @@ public void OnGameFrame()
 					g_ctDefibrillator[i] = curTime + 200.0;
 					if(GetPlayerWeaponSlot(i, 3) == -1)
 					{
-						CheatCommand(i, "give", "defibrillator");
-						PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03电疗\x04天赋获得电击器。");
+						if(IsPlayerHaveEffect(i, 27))
+						{
+							CheatCommand(i, "give", "first_aid_kit");
+							PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03电疗\x04天赋+\x05装备\x04效果而获得医疗包。");
+						}
+						else
+						{
+							CheatCommand(i, "give", "defibrillator");
+							PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03电疗\x04天赋而获得电击器。");
+						}
+						
 					}
 					else
 					{
@@ -4066,8 +4086,13 @@ public void OnGameFrame()
 				int buffer = GetPlayerTempHealth(i);
 				if(team == 3)
 					buffer = 0;
-
-				if(health + buffer >= maxHealth)
+				
+				if(IsPlayerHaveEffect(i, 26))
+				{
+					CheatCommand(i, "give", "health");
+					PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03永康\x04天赋回满血并重置倒地次数。");
+				}
+				else if(health + buffer >= maxHealth)
 				{
 					PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03永康\x04天赋可以回血，但血量已经满了。");
 				}
@@ -4081,7 +4106,7 @@ public void OnGameFrame()
 			if((g_clSkill_3[i] & SKL_3_SelfHeal) && g_ctSelfHeal[i] > 0.0 && g_ctSelfHeal[i] <= curTime)
 			{
 				g_ctSelfHeal[i] = curTime + 150.0;
-
+				
 				if(team == 2 && !GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
 				{
 					int health = GetPlayerTempHealth(i) + 80;
@@ -4094,7 +4119,7 @@ public void OnGameFrame()
 				else
 				{
 					// SetEntProp(i, Prop_Data, "m_iHealth", GetEntProp(i, Prop_Data, "m_iHealth") + 80);
-					AddHealth(i, 80, false);
+					AddHealth(i, 80, true, true);
 				}
 
 				PrintToChat(i, "\x03[\x05提示\x03]\x04你因为\x03暴疗\x04天赋获得 80 血。");
@@ -4774,11 +4799,12 @@ public Action:Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadc
 	if (!client || !IsClientInGame(client)) return;
 	if(IsClientConnected(client))
 	{
-		if(IsPlayerHaveEffect(client, 2))
+		int mulEffect = IsPlayerHaveEffect(client, 2);
+		if(mulEffect > 0)
 		{
 			// SDKCall(sdkAdrenaline, client, 30.0);
 			// CheatCommand(client, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), 30);
-			L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), 30);
+			L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), 10 * mulEffect);
 		}
 	}
 }
@@ -4811,7 +4837,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 
-	if (!client || !IsClientInGame(client) || !IsClientConnected(client) || GetClientTeam(client) != 2)
+	if (!IsValidAliveClient(client) || GetClientTeam(client) != 2)
 		return;
 
 	if (g_clSkill_2[client] & SKL_2_SelfHelp)
@@ -4828,12 +4854,15 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 
 	g_bIsPaincIncap = true;
 	g_ttPaincEvent[client] = 0;
+	bool tk = (IsValidAliveClient(attacker) && GetClientTeam(attacker) == 2);
 
 	float origin[3], position[3];
 	GetClientAbsOrigin(client, origin);
 
 	if((g_clSkill_3[client] & SKL_3_Freeze))
 	{
+		float radius = 250.0 * (1 + IsPlayerHaveEffect(client, 24));
+		
 		for(int i = 1; i <= MaxClients; ++i)
 		{
 			if(!IsValidAliveClient(i) || GetClientTeam(i) != 3)
@@ -4841,14 +4870,14 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 
 			// GetEntPropVector(i, Prop_Send, "m_vecOrigin", position);
 			GetClientAbsOrigin(i, position);
-			if(GetVectorDistance(origin, position, false) > 250.0)
+			if(GetVectorDistance(origin, position, false) > radius)
 				continue;
-
+			
 			// ServerCommand("sm_freeze \"%N\" \"12\"", i);
 			FreezePlayer(i, 12.0);
 		}
 
-		if(IsValidAliveClient(attacker) && GetClientTeam(attacker) == 3)
+		if(!tk)
 		{
 			// ServerCommand("sm_freeze \"%N\" \"12\"",attacker);
 			FreezePlayer(attacker, 12.0);
@@ -4867,27 +4896,30 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 	if((g_clSkill_3[client] & SKL_3_IncapFire))
 	{
 		char classname[64];
+		float radius = 175.0 * (1 + IsPlayerHaveEffect(client, 25));
+		
 		for(int i = MaxClients + 1; i <= 2048; ++i)
 		{
 			if(!IsValidEntity(i) || !IsValidEdict(i))
 				continue;
-
-			GetEntityClassname(i, classname, 64);
+			
+			GetEdictClassname(i, classname, 64);
 			if(!StrEqual(classname, "infected", false))
 				continue;
-
+			
 			GetEntPropVector(i, Prop_Send, "m_vecOrigin", position);
-			if(GetVectorDistance(origin, position, false) > 175.0)
+			if(GetVectorDistance(origin, position, false) > radius)
 				continue;
-
+			
 			DealDamage(client, i, 1, DMG_BURN);
 			SetEntProp(i, Prop_Send, "m_bIsBurning", 1);
 		}
 
-		if(IsValidAliveClient(attacker) && GetClientTeam(attacker) == 3)
+		if(!tk)
 		{
 			new extradmg = 150;
-			if(IsPlayerHaveEffect(client, 5)) extradmg += 100;
+			int mulEffect = IsPlayerHaveEffect(client, 5);
+			if(mulEffect > 0) extradmg += 100 * mulEffect;
 
 			DealDamage(client, attacker, extradmg, DMG_BURN);
 			IgniteEntity(attacker, 60.0, true);
@@ -4911,6 +4943,16 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		
 		CheatCommand(client, "give", "pistol_magnum");
 		CreateTimer(0.1, Timer_CheckHavePistol, client);
+	}
+	
+	if(tk)
+	{
+		GiveSkillPoint(attacker, -1);
+		g_fForgiveOfFF[attacker] = GetEngineTime() + 45.0;
+		g_iForgiveFFTarget[attacker] = GetClientUserId(client);
+		
+		if(!IsFakeClient(attacker) && g_pCvarAllow.BoolValue)
+			PrintToChat(attacker, "\x03[提示]\x01 你因为放倒队友而失去了 \x051\x01 天赋点。");
 	}
 	
 	if(g_fFreezeTime[client] > GetEngineTime() && IsPlayerHaveEffect(client, 16))
@@ -5198,10 +5240,11 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		{
 			if(StrEqual(weapon, "melee") || StrEqual(weapon, "chainsaw"))
 			{
-				if (IsPlayerHaveEffect(attacker, 11))
+				int mulEffect = IsPlayerHaveEffect(attacker, 11);
+				if (mulEffect > 0)
 				{
 					// ServerCommand("sm_freeze \"%N\" \"5\"",victim);
-					FreezePlayer(victim, 5.0);
+					FreezePlayer(victim, 1.0 * mulEffect);
 				}
 			}
 		}
@@ -5227,10 +5270,14 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				}
 			}
 			
-			if (IsPlayerHaveEffect(attacker, 12))
+			if(dmg_type & DMG_CRIT)
 			{
-				// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+5);
-				AddHealth(attacker, 5);
+				int mulEffect = IsPlayerHaveEffect(attacker, 12);
+				if (mulEffect > 0)
+				{
+					// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+5);
+					AddHealth(attacker, 5 * mulEffect);
+				}
 			}
 		}
 		
@@ -5255,10 +5302,11 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		{
 			if(!(dmg_type & DMG_BUCKSHOT))
 			{
+				int health = GetEventInt(event, "health");
 				if(dmg_type & DMG_CRIT)
-					PrintCenterText(attacker, "对 %N 造成 %d 暴击伤害，剩余 %d", victim, dmg, GetEntProp(victim, Prop_Data, "m_iHealth"));
+					PrintCenterText(attacker, "对 %N 造成 %d 暴击伤害，剩余 %d", victim, dmg, health);
 				else
-					PrintCenterText(attacker, "对 %N 造成 %d 伤害，剩余 %d", victim, dmg, GetEntProp(victim, Prop_Data, "m_iHealth"));
+					PrintCenterText(attacker, "对 %N 造成 %d 伤害，剩余 %d", victim, dmg, health);
 			}
 			else
 			{
@@ -5316,10 +5364,12 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			if(g_clAngryPoint[victim] >= 100 && !NCJ_ON)
 			{
 				g_clAngryPoint[victim] -= 100;
-				if(IsPlayerHaveEffect(victim, 3))
+				
+				int mulEffect = IsPlayerHaveEffect(victim, 3);
+				if(mulEffect > 0)
 				{
-					g_clAngryPoint[victim] += 10;
-					if(g_iRoundEvent == 10) g_clAngryPoint[victim] += 10;
+					g_clAngryPoint[victim] += 10 * mulEffect;
+					if(g_iRoundEvent == 10) g_clAngryPoint[victim] += 10 * mulEffect;
 				}
 
 				int team = GetClientTeam(victim);
@@ -5329,7 +5379,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 					{
 						for(new i = 1; i <= MaxClients; i++)
 						{
-							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
+							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team && !IsPlayerIncapped(i) && !IsSurvivorHeld(i))
 							{
 								CheatCommand(i, "give", "health");
 							}
@@ -5620,18 +5670,33 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 		int team = GetClientTeam(victim);
 		if(team == TEAM_SURVIVORS)
 		{
-			if(IsPlayerHaveEffect(victim, 10))
+			if (IsValidAliveClient(attacker))
 			{
-				if (attacker && IsClientInGame(attacker) && IsPlayerAlive(attacker))
+				int attackerTeam = GetClientTeam(attacker);
+				if(attackerTeam != victim)
 				{
-					DealDamage(victim, attacker, 3000, 0);
-					ClientCommand(victim, "play \"level/lurd/climber.wav\"");
-					// new String:name[32];
-					// GetClientName(attacker, name, 32);
-					// PrintToChatAll("\x03[\x05提示\x03]%N\x04死亡前引爆自身炸弹给予\x03%s\x043000点伤害!",victim,name);
-					PrintToChat(victim, "\x03[提示]\x01 你死亡前死亡前引爆炸弹对 \x04%N\x01 造成 \x053000\x01 伤害。", attacker);
+					int mulEffect = IsPlayerHaveEffect(victim, 10);
+					if(mulEffect > 0)
+					{
+						DealDamage(victim, attacker, 3000 * mulEffect, 0);
+						ClientCommand(victim, "play \"level/lurd/climber.wav\"");
+						// new String:name[32];
+						// GetClientName(attacker, name, 32);
+						// PrintToChatAll("\x03[\x05提示\x03]%N\x04死亡前引爆自身炸弹给予\x03%s\x043000点伤害!",victim,name);
+						PrintToChat(victim, "\x03[提示]\x01 你死亡前死亡前引爆炸弹对 \x04%N\x01 造成 \x05%d\x01 伤害。", attacker, 3000 * mulEffect);
+					}
+				}
+				else
+				{
+					GiveSkillPoint(attacker, -3);
+					g_fForgiveOfTK[attacker] = GetEngineTime() + 45.0;
+					g_iForgiveTKTarget[attacker] = GetClientUserId(victim);
+					
+					if(!IsFakeClient(attacker) && g_pCvarAllow.BoolValue)
+						PrintToChat(attacker, "\x03[提示]\x01 你因为干掉队友而失去了 \x053\x01 天赋点。");
 				}
 			}
+			
 			if((g_clSkill_3[victim] & SKL_3_Sacrifice))
 			{
 				int chance = 1 + IsPlayerHaveEffect(victim, 19);
@@ -5645,9 +5710,9 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 						if(!IsValidAliveClient(i) || GetClientTeam(i) != 3)
 							continue;
 
-						// 将血量设置为 1 然后再对其造成 1 伤害
+						// 将血量设置为 1 然后再对其造成伤害
 						AcceptEntityInput(i, "SetHealth", victim, i);
-						DealDamage(victim, i, 1, DMG_PLASMA);
+						DealDamage(victim, i, 9999, DMG_PLASMA);
 					}
 					
 					int numEdict = GetMaxEntities();
@@ -5661,7 +5726,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 						if(StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false))
 						{
 							SetEntProp(i, Prop_Data, "m_iHealth", 1);
-							DealDamage(victim, i, 9, DMG_PLASMA);
+							DealDamage(victim, i, 999, DMG_PLASMA);
 						}
 					}
 				}
@@ -6796,17 +6861,26 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		{
 			extrahp += 50;
 		}
-		if(IsPlayerHaveEffect(subject, 1)) extrahp += 40;
+		
+		int mulEffect = IsPlayerHaveEffect(subject, 1);
+		if(mulEffect > 0) extrahp += 20 * mulEffect;
+		
 		if(extrahp)
 		{
-			SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", GetEntPropFloat(subject, Prop_Send, "m_healthBuffer") + extrahp);
+			float buffer = GetEntPropFloat(subject, Prop_Send, "m_healthBuffer");
+			if(buffer + extrahp > 200.0)
+				extrahp = RoundToZero(200 - buffer);
+			
+			SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", buffer + extrahp);
 			if(!IsFakeClient(subject)) PrintToChat(subject, "\x03[\x05提示\x03]\x04倒地被救起恢复额外HP:%d",extrahp);
 		}
-		if(IsPlayerHaveEffect(subject, 4))
+		
+		mulEffect = IsPlayerHaveEffect(subject, 4);
+		if(mulEffect > 0)
 		{
 			// SDKCall(sdkAdrenaline, subject, 15.0);
 			// CheatCommand(subject, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
-			L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
+			L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 10 * mulEffect);
 		}
 		if(client != subject)
 		{
@@ -7037,6 +7111,7 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	if(award == 84)
 	{
 		// 把队友干掉了
+		/*
 		GiveSkillPoint(client, -3);
 		
 		if(IsValidClient(subject))
@@ -7047,11 +7122,13 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 
 		if(!bot && g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为干掉队友而失去了 \x053\x01 天赋点。");
+		*/
 	}
 
 	if(award == 85 || award == 89)
 	{
 		// 把队友打趴下了
+		/*
 		GiveSkillPoint(client, -1);
 		
 		if(IsValidClient(subject))
@@ -7062,6 +7139,7 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 
 		if(!bot && g_pCvarAllow.BoolValue)
 			PrintToChat(client, "\x03[提示]\x01 你因为放倒队友而失去了 \x051\x01 天赋点。");
+		*/
 	}
 
 	if(award == 95)
@@ -7422,31 +7500,65 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 		SetEntProp(client, Prop_Send, "m_ArmorValue", 127);
 		SetEntProp(client, Prop_Send, "m_bHasHelmet", 1);
 	}
+}
+
+public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(client))
+		return;
 	
 	int zClass = GetEntProp(client, Prop_Send, "m_zombieClass");
 	if(zClass != ZC_SURVIVOR && zClass != ZC_WITCH)
 	{
+		float vPos[3], vLoc[3], distance;
+		GetClientAbsOrigin(client, vPos);
+		
 		for(int i = 1; i <= MaxClients; ++i)
 		{
-			if(!IsClientInGame(i) || !(g_clSkill_1[i] & SKL_1_DisplayHealth))
+			if(!IsClientInGame(i) || !IsPlayerAlive(i) || GetClientTeam(i) != 2 || IsFakeClient(i) || !(g_clSkill_1[i] & SKL_1_DisplayHealth))
 				continue;
+			
+			GetClientAbsOrigin(i, vLoc);
+			distance = GetVectorDistance(vPos, vLoc);
 			
 			switch(zClass)
 			{
 				case ZC_SMOKER:
-					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSmoker");
+				{
+					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSmoker");
+					PrintToChat(i, "\x04有一只 \x03Smoker\x04 出现了，距离 \x05%.0f\x01。", distance);
+				}
 				case ZC_BOOMER:
-					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnBoomer");
+				{
+					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnBoomer");
+					PrintToChat(i, "\x04有一只 \x03Boomer\x04 出现了，距离 \x05%.0f\x01。", distance);
+				}
 				case ZC_HUNTER:
-					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnHunter");
+				{
+					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnHunter");
+					PrintToChat(i, "\x04有一只 \x03Hunter\x04 出现了，距离 \x05%.0f\x01。", distance);
+				}
 				case ZC_SPITTER:
-					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSpitter");
+				{
+					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSpitter");
+					PrintToChat(i, "\x04有一只 \x03Spitter\x04 出现了，距离 \x05%.0f\x01。", distance);
+				}
 				case ZC_JOCKEY:
-					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnJockey");
+				{
+					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnJockey");
+					PrintToChat(i, "\x04有一只 \x03Jockey\x04 出现了，距离 \x05%.0f\x01。", distance);
+				}
 				case ZC_CHARGER:
-					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnCharger");
+				{
+					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnCharger");
+					PrintToChat(i, "\x04有一只 \x03Charger\x04 出现了，距离 \x05%.0f\x01。", distance);
+				}
 				case ZC_TANK:
-					FakeClientCommandEx(i, "vocalize PlayerAlsoWarnTank");
+				{
+					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnTank");
+					PrintToChat(i, "\x04有一只 \x03Tank\x04 出现了，距离 \x05%.0f\x01。", distance);
+				}
 			}
 		}
 	}
@@ -9232,7 +9344,7 @@ public Action:SoH_ShotgunEndCock (Handle:timer, any:hPack)
 	return Plugin_Continue;
 }
 
-stock bool AddHealth(int client, int amount, bool limit = true)
+stock bool AddHealth(int client, int amount, bool limit = true, bool conv = false)
 {
 	if(!IsValidAliveClient(client) || amount == 0)
 		return false;
@@ -9245,9 +9357,23 @@ stock bool AddHealth(int client, int amount, bool limit = true)
 	{
 		float buffer = GetPlayerTempHealth(client) * 1.0;
 		buffer += amount;
+		
 		if(limit)
 		{
-			if(health + RoundToCeil(buffer) > maxHealth)
+			if(conv)
+			{
+				int cv = (health + RoundToZero(buffer)) - maxHealth;
+				if(cv > 0)
+				{
+					if(cv > buffer)
+						cv = RoundToZero(buffer);
+					
+					buffer -= cv;
+					health += cv;
+				}
+			}
+			
+			if(health + RoundToZero(buffer) > maxHealth)
 				buffer = float(maxHealth - health);
 			if(health > maxHealth)
 				health = maxHealth;
@@ -11183,11 +11309,8 @@ public Action:Event_RP(Handle:timer, any:client)
 				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
 					{
-						if((GetEntProp(i,Prop_Send,"m_iHealth") < GetEntProp(i,Prop_Send,"m_iMaxHealth")) || GetEntProp(i, Prop_Send, "m_isIncapacitated"))
-						{
-							CheatCommand(i, "give", "health");
-							SetEntPropFloat(i, Prop_Send, "m_healthBuffer", 0.0);
-						}
+						CheatCommand(i, "give", "health");
+						SetEntPropFloat(i, Prop_Send, "m_healthBuffer", 0.0);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,为所有玩家治疗了伤口.", client);
@@ -12078,10 +12201,8 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 
 int GetPlayerTempHealth(int client)
 {
-	/*
 	if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
 		return 0;
-	*/
 	
 	ConVar painPillsDecayCvar;
 	if (painPillsDecayCvar == null)
@@ -12211,27 +12332,27 @@ bool RebuildEquipStr(int client, int index)
 	switch(g_eqmEffects[client][index])
 	{
 		case 1:
-			strcopy(g_esEffects[client][index], 128, "倒地被救起时恢复HP+40");
+			strcopy(g_esEffects[client][index], 128, "倒地被救起时恢复HP+20");
 		case 2:
-			strcopy(g_esEffects[client][index], 128, "使用药丸时兴奋30秒");
+			strcopy(g_esEffects[client][index], 128, "使用药丸时兴奋10秒");
 		case 3:
 			strcopy(g_esEffects[client][index], 128, "使用怒气技时怒气值恢复10");
 		case 4:
-			strcopy(g_esEffects[client][index], 128, "倒地被救起时兴奋15秒");
+			strcopy(g_esEffects[client][index], 128, "倒地被救起时兴奋10秒");
 		case 5:
 			strcopy(g_esEffects[client][index], 128, "倒地时反伤HP+100并点燃攻击者");
 		case 6:
 			strcopy(g_esEffects[client][index], 128, "暴击时追加伤害上限+200");
 		case 7:
-			strcopy(g_esEffects[client][index], 128, "霸气天赋伤害上限+300,附加回血功能");
+			strcopy(g_esEffects[client][index], 128, "「霸气」伤害上限+300,附加回血功能");
 		case 8:
-			strcopy(g_esEffects[client][index], 128, "主武器暴击率+5");
+			strcopy(g_esEffects[client][index], 128, "暴击率+5");
 		case 9:
-			strcopy(g_esEffects[client][index], 128, "无敌天赋附加无限子弹功能");
+			strcopy(g_esEffects[client][index], 128, "「无敌」附加无限子弹功能");
 		case 10:
 			strcopy(g_esEffects[client][index], 128, "死亡时反伤杀害者3000伤害");
 		case 11:
-			strcopy(g_esEffects[client][index], 128, "近战击中坦克时冰冻坦克5秒");
+			strcopy(g_esEffects[client][index], 128, "近战击中坦克时冰冻坦克1秒");
 		case 12:
 			strcopy(g_esEffects[client][index], 128, "每次暴击能恢复5点HP");
 		case 13:
@@ -12241,21 +12362,31 @@ bool RebuildEquipStr(int client, int index)
 		case 15:
 			strcopy(g_esEffects[client][index], 128, "备用子弹+25%");
 		case 16:
-			strcopy(g_esEffects[client][index], 128, "倒地取消冰冻效果");
+			strcopy(g_esEffects[client][index], 128, "倒地取消(受到的)冰冻效果");
 		case 17:
-			strcopy(g_esEffects[client][index], 128, "顽强天赋触发几率+1/4");
+			strcopy(g_esEffects[client][index], 128, "「顽强」触发几率+1/4");
 		case 18:
-			strcopy(g_esEffects[client][index], 128, "永生天赋触发几率+1/10");
+			strcopy(g_esEffects[client][index], 128, "「永生」触发几率+1/10");
 		case 19:
-			strcopy(g_esEffects[client][index], 128, "牺牲天赋触发几率+1/3");
+			strcopy(g_esEffects[client][index], 128, "「牺牲」触发几率+1/3");
 		case 20:
-			strcopy(g_esEffects[client][index], 128, "顽强天赋触发时处死控制者");
+			strcopy(g_esEffects[client][index], 128, "「顽强」触发时处死控制者");
 		case 21:
 			strcopy(g_esEffects[client][index], 128, "土雷引怪持续时间加倍");
 		case 22:
-			strcopy(g_esEffects[client][index], 128, "避免失衡效果");
+			strcopy(g_esEffects[client][index], 128, "避免失衡效果(不包括被撞飞/拍飞)");
 		case 23:
-			strcopy(g_esEffects[client][index], 128, "轰炸效果加倍");
+			strcopy(g_esEffects[client][index], 128, "「轰炸」效果加倍");
+		case 24:
+			strcopy(g_esEffects[client][index], 128, "「释冰」范围加倍");
+		case 25:
+			strcopy(g_esEffects[client][index], 128, "「纵火」范围加倍");
+		case 26:
+			strcopy(g_esEffects[client][index], 128, "「永康」回复实血并重置倒地次数");
+		case 27:
+			strcopy(g_esEffects[client][index], 128, "「电疗」替换为医疗包");
+		case 28:
+			strcopy(g_esEffects[client][index], 128, "「爆破」替换为胆汁");
 		default:
 			strcopy(g_esEffects[client][index], 128, "");
 	}

@@ -66,7 +66,7 @@
 Handle g_pfnFindUseEntity = null;
 // StringMap g_WeaponClipSize, g_WeaponDamage;
 
-const int g_iMaxClip = 254;					// 游戏所允许的最大弹夹数量 8bit，但是 255 会被显示为 0，超过会溢出
+const int g_iMaxClip = 254;					// 游戏所允许的最大弹匣数量 8bit，但是 255 会被显示为 0，超过会溢出
 const int g_iMaxAmmo = 1023;				// 游戏所允许的最大子弹数量 10bit，超过会溢出
 const int g_iMaxHealHealth = 1268;			// 游戏所允许的最大治疗量，超过会溢出
 const float g_fIncapShovePenalty = 0.1;		// 连续倒地推惩罚时间
@@ -2379,13 +2379,13 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+10%",(g_clSkill_1[client]&SKL_1_Movement)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("「自愈」倒地被救起恢复HP+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("「凶狠」暴击率+5",(g_clSkill_1[client]&SKL_1_DmgExtra)));
-	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限弹夹子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
+	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限弹匣子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活自带护甲(就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力/取消摇晃",(g_clSkill_1[client]&SKL_1_NoRecoil)));
-	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装不卸下弹夹/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
+	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装不卸下弹匣/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示目标血量/刷特感提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
@@ -2443,7 +2443,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_SelfHeal), mps("「暴疗」每150秒恢复80HP(可转换)",(g_clSkill_3[client]&SKL_3_SelfHeal)));
 	menu.AddItem(tr("3_%d",SKL_3_BunnyHop), mps("「灵活」按住空格自动连跳",(g_clSkill_3[client]&SKL_3_BunnyHop)));
 	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("「降落」在空中按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
-	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("「储备」更多后备弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
+	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("「储备」更多携带弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
 	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("「守备」受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
 	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("「跳弹」子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
 
@@ -2467,10 +2467,10 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」武器攻击速度提升",(g_clSkill_4[client]&SKL_4_FastFired)));
 	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("「神狙」AWP射速加快无限备用子弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("「嗜弹」武器上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
-	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("「扫射」M60无限弹夹子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
+	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("「扫射」M60无限弹匣子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
 	menu.AddItem(tr("4_%d",SKL_4_MoreDmgExtra), mps("「残忍」暴击伤害上限+200",(g_clSkill_4[client]&SKL_4_MoreDmgExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_Defensive), mps("「御策」被普感锤伤害减半或反伤",(g_clSkill_4[client]&SKL_4_Defensive)));
-	menu.AddItem(tr("4_%d",SKL_4_ClipSize), mps("「弹夹」更多弹夹子弹",(g_clSkill_4[client]&SKL_4_ClipSize)));
+	menu.AddItem(tr("4_%d",SKL_4_ClipSize), mps("「弹匣」弹匣容量增加",(g_clSkill_4[client]&SKL_4_ClipSize)));
 	
 	if(g_pfnOnSwingStart != null)
 		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("「力大」可以推牛/倒地可以推",(g_clSkill_4[client]&SKL_4_Shove)));
@@ -3961,7 +3961,7 @@ public void OnGameFrame()
 		g_iWeaponSpeedTotal = 0;
 	}
 	
-	// 修改武器弹夹大小
+	// 修改武器弹匣大小
 	{
 		for(int i = 1; i <= MaxClients; ++i)
 		{
@@ -8696,8 +8696,8 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 	{
 		// 检查换子弹
 		HookPlayerReload(iCid, CalcPlayerClip(iCid, weapon));
-		// PrintToLeft(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
-		// PrintToChat(iCid, "开始换弹夹：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
+		// PrintToLeft(iCid, "开始换弹匣：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
+		// PrintToChat(iCid, "开始换弹匣：%d", RoundToZero(GetDefaultClip(weapon) * 1.5));
 	}
 	
 	if(/*(g_clSkill_3[iCid] & SKL_3_MoreAmmo) && */g_iExtraAmmo[iCid] > 0)
@@ -8829,7 +8829,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
 			if(++g_iBulletFired[client] > 25 && ammo > 0 && clip > 1)
 			{
-				// 将备用弹药移动到弹夹里
+				// 将备用弹药移动到弹匣里
 				if(g_iExtraAmmo[client] > 0)
 					g_iExtraAmmo[client] -= 1;
 				else
@@ -8933,7 +8933,7 @@ void HookPlayerReload(int client, int clipSize)
 	{
 		g_iReloadWeaponEntity[client] = weapon;
 		g_iReloadWeaponClip[client] = clipSize;
-		// PrintToChat(client, "武器：%d丨玩家：%d丨弹夹：%d丨原有：%d丨现有：%d", weapon, client, clipSize, g_iReloadWeaponOldClip[client], GetEntProp(weapon, Prop_Send, "m_iClip1"));
+		// PrintToChat(client, "武器：%d丨玩家：%d丨弹匣：%d丨原有：%d丨现有：%d", weapon, client, clipSize, g_iReloadWeaponOldClip[client], GetEntProp(weapon, Prop_Send, "m_iClip1"));
 
 		if(g_iReloadWeaponOldClip[client] <= 0)
 			g_iReloadWeaponOldClip[client] = GetEntProp(weapon, Prop_Send, "m_iClip1");
@@ -9011,7 +9011,7 @@ public void PlayerHook_OnReloadThink(int client)
 
 	if(g_iReloadWeaponClip[client] <= 0)
 	{
-		// PrintHintText(client, "不需要或无法换弹夹");
+		// PrintHintText(client, "不需要或无法换弹匣");
 		PlayerHook_OnReloadStopped(client, weapon);
 		return;
 	}
@@ -9024,7 +9024,7 @@ public void PlayerHook_OnReloadThink(int client)
 			{
 				// PrintToChat(client, "当前：%d丨原来：%d", GetEntProp(weapon, Prop_Send, "m_iClip1"), g_iReloadWeaponOldClip[client]);
 
-				// 将霰弹枪的弹夹还原，并且取消已经填装的子弹，以开始新的填装
+				// 将霰弹枪的弹匣还原，并且取消已经填装的子弹，以开始新的填装
 				SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponOldClip[client]);
 				// SetEntProp(weapon, Prop_Send, "m_shellsInserted", 0);
 				g_iReloadWeaponClip[client] -= g_iReloadWeaponOldClip[client];
@@ -9036,7 +9036,7 @@ public void PlayerHook_OnReloadThink(int client)
 			}
 
 			// 设置霰弹枪需要填装多少子弹
-			// 霰弹枪最终弹夹为 现有子弹+需要填装的子弹
+			// 霰弹枪最终弹匣为 现有子弹+需要填装的子弹
 			SetEntProp(weapon, Prop_Send, "m_reloadNumShells", g_iReloadWeaponClip[client]);
 			// PrintCenterText(client, "%d丨%d", GetEntProp(weapon, Prop_Send, "m_shellsInserted"), GetEntProp(weapon, Prop_Send, "m_reloadNumShells"));
 		}
@@ -9059,7 +9059,7 @@ public void PlayerHook_OnReloadThink(int client)
 		}
 		else if(GetEntProp(weapon, Prop_Send, "m_iClip1") > 0 || ammo <= 0)
 		{
-			// 非霰弹枪换弹夹完成
+			// 非霰弹枪换弹匣完成
 			ammo += GetEntProp(weapon, Prop_Send, "m_iClip1");
 			ammo -= g_iReloadWeaponClip[client];
 			
@@ -9072,7 +9072,7 @@ public void PlayerHook_OnReloadThink(int client)
 			SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammoType);
 
 			PlayerHook_OnReloadStopped(client, weapon);
-			// PrintHintText(client, "换弹夹完成");
+			// PrintHintText(client, "换弹匣完成");
 		}
 		
 		g_iReloadWeaponOldClip[client] = 0;
@@ -9580,7 +9580,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	{
 		// g_iExtraAmmo[client] = maxAmmo + maxClip - g_iMaxAmmo;
 		// maxAmmo = g_iMaxAmmo - clip;
-		available = g_iMaxAmmo - clip;	// 满弹夹时无法填装的，所以这里或许可以+1
+		available = g_iMaxAmmo - clip;	// 满弹匣时无法填装的，所以这里或许可以+1
 	}
 	else
 	{
@@ -9987,8 +9987,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 				else
 				{
-					// 修复非霰弹枪弹夹过大可以强制重新装填的 bug
-					// 会和其他修改弹夹大小的插件冲突
+					// 修复非霰弹枪弹匣过大可以强制重新装填的 bug
+					// 会和其他修改弹匣大小的插件冲突
 					buttons &= ~IN_RELOAD;
 				}
 			}
@@ -12358,9 +12358,9 @@ bool RebuildEquipStr(int client, int index)
 		case 13:
 			strcopy(g_esEffects[client][index], 128, "虚血不会衰减");
 		case 14:
-			strcopy(g_esEffects[client][index], 128, "弹夹子弹+15%");
+			strcopy(g_esEffects[client][index], 128, "弹匣容量+15%");
 		case 15:
-			strcopy(g_esEffects[client][index], 128, "备用子弹+25%");
+			strcopy(g_esEffects[client][index], 128, "携带备用弹药+25%");
 		case 16:
 			strcopy(g_esEffects[client][index], 128, "倒地取消(受到的)冰冻效果");
 		case 17:

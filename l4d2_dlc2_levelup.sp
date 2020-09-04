@@ -199,8 +199,20 @@ int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
 bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
 // bool g_bIsInvulnerable[MAXPLAYERS+1];
 bool g_bDeadlineHint[MAXPLAYERS+1];
-StringMap g_mTotalDamage[MAXPLAYERS+1];
 int g_iExtraAmmo[MAXPLAYERS+1];
+
+enum struct TDInfo_t {
+	int dmg;
+	int dmg_type;
+	bool headshot;
+	bool death;
+}
+
+#define MAX_CACHED_MESSAGES		8
+StringMap g_mTotalDamage[MAXPLAYERS+1];
+// int g_iMessageChannel = 0;
+char g_sCacheMessage[MAXPLAYERS+1][MAX_CACHED_MESSAGES][64];
+Handle g_hClearCacheMessage[MAXPLAYERS+1];
 
 enum
 {
@@ -732,6 +744,29 @@ public void OnPluginEnd()
 	OnMapEnd();
 }
 
+stock bool:FindPluginByNameLite(const String:PluginName[], bool:Sensitivity=true, bool:Contains=false)
+{
+	new Handle:iterator = GetPluginIterator();
+	new Handle:PluginID;
+	new String:curName[PLATFORM_MAX_PATH];
+	
+	while(MorePlugins(iterator))
+	{
+		PluginID = ReadPlugin(iterator);
+		// GetPluginInfo(PluginID, PlInfo_Name, curName, sizeof(curName));
+		GetPluginFilename(PluginID, curName, sizeof(curName));
+
+		if(StrEqual(PluginName, curName, Sensitivity) || (Contains && StrContains(PluginName, curName, Sensitivity) != -1))
+		{
+			CloseHandle(iterator);
+			return true;
+		}
+	}
+	
+	CloseHandle(iterator);
+	return false;
+}
+
 public void ConVarChaged_ZombieHealth(ConVar cvar, const char[] oldValue, const char[] newValue)
 {
 	g_iCommonHealth = StringToInt(newValue);
@@ -1225,7 +1260,7 @@ void Initialization(int client, bool invalid = false)
 	g_iLastWeaponClip[client] = -1;
 	g_bLastWeaponDual[client] = false;
 	// g_iOldRealHealth[client] = 0;
-	StringMap toDelete = g_mTotalDamage[client];
+	StringMap toDelete1 = g_mTotalDamage[client];
 	g_mTotalDamage[client] = null;
 	mtLastMoveType[client] = MOVETYPE_WALK;
 	g_iExtraAmmo[client] = 0;
@@ -1235,6 +1270,11 @@ void Initialization(int client, bool invalid = false)
 	g_fForgiveOfFF[client] = 0.0;
 	g_iForgiveTKTarget[client] = 0;
 	g_iForgiveFFTarget[client] = 0;
+	Handle toDelete2 = g_hClearCacheMessage[client];
+	g_hClearCacheMessage[client] = null;
+	
+	for(int i = 0; i < MAX_CACHED_MESSAGES; ++i)
+		g_sCacheMessage[client][i][0] = EOS;
 	
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
 		g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
@@ -1247,8 +1287,10 @@ void Initialization(int client, bool invalid = false)
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	
-	if(toDelete != null)
-		delete toDelete;
+	if(toDelete1 != null)
+		delete toDelete1;
+	if(toDelete2 != null)
+		delete toDelete2;
 }
 
 //读档
@@ -2265,7 +2307,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 			if(g_clAngryMode[client] != 1)
 			{
 				g_clAngryMode[client] = 1;
-				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03王者之仁德\x01,效果:\x03全员恢复满血\x01.");
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03王者之仁德\x01,效果:\x03全员恢复满血(倒地/被控除外)\x01.");
 			}
 			else
 			{
@@ -2340,7 +2382,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 			if(g_clAngryMode[client] != 6)
 			{
 				g_clAngryMode[client] = 6;
-				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03背水一战\x01,效果:\x03自身HP减半,全员获得无限高爆子弹,持续60秒\x01.");
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03背水一战\x01,效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x01.");
 			}
 			else
 			{
@@ -2383,11 +2425,11 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
-	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活自带护甲(就像是CS的甲一样)",(g_clSkill_1[client]&SKL_1_Armor)));
+	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活提供100甲(减伤)",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力/取消摇晃",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装不卸下弹匣/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
-	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示目标血量/刷特感提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
 	menu.ExitButton = true;
@@ -4877,7 +4919,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			FreezePlayer(i, 12.0);
 		}
 
-		if(!tk)
+		if(!tk && attacker > 0 && attacker <= MaxClients)
 		{
 			// ServerCommand("sm_freeze \"%N\" \"12\"",attacker);
 			FreezePlayer(attacker, 12.0);
@@ -4915,7 +4957,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			SetEntProp(i, Prop_Send, "m_bIsBurning", 1);
 		}
 
-		if(!tk)
+		if(!tk && attacker > 0 && attacker <= MaxClients)
 		{
 			new extradmg = 150;
 			int mulEffect = IsPlayerHaveEffect(client, 5);
@@ -5166,6 +5208,32 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	return Plugin_Continue;
 }
 
+stock void PrintCenterTextEx(int client, const char[] msg, any ...)
+{
+	for(int i = MAX_CACHED_MESSAGES - 1; i > 0; --i)
+		strcopy(g_sCacheMessage[client][i], sizeof(g_sCacheMessage[][]), g_sCacheMessage[client][i-1]);
+	
+	VFormat(g_sCacheMessage[client][0], sizeof(g_sCacheMessage[][]), msg, 3);
+	
+	char buffer[255];
+	for(int i = MAX_CACHED_MESSAGES - 1; i >= 0; --i)
+		Format(buffer, sizeof(buffer), "%s\n", g_sCacheMessage[client][i]);
+	PrintCenterText(client, buffer);
+	
+	Handle killer = g_hClearCacheMessage[client];
+	g_hClearCacheMessage[client] = CreateTimer(2.5, Timer_ClearCacheMessage, client);
+	
+	if(killer != null)
+		KillTimer(killer);
+}
+
+public Action Timer_ClearCacheMessage(Handle timer, any client)
+{
+	g_hClearCacheMessage[client] = null;
+	for(int i = 0; i < MAX_CACHED_MESSAGES; ++i)
+		g_sCacheMessage[client][i][0] = EOS;
+}
+
 public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
@@ -5300,13 +5368,12 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		
 		if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && (dmg_type & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)) && !IsFakeClient(attacker))
 		{
+			int health = GetEventInt(event, "health");
+			bool headshot = event.GetBool("headshot");
+			
 			if(!(dmg_type & DMG_BUCKSHOT))
 			{
-				int health = GetEventInt(event, "health");
-				if(dmg_type & DMG_CRIT)
-					PrintCenterText(attacker, "对 %N 造成 %d 暴击伤害，剩余 %d", victim, dmg, health);
-				else
-					PrintCenterText(attacker, "对 %N 造成 %d 伤害，剩余 %d", victim, dmg, health);
+				PrintCenterText(attacker, "%N|%s伤害%d|%s", victim, ((dmg_type & DMG_CRIT) ? "暴击" : ""), dmg, ((health<=0) ? (headshot?"爆头":"击杀") : tr("剩余%d", health)));
 			}
 			else
 			{
@@ -5316,12 +5383,26 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 					RequestFrame(NotifyDamageInfo, attacker);
 				}
 				
-				int history = 0;
 				static char eRef[12];
 				IntToString(EntIndexToEntRef(victim), eRef, sizeof(eRef));
 				
-				g_mTotalDamage[attacker].GetValue(eRef, history);
-				g_mTotalDamage[attacker].SetValue(eRef, history + dmg);
+				TDInfo_t td;
+				if(g_mTotalDamage[attacker].GetArray(eRef, td, sizeof(td)))
+				{
+					td.dmg += dmg;
+					td.dmg_type |= dmg_type;
+					td.headshot |= headshot;
+					td.death = (health <= 0);
+				}
+				else
+				{
+					td.dmg = dmg;
+					td.dmg_type = dmg_type;
+					td.headshot = headshot;
+					td.death = (health <= 0);
+				}
+				
+				g_mTotalDamage[attacker].SetArray(eRef, td, sizeof(td));
 			}
 		}
 	}
@@ -5915,12 +5996,9 @@ void RewardPicker(int client)
 						{
 							for(new i = 1; i <= MaxClients; i++)
 							{
-								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
+								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && !IsPlayerIncapped(i) && !IsSurvivorHeld(i))
 								{
-									if((GetEntProp(i,Prop_Send,"m_iHealth") < GetEntProp(i,Prop_Send,"m_iMaxHealth")) || GetEntProp(i, Prop_Send, "m_isIncapacitated"))
-									{
-										CheatCommand(i, "give", "health");
-									}
+									CheatCommand(i, "give", "health");
 								}
 							}
 							for (new i = 1; i <= MaxClients; i++)
@@ -5933,9 +6011,9 @@ void RewardPicker(int client)
 							}
 
 							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血(包括特感)\x04.",client);
+								PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",client);
 							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员恢复满血(包括特感)\x01");
+								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员恢复满血\x01");
 						}
 						case 2:
 						{
@@ -7355,21 +7433,27 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	int victim = event.GetInt("entityid");
 	int damage = event.GetInt("amount");
 	int type = event.GetInt("type");
+	int hitgroup = event.GetInt("hitgroup");
 	
 	if(!IsValidAliveClient(client) || !IsValidEntity(victim) || damage <= 0)
 		return;
 	
 	static char classname[64];
-	GetEntityClassname(victim, classname, 64);
+	GetEdictClassname(victim, classname, 64);
 	
 	if((g_clSkill_1[client] & SKL_1_DisplayHealth) && (type & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)) && !IsFakeClient(client))
 	{
+		int health = GetEntProp(victim, Prop_Data, "m_iHealth");
+		bool headshot = (hitgroup == 1);
+		
 		if(!(type & DMG_BUCKSHOT))
 		{
-			if(type & DMG_CRIT)
-				PrintCenterText(client, "对 %s 造成 %d 暴击伤害，剩余 %d", classname, damage, GetEntProp(victim, Prop_Data, "m_iHealth"));
+			if(StrEqual(classname, "infected", false))
+				PrintCenterText(client, "普感%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health)));
+			else if(StrEqual(classname, "witch", false))
+				PrintCenterText(client, "妹%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health)));
 			else
-				PrintCenterText(client, "对 %s 造成 %d 伤害，剩余 %d", classname, damage, GetEntProp(victim, Prop_Data, "m_iHealth"));
+				PrintCenterText(client, "%s%d|%s伤害%d|%s", classname, victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health)));
 		}
 		else
 		{
@@ -7379,12 +7463,26 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 				RequestFrame(NotifyDamageInfo, client);
 			}
 			
-			int history = 0;
 			static char eRef[12];
 			IntToString(EntIndexToEntRef(victim), eRef, sizeof(eRef));
 			
-			g_mTotalDamage[client].GetValue(eRef, history);
-			g_mTotalDamage[client].SetValue(eRef, history + damage);
+			TDInfo_t td;
+			if(g_mTotalDamage[client].GetArray(eRef, td, sizeof(td)))
+			{
+				td.dmg += damage;
+				td.dmg_type |= type;
+				td.headshot |= headshot;
+				td.death = (health - damage <= 0);
+			}
+			else
+			{
+				td.dmg = damage;
+				td.dmg_type = type;
+				td.headshot = headshot;
+				td.death = (health - damage <= 0);
+			}
+			
+			g_mTotalDamage[client].SetArray(eRef, td, sizeof(td));
 		}
 	}
 	
@@ -7427,6 +7525,11 @@ public void NotifyDamageInfo(any client)
 	int size = snap.Length;
 	
 	static char eRef[12];
+	static char name[MAX_NAME_LENGTH];
+	int health = -1;
+	static TDInfo_t td;
+	bool alive = false;
+	
 	static char msg[255];
 	msg[0] = EOS;
 	
@@ -7441,28 +7544,30 @@ public void NotifyDamageInfo(any client)
 		if(entity <= 0 || !IsValidEntity(entity))
 			continue;
 		
-		int dmg = -1;
-		if(!g_mTotalDamage[client].GetValue(eRef, dmg) || dmg <= 0)
+		if(!g_mTotalDamage[client].GetArray(eRef, td, sizeof(td)) || td.dmg <= 0)
 			continue;
 		
+		health = GetEntProp(entity, Prop_Data, "m_iHealth");
 		if(IsValidClient(entity))
 		{
-			if(IsPlayerAlive(entity))
-				Format(msg, sizeof(msg), "%s%N|伤害%d|剩余%d\n", msg, entity, dmg, GetEntProp(entity, Prop_Data, "m_iHealth"));
-			else
-				Format(msg, sizeof(msg), "%s%N|伤害%d|击杀\n", msg, entity, dmg);
+			GetClientName(entity, name, sizeof(name));
+			alive = !td.death;
 		}
 		else
 		{
-			static char classname[64];
-			if(!GetEdictClassname(entity, classname, sizeof(classname)))
-				continue;
+			GetEdictClassname(entity, name, sizeof(name));
+			alive = !td.death;
 			
-			if(!strcmp(classname, "infected", false))
-				Format(msg, sizeof(msg), "%s普感%d|伤害%d|剩余%d\n", msg, entity, dmg, GetEntProp(entity, Prop_Data, "m_iHealth"));
-			else if(!strcmp(classname, "witch", false))
-				Format(msg, sizeof(msg), "%s萌妹%d|伤害%d|剩余%d\n", msg, entity, dmg, GetEntProp(entity, Prop_Data, "m_iHealth"));
+			if(StrEqual(name, "infected", false))
+				alive = (alive && !GetEntProp(entity, Prop_Send, "m_bIsBurning", 1));
+			
+			if(StrEqual(name, "infected", false))
+				FormatEx(name, sizeof(name), "普感%d", entity);
+			else if(StrEqual(name, "witch", false))
+				FormatEx(name, sizeof(name), "妹%d", entity);
 		}
+		
+		Format(msg, sizeof(msg), "%s%s|%s伤害%d|%s\n", msg, name, ((td.dmg_type & DMG_CRIT) ? "暴击" : ""), td.dmg, (alive ? tr("剩余%d", health) : (td.headshot ? "爆头" : "击杀")));
 	}
 	
 	if(msg[0] != EOS)
@@ -10167,13 +10272,18 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		float upVel = CaclJumpVelocity(client);
 		if(velocity[2] < upVel)
 			velocity[2] = upVel;
-
+		
+		if(g_fMaxGravityModify[client] > 0.0)
+			velocity[2] *= g_fMaxGravityModify[client];
+		
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 		// CreateTimer(1.0, Timer_DoubleJumpReset, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		
+		/*
 		Event event = CreateEvent("player_jump");
 		event.SetInt("userid", GetClientUserId(client));
 		event.Fire();
+		*/
 		
 		// PrintCenterText(client, "双重跳 %d", !!(g_iJumpFlags[client] & JF_CanBunnyHop));
 	}
@@ -10204,15 +10314,19 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 			// 提供一个向上的速度
 			velocity[2] = CaclJumpVelocity(client);
-
+			if(g_fMaxGravityModify[client] > 0.0)
+				velocity[2] *= g_fMaxGravityModify[client];
+			
 			// 因为引擎的问题，必须要把 m_hGroundEntity 设置为 -1 才能在地面上设置向上速度
 			// 否则会被摩擦力阻止小于 300.0 的向上速度，即使玩家是完全静止的
 			SetEntPropEnt(client, Prop_Send, "m_hGroundEntity", -1);
 			TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
-
+			
+			/*
 			Event event = CreateEvent("player_jump");
 			event.SetInt("userid", GetClientUserId(client));
 			event.Fire();
+			*/
 
 			// g_iJumpFlags[client] = JF_HasJumping;
 			// PrintCenterText(client, "连跳 (%.2f %.2f %.2f -> %.2f)", velocity[0], velocity[1], velocity[2], GetVectorLength(velocity));

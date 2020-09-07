@@ -1956,10 +1956,10 @@ public Action Command_RandEvent(int client, int argc)
 	return Plugin_Handled;
 }
 
-void StatusChooseMenuFunc(int client)
+void StatusChooseMenuFunc(int client, int pg = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_MainMenu);
-	menu.SetTitle(tr("========= 天赋技能菜单 =========\n当前天赋点：%d", g_clSkillPoint[client]));
+	menu.SetTitle(tr("天启×天赋×装备系统\n当前天赋点：%d", g_clSkillPoint[client]));
 	menu.AddItem("1", "一级天赋（耗点 1）");
 	menu.AddItem("2", "二级天赋（耗点 2）");
 	menu.AddItem("3", "三级天赋（耗点 3）");
@@ -1975,7 +1975,10 @@ void StatusChooseMenuFunc(int client)
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = false;
-	menu.Display(client, MENU_TIME_FOREVER);
+	if(pg > -1)
+		menu.DisplayAt(client, pg, MENU_TIME_FOREVER);
+	else
+		menu.Display(client, MENU_TIME_FOREVER);
 	
 	if(g_bDeadlineHint[client])
 	{
@@ -2202,7 +2205,7 @@ public int MenuHandler_Respawn(Menu menu, MenuAction action, int client, int sel
 void StatusSelectMenuFuncBuy(int client, bool back = true)
 {
 	Menu menu = CreateMenu(MenuHandler_Shop);
-	menu.SetTitle("========= 商店菜单 =========\n全部两块，点到即售（现有 %d 点）", g_clSkillPoint[client]);
+	menu.SetTitle("========= 商店菜单 =========\n全部两点，点到即售（现有 %d 点）", g_clSkillPoint[client]);
 
 	menu.AddItem("smg_silenced katana upgradepack_explosive", "冲锋枪(消音) + 武士刀 + 高爆弹药包");
 	menu.AddItem("shotgun_chrome fireaxe upgradepack_incendiary", "单喷(二代) + 消防斧 + 燃烧弹药包");
@@ -2237,7 +2240,7 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 
 	if(g_clSkillPoint[client] < 2)
 	{
-		PrintToChat(client, "\x03[提示]\x01 你的钱不够。");
+		PrintToChat(client, "\x03[提示]\x01 你的点数不够。");
 		StatusSelectMenuFuncBuy(client, menu.ExitBackButton);
 		return 0;
 	}
@@ -5332,8 +5335,8 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 					new Float:vec[3];
 					GetClientEyePosition(victim, vec);
 					EmitAmbientSound(SOUND_FREEZE, vec, victim, SNDLEVEL_RAIDSIREN);
-					g_fOldMovement[victim] = GetEntPropFloat(victim, Prop_Send, "m_flVelocityModifier");
-					SetEntPropFloat(victim, Prop_Send, "m_flVelocityModifier", g_fOldMovement[victim] * 0.55);
+					g_fOldMovement[victim] = GetEntPropFloat(victim, Prop_Send, "m_flLaggedMovementValue");
+					SetEntPropFloat(victim, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[victim] * 0.55);
 					CreateTimer(1.0, Timer_StopRetard, victim);
 				}
 			}
@@ -5360,8 +5363,8 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			if (!g_bHasVampire[attacker])
 			{
 				g_bHasVampire[attacker] = true;
-				g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Send, "m_flVelocityModifier");
-				SetEntPropFloat(attacker, Prop_Send, "m_flVelocityModifier", g_fOldMovement[attacker] * 1.15);
+				g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue");
+				SetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[attacker] * 1.15);
 				CreateTimer(1.0, Timer_StopVampire, attacker);
 			}
 		}
@@ -5719,14 +5722,14 @@ public Action:Timer_StopVampire(Handle:timer, any:client)
 {
 	if(g_bHasVampire[client]) g_bHasVampire[client] = false;
 	if (!client || !IsClientInGame(client) || !IsPlayerAlive(client)) return;
-	SetEntPropFloat(client, Prop_Send, "m_flVelocityModifier", g_fOldMovement[client]);
+	SetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[client]);
 }
 
 public Action:Timer_StopRetard(Handle:timer, any:client)
 {
 	if(g_bHasRetarding[client]) g_bHasRetarding[client] = false;
 	if (!client || !IsClientInGame(client) || !IsPlayerAlive(client)) return;
-	SetEntPropFloat(client, Prop_Send, "m_flVelocityModifier", g_fOldMovement[client]);
+	SetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[client]);
 }
 
 public Action:BoomerIce(Handle:Timer, any:target)
@@ -7449,11 +7452,11 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 		if(!(type & DMG_BUCKSHOT))
 		{
 			if(StrEqual(classname, "infected", false))
-				PrintCenterText(client, "普感%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health)));
+				PrintCenterText(client, "普感%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 			else if(StrEqual(classname, "witch", false))
-				PrintCenterText(client, "妹%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health)));
+				PrintCenterText(client, "妹%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 			else
-				PrintCenterText(client, "%s%d|%s伤害%d|%s", classname, victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health)));
+				PrintCenterText(client, "%s%d|%s伤害%d|%s", classname, victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 		}
 		else
 		{

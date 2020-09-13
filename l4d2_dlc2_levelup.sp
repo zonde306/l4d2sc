@@ -16,6 +16,7 @@
 #define SOUND_WARP					"ambient/energy/zap7.wav"
 #define SOUND_Ball					"physics/destruction/explosivegasleak.wav"
 #define PARTICLE_BLOOD				"blood_impact_infected_01"
+#define SOUND_GIFT_PICKUP			"ui/gift_pickup.wav"
 
 #define g_flSoH_rate 0.4
 #define ZC_SMOKER			1
@@ -213,6 +214,7 @@ StringMap g_mTotalDamage[MAXPLAYERS+1];
 // int g_iMessageChannel = 0;
 char g_sCacheMessage[MAXPLAYERS+1][MAX_CACHED_MESSAGES][64];
 Handle g_hClearCacheMessage[MAXPLAYERS+1];
+bool g_bIsGamePlaying = false;
 
 enum
 {
@@ -369,7 +371,7 @@ float g_fWeaponSpeedUpdate[MAXPLAYERS+1];
 int g_iWeaponSpeedTotal = 0;
 
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
-	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued;
+	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath;
 
 ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hCvarBurnExpert, g_hCvarReviveHealth,
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
@@ -411,18 +413,19 @@ public OnPluginStart()
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
 	cv_sndPortalFX = CreateConVar("lv_portals_soundfx","ui/pickup_misc42.wav", "读点声音文件途径", FCVAR_NONE);
 	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒)，过期无法读档.0=无限", FCVAR_NONE, true, 0.0);
-	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率", FCVAR_NONE, true, 0.0, true, 100.0);
-	g_pCvarStartPoints = CreateConVar("lv_starter_points","0", "初始天赋点数量", FCVAR_NONE, true, 0.0, true, 30.0);
+	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率(0~100)", FCVAR_NONE, true, 0.0, true, 100.0);
+	g_pCvarStartPoints = CreateConVar("lv_starter_points","3", "初始天赋点数量", FCVAR_NONE, true, 0.0, true, 30.0);
 	
-	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感才能获得一点", FCVAR_NONE, true, 1.0);
-	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友才能获得一点", FCVAR_NONE, true, 1.0);
-	g_pCvarGivePills = CreateConVar("lv_bonus_give_pills", "20", "给队友递药/针多少次才能获得一点", FCVAR_NONE, true, 1.0);
-	g_pCvarOtherRevived = CreateConVar("lv_bonus_revive", "15", "救起队友多少次才能获得一点", FCVAR_NONE, true, 1.0);
-	g_pCvarProtected = CreateConVar("lv_bonus_protect", "40", "保护队友多少次才能获得一点", FCVAR_NONE, true, 1.0);
-	g_pCvarSpecialKilled = CreateConVar("lv_bonus_special_kill", "30", "干掉多少特感才能获得一点", FCVAR_NONE, true, 1.0);
-	g_pCvarCleared = CreateConVar("lv_bonus_cleared", "10", "清理多少个区域才能获得一点", FCVAR_NONE, true, 1.0);
-	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮才能获得一点", FCVAR_NONE, true, 1.0);
-	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次才能获得一点", FCVAR_NONE, true, 1.0);
+	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarGivePills = CreateConVar("lv_bonus_give_pills", "20", "给队友递药/针多少次才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarOtherRevived = CreateConVar("lv_bonus_revive", "15", "救起队友多少次才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarProtected = CreateConVar("lv_bonus_protect", "40", "保护队友多少次才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarSpecialKilled = CreateConVar("lv_bonus_special_kill", "30", "干掉多少特感才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarCleared = CreateConVar("lv_bonus_cleared", "10", "清理多少个区域才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarTankDeath = CreateConVar("lv_bonus_tank", "1", "是否开启Tank死亡奖励.0=禁用.1=启用", FCVAR_NONE, true, 0.0, true, 1.0);
 	
 	AutoExecConfig(true, "l4d2_dlc2_levelup");
 	
@@ -522,6 +525,8 @@ public OnPluginStart()
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("map_transition", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("mission_lost", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("round_start_pre_entity", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("round_start_post_nav", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("map_transition", Event_RoundWin, EventHookMode_PostNoCopy);
 	HookEvent("finale_win", Event_FinaleWin, EventHookMode_PostNoCopy);
 	HookEvent("finale_vehicle_leaving", Event_FinaleVehicleLeaving);
@@ -559,6 +564,9 @@ public OnPluginStart()
 	HookEvent("player_no_longer_it", Event_PlayerVomitTimeout);
 	HookEvent("player_shoved", Event_PlayerShoved);
 	HookEvent("bullet_impact", Event_BulletImpact);
+	HookEvent("player_left_start_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("survival_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("scavenge_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	
 	// 检查第一回合用
 	HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -715,7 +723,10 @@ public OnPluginStart()
 	
 	// 缓存以及读取
 	if(g_bLateLoad)
+	{
 		OnMapStart();
+		g_bIsGamePlaying = L4D_HasAnySurvivorLeftSafeArea();
+	}
 }
 
 public void OnPluginEnd()
@@ -742,29 +753,6 @@ public void OnPluginEnd()
 	
 	// 清理以及保存
 	OnMapEnd();
-}
-
-stock bool:FindPluginByNameLite(const String:PluginName[], bool:Sensitivity=true, bool:Contains=false)
-{
-	new Handle:iterator = GetPluginIterator();
-	new Handle:PluginID;
-	new String:curName[PLATFORM_MAX_PATH];
-	
-	while(MorePlugins(iterator))
-	{
-		PluginID = ReadPlugin(iterator);
-		// GetPluginInfo(PluginID, PlInfo_Name, curName, sizeof(curName));
-		GetPluginFilename(PluginID, curName, sizeof(curName));
-
-		if(StrEqual(PluginName, curName, Sensitivity) || (Contains && StrContains(PluginName, curName, Sensitivity) != -1))
-		{
-			CloseHandle(iterator);
-			return true;
-		}
-	}
-	
-	CloseHandle(iterator);
-	return false;
 }
 
 public void ConVarChaged_ZombieHealth(ConVar cvar, const char[] oldValue, const char[] newValue)
@@ -832,6 +820,7 @@ public OnMapStart()
 	g_iRoundEvent = 0;
 	g_szRoundEvent = "无";
 	g_bHasTeleportActived = false;
+	g_bIsGamePlaying = false;
 	
 	/*
 	PrecacheModel("models/survivors/survivor_teenangst.mdl", true);
@@ -895,6 +884,7 @@ public OnMapStart()
 	PrecacheSound(SOUND_IMPACT1);
 	PrecacheSound(SOUND_IMPACT2);
 	PrecacheSound(SOUND_STEEL);
+	PrecacheSound(SOUND_GIFT_PICKUP);
 	// PrecacheSound(SOUND_WARP);
 
 	if ( !IsModelPrecached( STAR_1_MDL ))		PrecacheModel( STAR_1_MDL );
@@ -913,7 +903,7 @@ public OnMapStart()
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileLoad(i);
+		ClientSaveToFileLoad(i, true);
 		
 		if(IsValidAliveClient(i))
 			RegPlayerHook(i, false);
@@ -1027,11 +1017,12 @@ public OnMapEnd()
 	g_bHasRPActive = false;
 	g_ttTankKilled = 0;
 	g_iRoundEvent = 0;
+	g_bIsGamePlaying = false;
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i);
+		ClientSaveToFileSave(i, true);
 	}
 }
 
@@ -1041,10 +1032,11 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 	g_iRoundEvent = 0;
 	g_fNextRoundEvent = 0.0;
 	g_bRoundFirstStarting = false;
+	g_bIsGamePlaying = false;
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
-		ClientSaveToFileSave(i);
+		ClientSaveToFileSave(i, true);
 		// Initialization(i);
 		g_bHasFirstJoin[i] = false;
 		// g_bHasJumping[i] = false;
@@ -1064,6 +1056,7 @@ public Action:Event_FinaleWin(Handle:event, String:event_name[], bool:dontBroadc
 {
 	g_ttTankKilled = 0;
 	g_iRoundEvent = 0;
+	g_bIsGamePlaying = false;
 	// PrintToChatAll("\x03[\x05提示\x03]\x04最终关卡胜利所有生还者天赋点增加\x033\x04点!");
 
 	/*
@@ -1084,16 +1077,18 @@ public Action:Event_FinaleWin(Handle:event, String:event_name[], bool:dontBroadc
 
 public void Event_FinaleVehicleLeaving(Event event, const char[] eventName, bool dontBroadcast)
 {
+	g_bIsGamePlaying = false;
+	
 	int count = event.GetInt("survivorcount");
 	if(count <= 0)
 		return;
 	if(count > 4)
 		count = 4;
-
+	
 	for(int i = 1; i <= MaxClients; ++i)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i);
+		ClientSaveToFileSave(i, true);
 
 		if(IsValidAliveClient(i) && !GetEntProp(i, Prop_Send, "m_isIncapacitated") && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge"))
 		{
@@ -1114,10 +1109,20 @@ public Action:Event_MissionLost(Handle:event, String:event_name[], bool:dontBroa
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i);
+		ClientSaveToFileSave(i, true);
 	}
 	
 	RestoreConVar();
+}
+
+public Action Event_PlayerLeftStartArea(Event event, const char[] event_name, bool dontBroadcast)
+{
+	g_bIsGamePlaying = true;
+}
+
+public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
+{
+	g_bIsGamePlaying = true;
 }
 
 public Action:Event_RoundStart(Handle:event, String:event_name[], bool:dontBroadcast)
@@ -1166,7 +1171,7 @@ public void OnClientDisconnect(int client)
 {
 	if(!IsFakeClient(client))
 	{
-		ClientSaveToFileSave(client);
+		ClientSaveToFileSave(client, false);
 		CreateHideMotd(client);
 	}
 	
@@ -1189,7 +1194,7 @@ public void OnClientPutInServer(int client)
 			g_kvSavePlayer[client] = null;
 		}
 
-		ClientSaveToFileLoad(client);
+		ClientSaveToFileLoad(client, false);
 	}
 }
 
@@ -1294,7 +1299,7 @@ void Initialization(int client, bool invalid = false)
 }
 
 //读档
-bool ClientSaveToFileLoad(int client)
+bool ClientSaveToFileLoad(int client, bool remember = false)
 {
 	if(!IsValidClient(client) || IsFakeClient(client))
 		return false;
@@ -1356,20 +1361,29 @@ bool ClientSaveToFileLoad(int client)
 
 	// 技能和属性
 	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", g_pCvarStartPoints.IntValue);
-	
-	// 这个还是不要保存比较好
-	// g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
-	g_clAngryPoint[client] = 0;
-	
-	if(g_pCvarAllow.BoolValue)
-		g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);
-	
 	g_clSkill_1[client] = g_kvSavePlayer[client].GetNum("skill_1", 0);
 	g_clSkill_2[client] = g_kvSavePlayer[client].GetNum("skill_2", 0);
 	g_clSkill_3[client] = g_kvSavePlayer[client].GetNum("skill_3", 0);
 	g_clSkill_4[client] = g_kvSavePlayer[client].GetNum("skill_4", 0);
 	g_clSkill_5[client] = g_kvSavePlayer[client].GetNum("skill_5", 0);
-
+	
+	if(g_pCvarAllow.BoolValue)
+		g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);
+	
+	if(remember)
+	{
+		g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
+		g_ttDefibUsed[client] = g_kvSavePlayer[client].GetNum("defib_used");
+		g_ttOtherRevived[client] = g_kvSavePlayer[client].GetNum("revived_count");
+		g_ttSpecialKilled[client] = g_kvSavePlayer[client].GetNum("si_killed");
+		g_ttCommonKilled[client] = g_kvSavePlayer[client].GetNum("ci_killed");
+		g_ttGivePills[client] = g_kvSavePlayer[client].GetNum("pills_given");
+		g_ttProtected[client] = g_kvSavePlayer[client].GetNum("team_protected");
+		g_ttCleared[client] = g_kvSavePlayer[client].GetNum("zone_cleared");
+		g_ttPaincEvent[client] = g_kvSavePlayer[client].GetNum("painc_holdout");
+		g_ttRescued[client] = g_kvSavePlayer[client].GetNum("rescued_count");
+	}
+	
 	// 装备相关
 	if(g_kvSavePlayer[client].JumpToKey("equipment", false))
 	{
@@ -1411,7 +1425,7 @@ bool ClientSaveToFileLoad(int client)
 }
 
 //存档
-bool ClientSaveToFileSave(int client)
+bool ClientSaveToFileSave(int client, bool remember = false)
 {
 	char steamId[64];
 	steamId[0] = EOS;
@@ -1444,15 +1458,29 @@ bool ClientSaveToFileSave(int client)
 	g_kvSavePlayer[client].SetNum("deadline", GetTime());
 
 	// 技能和属性
-	g_kvSavePlayer[client].SetNum("skill_point", g_clSkillPoint[client]);
-	g_kvSavePlayer[client].SetNum("angry_point", g_clAngryPoint[client]);
-	g_kvSavePlayer[client].SetNum("angry_mode", g_clAngryMode[client]);
-	g_kvSavePlayer[client].SetNum("skill_1", g_clSkill_1[client]);
-	g_kvSavePlayer[client].SetNum("skill_2", g_clSkill_2[client]);
-	g_kvSavePlayer[client].SetNum("skill_3", g_clSkill_3[client]);
-	g_kvSavePlayer[client].SetNum("skill_4", g_clSkill_4[client]);
-	g_kvSavePlayer[client].SetNum("skill_5", g_clSkill_5[client]);
-
+	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point");
+	g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode");
+	g_clSkill_1[client] = g_kvSavePlayer[client].GetNum("skill_1");
+	g_clSkill_2[client] = g_kvSavePlayer[client].GetNum("skill_2");
+	g_clSkill_3[client] = g_kvSavePlayer[client].GetNum("skill_3");
+	g_clSkill_4[client] = g_kvSavePlayer[client].GetNum("skill_4");
+	g_clSkill_5[client] = g_kvSavePlayer[client].GetNum("skill_5");
+	
+	// 统计信息
+	if(remember)
+	{
+		g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point");
+		g_ttDefibUsed[client] = g_kvSavePlayer[client].GetNum("defib_used");
+		g_ttOtherRevived[client] = g_kvSavePlayer[client].GetNum("revived_count");
+		g_ttSpecialKilled[client] = g_kvSavePlayer[client].GetNum("si_killed");
+		g_ttCommonKilled[client] = g_kvSavePlayer[client].GetNum("ci_killed");
+		g_ttGivePills[client] = g_kvSavePlayer[client].GetNum("pills_given");
+		g_ttProtected[client] = g_kvSavePlayer[client].GetNum("team_protected");
+		g_ttCleared[client] = g_kvSavePlayer[client].GetNum("zone_cleared");
+		g_ttPaincEvent[client] = g_kvSavePlayer[client].GetNum("painc_holdout");
+		g_ttRescued[client] = g_kvSavePlayer[client].GetNum("rescued_count");
+	}
+	
 	// 装备相关
 	g_kvSavePlayer[client].JumpToKey("equipment", true);
 	for(int i = 0; i < 4; ++i)
@@ -1674,7 +1702,6 @@ public int MenuHandler_TeamTeleport(Menu menu, MenuAction action, int client, in
 		data.WriteFloat(position[0]);
 		data.WriteFloat(position[1]);
 		data.WriteFloat(position[2]);
-
 
 		GiveSkillPoint(client, -2);
 		CreateTimer(5.0, Timer_TeamTeleport, data);
@@ -4034,6 +4061,18 @@ public void OnGameFrame()
 
 			if(team == 2)
 			{
+				if(!g_bIsGamePlaying)
+				{
+					g_ctPainPills[i] = curTime + 120.0;
+					g_ctPipeBomb[i] = curTime + 100.0;
+					g_ctDefibrillator[i] = curTime + 200.0;
+					g_ctConvTemp[i] = curTime + 2.0;
+					g_ctFullHealth[i] = curTime + 200.0;
+					g_ctSelfHeal[i] = curTime + 150.0;
+					g_ctGodMode[i] = curTime + 80.0;
+					g_csHasGodMode[i] = false;
+				}
+				
 				if((g_clSkill_2[i] & SKL_2_PainPills) && g_ctPainPills[i] > 0.0 && g_ctPainPills[i] <= curTime)
 				{
 					g_ctPainPills[i] = curTime + 120.0;
@@ -4203,7 +4242,7 @@ public void OnGameFrame()
 			}
 		}
 
-		if(g_fNextRoundEvent <= curTime)
+		if(g_iRoundEvent > 0 && g_fNextRoundEvent <= curTime)
 		{
 			for(int i = 1; i <= MaxClients; ++i)
 			{
@@ -4802,7 +4841,7 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	}
 	*/
 	
-	if(client != subject && health >= 50)
+	if(g_bIsGamePlaying && client != subject && health >= 50)
 	{
 		g_ttDefibUsed[client] += 1;
 		if(g_fForgiveOfFF[client] >= GetEngineTime() && g_iForgiveFFTarget[client] == GetClientUserId(subject))
@@ -4816,7 +4855,7 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 				PrintToChat(client, "\x03[\x05提示\x03]\x04 你因为给队友 打包 而获得了 \x051\x01 天赋点。");
 		}
 		
-		if(g_ttDefibUsed[client] >= g_pCvarDefibUsed.IntValue)
+		if(g_pCvarDefibUsed.IntValue > 0 && g_ttDefibUsed[client] >= g_pCvarDefibUsed.IntValue)
 		{
 			GiveSkillPoint(client, 1);
 			g_ttDefibUsed[client] -= g_pCvarDefibUsed.IntValue;
@@ -5861,10 +5900,10 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 		}
 
 		// Initialization(victim);
-		ClientSaveToFileSave(victim);
+		ClientSaveToFileSave(victim, true);
 	}
 
-	if(IsValidClient(attacker))
+	if(g_bIsGamePlaying && IsValidClient(attacker))
 	{
 		if(IsValidClient(victim) && GetClientTeam(victim) == TEAM_INFECTED && GetClientTeam(attacker) == TEAM_SURVIVORS)
 		{
@@ -5877,9 +5916,10 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				EmitSoundToClient(attacker,g_soundLevel);
 				if(!IsFakeClient(attacker)) PrintToChat(attacker, "\x03[\x05提示\x03]\x04你使用了\x03热血\x04天赋兴奋5秒!");
 			}
-			if(++g_ttSpecialKilled[attacker] >= g_pCvarSpecialKilled.IntValue)
+			
+			g_ttSpecialKilled[attacker] += 1;
+			if(g_pCvarSpecialKilled.IntValue > 0 && g_ttSpecialKilled[attacker] >= g_pCvarSpecialKilled.IntValue)
 			{
-
 				GiveSkillPoint(attacker, 1);
 				g_ttSpecialKilled[attacker] -= g_pCvarSpecialKilled.IntValue;
 				
@@ -5968,7 +6008,12 @@ public void DropGiftHook_OnTouchPickup(const char[] output, int caller, int acti
 	if(!IsValidEntity(caller) || !IsValidAliveClient(activator) || GetClientTeam(activator) != 2)
 		return;
 
-	ClientCommand(activator, "play \"ui/gift_pickup.wav\"");
+	// ClientCommand(activator, "play \"ui/gift_pickup.wav\"");
+	
+	float vPos[3];
+	GetClientAbsOrigin(activator, vPos);
+	EmitAmbientSound(SOUND_GIFT_PICKUP, vPos, activator);
+	
 	RewardPicker(activator);
 	AcceptEntityInput(caller, "Kill", activator, caller);
 }
@@ -6536,6 +6581,9 @@ public Action:Timer_RespawnPlayer(Handle:timer, any:client)
 
 public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroadcast)
 {
+	if(!g_bIsGamePlaying)
+		return Plugin_Continue;
+	
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(!IsValidClient(client))
 		return Plugin_Continue;
@@ -6553,8 +6601,9 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 		data.WriteCell(attacker);
 		data.WriteCell(solo);
 		data.WriteCell(melee);
-
-		CreateTimer(0.1, Timer_TankDeath, data);
+		
+		if(g_pCvarTankDeath.BoolValue)
+			CreateTimer(0.1, Timer_TankDeath, data);
 
 		if(g_ttTankKilled == 1 || g_iRoundEvent == 0)
 			CreateTimer(5.0, Round_Random_Event);
@@ -6755,86 +6804,6 @@ public Float:DistanceToHit(ent)
 	return 0.0;
 }
 
-new Float:BombTracePos[3];
-new Float:BombEyePos[3];
-new Float:BombAngle[3];
-new Float:BombTempPos[3];
-new Float:Bombvelocity[3];
-
-public ThrowABomb(Client)
-{
-	new entity = CreateEntityByName("tank_rock");
-	GetTracePosition(Client, BombTracePos);
-	GetClientEyePosition(Client, BombEyePos);
-	BombTracePos[2] += 10;
-	MakeVectorFromPoints(BombEyePos, BombTracePos, BombAngle);
-	NormalizeVector(BombAngle, BombAngle);
-
-	BombTempPos[0] = BombAngle[0] * 50;
-	BombTempPos[1] = BombAngle[1] * 50;
-	BombTempPos[2] = BombAngle[2] * 50;
-	AddVectors(BombEyePos, BombTempPos, BombEyePos);
-
-	Bombvelocity[0] = BombAngle[0] * 1000;
-	Bombvelocity[1] = BombAngle[1] * 1000;
-	Bombvelocity[2] = BombAngle[2] * 1000;
-
-	if (IsValidEntity(entity) && IsValidEdict(entity))
-	{
-		SetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity", Client);
-		DispatchSpawn(entity);
-		new Color[4];
-		Color[3] = 255;
-		Color[0] = GetRandomInt(0,255);
-		Color[1] = GetRandomInt(0,255);
-		Color[2] = GetRandomInt(0,255);
-		SetEntityGravity(entity, 0.1);
-		TeleportEntity(entity, BombEyePos, BombAngle, Bombvelocity);
-		for(new i = 0;i < 5;i ++)
-		{
-			EmitSoundToAll(SOUND_Ball,entity);
-		}
-		CreateTimer(0.1, Shoot_Bomb, entity, TIMER_REPEAT);
-	}
-}
-
-public Action:Shoot_Bomb(Handle:timer, any:entity)
-{
-	if (!IsValidEntity(entity) || !IsValidEdict(entity))
-		return Plugin_Stop;
-
-	new Float:pos[3];
-	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", pos);
-	for (new i = 1; i <= 5; i++)
-	{
-		TeleportEntity(entity, pos, BombAngle, Bombvelocity);
-	}
-
-	if (DistanceToHit(entity) <= 20000.0)
-	{
-		CreateTimer(1.3, Timer_BombExplo, entity);
-		return Plugin_Stop;
-	}
-
-	return Plugin_Continue;
-}
-
-public Action:Timer_BombExplo(Handle:timer, any:entity)
-{
-	if (!IsValidEntity(entity) || !IsValidEdict(entity))
-		return Plugin_Stop;
-
-	new Float:pos[3];
-	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", pos);
-	new client = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
-	EmitAmbientSound(SOUND_Bomb, pos, client, SNDLEVEL_RAIDSIREN);
-	ShowParticle(pos, "gas_explosion_pump", 3.0);
-	LittleFlower(pos, EXPLODE);
-	LittleFlower(pos, EXPLODE);
-	AcceptEntityInput(entity, "Kill");
-	return Plugin_Continue;
-}
-
 public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:dontBroadcast)
 {
 	int client = GetClientOfUserId(GetEventInt(event, "userid"));
@@ -6842,7 +6811,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	if(!IsValidClient(subject))
 		return Plugin_Continue;
 
-	if(IsValidAliveClient(client) && subject != client)
+	if(g_bIsGamePlaying && IsValidAliveClient(client) && subject != client)
 	{
 		g_ttDefibUsed[client]++;
 		if(g_fForgiveOfTK[client] >= GetEngineTime() && g_iForgiveTKTarget[client] == GetClientUserId(subject))
@@ -6856,7 +6825,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 				PrintToChat(client, "\x03[\x05提示\x03]\x04 你因为给队友 电击 而获得了 \x053\x01 天赋点。");
 		}
 		
-		if(g_ttDefibUsed[client] >= g_pCvarDefibUsed.IntValue)
+		if(g_pCvarDefibUsed.IntValue > 0 && g_ttDefibUsed[client] >= g_pCvarDefibUsed.IntValue)
 		{
 			GiveSkillPoint(client, 1);
 			g_ttDefibUsed[client] -= g_pCvarDefibUsed.IntValue;
@@ -6963,10 +6932,11 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			// CheatCommand(subject, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
 			L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 10 * mulEffect);
 		}
-		if(client != subject)
+		
+		if(g_bIsGamePlaying && client != subject)
 		{
 			g_ttOtherRevived[client] ++;
-			if(g_ttOtherRevived[client] >= g_pCvarOtherRevived.IntValue)
+			if(g_pCvarOtherRevived.IntValue > 0 && g_ttOtherRevived[client] >= g_pCvarOtherRevived.IntValue)
 			{
 				GiveSkillPoint(client, 1);
 				g_ttOtherRevived[client] -= g_pCvarOtherRevived.IntValue;
@@ -6975,7 +6945,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 					PrintToChat(client, "\x03[\x05提示\x03]\x04 你多次拉起队友获得了 \x051\x01 天赋点。");
 			}
 		}
-		if(client != subject && (g_clSkill_3[client] & SKL_3_ReviveBonus))
+		if(g_bIsGamePlaying && client != subject && (g_clSkill_3[client] & SKL_3_ReviveBonus))
 		{
 			new RandomGiv = GetRandomInt(0, 11);
 			switch(RandomGiv)
@@ -7123,51 +7093,64 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	if(award == 67)
 	{
 		// 保护队友
-		g_ttProtected[client] += 1;
-		if(g_ttProtected[client] >= g_pCvarProtected.IntValue)
+		if(g_bIsGamePlaying)
 		{
-			g_ttProtected[client] -= g_pCvarProtected.IntValue;
+			g_ttProtected[client] += 1;
+			if(g_pCvarProtected.IntValue > 0 && g_ttProtected[client] >= g_pCvarProtected.IntValue)
+			{
+				g_ttProtected[client] -= g_pCvarProtected.IntValue;
 
-			GiveSkillPoint(client, 1);
+				GiveSkillPoint(client, 1);
 
-			if(!bot && g_pCvarAllow.BoolValue)
-				PrintToChat(client, "\x03[提示]\x01 你因为多次保护队友获得 \x051\x01 天赋点。");
+				if(!bot && g_pCvarAllow.BoolValue)
+					PrintToChat(client, "\x03[提示]\x01 你因为多次保护队友获得 \x051\x01 天赋点。");
+			}
 		}
 	}
 
 	if(award == 68)
 	{
 		// 给队友递药
-		g_ttGivePills[client] += 1;
-		if(g_ttGivePills[client] > g_pCvarGivePills.IntValue)
+		if(g_bIsGamePlaying)
 		{
-			g_ttGivePills[client] -= g_pCvarGivePills.IntValue;
+			g_ttGivePills[client] += 1;
+			if(g_pCvarGivePills.IntValue > 0 && g_ttGivePills[client] > g_pCvarGivePills.IntValue)
+			{
+				g_ttGivePills[client] -= g_pCvarGivePills.IntValue;
 
-			GiveSkillPoint(client, 1);
+				GiveSkillPoint(client, 1);
 
-			if(!bot && g_pCvarAllow.BoolValue)
-				PrintToChat(client, "\x03[提示]\x01 你因为多次给队友递药获得 \x051\x01 天赋点。");
+				if(!bot && g_pCvarAllow.BoolValue)
+					PrintToChat(client, "\x03[提示]\x01 你因为多次给队友递药获得 \x051\x01 天赋点。");
+			}
 		}
 	}
 
 	if(award == 69)
 	{
 		// 给队友递针
-		// 这里并不去触发检查
-		g_ttGivePills[client] += 1;
+		if(g_bIsGamePlaying)
+		{
+			// 这里并不去触发检查
+			g_ttGivePills[client] += 1;
+		}
 	}
 
 	if(award == 76)
 	{
 		// 把队友从特感的控制中救出
-		// g_ttOtherRevived[client] += 1;
-		if(++g_ttRescued[client] >= g_pCvarRescued.IntValue)
+		if(g_bIsGamePlaying)
 		{
-			GiveSkillPoint(client, 1);
-			g_ttRescued[client] -= g_pCvarRescued.IntValue;
+			// g_ttOtherRevived[client] += 1;
+			g_ttRescued[client] += 1;
+			if(g_pCvarRescued.IntValue > 0 && g_ttRescued[client] >= g_pCvarRescued.IntValue)
+			{
+				GiveSkillPoint(client, 1);
+				g_ttRescued[client] -= g_pCvarRescued.IntValue;
 
-			if(!bot && g_pCvarAllow.BoolValue)
-				PrintToChat(client, "\x03[提示]\x01 你因为营救队友而获得了 \x051\x01 天赋点。");
+				if(!bot && g_pCvarAllow.BoolValue)
+					PrintToChat(client, "\x03[提示]\x01 你因为营救队友而获得了 \x051\x01 天赋点。");
+			}
 		}
 	}
 
@@ -7181,7 +7164,7 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	
 	if(award == 81)
 	{
-		if(!g_pCvarAllow.BoolValue)
+		if(g_bIsGamePlaying && !g_pCvarAllow.BoolValue)
 			// 克局过后没有死亡
 			GiveSkillPoint(client, 1);
 
@@ -7414,12 +7397,15 @@ public void Event_VersusFinish(Event event, const char[] eventName, bool dontBro
 
 public void Event_InfectedDeath(Event event, const char[] eventName, bool dontBroadcast)
 {
+	if(!g_bIsGamePlaying)
+		return;
+	
 	int client = GetClientOfUserId(event.GetInt("attacker"));
 	if(!IsValidClient(client))
 		return;
 
 	g_ttCommonKilled[client]++;
-	if(g_ttCommonKilled[client] >= g_pCvarCommonKilled.IntValue)
+	if(g_pCvarCommonKilled.IntValue > 0 && g_ttCommonKilled[client] >= g_pCvarCommonKilled.IntValue)
 	{
 		g_ttCommonKilled[client] -= g_pCvarCommonKilled.IntValue;
 
@@ -7728,14 +7714,17 @@ public void ApplyJumpVelocity(any client)
 
 public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroadcast)
 {
+	if(!g_bIsGamePlaying)
+		return;
+	
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	int area = event.GetInt("area");
 	if(!IsValidAliveClient(client) || area <= 0)
 		return;
-
-	if(++g_ttCleared[client] >= g_pCvarCleared.IntValue)
+	
+	g_ttCleared[client] += 1;
+	if(g_pCvarCleared.IntValue > 0 && g_ttCleared[client] >= g_pCvarCleared.IntValue)
 	{
-
 		GiveSkillPoint(client, 1);
 		g_ttCleared[client] -= g_pCvarCleared.IntValue;
 
@@ -7759,7 +7748,7 @@ public void Event_PaincEventStart(Event event, const char[] eventName, bool dont
 
 public void Event_PaincEventStop(Event event, const char[] eventName, bool dontBroadcast)
 {
-	if(!g_bIsPaincEvent)
+	if(!g_bIsPaincEvent || !g_bIsGamePlaying)
 		return;
 
 	g_bIsPaincEvent = false;
@@ -7769,8 +7758,9 @@ public void Event_PaincEventStop(Event event, const char[] eventName, bool dontB
 		{
 			if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
 				continue;
-
-			if(++g_ttPaincEvent[i] >= g_pCvarPaincEvent.IntValue)
+			
+			g_ttPaincEvent[i] += 1;
+			if(g_pCvarPaincEvent.IntValue > 0 && g_ttPaincEvent[i] >= g_pCvarPaincEvent.IntValue)
 			{
 				g_ttPaincEvent[i] -= g_pCvarPaincEvent.IntValue;
 
@@ -8318,7 +8308,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	{
 		if(oldTeam <= 1 && newTeam >= 2)
 		{
-			ClientSaveToFileLoad(client);
+			ClientSaveToFileLoad(client, true);
 			// RegPlayerHook(client, false);
 			CreateTimer(0.6, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 			// PrintToServer("读取 %N 的数据，原因：加入队伍");

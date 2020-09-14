@@ -201,6 +201,7 @@ bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
 // bool g_bIsInvulnerable[MAXPLAYERS+1];
 bool g_bDeadlineHint[MAXPLAYERS+1];
 int g_iExtraAmmo[MAXPLAYERS+1];
+int g_iExtraArmor[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -243,7 +244,7 @@ new Handle:hTimerMiniFireworks[MAXPLAYERS+1];
 new Handle:hTimerLoopEffect[MAXPLAYERS+1];
 new Handle:g_CvarSoundLevel = INVALID_HANDLE;
 new Handle:g_Cvarautomenu = INVALID_HANDLE;
-new Handle:g_Cvarhppack = INVALID_HANDLE;
+ConVar g_Cvarhppack = null;
 new Handle:cv_sndPortalERROR = INVALID_HANDLE;
 new Handle:cv_sndPortalFX = INVALID_HANDLE;
 new Handle:cv_particle = INVALID_HANDLE;
@@ -329,7 +330,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 32;
+const int g_iMaxEqmEffects = 34;
 
 //玩家基本资料
 char g_szSavePath[256];
@@ -508,6 +509,7 @@ public OnPluginStart()
 	HookEvent("player_first_spawn", Event_PlayerSpawn);
 	HookEvent("player_first_spawn", Event_PlayerSpawnNotify);
 	HookEvent("bot_player_replace", Event_PlayerReplaceBot);
+	HookEvent("player_bot_replace", Event_BotReplacePlayer);
 	// HookEvent("spit_burst", Event_SpitBurst);
 	HookEvent("player_incapacitated", Event_PlayerIncapacitated);
 	HookEvent("player_incapacitated_start", Event_PlayerIncapacitatedStart);
@@ -1139,7 +1141,7 @@ public Action Timer_RoundStartPost(Handle timer, any data)
 {
 	RestoreConVar();
 
-	if(GetConVarInt(g_Cvarhppack))
+	if(g_Cvarhppack.BoolValue)
 	{
 		for(int i = 1; i <= MaxClients; ++i)
 		{
@@ -1269,6 +1271,7 @@ void Initialization(int client, bool invalid = false)
 	g_mTotalDamage[client] = null;
 	mtLastMoveType[client] = MOVETYPE_WALK;
 	g_iExtraAmmo[client] = 0;
+	g_iExtraArmor[client] = 0;
 	g_iReloadWeaponUpgrade[client] = 0;
 	g_iReloadWeaponUpgradeClip[client] = 0;
 	g_fForgiveOfTK[client] = 0.0;
@@ -2455,7 +2458,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
-	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活提供100甲(减伤)",(g_clSkill_1[client]&SKL_1_Armor)));
+	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活/开局护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力/取消摇晃",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装不卸下弹匣/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
@@ -2780,8 +2783,8 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 		}
 	}
 
-	RegPlayerHook(client);
-	PrintToChat(client, "\x03[提示]\x01 技能获得：%s。", display);
+	RegPlayerHook(client, false);
+	PrintToChat(client, "\x03[提示]\x01 技能获得：\x05%s\x01。", display);
 	PrintToServer("玩家 %N 选择了 %s", client, display);
 	return 0;
 }
@@ -2904,7 +2907,7 @@ public int MenuHandler_CancelSkill(Menu menu, MenuAction action, int client, int
 		}
 	}
 	
-	RegPlayerHook(client);
+	RegPlayerHook(client, false);
 	return 0;
 }
 
@@ -4868,6 +4871,12 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	
 	if((g_clSkill_2[subject] & SKL_2_HealBouns) || (g_clSkill_2[client] & SKL_2_HealBouns))
 		AddHealth(subject, 50, false);
+	
+	int mulEffect = IsPlayerHaveEffect(subject, 34);
+	if((g_clSkill_1[subject] & SKL_1_Armor) && mulEffect > 0)
+	{
+		AddArmor(subject, 50 * mulEffect);
+	}
 	
 	if(g_iRoundEvent == 19)
 	{
@@ -6841,14 +6850,15 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 				PrintToChat(client, "\x03[\x05提示\x03]\x04 你因为多次给队友 电击/打包 而获得了 \x051\x01 天赋点。");
 		}
 	}
-
+	
+	/*
 	if(g_clSkill_1[subject] & SKL_1_Armor)
 	{
-		SetEntProp(subject, Prop_Send, "m_ArmorValue", 127);
-		SetEntProp(subject, Prop_Send, "m_bHasHelmet", 1);
+		AddArmor(subject, 100 + (100 * IsPlayerHaveEffect(subject, 33)));
 	}
-
-	RegPlayerHook(subject, false);
+	*/
+	
+	RegPlayerHook(subject, g_Cvarhppack.BoolValue);
 	
 	// 修复电击复活后的武器
 	if((g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
@@ -7035,6 +7045,12 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		CreateTimer(0.1, Timer_DelayGivePistol, data);
 		
 		g_sLastWeapon[subject][0] = EOS;
+	}
+	
+	int mulEffect = IsPlayerHaveEffect(subject, 34);
+	if((g_clSkill_1[subject] & SKL_1_Armor) && mulEffect > 0)
+	{
+		AddArmor(subject, 50 * mulEffect);
 	}
 	
 	RegPlayerHook(subject, false);
@@ -7593,13 +7609,12 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidClient(client))
 		return;
-
-	RegPlayerHook(client, true);
+	
+	RegPlayerHook(client, (g_Cvarhppack.BoolValue && !g_bIsGamePlaying));
 	
 	if(g_clSkill_1[client] & SKL_1_Armor)
 	{
-		SetEntProp(client, Prop_Send, "m_ArmorValue", 127);
-		SetEntProp(client, Prop_Send, "m_bHasHelmet", 1);
+		AddArmor(client, 100 + (100 * IsPlayerHaveEffect(client, 33)));
 	}
 }
 
@@ -7789,7 +7804,15 @@ public void Event_SurvivorRescued(Event event, const char[] eventName, bool dont
 
 	if(client != subject)
 		g_ttRescued[client] += 1;
-
+	
+	if(g_clSkill_1[subject] & SKL_1_Armor)
+	{
+		// 上限 127
+		AddArmor(subject, 100 + (100 * IsPlayerHaveEffect(subject, 33)));
+	}
+	
+	RegPlayerHook(subject, g_Cvarhppack.BoolValue);
+	
 	if(g_iRoundEvent == 19)
 	{
 		/*
@@ -8328,6 +8351,10 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 			// RegPlayerHook(client, false);
 			CreateTimer(0.1, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		}
+		else if(oldTeam >= 2 && newTeam == 1)
+		{
+			ClientSaveToFileSave(client, true);
+		}
 	}
 	else if(newTeam == 2 && g_pCvarAllow.BoolValue)
 	{
@@ -8335,6 +8362,12 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 		// RegPlayerHook(client, false);
 		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		PrintToServer("为生还者机器人 %N 生成随机属性", client);
+	}
+	
+	if(newTeam <= 1)
+	{
+		g_iExtraArmor[client] = 0;
+		g_iExtraAmmo[client] = 0;
 	}
 	
 	// Initialization(client);
@@ -8366,6 +8399,17 @@ public void Event_PlayerReplaceBot(Event event, const char[] eventName, bool don
 	// g_bHasFirstJoin[client] = false;
 	g_bHasJumping[client] = false;
 	RegPlayerHook(client, false);
+}
+
+public void Event_BotReplacePlayer(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("player"));
+	if(!IsValidClient(client))
+		return;
+	
+	ClientSaveToFileSave(client, true);
+	g_iExtraArmor[client] = 0;
+	g_iExtraAmmo[client] = 0;
 }
 
 void RegPlayerHook(int client, bool fullHealth = false)
@@ -9729,6 +9773,32 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	
 	// PrintToChat(client, "ammo +%d, ov %d, nv %d, cl %d, ex %d, lim %d, ava %d, mc %d", amount, oldAmmo, newAmmo, clip, g_iExtraAmmo[client], maxAmmo, available, maxClip);
 	return (oldAmmo != newAmmo);
+}
+
+stock bool AddArmor(int client, int amount, bool helmet = true)
+{
+	if(!IsValidAliveClient(client) || amount == 0)
+		return false;
+	
+	int count = g_iExtraArmor[client] + GetEntProp(client, Prop_Send, "m_ArmorValue");
+	
+	if(count > 127)
+	{
+		SetEntProp(client, Prop_Send, "m_ArmorValue", 127);
+		g_iExtraArmor[client] = count - 127;
+	}
+	else
+	{
+		SetEntProp(client, Prop_Send, "m_ArmorValue", count);
+		g_iExtraArmor[client] = 0;
+	}
+	
+	// 没头盔时加上，已经有就不要去掉
+	bool haveHelmet = !!GetEntProp(client, Prop_Send, "m_bHasHelmet");
+	if(!haveHelmet && helmet)
+		SetEntProp(client, Prop_Send, "m_bHasHelmet", 1);
+	
+	return true;
 }
 
 stock bool IsSurvivorThirdPerson(int iClient)
@@ -12548,6 +12618,10 @@ bool RebuildEquipStr(int client, int index)
 			strcopy(g_esEffects[client][index], 128, "获得弹药升级数量加倍");
 		case 32:
 			strcopy(g_esEffects[client][index], 128, "「霸气」范围增加");
+		case 33:
+			strcopy(g_esEffects[client][index], 128, "「护甲」复活/开局+100");
+		case 34:
+			strcopy(g_esEffects[client][index], 128, "「护甲」倒地救起/打包+50");
 		default:
 			strcopy(g_esEffects[client][index], 128, "");
 	}

@@ -329,7 +329,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 28;
+const int g_iMaxEqmEffects = 29;
 
 //玩家基本资料
 char g_szSavePath[256];
@@ -1458,27 +1458,27 @@ bool ClientSaveToFileSave(int client, bool remember = false)
 	g_kvSavePlayer[client].SetNum("deadline", GetTime());
 
 	// 技能和属性
-	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point");
-	g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode");
-	g_clSkill_1[client] = g_kvSavePlayer[client].GetNum("skill_1");
-	g_clSkill_2[client] = g_kvSavePlayer[client].GetNum("skill_2");
-	g_clSkill_3[client] = g_kvSavePlayer[client].GetNum("skill_3");
-	g_clSkill_4[client] = g_kvSavePlayer[client].GetNum("skill_4");
-	g_clSkill_5[client] = g_kvSavePlayer[client].GetNum("skill_5");
+	g_kvSavePlayer[client].SetNum("skill_point", g_clSkillPoint[client]);
+	g_kvSavePlayer[client].SetNum("angry_mode", g_clAngryMode[client]);
+	g_kvSavePlayer[client].SetNum("skill_1", g_clSkill_1[client]);
+	g_kvSavePlayer[client].SetNum("skill_2", g_clSkill_2[client]);
+	g_kvSavePlayer[client].SetNum("skill_3", g_clSkill_3[client]);
+	g_kvSavePlayer[client].SetNum("skill_4", g_clSkill_4[client]);
+	g_kvSavePlayer[client].SetNum("skill_5", g_clSkill_5[client]);
 	
 	// 统计信息
 	if(remember)
 	{
-		g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point");
-		g_ttDefibUsed[client] = g_kvSavePlayer[client].GetNum("defib_used");
-		g_ttOtherRevived[client] = g_kvSavePlayer[client].GetNum("revived_count");
-		g_ttSpecialKilled[client] = g_kvSavePlayer[client].GetNum("si_killed");
-		g_ttCommonKilled[client] = g_kvSavePlayer[client].GetNum("ci_killed");
-		g_ttGivePills[client] = g_kvSavePlayer[client].GetNum("pills_given");
-		g_ttProtected[client] = g_kvSavePlayer[client].GetNum("team_protected");
-		g_ttCleared[client] = g_kvSavePlayer[client].GetNum("zone_cleared");
-		g_ttPaincEvent[client] = g_kvSavePlayer[client].GetNum("painc_holdout");
-		g_ttRescued[client] = g_kvSavePlayer[client].GetNum("rescued_count");
+		g_kvSavePlayer[client].SetNum("angry_point", g_clAngryPoint[client]);
+		g_kvSavePlayer[client].SetNum("defib_used", g_ttDefibUsed[client]);
+		g_kvSavePlayer[client].SetNum("revived_count", g_ttOtherRevived[client]);
+		g_kvSavePlayer[client].SetNum("si_killed", g_ttSpecialKilled[client]);
+		g_kvSavePlayer[client].SetNum("ci_killed", g_ttCommonKilled[client]);
+		g_kvSavePlayer[client].SetNum("pills_given", g_ttGivePills[client]);
+		g_kvSavePlayer[client].SetNum("team_protected", g_ttProtected[client]);
+		g_kvSavePlayer[client].SetNum("zone_cleared", g_ttCleared[client]);
+		g_kvSavePlayer[client].SetNum("painc_holdout", g_ttPaincEvent[client]);
+		g_kvSavePlayer[client].SetNum("rescued_count", g_ttRescued[client]);
 	}
 	
 	// 装备相关
@@ -1986,7 +1986,7 @@ public Action Command_RandEvent(int client, int argc)
 void StatusChooseMenuFunc(int client, int pg = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_MainMenu);
-	menu.SetTitle(tr("天启×天赋×装备系统\n当前天赋点：%d", g_clSkillPoint[client]));
+	menu.SetTitle(tr("天启•天赋•装备系统\n当前天赋点：%d", g_clSkillPoint[client]));
 	menu.AddItem("1", "一级天赋（耗点 1）");
 	menu.AddItem("2", "二级天赋（耗点 2）");
 	menu.AddItem("3", "三级天赋（耗点 3）");
@@ -4528,8 +4528,9 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 {
 	if(!IsValidAliveClient(victim) || attacker <= 0 || damage <= 0.0 || (damagetype & DMG_FALL))
 		return Plugin_Continue;
-
-	if(g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -GetEngineTime())
+	
+	float time = GetEngineTime();
+	if((g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -time) || (g_fFreezeTime[victim] > time && IsPlayerHaveEffect(victim, 29)))
 	{
 		// 无敌模式伤害免疫
 		if(!IsNullVector(damagePosition))
@@ -8630,8 +8631,12 @@ public Action:CommandSlapPlayer(Handle:timer, any:client)
 		// ServerCommand("sm_slap \"%N\" \"1\"",client);
 		SlapPlayer(client, 1, true);
 		g_csSlapCount[client] --;
-		CreateTimer(1.0, CommandSlapPlayer, client);
+		
+		// CreateTimer(1.0, CommandSlapPlayer, client);
+		return Plugin_Continue;
 	}
+	
+	return Plugin_Stop;
 }
 
 public Action:CommandSlapTank(Handle:timer, any:client)
@@ -8641,8 +8646,12 @@ public Action:CommandSlapTank(Handle:timer, any:client)
 		// ServerCommand("sm_slap \"%N\" \"0\"",client);
 		SlapPlayer(client, 0, true);
 		g_csSlapCount[client] --;
-		CreateTimer(0.2, CommandSlapTank, client);
+		
+		// CreateTimer(0.2, CommandSlapTank, client);
+		return Plugin_Continue;
 	}
+	
+	return Plugin_Stop;
 }
 
 public Event_SpitBurst(Handle:event, const String:name[], bool:dontBroadcast)
@@ -11275,7 +11284,7 @@ public Action:Event_RP(Handle:timer, any:client)
 					EmitSoundToClient(i,SOUND_BAD);
 				}
 				g_csSlapCount[client] = 30;
-				CreateTimer(0.1, CommandSlapPlayer, client);
+				CreateTimer(0.1, CommandSlapPlayer, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04作业没写完就跑去网吧玩求生之路,被老爹狠打屁股30下.", client);
 			}
 			case 16:
@@ -11315,7 +11324,7 @@ public Action:Event_RP(Handle:timer, any:client)
 					EmitSoundToClient(i,SOUND_BAD);
 				}
 				g_csSlapCount[client] += 300;
-				CreateTimer(0.1, CommandSlapTank, client);
+				CreateTimer(0.1, CommandSlapTank, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04决定游行太空,记得打开你的降落伞以免落地过猛!", client);
 			}
 			case 19:
@@ -11506,8 +11515,8 @@ public Action:Event_RP(Handle:timer, any:client)
 				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_INFECTED)
 					{
-						g_csSlapCount[client] += 100;
-						CreateTimer(0.2, CommandSlapTank, i);
+						g_csSlapCount[i] += 100;
+						CreateTimer(0.2, CommandSlapTank, i, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04仰天大笑:不要迷恋哥,哥只是传说.接着所有感染者被拍上外太空了", client);
@@ -11784,8 +11793,8 @@ public Action:Event_RP(Handle:timer, any:client)
 				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 					{
-						g_csSlapCount[client] += 30;
-						CreateTimer(0.5, CommandSlapPlayer, i);
+						g_csSlapCount[i] += 30;
+						CreateTimer(0.5, CommandSlapPlayer, i, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04突然提出意见:不如跳只集体舞吧?所有生还者集体跳起了舞.", client);
@@ -12494,6 +12503,8 @@ bool RebuildEquipStr(int client, int index)
 			strcopy(g_esEffects[client][index], 128, "「电疗」替换为医疗包");
 		case 28:
 			strcopy(g_esEffects[client][index], 128, "「爆破」替换为胆汁");
+		case 29:
+			strcopy(g_esEffects[client][index], 128, "被冻结时不会受到伤害");
 		default:
 			strcopy(g_esEffects[client][index], 128, "");
 	}

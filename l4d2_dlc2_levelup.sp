@@ -5481,13 +5481,13 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	}
 	
 	int attackerId = event.GetInt("attackerentid");
-	if(GetClientTeam(victim) == 2 && !(dmg_type & (DMG_FALL|DMG_BURN|DMG_BLAST|DMG_BLAST|DMG_SHOCK|DMG_DROWN|DMG_SLOWBURN)))
+	if(GetClientTeam(victim) == 2 && !(dmg_type & (DMG_FALL|DMG_BURN|DMG_BLAST|DMG_SHOCK|DMG_DROWN|DMG_SLOWBURN)))
 	{
 		bool isInfected = (attackPlayer && GetClientTeam(attacker) == 3);
 		if(!isInfected && attackerId > 0 && IsValidEntity(attackerId) && IsValidEdict(attackerId))
 		{
 			static char classname[64];
-			GetEntityClassname(attackerId, classname, 64);
+			GetEdictClassname(attackerId, classname, 64);
 			isInfected = (StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false));
 		}
 		
@@ -5498,7 +5498,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			else
 				g_clAngryPoint[victim] += (dmg > 10 ? 10 : dmg);
 			
-			if(g_iRoundEvent == 10) g_clAngryPoint[victim] ++;
+			if(g_iRoundEvent == 10) g_clAngryPoint[victim] += 5;
 			
 			if(g_clAngryPoint[victim] >= 100 && !NCJ_ON)
 			{
@@ -5536,9 +5536,9 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 							}
 
 						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",victim);
+							PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血，倒地/被控除外\x04.",victim);
 						else
-							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员回血）\x01。");
+							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员回血，倒地/被控除外）\x01。");
 					}
 					case 2:
 					{
@@ -5739,18 +5739,33 @@ public Action:Timer_NCJ1(Handle:timer, any:client)
 {
 	NCJ_1 = false;
 	NCJ_ON = false;
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChatAll("\x03【\x05霸者之号令\x03】\x04 已结束。");
+	else if(IsValidClient(client))
+		PrintToChat(client, "\x03[提示]\x01 \x05霸者之号令\x01 已结束。");
 }
 
 public Action:Timer_NCJ2(Handle:timer, any:client)
 {
 	NCJ_2 = false;
 	NCJ_ON = false;
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChatAll("\x03【\x05背水一战\x03】\x04 已结束。");
+	else if(IsValidClient(client))
+		PrintToChat(client, "\x03[提示]\x01 \x05背水一战\x01 已结束。");
 }
 
 public Action:Timer_NCJ3(Handle:timer, any:client)
 {
 	NCJ_3 = false;
 	NCJ_ON = false;
+	
+	if(g_pCvarAllow.BoolValue)
+		PrintToChatAll("\x03【\x05嗜血如命\x03】\x04 已结束。");
+	else if(IsValidClient(client))
+		PrintToChat(client, "\x03[提示]\x01 \x05嗜血如命\x01 已结束。");
 }
 
 public Action:SSJ4_DMG(Handle:timer, any:client)

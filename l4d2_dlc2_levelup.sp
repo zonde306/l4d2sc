@@ -329,7 +329,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 29;
+const int g_iMaxEqmEffects = 32;
 
 //玩家基本资料
 char g_szSavePath[256];
@@ -4972,10 +4972,13 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			// PrintToChatAll("\x03[\x05提示\x03] %N\x04使用\x03释冰\x04天赋冻结了\x03%s\x0412秒!",client,name);
 			PrintToChat(client, "\x03[提示]\x01 你使用 \x05释冰\x01 天赋冻结了攻击者 \x04%N\x05 12 \x01秒", attacker);
 		}
-		// origin[2] += 10;
-		//(目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
-		// TE_SetupBeamRingPoint(origin, 2.0, 200.0, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, {0, 0, 255, 255}, 0, 0);
-		// TE_SendToAll();
+		
+		if(g_pCvarAllow.BoolValue)
+		{
+			// (目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
+			TE_SetupBeamRingPoint(origin, 2.0, radius, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, {0, 0, 255, 255}, 0, 0);
+			TE_SendToAll();
+		}
 	}
 
 	if((g_clSkill_3[client] & SKL_3_IncapFire))
@@ -5014,10 +5017,13 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			// PrintToChatAll("\x03[\x05提示\x03] %N\x04使用\x03纵火\x04天赋给予\x03%s %d\x04点伤害并燃烧60秒!",client,name,extradmg);
 			PrintToChat(client, "\x03[提示]\x01 你使用 \x05纵火\x01 天赋点燃了攻击者 \x04%N\x05 60 \x01秒", attacker);
 		}
-
-		//(目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
-		// TE_SetupBeamRingPoint(origin, 2.0, 200.0, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, {255, 0, 0, 255}, 0, 0);
-		// TE_SendToAll();
+		
+		if(g_pCvarAllow.BoolValue)
+		{
+			//(目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
+			TE_SetupBeamRingPoint(origin, 2.0, radius, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, {255, 0, 0, 255}, 0, 0);
+			TE_SendToAll();
+		}
 	}
 	
 	if((g_clSkill_2[client] & SKL_2_Magnum) && g_sLastWeapon[client][0] != EOS)
@@ -5030,7 +5036,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		CreateTimer(0.1, Timer_CheckHavePistol, client);
 	}
 	
-	if(tk)
+	if(tk && attacker != client)
 	{
 		GiveSkillPoint(attacker, -1);
 		g_fForgiveOfFF[attacker] = GetEngineTime() + 45.0;
@@ -8015,6 +8021,9 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	
 	// 希望不会冲突吧
 	int maxClip = CalcPlayerClip(client, weapon);
+	int mulEffect = IsPlayerHaveEffect(client, 31);
+	if(mulEffect > 0)
+		maxClip += maxClip * mulEffect;
 	if(maxClip > 255)
 		maxClip = 255;
 	if(maxClip > 0)
@@ -9952,32 +9961,60 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			new Float:pos[3];
 			GetClientAbsOrigin(client, pos);
 
-			EmitSoundToAll(SOUND_BCLAW, client);
+			// EmitSoundToAll(SOUND_BCLAW, client);
+			EmitAmbientSound(SOUND_BCLAW, pos, client);
+			float radius = 500.0 * (1 + IsPlayerHaveEffect(client, 32));
 
 			for (new i = 1; i <= MaxClients; i++)
 			{
 				if(!IsValidAliveClient(i) || GetClientTeam(i) != 3)
 					continue;
 
-				new Float:vec[3];
+				decl Float:vec[3];
 				GetClientAbsOrigin(i, vec);
-				if(GetVectorDistance(vec, pos) > 500.0)
+				if(GetVectorDistance(vec, pos) > radius)
 					continue;
 
 				Charge(i, client, 750.0);
-				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_AIRBOAT);
+				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_AIRBOAT, 0, NULL_VECTOR, pos);
 			}
-
-			new newcolor1[4];
-			newcolor1[0] = GetRandomInt(0,255);
-			newcolor1[1] = GetRandomInt(0,255);
-			newcolor1[2] = GetRandomInt(0,255);
-			newcolor1[3] = 225;
-			pos[2] += 10;
-			//(目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
-			TE_SetupBeamRingPoint(pos, 2.0, 500.0, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, newcolor1, 0, 0);
-			TE_SendToAll();
+			
+			if(IsPlayerHaveEffect(client, 30))
+			{
+				int numEdict = GetMaxEntities();
+				for(int i = MaxClients + 1; i < numEdict; ++i)
+				{
+					if(!IsValidEdict(i) || !IsValidEntity(i))
+						continue;
+					
+					// 只要普感，不要 Witch
+					if(!HasEntProp(i, Prop_Send, "m_bIsBurning") || HasEntProp(i, Prop_Send, "m_rage"))
+						continue;
+					
+					decl Float:vec[3];
+					GetEntPropVector(i, Prop_Send, "m_vecOrigin", vec);
+					if(GetVectorDistance(vec, pos) > radius)
+						continue;
+					
+					SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 30)), DMG_AIRBOAT, 0, NULL_VECTOR, pos);
+				}
+			}
+			
 			CreateTimer(15.0, Timer_GunShovedReset, client, TIMER_FLAG_NO_MAPCHANGE);
+			
+			if(g_pCvarAllow.BoolValue)
+			{
+				new newcolor1[4];
+				newcolor1[0] = GetRandomInt(0,255);
+				newcolor1[1] = GetRandomInt(0,255);
+				newcolor1[2] = GetRandomInt(0,255);
+				newcolor1[3] = 225;
+				pos[2] += 10;
+				
+				//(目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
+				TE_SetupBeamRingPoint(pos, 2.0, radius, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, newcolor1, 0, 0);
+				TE_SendToAll();
+			}
 		}
 
 		int weaponId = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
@@ -12505,6 +12542,12 @@ bool RebuildEquipStr(int client, int index)
 			strcopy(g_esEffects[client][index], 128, "「爆破」替换为胆汁");
 		case 29:
 			strcopy(g_esEffects[client][index], 128, "被冻结时不会受到伤害");
+		case 30:
+			strcopy(g_esEffects[client][index], 128, "「霸气」目标包括普感");
+		case 31:
+			strcopy(g_esEffects[client][index], 128, "获得弹药升级数量加倍");
+		case 32:
+			strcopy(g_esEffects[client][index], 128, "「霸气」范围增加");
 		default:
 			strcopy(g_esEffects[client][index], 128, "");
 	}

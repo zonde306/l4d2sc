@@ -1972,8 +1972,35 @@ public Action Command_Give(int client, const char[] command, int argc)
 		AddAmmo(client, 999);
 		return Plugin_Handled;
 	}
+	else if(StrEqual(item, "health", false))
+	{
+		// 得等命令执行完才会设置血量
+		if(g_iRoundEvent == 19)
+			RequestFrame(ApplyHealthSwap, client);
+	}
 	
 	return Plugin_Continue;
+}
+
+public void ApplyHealthSwap(any client)
+{
+	if(!IsValidAliveClient(client) || GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
+		return;
+	
+	if(GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
+	{
+		int health = L4D2Direct_GetPreIncapHealth(client) + L4D2Direct_GetPreIncapHealthBuffer(client) - 1;
+		L4D2Direct_SetPreIncapHealthBuffer(client, health);
+		L4D2Direct_SetPreIncapHealth(client, 1);
+	}
+	else
+	{
+		int health = GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client) - 1;
+		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", health * 1.0);
+		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		SetEntProp(client, Prop_Data, "m_iHealth", 1);
+	}
+	
 }
 
 public Action:Command_Levelup(client, args)
@@ -4908,10 +4935,7 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	
 	if(g_iRoundEvent == 19)
 	{
-		int newHealth = GetEntProp(subject, Prop_Data, "m_iHealth");
-		SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", newHealth - 1.0);
-		SetEntPropFloat(subject, Prop_Send, "m_healthBufferTime", GetGameTime());
-		SetEntProp(subject, Prop_Data, "m_iHealth", 1);
+		ApplyHealthSwap(subject);
 	}
 }
 
@@ -6948,20 +6972,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	
 	if(g_iRoundEvent == 19)
 	{
-		/*
-		static ConVar cv_respawnhealth;
-		if(cv_respawnhealth == null)
-			cv_respawnhealth = FindConVar("z_survivor_respawn_health");
-
-		SetEntProp(client, Prop_Data, "m_iHealth", 1);
-		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", cv_respawnhealth.FloatValue - 1.0);
-		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
-		*/
-		
-		int newHealth = GetEntProp(subject, Prop_Data, "m_iHealth");
-		SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", newHealth - 1.0);
-		SetEntPropFloat(subject, Prop_Send, "m_healthBufferTime", GetGameTime());
-		SetEntProp(subject, Prop_Data, "m_iHealth", 1);
+		ApplyHealthSwap(subject);
 	}
 
 	return Plugin_Continue;
@@ -7879,10 +7890,7 @@ public void Event_SurvivorRescued(Event event, const char[] eventName, bool dont
 		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 		*/
 		
-		int newHealth = GetEntProp(subject, Prop_Data, "m_iHealth");
-		SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", newHealth - 1.0);
-		SetEntPropFloat(subject, Prop_Send, "m_healthBufferTime", GetGameTime());
-		SetEntProp(subject, Prop_Data, "m_iHealth", 1);
+		ApplyHealthSwap(subject);
 	}
 }
 
@@ -12901,13 +12909,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 				if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
 					continue;
 				
-				if(GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
-					continue;
-				
-				int health = GetEntProp(i, Prop_Data, "m_iHealth") + GetPlayerTempHealth(i) - 1;
-				SetEntPropFloat(i, Prop_Send, "m_healthBuffer", health * 1.0);
-				SetEntPropFloat(i, Prop_Send, "m_healthBufferTime", GetGameTime());
-				SetEntProp(i, Prop_Data, "m_iHealth", 1);
+				ApplyHealthSwap(i);
 			}
 			
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "血流不止");

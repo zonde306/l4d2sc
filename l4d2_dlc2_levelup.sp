@@ -114,6 +114,7 @@ enum()
 	SKL_2_ProtectiveSuit = 1024,
 	SKL_2_Magnum = 2048,
 	SKL_2_LadderGun = 4096,
+	SKL_2_IncapCrawling = 8192,
 
 	SKL_3_Sacrifice = 1,
 	SKL_3_Respawn = 2,
@@ -370,6 +371,7 @@ float g_fFreezeTime[MAXPLAYERS+1] = 0.0;
 int g_iWeaponSpeedEntity[MAXPLAYERS+1];
 float g_fWeaponSpeedUpdate[MAXPLAYERS+1];
 int g_iWeaponSpeedTotal = 0;
+bool g_bIsPluginCrawling = false;
 
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
 	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath;
@@ -379,7 +381,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 	g_hCvarShovRange, g_hCvarShovTime, g_hCvarMeleeRange, g_hCvarAdrenTime, g_hCvarDefibTime, g_hCvarZombieHealth,
 	g_hCvarIncapCount, g_hCvarPaincEvent, g_hCvarLimitSmoker, g_hCvarLimitBoomer, g_hCvarLimitHunter, g_hCvarLimitSpitter,
 	g_hCvarLimitJockey, g_hCvarLimitCharger, g_hCvarLimitSpecial, g_hCvarAccele, g_hCvarCollide, g_hCvarVelocity,
-	g_hCvarFirstAidMaxHeal, g_hCvarPainPillsMaxHeal;
+	g_hCvarFirstAidMaxHeal, g_hCvarPainPillsMaxHeal, g_hCvarIncapCrawling;
 
 int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
@@ -478,6 +480,7 @@ public OnPluginStart()
 	g_hCvarVelocity = FindConVar("sv_maxvelocity");
 	g_hCvarFirstAidMaxHeal = FindConVar("first_aid_kit_max_heal");
 	g_hCvarPainPillsMaxHeal = FindConVar("pain_pills_health_threshold");
+	g_hCvarIncapCrawling = FindConVar("survivor_allow_crawling");
 
 	HookConVarChange(g_hCvarZombieHealth, ConVarChaged_ZombieHealth);
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
@@ -731,6 +734,12 @@ public OnPluginStart()
 	}
 }
 
+public void OnConfigsExecuted()
+{
+	ConVar l4d2_crawling = FindConVar("l4d2_crawling");
+	g_bIsPluginCrawling = (l4d2_crawling != null && l4d2_crawling.BoolValue);
+}
+
 public void OnPluginEnd()
 {
 	if(g_hDetourTestMeleeSwingCollision)
@@ -959,6 +968,7 @@ void RestoreConVar()
 	g_hCvarAccele.Flags &= ~FCVAR_NOTIFY;
 	g_hCvarCollide.Flags &= ~FCVAR_NOTIFY;
 	g_hCvarVelocity.Flags &= ~FCVAR_NOTIFY;
+	g_hCvarIncapCrawling.Flags &= ~FCVAR_NOTIFY;
 
 	g_iCommonHealth = 50;
 	g_hCvarGodMode.IntValue = 0;
@@ -991,6 +1001,7 @@ void RestoreConVar()
 	g_hCvarAccele.IntValue = 10;
 	g_hCvarCollide.IntValue = 0;
 	g_hCvarVelocity.IntValue = 3500;
+	g_hCvarIncapCrawling.IntValue = 1;
 	
 	/*
 	for(int i = 1; i <= MaxClients; ++i)
@@ -1213,7 +1224,7 @@ void GenerateRandomStats(int client)
 	
 	// 技能
 	g_clSkill_1[client] = GetRandomInt(0, 16383);
-	g_clSkill_2[client] = GetRandomInt(0, 8191);
+	g_clSkill_2[client] = GetRandomInt(0, 16383);
 	g_clSkill_3[client] = GetRandomInt(0, 8191);
 	g_clSkill_4[client] = GetRandomInt(0, 8191);
 	g_clSkill_5[client] = GetRandomInt(0, 8191);
@@ -2492,7 +2503,10 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」受到胆汁影响时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
 	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地手枪换成马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
 	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("「固定」在梯子上不动可以掏出武器",(g_clSkill_2[client]&SKL_2_LadderGun)));
-
+	
+	if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
+		menu.AddItem(tr("2_%d",SKL_2_IncapCrawling), mps("「爬行」倒地可以爬行",(g_clSkill_2[client]&SKL_2_IncapCrawling)));
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	
@@ -3992,9 +4006,14 @@ void StatusSelectMenuFuncRP(int clientId)
 stock void FreezePlayer(int client, float time)
 {
 	g_fFreezeTime[client] = GetEngineTime() + time;
-	ClientCommand(client, "play \"physics/glass/glass_impact_bullet4.wav\"");
 	
-	SetEntityMoveType(client, MOVETYPE_NONE);
+	if(!IsFakeClient(client))
+	{
+		ClientCommand(client, "play \"physics/glass/glass_impact_bullet4.wav\"");
+		PrintHintText(client, "你被冻结 %.0f 秒", time);
+	}
+	
+	// SetEntityMoveType(client, MOVETYPE_NONE);
 	SetEntityRenderColor(client, 0, 128, 255, 192);
 	SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0xFFFFFFFF);
 	SetEntityFlags(client, GetEntityFlags(client) | FL_FROZEN | FL_FREEZING);
@@ -4235,13 +4254,22 @@ public void OnGameFrame()
 				g_fFreezeTime[i] = 0.0;
 				
 				if(!IsFakeClient(i))
+				{
 					ClientCommand(i, "play \"physics/glass/glass_impact_bullet4.wav\"");
+					PrintHintText(i, "解冻完成");
+				}
 				
 				// 取消冻结玩家
 				SetEntityRenderColor(i);
-				SetEntityMoveType(i, MOVETYPE_WALK);
+				// SetEntityMoveType(i, MOVETYPE_WALK);
 				SetEntProp(i, Prop_Data, "m_afButtonDisabled", 0);
 				SetEntityFlags(i, GetEntityFlags(i) & ~(FL_FROZEN|FL_FREEZING));
+			}
+			else if(g_fFreezeTime[i] > 0.0 && g_fFreezeTime[i] > curTime)
+			{
+				int timeleft = RoundToCeil(g_fFreezeTime[i] - curTime);
+				if(!IsFakeClient(i))
+					PrintHintText(i, "距离解冻还有 %d 秒", timeleft);
 			}
 		}
 
@@ -4930,10 +4958,20 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 {
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
-
-	if (!IsValidAliveClient(client) || GetClientTeam(client) != 2)
+	
+	if (!IsValidAliveClient(client))
 		return;
-
+	
+	float time = GetEngineTime();
+	if(GetClientTeam(client) != 2)
+	{
+		// 修复 Tank 死亡冻结 bug
+		if(g_fFreezeTime[client] > time)
+			g_fFreezeTime[client] = time;
+		
+		return;
+	}
+	
 	if (g_clSkill_2[client] & SKL_2_SelfHelp)
 	{
 		int chance = 1 + IsPlayerHaveEffect(client, 17);
@@ -5055,10 +5093,10 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			PrintToChat(attacker, "\x03[提示]\x01 你因为放倒队友而失去了 \x051\x01 天赋点。");
 	}
 	
-	if(g_fFreezeTime[client] > GetEngineTime() && IsPlayerHaveEffect(client, 16))
+	if(g_fFreezeTime[client] > time && IsPlayerHaveEffect(client, 16))
 	{
 		// 取消冰冻效果
-		g_fFreezeTime[client] = GetEngineTime();
+		g_fFreezeTime[client] = time;
 	}
 
 	if(g_iRoundEvent == 14)
@@ -10024,6 +10062,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	if(!IsValidAliveClient(client))
 		return Plugin_Continue;
 	
+	// 冻结时禁止任何操作
 	if(g_fFreezeTime[client] > GetEngineTime())
 		return Plugin_Handled;
 	
@@ -10350,6 +10389,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					}
 				}
 			}
+		}
+		
+		if(!(g_clSkill_2[client] & SKL_2_IncapCrawling) && !g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue && GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
+		{
+			// 禁止自带的倒地爬行
+			buttons &= ~(IN_FORWARD|IN_LEFT|IN_RIGHT|IN_BACK|IN_MOVELEFT|IN_MOVERIGHT);
 		}
 	}
 

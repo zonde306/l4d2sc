@@ -331,7 +331,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 34;
+const int g_iMaxEqmEffects = 35;
 
 //玩家基本资料
 char g_szSavePath[256];
@@ -1151,19 +1151,19 @@ public Action:Event_RoundStart(Handle:event, String:event_name[], bool:dontBroad
 public Action Timer_RoundStartPost(Handle timer, any data)
 {
 	RestoreConVar();
-
-	if(g_Cvarhppack.BoolValue)
+	
+	for(int i = 1; i <= MaxClients; ++i)
 	{
-		for(int i = 1; i <= MaxClients; ++i)
-		{
-			if(!IsValidClient(i) || GetClientTeam(i) != 2)
-				continue;
-
-			if(!IsPlayerAlive(i))
-				CheatCommand(i, "respawn");
-			else
-				CheatCommand(i, "give", "health");
-		}
+		if(!IsValidClient(i) || GetClientTeam(i) != 2)
+			continue;
+		
+		if(!g_Cvarhppack.BoolValue && !IsPlayerHaveEffect(i, 35))
+			continue;
+		
+		if(!IsPlayerAlive(i))
+			CheatCommand(i, "respawn");
+		
+		CheatCommand(i, "give", "health");
 	}
 	
 	for(int i = 1; i <= MaxClients; ++i)
@@ -6935,7 +6935,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	}
 	*/
 	
-	RegPlayerHook(subject, g_Cvarhppack.BoolValue);
+	RegPlayerHook(subject, (g_Cvarhppack.BoolValue || IsPlayerHaveEffect(subject, 35)));
 	
 	// 修复电击复活后的武器
 	if((g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
@@ -7675,7 +7675,8 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 		return;
 	
 	bool si = (GetClientTeam(client) == 3 && StrEqual(eventName, "player_first_spawn", false));
-	RegPlayerHook(client, (si || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying)));
+	bool sur = (StrEqual(eventName, "player_first_spawn", false) && IsPlayerHaveEffect(client, 35));
+	RegPlayerHook(client, (si || sur || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying)));
 	
 	if(g_clSkill_1[client] & SKL_1_Armor)
 	{
@@ -7876,7 +7877,7 @@ public void Event_SurvivorRescued(Event event, const char[] eventName, bool dont
 		AddArmor(subject, 100 + (100 * IsPlayerHaveEffect(subject, 33)));
 	}
 	
-	RegPlayerHook(subject, g_Cvarhppack.BoolValue);
+	RegPlayerHook(subject, (g_Cvarhppack.BoolValue || IsPlayerHaveEffect(subject, 35)));
 	
 	if(g_iRoundEvent == 19)
 	{
@@ -12707,6 +12708,8 @@ bool RebuildEquipStr(int client, int index)
 			strcopy(g_esEffects[client][index], 128, "「护甲」复活/开局+100");
 		case 34:
 			strcopy(g_esEffects[client][index], 128, "「护甲」倒地救起/打包+50");
+		case 35:
+			strcopy(g_esEffects[client][index], 128, "开局/复活满血");
 		default:
 			strcopy(g_esEffects[client][index], 128, "");
 	}

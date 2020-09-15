@@ -7663,7 +7663,8 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	if(!IsValidClient(client))
 		return;
 	
-	RegPlayerHook(client, (g_Cvarhppack.BoolValue && !g_bIsGamePlaying));
+	bool si = (GetClientTeam(client) == 3 && StrEqual(eventName, "player_first_spawn", false));
+	RegPlayerHook(client, (si || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying)));
 	
 	if(g_clSkill_1[client] & SKL_1_Armor)
 	{
@@ -11852,11 +11853,27 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i) || i == client) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				g_clSkill_1[client] = 0;
+				
+				int level = GetRandomInt(1, 5);
+				switch(level)
+				{
+					case 1:
+						g_clSkill_1[client] = 0;
+					case 2:
+						g_clSkill_2[client] = 0;
+					case 3:
+						g_clSkill_3[client] = 0;
+					case 4:
+						g_clSkill_4[client] = 0;
+					case 5:
+						g_clSkill_5[client] = 0;
+				}
+				
 				ClientCommand(client, "play \"ambient/animal/crow_1.wav\"");
 				
 				RegPlayerHook(client, false);
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04练功走火入魔,丧失掉所有\x03一级\x04天赋技能,大家一起默哀三分钟...", client);
+				// ClientSaveToFileSave(client, false);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04修仙走火入魔,丧失掉所有\x03%d级\x04天赋技能,大家一起默哀三分钟...", client, level);
 			}
 			case 48:
 			{

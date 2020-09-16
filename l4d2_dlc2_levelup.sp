@@ -331,7 +331,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 35;
+const int g_iMaxEqmEffects = 36;
 
 //玩家基本资料
 char g_szSavePath[256];
@@ -5578,11 +5578,15 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				{
 					case 1:
 					{
+						bool selfhelp = !!IsPlayerHaveEffect(victim, 36);
 						for(new i = 1; i <= MaxClients; i++)
 						{
-							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team && !IsPlayerIncapped(i) && !IsSurvivorHeld(i))
+							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
 							{
-								CheatCommand(i, "give", "health");
+								if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
+									CheatCommand(i, "give", "health");
+								else if(selfhelp || IsPlayerHaveEffect(i, 36))
+									CreateTimer(3.0, EventRevive, i);
 							}
 						}
 						
@@ -6135,11 +6139,15 @@ void RewardPicker(int client)
 					{
 						case 1:
 						{
+							bool selfhelp = !!IsPlayerHaveEffect(client, 36);
 							for(new i = 1; i <= MaxClients; i++)
 							{
-								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2 && !IsPlayerIncapped(i) && !IsSurvivorHeld(i))
+								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
 								{
-									CheatCommand(i, "give", "health");
+									if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
+										CheatCommand(i, "give", "health");
+									else if(selfhelp || IsPlayerHaveEffect(i, 36))
+										CreateTimer(3.0, EventRevive, i);
 								}
 							}
 							for (new i = 1; i <= MaxClients; i++)
@@ -12710,6 +12718,8 @@ bool RebuildEquipStr(int client, int index)
 			strcopy(g_esEffects[client][index], 128, "「护甲」倒地救起/打包+50");
 		case 35:
 			strcopy(g_esEffects[client][index], 128, "开局/复活满血");
+		case 36:
+			strcopy(g_esEffects[client][index], 128, "「王者之仁德」增加「顽强」效果");
 		default:
 			strcopy(g_esEffects[client][index], 128, "");
 	}

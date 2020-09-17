@@ -2492,18 +2492,18 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("========= 一级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("「强身」HP上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("「强身」血量上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+10%",(g_clSkill_1[client]&SKL_1_Movement)));
-	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("「自愈」倒地被救起恢复HP+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("「自愈」倒地救起血量+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("「凶狠」暴击率+5",(g_clSkill_1[client]&SKL_1_DmgExtra)));
-	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限弹匣子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
+	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
-	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」免疫队友伤害(自己造成和来自队友)",(g_clSkill_1[client]&SKL_1_Firendly)));
-	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」半自动武器改为全自动",(g_clSkill_1[client]&SKL_1_RapidFire)));
-	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活/开局护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
-	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力/取消摇晃",(g_clSkill_1[client]&SKL_1_NoRecoil)));
+	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」避免队友伤害",(g_clSkill_1[client]&SKL_1_Firendly)));
+	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」全部枪为连射",(g_clSkill_1[client]&SKL_1_RapidFire)));
+	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
+	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装不卸下弹匣/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
-	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起队友或被队友拉起时不会被普感打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
+	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
@@ -2526,17 +2526,17 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_PainPills), mps("「嗜药」每120秒获得一个药丸",(g_clSkill_2[client]&SKL_2_PainPills)));
 	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」每200秒恢复全血",(g_clSkill_2[client]&SKL_2_FullHealth)));
 	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("「电疗」每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
-	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("「擅医」打包成功恢复HP+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
+	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("「擅医」打包治疗量+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
 	menu.AddItem(tr("2_%d",SKL_2_PipeBomb), mps("「爆破」每100秒获得一个土制",(g_clSkill_2[client]&SKL_2_PipeBomb)));
-	menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("「顽强」倒地时1/4几率自救",(g_clSkill_2[client]&SKL_2_SelfHelp)));
-	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("「自守」倒地被控自动推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
+	menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("「顽强」倒地1/4几率自救",(g_clSkill_2[client]&SKL_2_SelfHelp)));
+	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("「自守」倒地推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("「踏空」允许二级跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
-	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」受到胆汁影响时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
-	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地手枪换成马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
-	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("「固定」在梯子上不动可以掏出武器",(g_clSkill_2[client]&SKL_2_LadderGun)));
+	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」胆汁时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
+	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
+	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("「固定」梯子上掏枪",(g_clSkill_2[client]&SKL_2_LadderGun)));
 	
 	if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
-		menu.AddItem(tr("2_%d",SKL_2_IncapCrawling), mps("「爬行」倒地可以爬行",(g_clSkill_2[client]&SKL_2_IncapCrawling)));
+		menu.AddItem(tr("2_%d",SKL_2_IncapCrawling), mps("「爬行」倒地爬行",(g_clSkill_2[client]&SKL_2_IncapCrawling)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2561,12 +2561,12 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_Kickback), mps("「轰炸」暴击时1/2几率附加击退效果",(g_clSkill_3[client]&SKL_3_Kickback)));
 	menu.AddItem(tr("3_%d",SKL_3_GodMode), mps("「无敌」每80秒获得9秒无敌时间",(g_clSkill_3[client]&SKL_3_GodMode)));
 	menu.AddItem(tr("3_%d",SKL_3_SelfHeal), mps("「暴疗」每150秒恢复80HP(可转换)",(g_clSkill_3[client]&SKL_3_SelfHeal)));
-	menu.AddItem(tr("3_%d",SKL_3_BunnyHop), mps("「灵活」按住空格自动连跳",(g_clSkill_3[client]&SKL_3_BunnyHop)));
-	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("「降落」在空中按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
+	menu.AddItem(tr("3_%d",SKL_3_BunnyHop), mps("「灵活」自动连跳",(g_clSkill_3[client]&SKL_3_BunnyHop)));
+	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("「降落」按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
 	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("「储备」更多携带弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
 	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("「守备」受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
 	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("「跳弹」子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
-	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」满弹匣第一枪一定会暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
+	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪一定会暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -2585,7 +2585,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("「坚韧」被坦克击中随机恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
 	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+10",(g_clSkill_4[client]&SKL_4_DmgExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("「霸气」蹲下右键可以弹开周围的特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
-	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」武器攻击速度提升",(g_clSkill_4[client]&SKL_4_FastFired)));
+	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」射速增加",(g_clSkill_4[client]&SKL_4_FastFired)));
 	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("「神狙」AWP射速加快无限备用子弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("「嗜弹」武器上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
 	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("「扫射」M60无限弹匣子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
@@ -7720,6 +7720,9 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 
 public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool dontBroadcast)
 {
+	if(!g_bIsGamePlaying)
+		return;
+	
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidClient(client))
 		return;
@@ -8601,7 +8604,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 
 public void PlayerHook_OnPostThinkPost(int client)
 {
-	if(g_clSkill_1[client] & SKL_1_NoRecoil)
+	if((g_clSkill_1[client] & SKL_1_NoRecoil) && (GetClientButtons(client) & IN_ATTACK))
 	{
 		// 无后坐力
 		SetEntProp(client, Prop_Send, "m_iShotsFired", 0);

@@ -385,7 +385,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 	g_hCvarLimitJockey, g_hCvarLimitCharger, g_hCvarLimitSpecial, g_hCvarAccele, g_hCvarCollide, g_hCvarVelocity,
 	g_hCvarFirstAidMaxHeal, g_hCvarPainPillsMaxHeal, g_hCvarIncapCrawling;
 
-int g_iZombieSpawner = -1;
+// int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
 bool g_bRoundFirstStarting = false, g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints;
@@ -716,10 +716,12 @@ public OnPluginStart()
 			if(g_pfnOnCarryEnded != null)
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnCarryEnded Found.");
 			
+			/*
 			StartPrepSDKCall(SDKCall_Player);
 			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::IsInvulnerable");
 			PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
 			g_pfnIsInvulnerable = EndPrepSDKCall();
+			*/
 			
 			if(g_pfnIsInvulnerable != null)
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Found.");
@@ -1038,6 +1040,7 @@ public OnMapEnd()
 	{
 		// Initialization(i);
 		ClientSaveToFileSave(i, true);
+		OnEntityDestroyed(i);
 	}
 }
 
@@ -1055,9 +1058,12 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 		// Initialization(i);
 		g_bHasFirstJoin[i] = false;
 		// g_bHasJumping[i] = false;
+		OnEntityDestroyed(i);
 	}
+	
 	RestoreConVar();
-
+	
+	/*
 	if(g_iZombieSpawner > -1)
 	{
 		if(IsValidEntity(g_iZombieSpawner))
@@ -1065,6 +1071,7 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 
 		g_iZombieSpawner = -1;
 	}
+	*/
 }
 
 public Action:Event_FinaleWin(Handle:event, String:event_name[], bool:dontBroadcast)
@@ -4416,6 +4423,9 @@ public void OnGameFrame()
 
 public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 {
+	if(!g_bIsGamePlaying)
+		return Plugin_Continue;
+	
 	if(!IsValidAliveClient(curTarget))
 		return Plugin_Continue;
 	
@@ -4518,17 +4528,24 @@ int ChooseSpecialVictim(int attacker, int ignore = -1)
 
 stock void SpawnCommonZombie(const char[] zombieName, float position[3], const char[] targetName = "")
 {
-	if(g_iZombieSpawner == -1 || !IsValidEntity(g_iZombieSpawner))
-		g_iZombieSpawner = CreateEntityByName("commentary_zombie_spawner");
-
-	TeleportEntity(g_iZombieSpawner, position, NULL_VECTOR, NULL_VECTOR);
-
+	static int iZombieSpawner = INVALID_ENT_REFERENCE;
+	if(iZombieSpawner == INVALID_ENT_REFERENCE || !IsValidEntity(iZombieSpawner))
+	{
+		iZombieSpawner = EntIndexToEntRef(CreateEntityByName("commentary_zombie_spawner"));
+		if(iZombieSpawner == INVALID_ENT_REFERENCE || !IsValidEntity(iZombieSpawner))
+			SetFailState("Could not create 'commentary_zombie_spawner'");
+		
+		DispatchSpawn(iZombieSpawner);
+	}
+	
+	TeleportEntity(iZombieSpawner, position, NULL_VECTOR, NULL_VECTOR);
+	
 	if(targetName[0] != EOS)
 		SetVariantString(tr("%s,%s", zombieName, targetName));
 	else
 		SetVariantString(zombieName);
-
-	AcceptEntityInput(g_iZombieSpawner, "SpawnZombie");
+	
+	AcceptEntityInput(iZombieSpawner, "SpawnZombie");
 }
 
 // 获取玩家瞄准的实体
@@ -10918,6 +10935,9 @@ stock bool IsChargerCharging(int client)
 
 public MRESReturn TestMeleeSwingCollisionPre(int pThis, Handle hReturn)
 {
+	if(!g_bIsGamePlaying)
+		return MRES_Ignored;
+	
 	if( IsValidEntity(pThis) )
 	{
 		int owner = GetEntPropEnt(pThis, Prop_Send, "m_hOwnerEntity");
@@ -10940,6 +10960,9 @@ public MRESReturn TestMeleeSwingCollisionPre(int pThis, Handle hReturn)
 
 public MRESReturn TestMeleeSwingCollisionPost(int pThis, Handle hReturn)
 {
+	if(!g_bIsGamePlaying)
+		return MRES_Ignored;
+	
 	if( g_iOldMeleeSwingRange > 0 && g_iOldMeleeSwingRange < g_hCvarMeleeRange.IntValue )
 	{
 		g_hCvarMeleeRange.IntValue = g_iOldMeleeSwingRange;
@@ -10951,6 +10974,9 @@ public MRESReturn TestMeleeSwingCollisionPost(int pThis, Handle hReturn)
 
 public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
 {
+	if(!g_bIsGamePlaying)
+		return MRES_Ignored;
+	
 	if( IsValidEntity(pThis) )
 	{
 		int owner = GetEntPropEnt(pThis, Prop_Send, "m_hOwnerEntity");
@@ -10975,6 +11001,9 @@ public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
 
 public MRESReturn TestSwingCollisionPost(int pThis, Handle hReturn)
 {
+	if(!g_bIsGamePlaying)
+		return MRES_Ignored;
+	
 	if( g_iOldShoveSwingRange > 0 && g_iOldShoveSwingRange < g_hCvarShovRange.IntValue )
 	{
 		g_hCvarShovRange.IntValue = g_iOldShoveSwingRange;
@@ -10987,11 +11016,17 @@ public MRESReturn TestSwingCollisionPost(int pThis, Handle hReturn)
 /*
 public MRESReturn IsInvulnerablePre(int pThis, Handle hReturn)
 {
+	if(!g_bIsGamePlaying)
+		return MRES_Ignored;
+	
 	return MRES_Ignored;
 }
 
 public MRESReturn IsInvulnerablePost(int pThis, Handle hReturn)
 {
+	if(!g_bIsGamePlaying)
+		return MRES_Ignored;
+	
 	bool invul = DHookGetReturn(hReturn);
 	if(IsValidClient(pThis))
 		g_bIsInvulnerable[pThis] = invul;
@@ -11023,6 +11058,9 @@ public Action Timer_DoubleJumpReset(Handle timer, any client)
 
 public Action L4D2_OnStagger(int target, int source)
 {
+	if(!g_bIsGamePlaying)
+		return Plugin_Continue;
+	
 	if(!IsValidAliveClient(target))
 		return Plugin_Continue;
 	

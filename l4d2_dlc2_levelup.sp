@@ -5890,13 +5890,12 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	}
 	
 	// 此时还未实际受到伤害，必须等待下一帧才需要更新护甲
-	if(g_iExtraArmor[victim] > 0)
-		RequestFrame(FillExtraArmor, victim);
+	RequestFrame(FillExtraArmor, victim);
 }
 
 public void FillExtraArmor(any client)
 {
-	if(!IsValidAliveClient(client) || g_iExtraArmor[client] <= 0)
+	if(!IsValidAliveClient(client))
 		return;
 	
 	int count = g_iExtraArmor[client] + GetEntProp(client, Prop_Send, "m_ArmorValue");

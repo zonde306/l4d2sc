@@ -902,12 +902,12 @@ public OnMapStart()
 	PrecacheSound(SOUND_GIFT_PICKUP);
 	// PrecacheSound(SOUND_WARP);
 
-	if ( !IsModelPrecached( STAR_1_MDL ))		PrecacheModel( STAR_1_MDL );
-	if ( !IsModelPrecached( STAR_2_MDL ))		PrecacheModel( STAR_2_MDL );
-	if ( !IsModelPrecached( MUSHROOM_MDL ))		PrecacheModel( MUSHROOM_MDL );
-	if ( !IsModelPrecached( CHAIN_MDL ))		PrecacheModel( CHAIN_MDL );
-	if ( !IsModelPrecached( GOMBA_MDL ))		PrecacheModel( GOMBA_MDL );
-	if ( !IsModelPrecached( LUMA_MDL ))			PrecacheModel( LUMA_MDL );
+	PrecacheModel( STAR_1_MDL );
+	PrecacheModel( STAR_2_MDL );
+	PrecacheModel( MUSHROOM_MDL );
+	PrecacheModel( CHAIN_MDL );
+	PrecacheModel( GOMBA_MDL );
+	PrecacheModel( LUMA_MDL );
 
 	PrecacheSound( REWARD_SOUND, true );
 	RestoreConVar();
@@ -1408,6 +1408,14 @@ bool ClientSaveToFileLoad(int client, bool remember = false)
 		g_ttPaincEvent[client] = g_kvSavePlayer[client].GetNum("painc_holdout");
 		g_ttRescued[client] = g_kvSavePlayer[client].GetNum("rescued_count");
 	}
+	/*
+	else
+	{
+		g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
+			g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
+			g_ttPaincEvent[client] = g_ttRescued[client] = g_clAngryPoint[client] = 0;
+	}
+	*/
 	
 	// 装备相关
 	if(g_kvSavePlayer[client].JumpToKey("equipment", false))
@@ -1504,6 +1512,19 @@ bool ClientSaveToFileSave(int client, bool remember = false)
 		g_kvSavePlayer[client].SetNum("zone_cleared", g_ttCleared[client]);
 		g_kvSavePlayer[client].SetNum("painc_holdout", g_ttPaincEvent[client]);
 		g_kvSavePlayer[client].SetNum("rescued_count", g_ttRescued[client]);
+	}
+	else
+	{
+		g_kvSavePlayer[client].SetNum("angry_point", 0);
+		g_kvSavePlayer[client].SetNum("defib_used", 0);
+		g_kvSavePlayer[client].SetNum("revived_count", 0);
+		g_kvSavePlayer[client].SetNum("si_killed", 0);
+		g_kvSavePlayer[client].SetNum("ci_killed", 0);
+		g_kvSavePlayer[client].SetNum("pills_given", 0);
+		g_kvSavePlayer[client].SetNum("team_protected", 0);
+		g_kvSavePlayer[client].SetNum("zone_cleared", 0);
+		g_kvSavePlayer[client].SetNum("painc_holdout", 0);
+		g_kvSavePlayer[client].SetNum("rescued_count", 0);
 	}
 	
 	// 装备相关
@@ -4052,6 +4073,8 @@ stock void FreezePlayer(int client, float time)
 		PrintHintText(client, "你被冻结 %.0f 秒", time);
 	}
 	
+	CheatCommandEx(client, "stopsound");
+	SetEntPropFloat(client, Prop_Send, "m_TimeForceExternalView", 99999.3);
 	// SetEntityMoveType(client, MOVETYPE_NONE);
 	SetEntityRenderColor(client, 0, 128, 255, 192);
 	SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0xFFFFFFFF);
@@ -4299,6 +4322,7 @@ public void OnGameFrame()
 				}
 				
 				// 取消冻结玩家
+				SetEntPropFloat(i, Prop_Send, "m_TimeForceExternalView", 0.0);
 				SetEntityRenderColor(i);
 				// SetEntityMoveType(i, MOVETYPE_WALK);
 				SetEntProp(i, Prop_Data, "m_afButtonDisabled", 0);
@@ -4328,7 +4352,7 @@ public void OnGameFrame()
 
 			if(g_iRoundEvent == 11)
 			{
-				CheatCommandEx(randPlayer, "z_spawn_old", "witch auto");
+				CheatCommand(randPlayer, "z_spawn_old", "witch auto");
 				// PrintToServer("玩家 %N 刷出了一只 Witch", randPlayer);
 				g_fNextRoundEvent = curTime + 120.0;
 			}
@@ -4341,17 +4365,17 @@ public void OnGameFrame()
 					switch(randNumber)
 					{
 						case 1:
-							CheatCommandEx(randPlayer, "z_spawn_old", "smoker auto");
+							CheatCommand(randPlayer, "z_spawn_old", "smoker auto");
 						case 2:
-							CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto");
+							CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
 						case 3:
-							CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto");
+							CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
 						case 4:
-							CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto");
+							CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
 						case 5:
-							CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto");
+							CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
 						case 6:
-							CheatCommandEx(randPlayer, "z_spawn_old", "charger auto");
+							CheatCommand(randPlayer, "z_spawn_old", "charger auto");
 					}
 				}
 
@@ -4361,17 +4385,17 @@ public void OnGameFrame()
 			}
 			else if(g_iRoundEvent == 15)
 			{
-				CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto");
-				CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto");
-				CheatCommandEx(randPlayer, "z_spawn_old", "spitter auto");
-				CheatCommandEx(randPlayer, "z_spawn_old", "boomer auto");
+				CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
+				CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
+				CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
+				CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
 				// PrintToServer("玩家 %N 刷出了一只 Boomer 和 Spitter", randPlayer);
 				g_fNextRoundEvent = curTime + 30.0;
 			}
 			else if(g_iRoundEvent == 16)
 			{
-				CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto");
-				CheatCommandEx(randPlayer, "z_spawn_old", "hunter auto");
+				CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
+				CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
 				// PrintToServer("玩家 %N 刷出了一只 Hunter", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
 			}
@@ -4387,8 +4411,8 @@ public void OnGameFrame()
 			}
 			else if(g_iRoundEvent == 18)
 			{
-				CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto");
-				CheatCommandEx(randPlayer, "z_spawn_old", "jockey auto");
+				CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
+				CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
 				// PrintToServer("玩家 %N 刷出了一只 Jockey", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
 			}
@@ -5864,6 +5888,33 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			}
 		}
 	}
+	
+	// 此时还未实际受到伤害，必须等待下一帧才需要更新护甲
+	if(g_iExtraArmor[victim] > 0)
+		RequestFrame(FillExtraArmor, victim);
+}
+
+public void FillExtraArmor(any client)
+{
+	if(!IsValidAliveClient(client) || g_iExtraArmor[client] <= 0)
+		return;
+	
+	int count = g_iExtraArmor[client] + GetEntProp(client, Prop_Send, "m_ArmorValue");
+	if(count <= 0)
+		return;
+	
+	if(count > 127)
+	{
+		SetEntProp(client, Prop_Send, "m_ArmorValue", 127);
+		g_iExtraArmor[client] = count - 127;
+	}
+	else
+	{
+		SetEntProp(client, Prop_Send, "m_ArmorValue", count);
+		g_iExtraArmor[client] = 0;
+	}
+	
+	PrintCenterText(client, "护甲剩余 %d", count);
 }
 
 public Action:Timer_NCJ1(Handle:timer, any:client)
@@ -8044,7 +8095,7 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 		data.WriteString(classname);
 		data.WriteCell(true);
 		
-		// 捡起固定刷武器只会触发 item_pickup，不会触发 player_use
+		// 捡起固定刷武器和插件给的武器只会触发 item_pickup，不会触发 player_use
 		RequestFrame(UpdateWeaponAmmo, data);
 	}
 	
@@ -8458,7 +8509,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	{
 		if(oldTeam <= 1 && newTeam >= 2)
 		{
-			ClientSaveToFileLoad(client, true);
+			// ClientSaveToFileLoad(client, true);
 			// RegPlayerHook(client, false);
 			CreateTimer(0.6, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 			// PrintToServer("读取 %N 的数据，原因：加入队伍");
@@ -9958,7 +10009,7 @@ stock bool AddArmor(int client, int amount, bool helmet = true)
 	if(!IsValidAliveClient(client) || amount == 0)
 		return false;
 	
-	int count = g_iExtraArmor[client] + GetEntProp(client, Prop_Send, "m_ArmorValue");
+	int count = g_iExtraArmor[client] + GetEntProp(client, Prop_Send, "m_ArmorValue") + amount;
 	
 	if(count > 127)
 	{
@@ -11272,7 +11323,8 @@ stock bool CheatCommandEx(int client = 0, const char[] command, const char[] arg
 	{
 		int adminFlags = GetUserFlagBits(client);
 		SetUserFlagBits(client, ADMFLAG_ROOT);
-		FakeClientCommand(client, "%s %s", command, fmt);
+		// FakeClientCommand(client, "%s %s", command, fmt);
+		ClientCommand(client, "%s %s", command, fmt);
 		SetUserFlagBits(client, adminFlags);
 	}
 	else
@@ -12137,7 +12189,7 @@ public Action:Event_RP(Handle:timer, any:client)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_BAD);
 				}
-				CheatCommandEx(client, "z_spawn_old", "tank auto");
+				CheatCommand(client, "z_spawn_old", "tank auto");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04画个圈圈召唤出了坦克.", client);
 			}
 			case 51:
@@ -13087,7 +13139,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 				// SetEntProp(i, Prop_Send, "m_currentReviveCount", 0);
 				SetEntProp(i, Prop_Send, "m_bIsOnThirdStrike", 0);
 				SetEntProp(i, Prop_Send, "m_isGoingToDie", 0);
-				CheatCommand(i, "stopsound");
+				CheatCommandEx(i, "stopsound");
 			}
 
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "死亡之门");

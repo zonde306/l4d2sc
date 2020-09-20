@@ -1294,12 +1294,7 @@ void GenerateRandomStats(int client)
 	
 	// 装备
 	for(int i = 0; i < 4; ++i)
-	{
-		if(!GetRandomInt(0, 9))
-			g_clCurEquip[client][i] = GiveEquipment(client, i);
-		else
-			g_clCurEquip[client][i] = 0;
-	}
+		g_clCurEquip[client][i] = GiveEquipment(client, i);
 }
 
 void Initialization(int client, bool invalid = false)
@@ -3110,10 +3105,10 @@ public int MenuHandler_EquipMain(Menu menu, MenuAction action, int client, int s
 		case 5:
 		{
 			int damage, health, speed, gravity, crit;
-			CalcPlayerAttr(client, damage, health, speed, gravity, crit, false);
+			CalcPlayerAttr(client, damage, health, speed, gravity, crit, true);
 			
 			PrintToChat(client,
-				"\x01[属性] 伤害+\x03%d\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 战斗力=\x03%d\x01.",
+				"\x05[属性]\x01 伤害+\x03%d\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 战斗力=\x03%d\x01.",
 				damage,health,speed,gravity,crit,CalcPlayerPower(client)
 			);
 			
@@ -3132,22 +3127,22 @@ int CalcPlayerPower(int client)
 	int power = 0;
 	
 	for(int i = 0; i < 31; ++i)
-		if(g_clSkill_1[i] & (1 << i))
+		if(g_clSkill_1[client] & (1 << i))
 			power += 100;
 	for(int i = 0; i < 31; ++i)
-		if(g_clSkill_2[i] & (1 << i))
+		if(g_clSkill_2[client] & (1 << i))
 			power += 200;
 	for(int i = 0; i < 31; ++i)
-		if(g_clSkill_3[i] & (1 << i))
+		if(g_clSkill_3[client] & (1 << i))
 			power += 300;
 	for(int i = 0; i < 31; ++i)
-		if(g_clSkill_4[i] & (1 << i))
+		if(g_clSkill_4[client] & (1 << i))
 			power += 400;
 	for(int i = 0; i < 31; ++i)
-		if(g_clSkill_5[i] & (1 << i))
+		if(g_clSkill_5[client] & (1 << i))
 			power += 500;
 	
-	for(int i = 0; i < 4; ++i)
+	for(int i = 0; i < sizeof(g_clCurEquip[]); ++i)
 	{
 		if(!g_clCurEquip[client][i])
 			continue;
@@ -3558,10 +3553,10 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 			{
 				g_clCurEquip[client][data.parts] = data.hashID;
 				RegPlayerHook(client, false);
-				CalcPlayerAttr(client, damage, health, speed, gravity, crit, true);
+				CalcPlayerAttr(client, damage, health, speed, gravity, crit, false);
 				
 				PrintToChat(client,
-					"\x03[提示]\x01 成功穿上该装备,穿上后 伤害+\x03%d\x01 HP=\x03%d％\x01 速度=\x03%d％\x01 跳跃=\x03%d％\x01 暴击=\x03%d‰\x01 附加:\x03%s\x01.",
+					"\x03[提示]\x01 成功穿上该装备,穿上后 伤害+\x03%d\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 附加:\x03%s\x01.",
 					damage,health,speed,gravity,crit,data.sEffect
 				);
 				// EmitSoundToClient(client,g_soundLevel);
@@ -3578,10 +3573,10 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 			{
 				g_clCurEquip[client][data.parts] = 0;
 				RegPlayerHook(client, false);
-				CalcPlayerAttr(client, damage, health, speed, gravity, crit, true);
+				CalcPlayerAttr(client, damage, health, speed, gravity, crit, false);
 				
 				PrintToChat(client,
-					"\x03[提示]\x01 成功卸下该装备,卸下后 伤害+\x03%d\x01 HP=\x03%d％\x01 速度=\x03%d％\x01 跳跃=\x03%d％\x01 暴击=\x03%d‰\x01 取消:\x03%s\x01.",
+					"\x03[提示]\x01 成功卸下该装备,卸下后 伤害+\x03%d\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 取消:\x03%s\x01.",
 					damage,health,speed,gravity,crit,data.sEffect
 				);
 			}
@@ -5751,7 +5746,8 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	}
 	
 	// 此时还未实际受到伤害，必须等待下一帧才需要更新护甲
-	RequestFrame(FillExtraArmor, victim);
+	if(attacker > 0 || attackerId > 0)
+		RequestFrame(FillExtraArmor, victim);
 }
 
 public void FillExtraArmor(any client)
@@ -5779,7 +5775,14 @@ public void FillExtraArmor(any client)
 
 void GiveAngryPoint(int victim, int amount)
 {
-	if(g_iRoundEvent == 10) amount += 5;
+	if(!IsValidClient(victim))
+		return;
+	
+	g_clAngryPoint[victim] += amount;
+	if(g_iRoundEvent == 10) g_clAngryPoint[victim] += amount;
+	
+	if(!IsPlayerAlive(victim))
+		return;
 	
 	if(g_clAngryPoint[victim] >= 100 && !NCJ_ON && g_clAngryMode[victim] > 0)
 	{

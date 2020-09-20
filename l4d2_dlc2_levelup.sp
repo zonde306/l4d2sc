@@ -4035,9 +4035,7 @@ void StatusSelectMenuFuncRP(int clientId)
 	{
 		if(!g_bHasRPActive && !g_bIsRPActived[clientId])
 		{
-			g_clAngryPoint[clientId] += 2;
-			if(g_iRoundEvent == 10)
-				g_clAngryPoint[clientId] += 2;
+			GiveAngryPoint(clientId, 2);
 
 			g_bHasRPActive = true;
 			g_bIsRPActived[clientId] = true;
@@ -5664,208 +5662,13 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		
 		if(isInfected)
 		{
+			int amount = 0;
 			if(GetEntProp(victim, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
-				g_clAngryPoint[victim] += (dmg > 3 ? 3 : dmg);
+				amount = (dmg > 3 ? 3 : dmg);
 			else
-				g_clAngryPoint[victim] += (dmg > 10 ? 10 : dmg);
+				amount = (dmg > 10 ? 10 : dmg);
 			
-			if(g_iRoundEvent == 10) g_clAngryPoint[victim] += 5;
-			
-			if(g_clAngryPoint[victim] >= 100 && !NCJ_ON)
-			{
-				g_clAngryPoint[victim] -= 100;
-				
-				int mulEffect = IsPlayerHaveEffect(victim, 3);
-				if(mulEffect > 0)
-				{
-					g_clAngryPoint[victim] += 10 * mulEffect;
-					if(g_iRoundEvent == 10) g_clAngryPoint[victim] += 10 * mulEffect;
-				}
-
-				int team = GetClientTeam(victim);
-				switch(g_clAngryMode[victim])
-				{
-					case 1:
-					{
-						bool selfhelp = !!IsPlayerHaveEffect(victim, 36);
-						for(new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
-							{
-								if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
-									CheatCommand(i, "give", "health");
-								else if(selfhelp || IsPlayerHaveEffect(i, 36))
-									CreateTimer(3.0, EventRevive, i);
-							}
-						}
-						
-						if(g_pCvarAllow.BoolValue)
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(SOUND_GOOD, i);
-									// EmitSoundToAll(SOUND_GOOD, i);
-									ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
-								}
-							}
-
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血，倒地/被控除外\x04.",victim);
-						else
-							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员回血，倒地/被控除外）\x01。");
-					}
-					case 2:
-					{
-						NCJ_1 = true;
-						NCJ_ON = true;
-						CreateTimer(40.0, Timer_NCJ1, 0, TIMER_FLAG_NO_MAPCHANGE);
-						
-						if(g_pCvarAllow.BoolValue)
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(g_soundLevel, i);
-									// EmitSoundToAll(g_soundLevel, i);
-									ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
-								}
-							}
-						
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",victim);
-						else
-							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+100,持续40秒）\x01。");
-					}
-					case 3:
-					{
-						if(g_pCvarAllow.BoolValue)
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(SOUND_GOOD, i);
-									// EmitSoundToAll(SOUND_GOOD, i);
-									ClientCommand(i, "play \"ui/pickup_secret01.wav\"");
-								}
-							}
-						
-						for(new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && GetClientTeam(i) == team)
-							{
-								GiveSkillPoint(i, 1);
-							}
-						}
-						
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",victim);
-						else
-							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04智者之教诲\x05（全员天赋点+1）\x01。");
-					}
-					case 4:
-					{
-						if(g_pCvarAllow.BoolValue)
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(SOUND_BCLAW, i);
-									// EmitSoundToAll(SOUND_BCLAW, i);
-									ClientCommand(i, "play \"level/bell_normal.wav\"");
-								}
-							}
-						
-						for(new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) != team)
-							{
-								DealDamage(victim,i,2500);
-							}
-						}
-
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",victim);
-						else
-							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（特感全员受到2500伤害）\x01。");
-					}
-					case 5:
-					{
-						if(g_pCvarAllow.BoolValue)
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(g_soundLevel, i);
-									// EmitSoundToAll(g_soundLevel, i);
-									ClientCommand(i, "play \"level/gnomeftw.wav\"");
-								}
-							}
-						
-						for(new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
-							{
-								// SDKCall(sdkAdrenaline, i, 50.0);
-								// CheatCommand(i, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
-								L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
-							}
-						}
-
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",victim);
-						else
-							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（全员兴奋,持续50秒）\x01。");
-					}
-					case 6:
-					{
-						NCJ_2 = true;
-						NCJ_ON = true;
-						CreateTimer(60.0, Timer_NCJ2, 0, TIMER_FLAG_NO_MAPCHANGE);
-						
-						if(g_pCvarAllow.BoolValue)
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									// EmitSoundToAll(g_soundLevel, i);
-									// EmitSoundToAll(g_soundLevel, i);
-									ClientCommand(i, "play \"level/scoreregular.wav\"");
-								}
-							}
-						
-						int health = GetEntProp(victim,Prop_Send,"m_iHealth") / 2;
-						if(health < 1)
-							health = 1;
-						SetEntProp(victim,Prop_Send,"m_iHealth",health);
-						
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x04.",victim);
-						else
-							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04背水一战\x05（全员获得无限燃烧子弹,持续60秒）\x01。");
-					}
-					case 7:
-					{
-						NCJ_3 = true;
-						NCJ_ON = true;
-						CreateTimer(75.0, Timer_NCJ3, 0, TIMER_FLAG_NO_MAPCHANGE);
-						for (new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i))
-							{
-								// EmitSoundToAll(g_soundLevel, i);
-								// EmitSoundToAll(g_soundLevel, i);
-								ClientCommand(i, "play \"level/scoreregular.wav\"");
-							}
-						}
-
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",victim);
-						else
-							PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血天赋,持续75秒）\x01。");
-					}
-				}
-			}
+			GiveAngryPoint(victim, amount);
 			
 			int tempHealth = GetPlayerTempHealth(victim);
 			int health = GetEntProp(victim, Prop_Data, "m_iHealth");
@@ -5934,6 +5737,212 @@ public void FillExtraArmor(any client)
 	}
 	
 	PrintCenterText(client, "护甲剩余 %d", count);
+}
+
+void GiveAngryPoint(int victim, int amount)
+{
+	if(g_iRoundEvent == 10) amount += 5;
+	
+	if(g_clAngryPoint[victim] >= 100 && !NCJ_ON && g_clAngryMode[victim] > 0)
+	{
+		g_clAngryPoint[victim] -= 100;
+		
+		int mulEffect = IsPlayerHaveEffect(victim, 3);
+		if(mulEffect > 0)
+		{
+			g_clAngryPoint[victim] += 10 * mulEffect;
+			if(g_iRoundEvent == 10) g_clAngryPoint[victim] += 10 * mulEffect;
+		}
+		
+		TriggerAngrySkill(victim, g_clAngryMode[victim]);
+	}
+}
+
+void TriggerAngrySkill(int victim, int mode)
+{
+	int team = GetClientTeam(victim);
+	switch(mode)
+	{
+		case 1:
+		{
+			bool selfhelp = !!IsPlayerHaveEffect(victim, 36);
+			for(new i = 1; i <= MaxClients; i++)
+			{
+				if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
+				{
+					if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
+						CheatCommand(i, "give", "health");
+					else if(selfhelp || IsPlayerHaveEffect(i, 36))
+						CreateTimer(3.0, EventRevive, i);
+				}
+			}
+			
+			if(g_pCvarAllow.BoolValue)
+				for (new i = 1; i <= MaxClients; i++)
+				{
+					if(IsClientInGame(i) && IsPlayerAlive(i))
+					{
+						// EmitSoundToAll(SOUND_GOOD, i);
+						// EmitSoundToAll(SOUND_GOOD, i);
+						ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
+					}
+				}
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血，倒地/被控除外\x04.",victim);
+			else
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员回血，倒地/被控除外）\x01。");
+		}
+		case 2:
+		{
+			NCJ_1 = true;
+			NCJ_ON = true;
+			CreateTimer(40.0, Timer_NCJ1, 0, TIMER_FLAG_NO_MAPCHANGE);
+			
+			if(g_pCvarAllow.BoolValue)
+				for (new i = 1; i <= MaxClients; i++)
+				{
+					if(IsClientInGame(i) && IsPlayerAlive(i))
+					{
+						// EmitSoundToAll(g_soundLevel, i);
+						// EmitSoundToAll(g_soundLevel, i);
+						ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
+					}
+				}
+			
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",victim);
+			else
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+100,持续40秒）\x01。");
+		}
+		case 3:
+		{
+			if(g_pCvarAllow.BoolValue)
+				for (new i = 1; i <= MaxClients; i++)
+				{
+					if(IsClientInGame(i) && IsPlayerAlive(i))
+					{
+						// EmitSoundToAll(SOUND_GOOD, i);
+						// EmitSoundToAll(SOUND_GOOD, i);
+						ClientCommand(i, "play \"ui/pickup_secret01.wav\"");
+					}
+				}
+			
+			for(new i = 1; i <= MaxClients; i++)
+			{
+				if(IsClientInGame(i) && GetClientTeam(i) == team)
+				{
+					GiveSkillPoint(i, 1);
+				}
+			}
+			
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",victim);
+			else
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04智者之教诲\x05（全员天赋点+1）\x01。");
+		}
+		case 4:
+		{
+			if(g_pCvarAllow.BoolValue)
+				for (new i = 1; i <= MaxClients; i++)
+				{
+					if(IsClientInGame(i) && IsPlayerAlive(i))
+					{
+						// EmitSoundToAll(SOUND_BCLAW, i);
+						// EmitSoundToAll(SOUND_BCLAW, i);
+						ClientCommand(i, "play \"level/bell_normal.wav\"");
+					}
+				}
+			
+			for(new i = 1; i <= MaxClients; i++)
+			{
+				if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) != team)
+				{
+					DealDamage(victim,i,2500);
+				}
+			}
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",victim);
+			else
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（特感全员受到2500伤害）\x01。");
+		}
+		case 5:
+		{
+			if(g_pCvarAllow.BoolValue)
+				for (new i = 1; i <= MaxClients; i++)
+				{
+					if(IsClientInGame(i) && IsPlayerAlive(i))
+					{
+						// EmitSoundToAll(g_soundLevel, i);
+						// EmitSoundToAll(g_soundLevel, i);
+						ClientCommand(i, "play \"level/gnomeftw.wav\"");
+					}
+				}
+			
+			for(new i = 1; i <= MaxClients; i++)
+			{
+				if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
+				{
+					// SDKCall(sdkAdrenaline, i, 50.0);
+					// CheatCommand(i, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
+					L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
+				}
+			}
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",victim);
+			else
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（全员兴奋,持续50秒）\x01。");
+		}
+		case 6:
+		{
+			NCJ_2 = true;
+			NCJ_ON = true;
+			CreateTimer(60.0, Timer_NCJ2, 0, TIMER_FLAG_NO_MAPCHANGE);
+			
+			if(g_pCvarAllow.BoolValue)
+				for (new i = 1; i <= MaxClients; i++)
+				{
+					if(IsClientInGame(i) && IsPlayerAlive(i))
+					{
+						// EmitSoundToAll(g_soundLevel, i);
+						// EmitSoundToAll(g_soundLevel, i);
+						ClientCommand(i, "play \"level/scoreregular.wav\"");
+					}
+				}
+			
+			int health = GetEntProp(victim,Prop_Send,"m_iHealth") / 2;
+			if(health < 1)
+				health = 1;
+			SetEntProp(victim,Prop_Send,"m_iHealth",health);
+			
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x04.",victim);
+			else
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04背水一战\x05（全员获得无限燃烧子弹,持续60秒）\x01。");
+		}
+		case 7:
+		{
+			NCJ_3 = true;
+			NCJ_ON = true;
+			CreateTimer(75.0, Timer_NCJ3, 0, TIMER_FLAG_NO_MAPCHANGE);
+			for (new i = 1; i <= MaxClients; i++)
+			{
+				if(IsClientInGame(i) && IsPlayerAlive(i))
+				{
+					// EmitSoundToAll(g_soundLevel, i);
+					// EmitSoundToAll(g_soundLevel, i);
+					ClientCommand(i, "play \"level/scoreregular.wav\"");
+				}
+			}
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",victim);
+			else
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血天赋,持续75秒）\x01。");
+		}
+	}
 }
 
 public Action:Timer_NCJ1(Handle:timer, any:client)
@@ -6269,177 +6278,17 @@ void RewardPicker(int client)
 			{
 				if(!NCJ_ON)
 				{
-					new ranncj = GetRandomInt(1, 7);
-					switch(ranncj)
-					{
-						case 1:
-						{
-							bool selfhelp = !!IsPlayerHaveEffect(client, 36);
-							for(new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
-								{
-									if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
-										CheatCommand(i, "give", "health");
-									else if(selfhelp || IsPlayerHaveEffect(i, 36))
-										CreateTimer(3.0, EventRevive, i);
-								}
-							}
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									EmitSoundToAll(SOUND_GOOD, i);
-									EmitSoundToAll(SOUND_GOOD, i);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血\x04.",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员恢复满血\x01");
-						}
-						case 2:
-						{
-							NCJ_1 = true;
-							NCJ_ON = true;
-							CreateTimer(40.0, Timer_NCJ1, TIMER_FLAG_NO_MAPCHANGE);
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									EmitSoundToAll(g_soundLevel, i);
-									EmitSoundToAll(g_soundLevel, i);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员暴击率+100,持续40秒\x01");
-						}
-						case 3:
-						{
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									EmitSoundToAll(SOUND_GOOD, i);
-									EmitSoundToAll(SOUND_GOOD, i);
-								}
-							}
-							for(new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientConnected(i))
-								{
-									GiveSkillPoint(client, 1);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05智者之教诲\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员天赋点+1\x04.",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员天赋点+1\x01");
-						}
-						case 4:
-						{
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									EmitSoundToAll(SOUND_BCLAW, i);
-									EmitSoundToAll(SOUND_BCLAW, i);
-								}
-							}
-							for(new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 3)
-								{
-									DealDamage(client,i,2500);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04特感全员受到2500伤害\x01");
-						}
-						case 5:
-						{
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									EmitSoundToAll(g_soundLevel, i);
-									EmitSoundToAll(g_soundLevel, i);
-								}
-							}
-							for(new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
-								{
-									// SDKCall(sdkAdrenaline, i, 50.0);
-									// CheatCommand(i, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
-									L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员兴奋,持续50秒\x01");
-						}
-						case 6:
-						{
-							NCJ_2 = true;
-							NCJ_ON = true;
-							CreateTimer(60.0, Timer_NCJ2, TIMER_FLAG_NO_MAPCHANGE);
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									EmitSoundToAll(g_soundLevel, i);
-									EmitSoundToAll(g_soundLevel, i);
-								}
-							}
-							SetEntProp(client,Prop_Send,"m_iHealth",(GetEntProp(client,Prop_Send,"m_iHealth") / 2));
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限高爆子弹,持续60秒\x04.",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04自身HP减半,全员获得无限高爆子弹,持续60秒\x01");
-						}
-						case 7:
-						{
-							NCJ_3 = true;
-							NCJ_ON = true;
-							CreateTimer(75.0, Timer_NCJ3, TIMER_FLAG_NO_MAPCHANGE);
-							for (new i = 1; i <= MaxClients; i++)
-							{
-								if(IsClientInGame(i) && IsPlayerAlive(i))
-								{
-									EmitSoundToAll(g_soundLevel, i);
-									EmitSoundToAll(g_soundLevel, i);
-								}
-							}
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，触发了效果：\x04全员获得嗜血天赋,持续75秒\x01");
-						}
-					}
+					TriggerAngrySkill(client, GetRandomInt(1, 7));
 				}
 				else
 				{
 					EmitSoundToClient( client, REWARD_SOUND );
-					g_clAngryPoint[client] += 30;
-					if(g_iRoundEvent == 10) g_clAngryPoint[client] += 30;
+					GiveAngryPoint(client, 30);
 
 					if(g_pCvarAllow.BoolValue)
 						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+30\x04.",client);
 					else
-						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，怒气值＋40");
+						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，怒气值＋30");
 				}
 			}
 			case 1:
@@ -6510,9 +6359,8 @@ void RewardPicker(int client)
 					}
 					case 1:
 					{
-						g_clAngryPoint[client] += 20;
-						if(g_iRoundEvent == 10) g_clAngryPoint[client] += 20;
 						EmitSoundToClient( client, REWARD_SOUND );
+						GiveAngryPoint(client, 20);
 
 						if(g_pCvarAllow.BoolValue)
 							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+20\x04.",client);
@@ -6659,9 +6507,8 @@ void RewardPicker(int client)
 			}
 			case 3:
 			{
-				g_clAngryPoint[client] += 10;
-				if(g_iRoundEvent == 10) g_clAngryPoint[client] += 10;
 				EmitSoundToClient( client, REWARD_SOUND );
+				GiveAngryPoint(client, 10);
 
 				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+10\x04.",client);
@@ -11537,54 +11384,37 @@ public Action:Event_RP(Handle:timer, any:client)
 		{
 			case 0:
 			{
+				EmitSoundToAll(SOUND_BAD,client);
 				CheatCommand(client, "z_spawn_old", "hunter auto");
 				CheatCommand(client, "z_spawn_old", "boomer auto");
 				CheatCommand(client, "z_spawn_old", "jockey auto");
 				CheatCommand(client, "z_spawn_old", "smoker auto");
 				CheatCommand(client, "z_spawn_old", "charger auto");
 				CheatCommand(client, "z_spawn_old", "spitter auto");
-
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04由于人品极差,召唤了一大堆小BOSS到他身边.", client);
 			}
 			case 1:
 			{
+				EmitSoundToAll(SOUND_BAD,client);
 				PanicEvent();
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04丑的无法形容,一大堆小SS特来强势围观,于是尸潮来了.", client);
 			}
 			case 2:
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
 					{
 						new ent = GetPlayerWeaponSlot(i, 1);
 						if(ent != -1) RemovePlayerItem(i, ent);
+						EmitSoundToClient(i,SOUND_BAD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04搞恶作剧变走了所有生还者的手枪和近战.", client);
 			}
 			case 3:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				CheatCommand(client, "z_spawn_old", "witch auto");
 				CheatCommand(client, "z_spawn_old", "witch auto");
 				CheatCommand(client, "z_spawn_old", "witch auto");
@@ -11593,77 +11423,49 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 4:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				// ServerCommand("sm_freeze \"%N\" \"30\"",client);
 				FreezePlayer(client, 30.0);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04为了拯救世界和平决定冰封自我30秒闭关修炼.", client);
 			}
 			case 5:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				SetConVarString(g_hCvarGodMode, "1");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【无敌人类】\x04所有生还者无敌40秒!", client);
 				CreateTimer(40.0, TankEventEnd1, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 6:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				SetConVarString(g_hCvarGravity, "3000");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,触发事件:\x03【超强重力】\x04令生还者无法跳跃30秒!", client);
 				CreateTimer(30.0, TankEventEnd2, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 7:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				SetConVarString(g_hCvarLimpHealth, "1000");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,触发事件:\x03【减速诅咒】\x04令所有生还者速度变慢30秒!", client);
 				CreateTimer(30.0, TankEventEnd3, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 8:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				SetConVarString(g_hCvarInfinite, "1");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【无限子弹】\x04所有生还者子弹无限40秒!", client);
 				CreateTimer(40.0, TankEventEnd4, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 9:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				SetConVarString(g_hCvarGravity, "200");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【重力解除】\x04令生还者自由飞翔30秒!", client);
 				CreateTimer(30.0, TankEventEnd2, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 10:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				SetConVarString(g_hCvarMeleeRange, "2000");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【剑气技能】\x04生还者近战攻击范围超远40秒!", client);
 				CreateTimer(40.0, TankEventEnd5, 0, TIMER_FLAG_NO_MAPCHANGE);
@@ -11672,38 +11474,26 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 					{
 						CheatCommand(i, "give", "gascan");
 						CheatCommand(i, "give", "oxygentank");
 						CheatCommand(i, "give", "propanetank");
+						EmitSoundToClient(i,SOUND_GOOD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,OP赠每人人手一套煮饭工具!", client);
 			}
 			case 12:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				SetConVarString(g_hCvarDuckSpeed, "300");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,触发事件:\x03【蹲坑神速】\x04生还者蹲下速度加快40秒!", client);
 				CreateTimer(40.0, TankEventEnd7, 0, TIMER_FLAG_NO_MAPCHANGE);
 			}
 			case 13:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				SetConVarString(g_hCvarReviveTime, "2");
 				SetConVarString(g_hCvarMedicalTime, "2");
 				PrintToChatAll("\x03[\x05RP\x03 %N\x04人品大爆发,触发双重事件:\x03【疾速救援】\x04减少救人时间40秒!", client);
@@ -11715,14 +11505,10 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 					{
 						CheatCommand(i, "give", "adrenaline");
+						EmitSoundToClient(i,SOUND_GOOD,client);
 					}
 				}
 				SetConVarString(g_hCvarAdrenTime, "30");
@@ -11731,23 +11517,13 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 15:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				g_csSlapCount[client] = 30;
 				CreateTimer(0.1, CommandSlapPlayer, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04作业没写完就跑去网吧玩求生之路,被老爹狠打屁股30下.", client);
 			}
 			case 16:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
-				
 				int team = GetClientTeam(client);
 				for(new i = 1; i <= MaxClients; i++)
 				{
@@ -11755,38 +11531,27 @@ public Action:Event_RP(Handle:timer, any:client)
 					{
 						// ServerCommand("sm_freeze \"%N\" \"15\"",i);
 						FreezePlayer(i, 15.0);
+						EmitSoundToClient(i,SOUND_BAD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,把队友全部冻结15秒.", client);
 			}
 			case 17:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_4[client] |= SKL_4_MoreDmgExtra;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04学会了\x03残忍-暴击时追加伤害上限+200\x04天赋.", client);
 			}
 			case 18:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				g_csSlapCount[client] += 300;
 				CreateTimer(0.1, CommandSlapTank, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04决定游行太空,记得打开你的降落伞以免落地过猛!", client);
 			}
 			case 19:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				SetEntityRenderColor(client, 65, 125, 125, 255);
 
 				CheatCommand(client, "give", "health");
@@ -11798,11 +11563,7 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 20:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				// ServerCommand("sm_timebomb \"%N\"",client);
 				
 				float position[3];
@@ -11814,11 +11575,7 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 21:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				CheatCommand(client, "z_spawn_old", "boomer auto");
 				CheatCommand(client, "z_spawn_old", "boomer auto");
 				CheatCommand(client, "z_spawn_old", "boomer auto");
@@ -11829,22 +11586,13 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 22:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
-
+				EmitSoundToAll(SOUND_GOOD,client);
 				GiveSkillPoint(client, 3);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,额外获得天赋点\x033\x04点!", client);
 			}
 			case 23:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				CheatCommand(client, "give", "first_aid_kit");
 				CheatCommand(client, "give", "first_aid_kit");
 				CheatCommand(client, "give", "first_aid_kit");
@@ -11855,14 +11603,10 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientConnected(i))
+					if(IsClientInGame(i))
 					{
 						GiveSkillPoint(client, 1);
+						EmitSoundToClient(i,SOUND_GOOD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,所有玩家获得额外的天赋点一点!输入\x03!lv\x04查看!", client);
@@ -11871,26 +11615,18 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
 					{
 						CheatCommand(i, "give", "health");
 						SetEntPropFloat(i, Prop_Send, "m_healthBuffer", 0.0);
+						EmitSoundToClient(i,SOUND_GOOD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,为所有玩家治疗了伤口.", client);
 			}
 			case 26:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_INFECTED)
@@ -11903,21 +11639,13 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 27:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				CheatCommand(client, "z_spawn_old", "tank auto");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04闲着无聊,把自家的宠物坦克牵了出来玩玩.", client);
 			}
 			case 28:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_INFECTED)
@@ -11930,11 +11658,7 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 29:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				CheatCommand(client, "z_spawn_old", "hunter auto");
 				CheatCommand(client, "z_spawn_old", "hunter auto");
 				CheatCommand(client, "z_spawn_old", "hunter auto");
@@ -11945,25 +11669,17 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientConnected(i))
+					if(IsClientInGame(i))
 					{
 						g_clAngryPoint[client] /= 2;
+						EmitSoundToClient(i,SOUND_BAD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04弘扬起大爱精神,所有玩家怒气值减半...", client);
 			}
 			case 31:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
+				EmitSoundToAll(SOUND_GOOD,client);
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_INFECTED)
@@ -11976,22 +11692,14 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 32:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				new color[3];
 				CreateColorSmoke(client, 1500, 30, 30, color, 24.0);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04放了一个大屁,全世界都灰暗了.", client);
 			}
 			case 33:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_3[client] |= SKL_3_Sacrifice;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03牺牲-死亡时1/3几率与攻击者同归于尽\x04.", client);
 			}
@@ -12000,7 +11708,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
+					EmitSoundToClient(i,g_soundLevel,client);
 					if(IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS) g_clSkill_3[client] |= SKL_3_IncapFire;
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04发动魔法卡:\x03技能获取\x04,全队获得天赋\x03纵火-倒地时反伤HP+150并点燃攻击者\x04.", client);
@@ -12010,7 +11718,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
+					EmitSoundToClient(i,g_soundLevel,client);
 					if(IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS) g_clSkill_3[client] |= SKL_3_ReviveBonus;
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04发动魔法卡:\x03技能获取\x04,全队获得天赋\x03妙手-救起队友时随机获得物品或天赋点\x04.", client);
@@ -12020,30 +11728,21 @@ public Action:Event_RP(Handle:timer, any:client)
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
+					EmitSoundToClient(i,g_soundLevel,client);
 					if(IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS) g_clSkill_3[client] |= SKL_3_Freeze;
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04发动魔法卡:\x03技能获取\x04,全队获得天赋\x03释冰-倒地时冻结攻击者12秒\x04.", client);
 			}
 			case 37:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel, client);
 				g_clSkill_4[client] |= SKL_4_ClawHeal;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03坚韧-被坦克击中随机恢复HP\x04.", client);
 			}
 			case 38:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
-				g_clAngryPoint[client] += 40;
-				if(g_iRoundEvent == 10) g_clAngryPoint[client] += 40;
+				EmitSoundToAll(g_soundLevel, client);
+				GiveAngryPoint(client, 40);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04捡起了一坛好酒猛喝,\x03怒气值+40\x04.", client);
 			}
 			case 39:
@@ -12051,7 +11750,7 @@ public Action:Event_RP(Handle:timer, any:client)
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
+					EmitSoundToClient(i,SOUND_GOOD,client);
 					if(IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 					{
 						// CheatCommand(i, "give", "ammo");
@@ -12062,72 +11761,44 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 40:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_4[client] |= SKL_4_FastFired;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03疾射-武器攻击速度提升\x04.", client);
 			}
 			case 41:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_4[client] |= SKL_4_SniperExtra;
 				CheatCommand(client, "give", "weapon_sniper_awp");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03神狙-无限疾速AWP子弹\x04.", client);
 			}
 			case 42:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_4[client] |= SKL_4_FastReload;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03嗜弹-武器上弹速度提升\x04.", client);
 			}
 			case 43:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_4[client] |= SKL_4_DuckShover;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03霸气-蹲加右击,15秒给周围特感随机伤害\x04.", client);
 			}
 			case 44:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_3[client] |= SKL_3_Respawn;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03永生-死亡时复活几率+1/10\x04.", client);
 			}
 			case 45:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_3[client] |= SKL_3_Kickback;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03轰炸-暴击时1/2几率附加震飞效果\x04.", client);
 			}
 			case 46:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,g_soundLevel);
-				}
+				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_2[client] |= SKL_2_Excited;
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03热血-杀死特感1/4几率兴奋\x04.", client);
 			}
@@ -12192,22 +11863,13 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 49:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
-
+				EmitSoundToAll(SOUND_BAD,client);
 				GiveSkillPoint(client, -3);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04的阴阳怪气激怒了OP,OP扣除他天赋点3点.", client);
 			}
 			case 50:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				CheatCommand(client, "z_spawn_old", "tank auto");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04画个圈圈召唤出了坦克.", client);
 			}
@@ -12215,13 +11877,9 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientConnected(i))
+					if(IsClientInGame(i))
 					{
+						EmitSoundToClient(i,SOUND_BAD,client);
 						GiveSkillPoint(client, -1);
 					}
 				}
@@ -12229,11 +11887,7 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 52:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				CheatCommand(client, "z_spawn_old", "spitter auto");
 				CheatCommand(client, "z_spawn_old", "spitter auto");
 				CheatCommand(client, "z_spawn_old", "spitter auto");
@@ -12242,11 +11896,7 @@ public Action:Event_RP(Handle:timer, any:client)
 			}
 			case 53:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
+				EmitSoundToAll(SOUND_BAD,client);
 				if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge"))
 				{
 					// CheatCommand(client, "give", "health");
@@ -12261,15 +11911,11 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 					{
 						g_csSlapCount[i] += 30;
 						CreateTimer(0.5, CommandSlapPlayer, i, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+						EmitSoundToClient(i,SOUND_BAD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04突然提出意见:不如跳只集体舞吧?所有生还者集体跳起了舞.", client);
@@ -12278,26 +11924,17 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 					{
 						new ent = GetPlayerWeaponSlot(i, 0);
 						if(ent != -1) RemovePlayerItem(i, ent);
+						EmitSoundToClient(i,SOUND_BAD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04对僵尸做了一个鄙视的手势,于是OP没收了所有生还者的主武器.", client);
 			}
 			case 56:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
@@ -12307,17 +11944,13 @@ public Action:Event_RP(Handle:timer, any:client)
 						vec[1] += GetRandomFloat(0.1,0.9);
 						vec[2] += GetRandomFloat(0.1,0.9);
 						TeleportEntity(i, vec, NULL_VECTOR, NULL_VECTOR);
+						EmitSoundToClient(i,SOUND_GOOD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04把所有队友都叫到他身边开会了.", client);
 			}
 			case 57:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
 				for(new i = 1; i <= MaxClients; i++)
 				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_INFECTED)
@@ -12327,6 +11960,7 @@ public Action:Event_RP(Handle:timer, any:client)
 						vec[1] += GetRandomFloat(0.1,0.9);
 						vec[2] += GetRandomFloat(0.1,0.9);
 						TeleportEntity(i, vec, NULL_VECTOR, NULL_VECTOR);
+						EmitSoundToClient(i,SOUND_BAD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04使用吸星大法把所有特感都吸到身边.", client);
@@ -12335,29 +11969,21 @@ public Action:Event_RP(Handle:timer, any:client)
 			{
 				for(new i = 1; i <= MaxClients; i++)
 				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_GOOD);
-				}
-				for(new i = 1; i <= MaxClients; i++)
-				{
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 					{
 						CheatCommand(i, "give", "cola_bottles");
+						EmitSoundToClient(i,SOUND_GOOD,client);
 					}
 				}
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04中彩票后买了几箱可乐分给大伙庆祝.", client);
 			}
 			case 59:
 			{
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					EmitSoundToClient(i,SOUND_BAD);
-				}
 				for(new i = 0; i < 5; i++)
 				{
 					new ent = GetPlayerWeaponSlot(client, i);
 					if(ent != -1) RemovePlayerItem(client, ent);
+					EmitSoundToClient(i,SOUND_BAD,client);
 				}
 				CheatCommand(client, "give", "pistol_magnum");
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04平时撸管过多,OP只准他打手枪了,身上其他东西全部没收.", client);

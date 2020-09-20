@@ -216,8 +216,8 @@ enum struct TDInfo_t {
 #define MAX_CACHED_MESSAGES		8
 StringMap g_mTotalDamage[MAXPLAYERS+1];
 // int g_iMessageChannel = 0;
-char g_sCacheMessage[MAXPLAYERS+1][MAX_CACHED_MESSAGES][64];
-Handle g_hClearCacheMessage[MAXPLAYERS+1];
+// char g_sCacheMessage[MAXPLAYERS+1][MAX_CACHED_MESSAGES][64];
+// Handle g_hClearCacheMessage[MAXPLAYERS+1];
 bool g_bIsGamePlaying = false;
 
 enum
@@ -316,6 +316,53 @@ int g_iLastWeaponAmmo[MAXPLAYERS+1];
 new g_iRoundEvent = 0;
 float g_fNextRoundEvent = 0.0;
 new String:g_szRoundEvent[64];
+
+// 增加部位需要同时增加 g_clCurEquip 大小
+enum EquipPart_t {
+	EquipPart_Head,		// 头部
+	EquipPart_Body,		// 身体
+	EquipPart_Hand,		// 手部
+	EquipPart_Foot,		// 脚部
+}
+
+enum EquipPrefix_t {
+	EquipPrefix_Fire,		// 烈火(主伤害)
+	EquipPrefix_Water,		// 流水(主生命)
+	EquipPrefix_Sky,		// 破天(主跳跃)
+	EquipPrefix_Wind,		// 疾风(主速度)
+	EquipPrefix_Lucky,		// 惊魄(主暴击)
+}
+
+// 属性值上限
+const int g_iMaxEquipDamage = 100;	// 字面值
+const int g_iMaxEquipHealth = 200;	// 百分比
+const int g_iMaxEquipSpeed = 20;	// 百分比
+const int g_iMaxEquipGravity = 25;	// 百分比
+const int g_iMaxEquipCrit = 1000;	// 千分比
+
+enum struct EquipData_t {
+	int hashID;				// 装备唯一ID
+	bool valid;				// 装备是否存在
+	EquipPrefix_t prefix;	// 装备类型
+	EquipPart_t parts;		// 装备部位
+	int damage;				// 伤害加成(基础)
+	int health;				// 生命上限加成
+	int speed;				// 移动速度加成
+	int gravity;			// 跳跃高度加成
+	int crit;				// 暴击率加成
+	int effect;				// 装备附魔效果，参考 RebuildEquipStr 里的定义
+	
+	// 字符串(仅显示用)
+	// 一个utf8字符大概需要4字节，末尾还要加一个字节存放\0
+	char sPrefix[32];
+	char sParts[32];
+	char sEffect[128];
+	char sNamed[32];
+}
+
+StringMap g_mEquipData[MAXPLAYERS+1];
+
+/*
 new bool:g_eqmValid[MAXPLAYERS+1][12];	//装备是否存在
 new g_eqmPrefix[MAXPLAYERS+1][12];		//装备类型
 new String:g_esPrefix[MAXPLAYERS+1][12][32];		//装备类型名称
@@ -329,8 +376,10 @@ new g_eqmUpgrade[MAXPLAYERS+1][12];		//装备+暴击率
 new String:g_esEffects[MAXPLAYERS+1][12][128];		//装备附加天赋技能名称
 new g_eqmEffects[MAXPLAYERS+1][12];		//装备附加天赋技能类型
 new String: g_esUpgrade[MAXPLAYERS+1][12][32];		//装备的完美度
+*/
+
 new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
-new SelectEqm[MAXPLAYERS+1];		//选择的装备
+// new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
 const int g_iMaxEqmEffects = 38;
@@ -1222,6 +1271,11 @@ public void OnClientPutInServer(int client)
 
 void GenerateRandomStats(int client)
 {
+	if(g_mEquipData[client] == null)
+		g_mEquipData[client] = CreateTrie();
+	else
+		g_mEquipData[client].Clear();
+	
 	SetRandomSeed(GetSysTickCount() + client);
 	
 	// 点数
@@ -1242,9 +1296,9 @@ void GenerateRandomStats(int client)
 	for(int i = 0; i < 4; ++i)
 	{
 		if(!GetRandomInt(0, 9))
-			g_clCurEquip[client][i] = GiveEquipment(client, -1, i);
+			g_clCurEquip[client][i] = GiveEquipment(client, i);
 		else
-			g_clCurEquip[client][i] = -1;
+			g_clCurEquip[client][i] = 0;
 	}
 }
 
@@ -1252,11 +1306,9 @@ void Initialization(int client, bool invalid = false)
 {
 	if(invalid)
 	{
-		for(new i = 0; i < 12; i ++)
-			g_eqmValid[client][i] = false;
 		for(new i = 0; i < 4; i ++)
-			g_clCurEquip[client][i] = -1;
-
+			g_clCurEquip[client][i] = 0;
+		
 		g_clSkillPoint[client] = g_clAngryPoint[client] = g_clAngryMode[client] = g_clSkill_1[client] =
 			g_clSkill_2[client] = g_clSkill_3[client] = g_clSkill_4[client] = g_clSkill_5[client] = 0;
 	}
@@ -1299,16 +1351,23 @@ void Initialization(int client, bool invalid = false)
 	g_fForgiveOfFF[client] = 0.0;
 	g_iForgiveTKTarget[client] = 0;
 	g_iForgiveFFTarget[client] = 0;
-	Handle toDelete2 = g_hClearCacheMessage[client];
-	g_hClearCacheMessage[client] = null;
+	// Handle toDelete2 = g_hClearCacheMessage[client];
+	// g_hClearCacheMessage[client] = null;
 	
+	/*
 	for(int i = 0; i < MAX_CACHED_MESSAGES; ++i)
 		g_sCacheMessage[client][i][0] = EOS;
+	*/
 	
 	g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
 		g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
 		g_ttPaincEvent[client] = g_ttRescued[client] = 0;
-
+	
+	if(g_mEquipData[client] == null)
+		g_mEquipData[client] = CreateTrie();
+	else
+		g_mEquipData[client].Clear();
+	
 	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	// SDKUnhook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
@@ -1319,8 +1378,10 @@ void Initialization(int client, bool invalid = false)
 	
 	if(toDelete1 != null)
 		delete toDelete1;
-	if(toDelete2 != null)
-		delete toDelete2;
+	// if(toDelete2 != null)
+		// delete toDelete2;
+	// if(toDelete3 != null)
+		// delete toDelete3;
 }
 
 //读档
@@ -1398,15 +1459,15 @@ bool ClientSaveToFileLoad(int client, bool remember = false)
 	if(remember)
 	{
 		g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
-		g_ttDefibUsed[client] = g_kvSavePlayer[client].GetNum("defib_used");
-		g_ttOtherRevived[client] = g_kvSavePlayer[client].GetNum("revived_count");
-		g_ttSpecialKilled[client] = g_kvSavePlayer[client].GetNum("si_killed");
-		g_ttCommonKilled[client] = g_kvSavePlayer[client].GetNum("ci_killed");
-		g_ttGivePills[client] = g_kvSavePlayer[client].GetNum("pills_given");
-		g_ttProtected[client] = g_kvSavePlayer[client].GetNum("team_protected");
-		g_ttCleared[client] = g_kvSavePlayer[client].GetNum("zone_cleared");
-		g_ttPaincEvent[client] = g_kvSavePlayer[client].GetNum("painc_holdout");
-		g_ttRescued[client] = g_kvSavePlayer[client].GetNum("rescued_count");
+		g_ttDefibUsed[client] = g_kvSavePlayer[client].GetNum("defib_used", 0);
+		g_ttOtherRevived[client] = g_kvSavePlayer[client].GetNum("revived_count", 0);
+		g_ttSpecialKilled[client] = g_kvSavePlayer[client].GetNum("si_killed", 0);
+		g_ttCommonKilled[client] = g_kvSavePlayer[client].GetNum("ci_killed", 0);
+		g_ttGivePills[client] = g_kvSavePlayer[client].GetNum("pills_given", 0);
+		g_ttProtected[client] = g_kvSavePlayer[client].GetNum("team_protected", 0);
+		g_ttCleared[client] = g_kvSavePlayer[client].GetNum("zone_cleared", 0);
+		g_ttPaincEvent[client] = g_kvSavePlayer[client].GetNum("painc_holdout", 0);
+		g_ttRescued[client] = g_kvSavePlayer[client].GetNum("rescued_count", 0);
 	}
 	/*
 	else
@@ -1426,31 +1487,47 @@ bool ClientSaveToFileLoad(int client, bool remember = false)
 		}
 		g_kvSavePlayer[client].GoBack();
 	}
-
+	
+	if(g_mEquipData[client] == null)
+		g_mEquipData[client] = CreateTrie();
+	
 	// 背包里的装备
 	if(g_kvSavePlayer[client].JumpToKey("bage", false))
 	{
-		for(int i = 0; i < 12; ++i)
+		if(g_mEquipData[client] == null)
+			g_mEquipData[client] = CreateTrie();
+		else
+			g_mEquipData[client].Clear();
+		
+		int size = g_kvSavePlayer[client].GetNum("bage_items", 0);
+		for(int i = 0; i < size; ++i)
 		{
 			if(!g_kvSavePlayer[client].JumpToKey(tr("item_%d", i), false))
-			{
-				g_eqmValid[client][i] = false;
 				continue;
+			
+			static EquipData_t data;
+			data.valid = view_as<bool>(g_kvSavePlayer[client].GetNum("valid", 0));
+			data.prefix = view_as<EquipPrefix_t>(g_kvSavePlayer[client].GetNum("prefix", 0));
+			data.parts = view_as<EquipPart_t>(g_kvSavePlayer[client].GetNum("parts", 0));
+			data.damage = g_kvSavePlayer[client].GetNum("damage", 0);
+			data.health = g_kvSavePlayer[client].GetNum("health", 0);
+			data.speed = g_kvSavePlayer[client].GetNum("speed", 0);
+			data.gravity = g_kvSavePlayer[client].GetNum("gravity", 0);
+			data.crit = g_kvSavePlayer[client].GetNum("crit", 0);
+			data.effect = g_kvSavePlayer[client].GetNum("effect", 0);
+			data.hashID = g_kvSavePlayer[client].GetNum("hashId", 0);
+			
+			if(data.valid && data.hashID)
+			{
+				static char key[16];
+				IntToString(data.hashID, key, sizeof(key));
+				RebuildEquipStr(data);
+				g_mEquipData[client].SetArray(key, data, sizeof(data));
 			}
-
-			g_eqmValid[client][i] =	view_as<bool>(g_kvSavePlayer[client].GetNum("valid", 0));
-			g_eqmPrefix[client][i] = g_kvSavePlayer[client].GetNum("prefix", 0);
-			g_eqmParts[client][i] = g_kvSavePlayer[client].GetNum("parts", 0);
-			g_eqmDamage[client][i] = g_kvSavePlayer[client].GetNum("damage", 0);
-			g_eqmHealth[client][i] = g_kvSavePlayer[client].GetNum("health", 0);
-			g_eqmSpeed[client][i] = g_kvSavePlayer[client].GetNum("speed", 0);
-			g_eqmGravity[client][i] = g_kvSavePlayer[client].GetNum("gravity", 0);
-			g_eqmUpgrade[client][i] = g_kvSavePlayer[client].GetNum("upgrade", 0);
-			g_eqmEffects[client][i] = g_kvSavePlayer[client].GetNum("effect", 0);
-
+			
 			g_kvSavePlayer[client].GoBack();
-			RebuildEquipStr(client, i);
 		}
+		
 		g_kvSavePlayer[client].GoBack();
 	}
 
@@ -1476,6 +1553,8 @@ bool ClientSaveToFileSave(int client, bool remember = false)
 
 	if(g_kvSavePlayer[client] == null)
 		g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
+	if(g_mEquipData[client] == null)
+		g_mEquipData[client] = CreateTrie();
 	
 	char name[MAX_NAME_LENGTH], ip[16], country[32], code[3];
 	GetClientName(client, name, MAX_NAME_LENGTH);
@@ -1535,30 +1614,37 @@ bool ClientSaveToFileSave(int client, bool remember = false)
 
 	// 背包里的装备
 	g_kvSavePlayer[client].JumpToKey("bage", true);
-	for(int i = 0; i < 12; ++i)
+	
+	StringMapSnapshot iterator = g_mEquipData[client].Snapshot();
+	int size = iterator.Length;
+	g_kvSavePlayer[client].SetNum("bage_items", size);
+	
+	for(int i = 0; i < size; ++i)
 	{
-		if(!g_eqmValid[client][i])
+		static char key[16];
+		static EquipData_t data;
+		if(!iterator.GetKey(i, key, sizeof(key)) || !g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
 		{
 			g_kvSavePlayer[client].DeleteKey(tr("item_%d", i));
 			continue;
 		}
-
+		
 		g_kvSavePlayer[client].JumpToKey(tr("item_%d", i), true);
-
-		g_kvSavePlayer[client].SetNum("valid", g_eqmValid[client][i]);
-		g_kvSavePlayer[client].SetNum("prefix", g_eqmPrefix[client][i]);
-		g_kvSavePlayer[client].SetNum("parts", g_eqmParts[client][i]);
-		g_kvSavePlayer[client].SetNum("damage", g_eqmDamage[client][i]);
-		g_kvSavePlayer[client].SetNum("health", g_eqmHealth[client][i]);
-		g_kvSavePlayer[client].SetNum("speed", g_eqmSpeed[client][i]);
-		g_kvSavePlayer[client].SetNum("gravity", g_eqmGravity[client][i]);
-		g_kvSavePlayer[client].SetNum("upgrade", g_eqmUpgrade[client][i]);
-		g_kvSavePlayer[client].SetNum("effect", g_eqmEffects[client][i]);
-
+		
+		g_kvSavePlayer[client].SetNum("hashId", data.hashID);
+		g_kvSavePlayer[client].SetNum("valid", data.valid);
+		g_kvSavePlayer[client].SetNum("prefix", view_as<int>(data.prefix));
+		g_kvSavePlayer[client].SetNum("parts", view_as<int>(data.parts));
+		g_kvSavePlayer[client].SetNum("damage", data.damage);
+		g_kvSavePlayer[client].SetNum("health", data.health);
+		g_kvSavePlayer[client].SetNum("speed", data.speed);
+		g_kvSavePlayer[client].SetNum("gravity", data.gravity);
+		g_kvSavePlayer[client].SetNum("crit", data.crit);
+		g_kvSavePlayer[client].SetNum("effect", data.effect);
+		
 		g_kvSavePlayer[client].GoBack();
 	}
-	g_kvSavePlayer[client].GoBack();
-
+	
 	// 保存到文件
 	g_kvSavePlayer[client].Rewind();
 	g_kvSavePlayer[client].ExportToFile(tr("%s/%s.txt", g_szSavePath, steamId));
@@ -2994,7 +3080,7 @@ void StatusSelectMenuFuncEqment(int client)
 	menu.DrawItem("打开天启幸运箱");
 	menu.DrawItem("打开装备幸运箱");
 	menu.DrawItem("天启装备操作说明");
-	menu.DrawItem("查看当前属性");
+	menu.DrawItem("查看当前属性统计");
 	menu.DrawItem("", ITEMDRAW_NOTEXT);
 	menu.DrawItem("", ITEMDRAW_NOTEXT);
 	menu.DrawItem("", ITEMDRAW_NOTEXT);
@@ -3023,109 +3109,73 @@ public int MenuHandler_EquipMain(Menu menu, MenuAction action, int client, int s
 		case 4: StatusEqmFuncD(client);
 		case 5:
 		{
-			new eqmdmg = 0;
-			for(new i = 0;i < 4;i ++)
-			{
-				if(g_clCurEquip[client][i] != -1)
-				{
-					eqmdmg += g_eqmDamage[client][g_clCurEquip[client][i]];
-				}
-			}
-			new clienthp = 100;
-			for(new i = 0;i < 4;i ++)
-			{
-				if(g_clCurEquip[client][i] != -1)
-				{
-					clienthp += g_eqmHealth[client][g_clCurEquip[client][i]];
-				}
-			}
-			if((g_clSkill_1[client] & SKL_1_MaxHealth)) clienthp += 50;
-			new clientsp = 100;
-			for(new i = 0;i < 4;i ++)
-			{
-				if(g_clCurEquip[client][i] != -1)
-				{
-					clientsp += g_eqmSpeed[client][g_clCurEquip[client][i]];
-				}
-			}
-			if((g_clSkill_1[client] & SKL_1_Movement)) clientsp += 10;
-			new Chance = 0;
-			if((g_clSkill_1[client] & SKL_1_DmgExtra)) Chance += 5;
-			if((g_clSkill_4[client] & SKL_4_DmgExtra)) Chance += 10;
-			for(new i = 0;i < 4;i ++)
-			{
-				if(g_clCurEquip[client][i] != -1)
-				{
-					Chance += g_eqmUpgrade[client][g_clCurEquip[client][i]];
-				}
-			}
+			int damage, health, speed, gravity, crit;
+			CalcPlayerAttr(client, damage, health, speed, gravity, crit, false);
 			
-			if(IsPlayerHaveEffect(client, 8)) Chance += 5;
-			new String:PercentStr[8] = "%";
-			new Fighting_Power = 5;
-			new extratalent[4] = {0,0,0,0};
-			new k = 0;
-			for(new i = 0;i < 4;i ++)
-			{
-				if(g_clCurEquip[client][i] != -1)
-				{
-					new bool:pass = false;
-					for(new j = 0;j < 4;j ++)
-					{
-						if(g_eqmEffects[client][g_clCurEquip[client][i]] == extratalent[j])
-						{
-							pass = true;
-						}
-					}
-					if(!pass)
-					{
-						PrintToChat(client, "\x03[提示]\x01 附加功能：\x03%s\x01.",g_esEffects[client][g_clCurEquip[client][i]]);
-						extratalent[k] = g_eqmEffects[client][g_clCurEquip[client][i]];
-						if(extratalent[k] != 8) Fighting_Power += 120;
-						k ++;
-					}
-				}
-			}
-			Fighting_Power += eqmdmg * 10;
-			Fighting_Power += clienthp * 1;
-			Fighting_Power += clientsp * 3;
-			Fighting_Power += Chance * 10;
-			if((g_clSkill_1[client] & SKL_1_ReviveHealth)) Fighting_Power += 50;
-			if((g_clSkill_1[client] & SKL_1_MagnumInf)) Fighting_Power += 50;
-			if((g_clSkill_2[client] & SKL_2_Chainsaw)) Fighting_Power += 80;
-			if((g_clSkill_2[client] & SKL_2_Excited)) Fighting_Power += 80;
-			if((g_clSkill_2[client] & SKL_2_PainPills)) Fighting_Power += 80;
-			if((g_clSkill_2[client] & SKL_2_FullHealth)) Fighting_Power += 80;
-			if((g_clSkill_2[client] & SKL_2_Defibrillator)) Fighting_Power += 80;
-			if((g_clSkill_2[client] & SKL_2_HealBouns)) Fighting_Power += 80;
-			if((g_clSkill_2[client] & SKL_2_PipeBomb)) Fighting_Power += 80;
-			if((g_clSkill_2[client] & SKL_2_SelfHelp)) Fighting_Power += 80;
-			if((g_clSkill_3[client] & SKL_3_Sacrifice)) Fighting_Power += 120;
-			if((g_clSkill_3[client] & SKL_3_Respawn)) Fighting_Power += 120;
-			if((g_clSkill_3[client] & SKL_3_IncapFire)) Fighting_Power += 120;
-			if((g_clSkill_3[client] & SKL_3_ReviveBonus)) Fighting_Power += 120;
-			if((g_clSkill_3[client] & SKL_3_Freeze)) Fighting_Power += 120;
-			if((g_clSkill_3[client] & SKL_3_Kickback)) Fighting_Power += 120;
-			if((g_clSkill_3[client] & SKL_3_GodMode)) Fighting_Power += 120;
-			if((g_clSkill_3[client] & SKL_3_SelfHeal)) Fighting_Power += 120;
-			if((g_clSkill_4[client] & SKL_4_ClawHeal)) Fighting_Power += 150;
-			if((g_clSkill_4[client] & SKL_4_DuckShover)) Fighting_Power += 150;
-			if((g_clSkill_4[client] & SKL_4_FastFired)) Fighting_Power += 150;
-			if((g_clSkill_4[client] & SKL_4_SniperExtra)) Fighting_Power += 150;
-			if((g_clSkill_4[client] & SKL_4_FastReload)) Fighting_Power += 150;
-			if((g_clSkill_4[client] & SKL_4_MachStrafe)) Fighting_Power += 150;
-			if((g_clSkill_4[client] & SKL_4_MoreDmgExtra)) Fighting_Power += 150;
-			if( (g_clSkill_5[client] & SKL_5_FireBullet)
-			||	(g_clSkill_5[client] & SKL_5_ExpBullet)
-			||	(g_clSkill_5[client] & SKL_5_RetardBullet)
-			||	(g_clSkill_5[client] & SKL_5_DmgExtra)
-			||	(g_clSkill_5[client] & SKL_5_Vampire) ) Fighting_Power += 320;
-			PrintToChat(client, "\x01[属性] 伤害+\x03%d\x01 HP=\x03%d\x01 速度=\x03%d%s\x01 暴击=\x03%d\x01 总战斗力=\x03%d\x01.",eqmdmg,clienthp,clientsp,PercentStr,Chance,Fighting_Power);
+			PrintToChat(client,
+				"\x01[属性] 伤害+\x03%d\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 战斗力=\x03%d\x01.",
+				damage,health,speed,gravity,crit,CalcPlayerPower(client)
+			);
+			
 			StatusSelectMenuFuncEqment(client);
 		}
 	}
 
 	return 0;
+}
+
+int CalcPlayerPower(int client)
+{
+	if(!IsValidClient(client))
+		return -1;
+	
+	int power = 0;
+	
+	for(int i = 0; i < 31; ++i)
+		if(g_clSkill_1[i] & (1 << i))
+			power += 100;
+	for(int i = 0; i < 31; ++i)
+		if(g_clSkill_2[i] & (1 << i))
+			power += 200;
+	for(int i = 0; i < 31; ++i)
+		if(g_clSkill_3[i] & (1 << i))
+			power += 300;
+	for(int i = 0; i < 31; ++i)
+		if(g_clSkill_4[i] & (1 << i))
+			power += 400;
+	for(int i = 0; i < 31; ++i)
+		if(g_clSkill_5[i] & (1 << i))
+			power += 500;
+	
+	for(int i = 0; i < 4; ++i)
+	{
+		if(!g_clCurEquip[client][i])
+			continue;
+		
+		static char key[16];
+		IntToString(g_clCurEquip[client][i], key, sizeof(key));
+		
+		static EquipData_t data;
+		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
+			continue;
+		
+		if(data.effect > 0)
+			power += 250;
+	}
+	
+	int damage, health, speed, gravity, crit;
+	CalcPlayerAttr(client, damage, health, speed, gravity, crit, true);
+	
+	power += damage * 5;
+	power += health * 8;
+	power += speed * 6;
+	power += gravity * 3;
+	power += crit * 4;
+	
+	if(g_clSkillPoint[client] > 0)
+		power += g_clSkillPoint[client] * 25;
+	
+	return power;
 }
 
 void StatusEqmFuncD(int client)
@@ -3266,16 +3316,21 @@ public int MenuHandler_OpenEquipment(Menu menu, MenuAction action, int client, i
 		}
 
 		int j = GiveEquipment(client);
-		if(j == -1)
+		if(!j)
 		{
 			PrintToChat(client, "\x03[提示]\x01 你的装备栏已满，无法打开装备幸运箱。");
 			StatusEqmFuncC(client);
 			return 0;
 		}
-
+		
 		GiveSkillPoint(client, -3);
-
-		PrintToChat(client, "\x03[提示]\x01 你获得了：%s", FormatEquip(client, j));
+		
+		char key[16];
+		IntToString(j, key, sizeof(key));
+		
+		static EquipData_t data;
+		if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
+			PrintToChat(client, "\x03[提示]\x01 你获得了：%s", FormatEquip(client, data));
 	}
 
 	if(selected != 10)
@@ -3324,14 +3379,11 @@ public int MenuHandler_OpenLucky(Menu menu, MenuAction action, int client, int s
 	return 0;
 }
 
-char FormatEquip(int client, int index, char[] buffer = "", int len = 0)
+// char FormatEquip(int client, int index, char[] buffer = "", int len = 0)
+stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len = 0)
 {
 	char text[255];
-
-	if(!IsValidClient(client) || index < 0 || index >= 12)
-		return text;
-
-	if(!g_eqmValid[client][index])
+	if(!data.valid)
 	{
 		strcopy(text, 255, "<无>");
 
@@ -3342,24 +3394,31 @@ char FormatEquip(int client, int index, char[] buffer = "", int len = 0)
 	}
 
 	char extrastr[16] = "";
+	bool legend = (data.damage >= g_iMaxEquipDamage ||
+		data.health >= g_iMaxEquipHealth ||
+		data.speed >= g_iMaxEquipSpeed ||
+		data.gravity >= g_iMaxEquipGravity ||
+		data.crit >= g_iMaxEquipCrit
+	);
 
-	// 附加功能
-	if(g_eqmEffects[client][index] > 0 && g_eqmUpgrade[client][index] > 0)
-		strcopy(extrastr, sizeof(extrastr), "★");
-	else if(g_eqmEffects[client][index] > 0)
-		strcopy(extrastr, sizeof(extrastr), "☆");
+	// 特殊标记
+	if(data.effect > 0 && legend)
+		strcopy(extrastr, sizeof(extrastr), "★");	// 黑星
+	else if(data.effect > 0)
+		strcopy(extrastr, sizeof(extrastr), "☆");	// 白星
 	else
 		strcopy(extrastr, sizeof(extrastr), "");
 
 	// 正在使用
-	if(g_clCurEquip[client][g_eqmParts[client][index]] == index)
+	if(g_clCurEquip[client][data.parts] == data.hashID)
 		StrCat(extrastr, sizeof(extrastr), " √");
 
-	FormatEx(text, 255, "%s%s%s 伤害+%d 血量+%d 速度+%d％ 暴击+%d 跳跃+%d％ %s", g_esPrefix[client][index],
-		g_esUpgrade[client][index], g_esParts[client][index],g_eqmDamage[client][index], g_eqmHealth[client][index],
-		g_eqmSpeed[client][index], g_eqmUpgrade[client][index], g_eqmGravity[client][index], extrastr);
+	int lentex = FormatEx(text, 255, "%s%s%s 伤害+%d 血量+%d％ 速度+%d％ 暴击+%d‰ 跳跃+%d％ %s",
+		data.sPrefix, data.sNamed, data.sParts,
+		data.damage, data.health, data.speed, data.crit, data.gravity, extrastr
+	);
 
-	if(len > 40)
+	if(len > lentex)
 		strcopy(buffer, len, text);
 
 	return text;
@@ -3369,15 +3428,58 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 {
 	Menu menu = CreateMenu(MenuHandler_SelectEquip);
 	menu.SetTitle("========= 装备栏 =========");
-
-	for(int i = 0; i < 12; ++i)
+	
+	static char key[16];
+	static EquipData_t data;
+	
+	// 已经装备上的排在前面
+	for(int i = 0; i < sizeof(g_clCurEquip[]); ++i)
 	{
-		if(!g_eqmValid[client][i])
+		if(!g_clCurEquip[client][i])
 			continue;
-
-		menu.AddItem(tr("%d",i), FormatEquip(client, i));
+		
+		IntToString(g_clCurEquip[client][i], key, sizeof(key));
+		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
+		{
+			g_clCurEquip[client][i] = 0;
+			continue;
+		}
+		
+		menu.AddItem(key, FormatEquip(client, data));
 	}
-
+	
+	// 然后是背包里的装备
+	StringMapSnapshot snap = g_mEquipData[client].Snapshot();
+	int size = snap.Length;
+	for(int i = 0; i < size; ++i)
+	{
+		snap.GetKey(i, key, sizeof(key));
+		
+		// 忽略已经装备上的(因为上面已经添加了)
+		int hashId = StringToInt(key);
+		for(int j = 0; j < sizeof(g_clCurEquip[]); ++j)
+		{
+			if(hashId != g_clCurEquip[client][j])
+				continue;
+			
+			hashId = 0;
+			break;
+		}
+		if(!hashId)
+			continue;
+		
+		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)))
+			continue;
+		
+		if(!data.valid)
+		{
+			g_mEquipData[client].Remove(key);
+			continue;
+		}
+		
+		menu.AddItem(key, FormatEquip(client, data));
+	}
+	
 	if(menu.ItemCount > 0)
 	{
 		menu.ExitButton = true;
@@ -3393,23 +3495,18 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 	}
 }
 
-void StatusEqmMenu(int client, int index = -1)
+// void StatusEqmMenu(int client, int index = -1)
+void StatusEqmMenu(int client, char[] key, EquipData_t data)
 {
-	if(index == -1)
-		index = SelectEqm[client];
-
-	char info[16];
-	IntToString(index, info, 16);
-
 	Menu menu = CreateMenu(MenuHandler_EquipInfo);
-	menu.SetTitle("========= 装备信息 =========\n%s", FormatEquip(client, index));
-	menu.AddItem(info, "穿上");
-	menu.AddItem(info, "卸下");
-	menu.AddItem(info, "改类型");
-	menu.AddItem(info, "改属性");
-	menu.AddItem(info, "出售");
-	menu.AddItem(info, "查看附加");
-
+	menu.SetTitle("========= 装备信息 =========\n%s", FormatEquip(client, data));
+	menu.AddItem(key, "穿上");
+	menu.AddItem(key, "卸下");
+	menu.AddItem(key, "改类型");
+	menu.AddItem(key, "改属性");
+	menu.AddItem(key, "出售");
+	menu.AddItem(key, "查看附加");
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -3422,199 +3519,116 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 
 	if(action == MenuAction_Cancel && selected == MenuCancel_ExitBack)
 	{
-		StatusSelectMenuFuncEqment(client);
+		StatusEqmFuncA(client, false);
 		return 0;
 	}
 
 	if(action != MenuAction_Select)
 		return 0;
-
-	char info[16];
-	menu.GetItem(0, info, 16);
-	int index = StringToInt(info);
-	if(index < 0 || index >= 12)
+	
+	static char key[16];
+	menu.GetItem(0, key, 16);
+	static EquipData_t data;
+	
+	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)))
 	{
-		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%s->%d", info, index);
+		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%d|%s", selected, key);
 		StatusEqmFuncA(client);
 		return 0;
 	}
 
-	if(!g_eqmValid[client][index])
+	if(!data.valid)
 	{
 		PrintToChat(client, "\x03[提示]\x01 这个选项无效。");
 		StatusEqmFuncA(client);
 		return 0;
 	}
-
+	
+	int damage, health, speed, gravity, crit;
+	
 	switch(selected)
 	{
 		case 0:
 		{
-			if(g_clCurEquip[client][g_eqmParts[client][index]] == index)
+			if(g_clCurEquip[client][data.parts] == data.hashID)
 			{
 				PrintToChat(client, "\x03[提示]\x01 你已穿上该装备，无需重复穿上。");
 			}
 			else
 			{
-				g_clCurEquip[client][g_eqmParts[client][index]] = index;
-				new eqmdmg = 0;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[client][i] != -1)
-					{
-						eqmdmg += g_eqmDamage[client][g_clCurEquip[client][i]];
-					}
-				}
-				new clienthp = 100;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[client][i] != -1)
-					{
-						clienthp += g_eqmHealth[client][g_clCurEquip[client][i]];
-					}
-				}
-				if((g_clSkill_1[client] & SKL_1_MaxHealth)) clienthp += 50;
-				// SetEntProp(client, Prop_Data, "m_iMaxHealth", clienthp);
-				
-				new clientsp = 100;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[client][i] != -1)
-					{
-						clientsp += g_eqmSpeed[client][g_clCurEquip[client][i]];
-					}
-				}
-				if((g_clSkill_1[client] & SKL_1_Movement)) clientsp += 10;
-				// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
-				// g_fMaxSpeedModify[client] = ((clientsp + 100) / 200.0);
-				
-				new Chance = 0;
-				if((g_clSkill_1[client] & SKL_1_DmgExtra)) Chance += 5;
-				if((g_clSkill_4[client] & SKL_4_DmgExtra)) Chance += 10;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[client][i] != -1)
-					{
-						Chance += g_eqmUpgrade[client][g_clCurEquip[client][i]];
-					}
-				}
-				
-				if(IsPlayerHaveEffect(client, 8)) Chance += 5;
+				g_clCurEquip[client][data.parts] = data.hashID;
 				RegPlayerHook(client, false);
+				CalcPlayerAttr(client, damage, health, speed, gravity, crit, true);
 				
-				new String:PercentStr[8] = "%";
-				PrintToChat(client, "\x03[提示]\x01 成功穿上该装备,穿上后 伤害+\x03%d\x01 HP=\x03%d\x01 速度=\x03%d%s\x01 暴击=\x03%d\x01 附加:\x03%s\x01.",eqmdmg,clienthp,clientsp,PercentStr,Chance,g_esEffects[client][index]);
+				PrintToChat(client,
+					"\x03[提示]\x01 成功穿上该装备,穿上后 伤害+\x03%d\x01 HP=\x03%d％\x01 速度=\x03%d％\x01 跳跃=\x03%d％\x01 暴击=\x03%d‰\x01 附加:\x03%s\x01.",
+					damage,health,speed,gravity,crit,data.sEffect
+				);
 				// EmitSoundToClient(client,g_soundLevel);
 				ClientCommand(client, "play \"%s\"", g_soundLevel);
 			}
 		}
 		case 1:
 		{
-			if(g_clCurEquip[client][g_eqmParts[client][index]] != index)
+			if(g_clCurEquip[client][data.parts] != data.hashID)
 			{
 				PrintToChat(client, "\x03[提示]\x01 你没有穿上该装备，无需卸下。");
 			}
 			else
 			{
-				g_clCurEquip[client][g_eqmParts[client][index]] = -1;
-				new eqmdmg = 0;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[client][i] != -1)
-					{
-						eqmdmg += g_eqmDamage[client][g_clCurEquip[client][i]];
-					}
-				}
-				new clienthp = 100;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[client][i] != -1)
-					{
-						clienthp += g_eqmHealth[client][g_clCurEquip[client][i]];
-					}
-				}
-				if((g_clSkill_1[client] & SKL_1_MaxHealth)) clienthp += 50;
-				// SetEntProp(client, Prop_Data, "m_iMaxHealth", clienthp);
-				
-				new clientsp = 100;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[client][i] != -1)
-					{
-						clientsp += g_eqmSpeed[client][g_clCurEquip[client][i]];
-					}
-				}
-				if((g_clSkill_1[client] & SKL_1_Movement)) clientsp += 10;
-				// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", ((clientsp + 100) / 200.0));
-				// g_fMaxSpeedModify[client] = ((clientsp + 100) / 200.0);
-				
-				new Chance = 0;
-				if((g_clSkill_1[client] & SKL_1_DmgExtra)) Chance += 5;
-				if((g_clSkill_4[client] & SKL_4_DmgExtra)) Chance += 10;
-				for(new i = 0;i < 4;i ++)
-				{
-					if(g_clCurEquip[client][i] != -1)
-					{
-						Chance += g_eqmUpgrade[client][g_clCurEquip[client][i]];
-					}
-				}
-				
-				if(IsPlayerHaveEffect(client, 8)) Chance += 5;
+				g_clCurEquip[client][data.parts] = 0;
 				RegPlayerHook(client, false);
+				CalcPlayerAttr(client, damage, health, speed, gravity, crit, true);
 				
-				new String:PercentStr[8] = "%";
-				PrintToChat(client, "\x01[装备]成功卸下该装备,卸下后 伤害+\x03%d\x01 HP=\x03%d\x01 速度=\x03%d%s\x01 暴击=\x03%d\x01 装备附加天赋技能消失.",eqmdmg,clienthp,clientsp,PercentStr,Chance);
+				PrintToChat(client,
+					"\x03[提示]\x01 成功卸下该装备,卸下后 伤害+\x03%d\x01 HP=\x03%d％\x01 速度=\x03%d％\x01 跳跃=\x03%d％\x01 暴击=\x03%d‰\x01 取消:\x03%s\x01.",
+					damage,health,speed,gravity,crit,data.sEffect
+				);
 			}
 		}
 		case 2:
 		{
-			if(g_clCurEquip[client][g_eqmParts[client][index]] != index)
+			if(g_clCurEquip[client][data.parts] != data.hashID)
 			{
-				StatusEqmChangeType(client, index);
+				StatusEqmChangeType(client, key);
 				return 0;
 			}
-
+			
 			PrintToChat(client, "\x03[提示]\x01 请先卸下该装备再进行操作。");
 		}
 		case 3:
 		{
-			if(g_clCurEquip[client][g_eqmParts[client][index]] != index)
+			if(g_clCurEquip[client][data.parts] != data.hashID)
 			{
-				StatusEqmChangePoint(client, index);
+				StatusEqmChangePoint(client, key);
 				return 0;
 			}
-
+			
 			PrintToChat(client, "\x03[提示]\x01 请先卸下该装备再进行操作。");
 		}
 		case 4:
 		{
-			if(g_clCurEquip[client][g_eqmParts[client][index]] != index)
+			if(g_clCurEquip[client][data.parts] != data.hashID)
 			{
-				StatusEqmSell(client, index);
+				StatusEqmSell(client, key);
 				return 0;
 			}
-
+			
 			PrintToChat(client, "\x03[提示]\x01 请先卸下该装备再进行操作。");
 		}
 		case 5:
 		{
-			PrintToChat(client, "\x03[提示]\x01 该装备附加天赋技能：\x03%s\x01。", g_esEffects[client][index]);
+			PrintToChat(client, "\x03[提示]\x01 该装备附加天赋技能：\x03%s\x01。", data.sEffect);
 		}
 	}
-
-	StatusEqmMenu(client, index);
+	
+	StatusEqmMenu(client, key, data);
 	return 0;
 }
 
-void StatusEqmSell(int client, int index = -1)
+void StatusEqmSell(int client, char[] key)
 {
-	if(index == -1)
-		index = SelectEqm[client];
-
-	char info[16];
-	IntToString(index, info, 16);
-
-	CreateConfirmMenu("========= 出售装备 =========", MenuHandler_SellEquip, info,
+	CreateConfirmMenu("========= 出售装备 =========", MenuHandler_SellEquip, key,
 		"确定出售该装备？\n现有 %d 点，出售获得 1 点",
 		g_clSkillPoint[client]).Display(client, MENU_TIME_FOREVER);
 }
@@ -3624,30 +3638,31 @@ public int MenuHandler_SellEquip(Menu menu, MenuAction action, int client, int s
 	if(!IsValidClient(client))
 		return 0;
 
-	char info[16];
-	menu.GetItem(0, info, 16);
-	int index = StringToInt(info);
+	char key[16];
+	menu.GetItem(0, key, 16);
+	
+	static EquipData_t data;
+	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)))
+	{
+		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%d|%s", selected, key);
+		StatusEqmFuncA(client);
+		return 0;
+	}
+	
 	if(action == MenuAction_Cancel && selected == MenuCancel_ExitBack)
 	{
-		if(0 <= index < 12)
-			StatusEqmMenu(client, index);
+		if(data.valid)
+			StatusEqmMenu(client, key, data);
 		else
 			StatusEqmFuncA(client);
 
 		return 0;
 	}
-
+	
 	if(action != MenuAction_Select)
 		return 0;
-
-	if(index < 0 || index >= 12)
-	{
-		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%s->%d", info, index);
-		StatusEqmFuncA(client);
-		return 0;
-	}
-
-	if(!g_eqmValid[client][index])
+	
+	if(!data.valid)
 	{
 		PrintToChat(client, "\x03[提示]\x01 这个选项无效。");
 		StatusEqmFuncA(client);
@@ -3656,9 +3671,8 @@ public int MenuHandler_SellEquip(Menu menu, MenuAction action, int client, int s
 
 	if(selected == 0)
 	{
-
+		g_mEquipData[client].Remove(key);
 		GiveSkillPoint(client, 1);
-		g_eqmValid[client][index] = false;
 		PrintToChat(client, "\x03[提示]\x01 完成。");
 	}
 	else if(selected == 1)
@@ -3671,29 +3685,21 @@ public int MenuHandler_SellEquip(Menu menu, MenuAction action, int client, int s
 	return 0;
 }
 
-void StatusEqmChangePoint(int client, int index = -1)
+// void StatusEqmChangePoint(int client, int index = -1)
+void StatusEqmChangePoint(int client, char[] key)
 {
-	if(index == -1)
-		index = SelectEqm[client];
-
-	char info[16];
-	IntToString(index, info, 16);
-
-	CreateConfirmMenu("========= 改造装备 =========", MenuHandler_EquipProperty, info,
+	// 普通改造
+	CreateConfirmMenu("========= 改造装备 =========", MenuHandler_EquipProperty, key,
 		"确定改造该装备的属性？\n现有 %d 点，需要 1 点",
 		g_clSkillPoint[client]).Display(client, MENU_TIME_FOREVER);
 }
 
-void StatusEqmChangePointJJ(int client, int index = -1)
+// void StatusEqmChangePointLegend(int client, int index = -1)
+void StatusEqmChangePointLegend(int client, char[] key)
 {
-	if(index == -1)
-		index = SelectEqm[client];
-
-	char info[16];
-	IntToString(index, info, 16);
-
-	CreateConfirmMenu("========= 改造装备 =========", MenuHandler_EquipSkill, info,
-		"确定改造该装备随机获得附加技能？\n现有 %d 点，需要 3 点",
+	// 传奇改造
+	CreateConfirmMenu("========= 改造装备 =========", MenuHandler_EquipSkill, key,
+		"确定改造该装备以随机获得附加技能？\n现有 %d 点，需要 3 点",
 		g_clSkillPoint[client]).Display(client, MENU_TIME_FOREVER);
 }
 
@@ -3702,13 +3708,21 @@ public int MenuHandler_EquipSkill(Menu menu, MenuAction action, int client, int 
 	if(!IsValidClient(client))
 		return 0;
 
-	char info[16];
-	menu.GetItem(0, info, 16);
-	int index = StringToInt(info);
+	char key[16];
+	menu.GetItem(0, key, 16);
+	
+	static EquipData_t data;
+	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)))
+	{
+		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%d|%s", selected, key);
+		StatusEqmFuncA(client);
+		return 0;
+	}
+	
 	if(action == MenuAction_Cancel && selected == MenuCancel_ExitBack)
 	{
-		if(0 <= index < 12)
-			StatusEqmMenu(client, index);
+		if(data.valid)
+			StatusEqmMenu(client, key, data);
 		else
 			StatusEqmFuncA(client);
 
@@ -3717,15 +3731,8 @@ public int MenuHandler_EquipSkill(Menu menu, MenuAction action, int client, int 
 
 	if(action != MenuAction_Select)
 		return 0;
-
-	if(index < 0 || index >= 12)
-	{
-		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%s->%d", info, index);
-		StatusEqmFuncA(client);
-		return 0;
-	}
-
-	if(!g_eqmValid[client][index])
+	
+	if(!data.valid)
 	{
 		PrintToChat(client, "\x03[提示]\x01 这个选项无效。");
 		StatusEqmFuncA(client);
@@ -3737,24 +3744,26 @@ public int MenuHandler_EquipSkill(Menu menu, MenuAction action, int client, int 
 		if(g_clSkillPoint[client] < 3)
 		{
 			PrintToChat(client, "\x03[提示]\x01 你的点数不足。");
-			StatusEqmChangePointJJ(client, index);
+			StatusEqmChangePointLegend(client, key);
 			return 0;
 		}
 
-
 		GiveSkillPoint(client, -3);
-		g_eqmEffects[client][index] = GetRandomInt(1, g_iMaxEqmEffects);
-		RebuildEquipStr(client, index);
+		
+		data.effect = GetRandomInt(1, g_iMaxEqmEffects);
+		
+		RebuildEquipStr(data);
+		g_mEquipData[client].SetArray(key, data, sizeof(data));
 
-		PrintToChat(client, "\x03[提示]\x01 改造后：%s", FormatEquip(client, index));
+		PrintToChat(client, "\x03[提示]\x01 改造后：%s", FormatEquip(client, data));
 	}
 	else if(selected == 1)
 	{
-		StatusEqmMenu(client, index);
+		StatusEqmMenu(client, key, data);
 		return 0;
 	}
 
-	StatusEqmChangePointJJ(client, index);
+	StatusEqmChangePointLegend(client, key);
 	return 0;
 }
 
@@ -3763,13 +3772,21 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 	if(!IsValidClient(client))
 		return 0;
 
-	char info[16];
-	menu.GetItem(0, info, 16);
-	int index = StringToInt(info);
+	char key[16];
+	menu.GetItem(0, key, 16);
+	
+	static EquipData_t data;
+	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)))
+	{
+		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%d|%s", selected, key);
+		StatusEqmFuncA(client);
+		return 0;
+	}
+	
 	if(action == MenuAction_Cancel && selected == MenuCancel_ExitBack)
 	{
-		if(0 <= index < 12)
-			StatusEqmMenu(client, index);
+		if(data.valid)
+			StatusEqmMenu(client, key, data);
 		else
 			StatusEqmFuncA(client);
 
@@ -3778,15 +3795,8 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 
 	if(action != MenuAction_Select)
 		return 0;
-
-	if(index < 0 || index >= 12)
-	{
-		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%s->%d", info, index);
-		StatusEqmFuncA(client);
-		return 0;
-	}
-
-	if(!g_eqmValid[client][index])
+	
+	if(!data.valid)
 	{
 		PrintToChat(client, "\x03[提示]\x01 这个选项无效。");
 		StatusEqmFuncA(client);
@@ -3798,106 +3808,98 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 		if(g_clSkillPoint[client] < 1)
 		{
 			PrintToChat(client, "\x03[提示]\x01 你的点数不足。");
-			StatusEqmChangePoint(client, index);
+			StatusEqmChangePoint(client, key);
 			return 0;
 		}
-
-		if(g_eqmDamage[client][index] >= 25
-		||	g_eqmHealth[client][index] >= 150
-		||	g_eqmSpeed[client][index] >= 50
-		||	g_eqmUpgrade[client][index] >= 25)
+		
+		if(data.damage >= g_iMaxEquipDamage ||
+			data.health >= g_iMaxEquipHealth ||
+			data.speed >= g_iMaxEquipSpeed ||
+			data.gravity >= g_iMaxEquipGravity ||
+			data.crit >= g_iMaxEquipCrit
+		)
 		{
 			PrintToChat(client, "\x03[\x05提示\x03]\x04该装备已经改造至极致,继续改造需耗天赋点三点,且只会随机获得附加技能,不会再改变属性!");
-			StatusEqmChangePointJJ(client, index);
+			StatusEqmChangePointLegend(client, key);
 			return 0;
 		}
 
 		GiveSkillPoint(client, -1);
-		switch(g_eqmParts[client][index])
+		SetRandomSeed(GetGameTickCount() + client);
+		
+		switch(data.parts)
 		{
-			case 0:
+			case EquipPart_Head:
 			{
-				g_eqmDamage[client][index] += GetRandomInt(-3, 5);
-				g_eqmHealth[client][index] += GetRandomInt(-10, 15);
-				g_eqmSpeed[client][index] += GetRandomInt(-2, 3);
+				data.damage += GetRandomInt(-3, 5);
+				data.health += GetRandomInt(-10, 15);
+				data.crit += GetRandomInt(-2, 3);
 			}
-			case 1:
+			case EquipPart_Body:
 			{
-				g_eqmDamage[client][index] += GetRandomInt(-2, 3);
-				g_eqmHealth[client][index] += GetRandomInt(-8, 12);
-				g_eqmSpeed[client][index] += GetRandomInt(-3, 5);
+				data.damage += GetRandomInt(-2, 3);
+				data.health += GetRandomInt(-15, 30);
+				data.speed += GetRandomInt(-3, 5);
+				data.gravity += GetRandomInt(-3, 5);
 			}
-			case 2:
+			case EquipPart_Hand:
 			{
-				g_eqmDamage[client][index] += GetRandomInt(-1, 1);
-				g_eqmHealth[client][index] += GetRandomInt(-12, 22);
-				g_eqmSpeed[client][index] += GetRandomInt(-1, 2);
+				data.damage += GetRandomInt(-10, 20);
+				data.health += GetRandomInt(-2, 5);
+				data.crit += GetRandomInt(-10, 15);
 			}
-			case 3:
+			case EquipPart_Foot:
 			{
-				g_eqmDamage[client][index] += GetRandomInt(-2, 3);
-				g_eqmHealth[client][index] += GetRandomInt(-5, 8);
-				g_eqmSpeed[client][index] += GetRandomInt(-2, 4);
+				data.damage += GetRandomInt(-1, 3);
+				data.health += GetRandomInt(-1, 5);
+				data.speed += GetRandomInt(-15, 30);
+				data.gravity += GetRandomInt(-5, 10);
 			}
 		}
-		new extradmgchance;
-		if(g_eqmUpgrade[client][index] > 0)
+		
+		SetRandomSeed(GetSysTickCount() + client);
+		
+		switch(data.prefix)
 		{
-			extradmgchance = 1;
+			case EquipPrefix_Fire:
+				data.damage += GetRandomInt(1, 10);
+			case EquipPrefix_Water:
+				data.health += GetRandomInt(1, 10);
+			case EquipPrefix_Sky:
+				data.gravity += GetRandomInt(1, 10);
+			case EquipPrefix_Wind:
+				data.speed += GetRandomInt(1, 10);
+			case EquipPrefix_Lucky:
+				data.crit += GetRandomInt(1, 10);
 		}
-		else extradmgchance = GetRandomInt(1, 3);
-		if(extradmgchance == 1)
-		{
-			g_eqmUpgrade[client][index] = GetRandomInt(g_eqmUpgrade[client][index] - 1, g_eqmUpgrade[client][index] + 2);
-		}
-		else g_eqmUpgrade[client][index] = 0;
-		new extratalent;
-		if(g_eqmEffects[client][index] > 0)
-		{
-			extratalent = GetRandomInt(1, 2);
-		}
-		else extratalent = GetRandomInt(1, 4);
-		if(extratalent == 1)
-		{
-			g_eqmEffects[client][index] = GetRandomInt(1, g_iMaxEqmEffects);
-		}
-		else
-		{
-			g_eqmEffects[client][index] = 0;
-		}
-
-		RebuildEquipStr(client, index);
-
-		PrintToChat(client, "\x03[提示]\x01 改造后：%s", FormatEquip(client, index));
+		
+		RebuildEquipStr(data);
+		g_mEquipData[client].SetArray(key, data, sizeof(data));
+		PrintToChat(client, "\x03[提示]\x01 改造后：%s", FormatEquip(client, data));
 	}
 	else if(selected == 1)
 	{
-		StatusEqmMenu(client, index);
+		StatusEqmMenu(client, key, data);
 		return 0;
 	}
 
-	StatusEqmChangePoint(client, index);
+	StatusEqmChangePoint(client, key);
 	return 0;
 }
 
-void StatusEqmChangeType(int client, int index = -1)
+// void StatusEqmChangeType(int client, int index = -1)
+void StatusEqmChangeType(int client, char[] key)
 {
-	if(index == -1)
-		index = SelectEqm[client];
-
-	char info[16];
-	IntToString(index, info, 16);
-
 	Menu menu = CreateMenu(MenuHandler_EquipType);
 	menu.SetTitle("========= 改造装备 =========\n选择要更改成哪个类型？\n需要 1 点，现有 %d 点",
 		g_clSkillPoint[client]);
-
-	menu.AddItem(info, "烈火");
-	menu.AddItem(info, "流水");
-	menu.AddItem(info, "破天");
-	menu.AddItem(info, "疾风");
-	menu.AddItem(info, "惊魄");
-
+	
+	menu.AddItem(key, "烈火(伤害)");
+	menu.AddItem(key, "流水(生命)");
+	menu.AddItem(key, "破天(跳跃)");
+	menu.AddItem(key, "疾风(速度)");
+	menu.AddItem(key, "惊魄(暴击)");
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -3908,13 +3910,21 @@ public int MenuHandler_EquipType(Menu menu, MenuAction action, int client, int s
 	if(!IsValidClient(client))
 		return 0;
 
-	char info[16];
-	menu.GetItem(0, info, 16);
-	int index = StringToInt(info);
+	char key[16];
+	menu.GetItem(0, key, 16);
+	
+	static EquipData_t data;
+	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)))
+	{
+		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%d|%s", key, selected);
+		StatusEqmFuncA(client);
+		return 0;
+	}
+	
 	if(action == MenuAction_Cancel && selected == MenuCancel_ExitBack)
 	{
-		if(0 <= index < 12)
-			StatusEqmMenu(client, index);
+		if(data.valid)
+			StatusEqmMenu(client, key, data);
 		else
 			StatusEqmFuncA(client);
 
@@ -3923,15 +3933,8 @@ public int MenuHandler_EquipType(Menu menu, MenuAction action, int client, int s
 
 	if(action != MenuAction_Select)
 		return 0;
-
-	if(index < 0 || index >= 12)
-	{
-		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%s->%d", info, index);
-		StatusEqmFuncA(client);
-		return 0;
-	}
-
-	if(!g_eqmValid[client][index])
+	
+	if(!data.valid)
 	{
 		PrintToChat(client, "\x03[提示]\x01 这个选项无效。");
 		StatusEqmFuncA(client);
@@ -3943,10 +3946,9 @@ public int MenuHandler_EquipType(Menu menu, MenuAction action, int client, int s
 		if(g_clSkillPoint[client] < 1)
 		{
 			PrintToChat(client, "\x03[提示]\x01 你的点数不足。");
-			StatusEqmChangeType(client, index);
+			StatusEqmChangeType(client, key);
 			return 0;
 		}
-
 
 		GiveSkillPoint(client, -1);
 	}
@@ -3955,37 +3957,38 @@ public int MenuHandler_EquipType(Menu menu, MenuAction action, int client, int s
 	{
 		case 0:
 		{
-			g_eqmPrefix[client][index] = 1;
-			g_esPrefix[client][index] = "烈火";
+			data.prefix = EquipPrefix_Fire;
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "烈火");
 			PrintToChat(client, "\x03[提示]\x01 改成了：\x04烈火");
 		}
 		case 1:
 		{
-			g_eqmPrefix[client][index] = 2;
-			g_esPrefix[client][index] = "流水";
+			data.prefix = EquipPrefix_Water;
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "流水");
 			PrintToChat(client, "\x03[提示]\x01 改成了：\x04流水");
 		}
 		case 2:
 		{
-			g_eqmPrefix[client][index] = 3;
-			g_esPrefix[client][index] = "破天";
+			data.prefix = EquipPrefix_Sky;
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "破天");
 			PrintToChat(client, "\x03[提示]\x01 改成了：\x04破天");
 		}
 		case 3:
 		{
-			g_eqmPrefix[client][index] = 4;
-			g_esPrefix[client][index] = "疾风";
+			data.prefix = EquipPrefix_Wind;
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "疾风");
 			PrintToChat(client, "\x03[提示]\x01 改成了：\x04疾风");
 		}
 		case 4:
 		{
-			g_eqmPrefix[client][index] = 5;
-			g_esPrefix[client][index] = "惊魄";
+			data.prefix = EquipPrefix_Lucky;
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "惊魄");
 			PrintToChat(client, "\x03[提示]\x01 改成了：\x04惊魄");
 		}
 	}
-
-	StatusEqmChangeType(client, index);
+	g_mEquipData[client].SetArray(key, data, sizeof(data));
+	
+	StatusEqmChangeType(client, key);
 	return 0;
 }
 
@@ -4003,25 +4006,26 @@ public int MenuHandler_SelectEquip(Menu menu, MenuAction action, int client, int
 	if(action != MenuAction_Select)
 		return 0;
 
-	char info[16];
-	menu.GetItem(selected, info, 16);
-	int index = StringToInt(info);
-	if(index < 0 || index >= 12)
+	char key[16];
+	menu.GetItem(selected, key, 16);
+	
+	static EquipData_t data;
+	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)))
 	{
-		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%s->%d", info, index);
+		PrintToChat(client, "\x03[提示]\x01 没有这种操作：%d|%s", selected, key);
 		StatusEqmFuncA(client);
 		return 0;
 	}
 
-	if(!g_eqmValid[client][index])
+	if(!data.valid)
 	{
 		PrintToChat(client, "\x03[提示]\x01 这个选项无效。");
 		StatusEqmFuncA(client);
 		return 0;
 	}
 
-	SelectEqm[client] = index;
-	StatusEqmMenu(client, index);
+	// SelectEqm[client] = index;
+	StatusEqmMenu(client, key, data);
 	return 0;
 }
 
@@ -4825,27 +4829,34 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	for(int i = 0; i < 4; ++i)
 	{
-		if(g_clCurEquip[attacker][i] == -1)
+		if(!g_clCurEquip[attacker][i])
 			continue;
 		
-		// 强化后的装备
-		if(g_eqmUpgrade[attacker][g_clCurEquip[attacker][i]] > 0)
-			chance += g_eqmUpgrade[attacker][g_clCurEquip[attacker][i]];
+		static char key[16];
+		IntToString(g_clCurEquip[attacker][i], key, sizeof(key));
+		
+		static EquipData_t data;
+		if(!g_mEquipData[attacker].GetArray(key, data, sizeof(data)) || !data.valid)
+			continue;
+		
+		// 暴击率
+		if(data.crit > 0)
+			chance += data.crit;
 		
 		// 装备附加技能
-		if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 8)
+		if(data.effect == 8)
 			chance += 5;
 		
 		// 装备前缀
-		if(g_eqmPrefix[attacker][g_clCurEquip[attacker][i]] == 5)
+		if(data.prefix == EquipPrefix_Lucky)
 			chance += 2;
 		
 		// 装备伤害
-		if(g_eqmDamage[attacker][g_clCurEquip[attacker][i]] > 0)
-			extraDamage += g_eqmDamage[attacker][g_clCurEquip[attacker][i]];
+		if(data.damage > 0)
+			extraDamage += data.damage;
 		
 		// 暴击伤害加成
-		if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 6)
+		if(data.effect == 6)
 			extraChanceDamage += GetRandomInt(50, 200);
 	}
 	
@@ -5245,27 +5256,34 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	for(int i = 0; i < 4; ++i)
 	{
-		if(g_clCurEquip[attacker][i] == -1)
+		if(!g_clCurEquip[attacker][i])
 			continue;
 		
-		// 强化后的装备
-		if(g_eqmUpgrade[attacker][g_clCurEquip[attacker][i]] > 0)
-			chance += g_eqmUpgrade[attacker][g_clCurEquip[attacker][i]];
+		static char key[16];
+		IntToString(g_clCurEquip[attacker][i], key, sizeof(key));
+		
+		static EquipData_t data;
+		if(!g_mEquipData[attacker].GetArray(key, data, sizeof(data)) || !data.valid)
+			continue;
+		
+		// 暴击率
+		if(data.crit > 0)
+			chance += data.crit;
 		
 		// 装备附加技能
-		if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 8)
+		if(data.effect == 8)
 			chance += 5;
 		
 		// 装备前缀
-		if(g_eqmPrefix[attacker][g_clCurEquip[attacker][i]] == 5)
+		if(data.prefix == EquipPrefix_Lucky)
 			chance += 2;
 		
 		// 装备伤害
-		if(g_eqmDamage[attacker][g_clCurEquip[attacker][i]] > 0)
-			extraDamage += g_eqmDamage[attacker][g_clCurEquip[attacker][i]];
+		if(data.damage > 0)
+			extraDamage += data.damage;
 		
 		// 暴击伤害加成
-		if(g_eqmEffects[attacker][g_clCurEquip[attacker][i]] == 6)
+		if(data.effect == 6)
 			extraChanceDamage += GetRandomInt(50, 200);
 	}
 	
@@ -5417,6 +5435,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	return Plugin_Continue;
 }
 
+/*
 stock void PrintCenterTextEx(int client, const char[] msg, any ...)
 {
 	for(int i = MAX_CACHED_MESSAGES - 1; i > 0; --i)
@@ -5442,6 +5461,7 @@ public Action Timer_ClearCacheMessage(Handle timer, any client)
 	for(int i = 0; i < MAX_CACHED_MESSAGES; ++i)
 		g_sCacheMessage[client][i][0] = EOS;
 }
+*/
 
 public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
@@ -6595,16 +6615,20 @@ void RewardPicker(int client)
 				else
 				{
 					new j = GiveEquipment(client);
-
-					if(j == -1)
+					if(!j)
 					{
 						if(g_pCvarAllow.BoolValue)
 							PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
 					}
 					else
 					{
-						if(g_pCvarAllow.BoolValue)
-							PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, j));
+						static char key[16];
+						IntToString(j, key, sizeof(key));
+						static EquipData_t data;
+						if(g_pCvarAllow.BoolValue && g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
+						{
+							PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, data));
+						}
 					}
 				}
 			}
@@ -6940,7 +6964,7 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 				else
 				{
 					new j = GiveEquipment(i);
-					if(j == -1)
+					if(!j)
 					{
 						GiveSkillPoint(i, 2);
 
@@ -6949,8 +6973,11 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 					}
 					else
 					{
-						if(g_pCvarAllow.BoolValue && !IsFakeClient(i))
-							PrintToChat(i, "\x03[提示]\x01 获得装备：%s", FormatEquip(i, j));
+						static char key[16];
+						IntToString(j, key, sizeof(key));
+						static EquipData_t ed;
+						if(g_pCvarAllow.BoolValue && !IsFakeClient(i) && g_mEquipData[i].GetArray(key, ed, sizeof(ed)) && ed.valid)
+							PrintToChat(i, "\x03[提示]\x01 获得装备：%s", FormatEquip(i, ed));
 					}
 				}
 			}
@@ -7700,6 +7727,7 @@ public void NotifyDamageInfo(any client)
 	
 	StringMapSnapshot snap = g_mTotalDamage[client].Snapshot();
 	int size = snap.Length;
+	
 	
 	static char eRef[12];
 	static char name[MAX_NAME_LENGTH];
@@ -8581,16 +8609,35 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 
 void RegPlayerHook(int client, bool fullHealth = false)
 {
-	int maxHealth = GetMaxHealth(client);
-	if((g_clSkill_1[client] & SKL_1_MaxHealth))
-		maxHealth += 50;
-
-	for(int i = 0; i < 4; ++i)
+	int gravity = 100;
+	int maxSpeed = 100;
+	int baseMaxHealth = GetMaxHealth(client);
+	int maxHealth = baseMaxHealth;
+	for(int i = 0; i < sizeof(g_clCurEquip[]); ++i)
 	{
-		if(g_clCurEquip[client][i] > -1)
-			maxHealth += g_eqmHealth[client][g_clCurEquip[client][i]];
+		if(!g_clCurEquip[client][i])
+			continue;
+		
+		static char key[16];
+		IntToString(g_clCurEquip[client][i], key, sizeof(key));
+		
+		static EquipData_t data;
+		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
+			continue;
+		
+		if(data.health > 0)
+			maxHealth += (data.health * baseMaxHealth / 100);
+		
+		if(data.speed > 0)
+			maxSpeed += data.speed;
+		
+		if(data.gravity > 0)
+			gravity += data.gravity;
 	}
-
+	
+	if(g_clSkill_1[client] & SKL_1_MaxHealth)
+		maxHealth += 50;
+	
 	SetEntProp(client, Prop_Data, "m_iMaxHealth", maxHealth);
 
 	if(fullHealth)
@@ -8604,29 +8651,15 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
 	}
 
-	int maxSpeed = 100;
-	if((g_clSkill_1[client] & SKL_1_Movement))
+	if(g_clSkill_1[client] & SKL_1_Movement)
 		maxSpeed += 10;
 
-	for(int i = 0; i < 4; ++i)
-	{
-		if(g_clCurEquip[client][i] > -1)
-			maxSpeed += g_eqmSpeed[client][g_clCurEquip[client][i]];
-	}
-	
 	// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", maxSpeed / 100.0);
 	// SetEntPropFloat(client, Prop_Data, "m_flMaxspeed", g_cvMaxSpeed.FloatValue * maxSpeed / 100.0);
 	g_fMaxSpeedModify[client] = maxSpeed / 100.0;
 	
-	int gravity = 100;
-	if((g_clSkill_1[client] & SKL_1_Gravity))
+	if(g_clSkill_1[client] & SKL_1_Gravity)
 		gravity += 20;
-
-	for(int i = 0; i < 4; ++i)
-	{
-		if(g_clCurEquip[client][i] > -1)
-			gravity += g_eqmGravity[client][g_clCurEquip[client][i]];
-	}
 
 	// SetEntityGravity(client, gravity / 100.0);
 	g_fMaxGravityModify[client] = gravity / 100.0;
@@ -8756,23 +8789,23 @@ int GetMaxHealth(int client)
 	{
 		case 0:
 			return cv_common.IntValue;
-		case 1:
+		case ZC_SMOKER:
 			return cv_smoker.IntValue;
-		case 2:
+		case ZC_BOOMER:
 			return cv_boomer.IntValue;
-		case 3:
+		case ZC_HUNTER:
 			return cv_hunter.IntValue;
-		case 4:
+		case ZC_SPITTER:
 			return cv_spitter.IntValue;
-		case 5:
+		case ZC_JOCKEY:
 			return cv_jockey.IntValue;
-		case 6:
+		case ZC_CHARGER:
 			return cv_charger.IntValue;
-		case 7:
+		case ZC_WITCH:
 			return cv_witch.IntValue;
-		case 8:
+		case ZC_TANK:
 			return cv_tank.IntValue;
-		case 9:
+		case ZC_SURVIVOR:
 			return 100;
 		case 10:
 			return 0;
@@ -8998,17 +9031,7 @@ int GetDefaultClip(int weapon)
 int CalcPlayerClip(int client, int weapon)
 {
 	float scale = 1.0;
-	
-	for(int i = 0; i < 4; ++i)
-	{
-		if(g_clCurEquip[client][i] == -1)
-			continue;
-		
-		// 装备附加技能
-		if(g_eqmEffects[client][g_clCurEquip[client][i]] == 14)
-			scale += 0.15;
-	}
-	
+	scale += IsPlayerHaveEffect(client, 14) * 0.15;
 	if(g_clSkill_4[client] & SKL_4_ClipSize)
 		scale += 0.5;
 	
@@ -9875,16 +9898,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 		*/
 		
 		float scale = 1.0;
-		
-		for(int i = 0; i < 4; ++i)
-		{
-			if(g_clCurEquip[client][i] == -1)
-				continue;
-			
-			// 装备附加技能
-			if(g_eqmEffects[client][g_clCurEquip[client][i]] == 15)
-				scale += 0.25;
-		}
+		scale += IsPlayerHaveEffect(client, 15) * 0.25;
 		
 		if(g_clSkill_3[client] & SKL_3_MoreAmmo)
 			scale += 1.0;
@@ -12164,10 +12178,16 @@ public Action:Event_RP(Handle:timer, any:client)
 				else
 				{
 					new j = GiveEquipment(client);
-					if(j == -1)
+					if(!j)
 						PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
 					else
-						PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, j));
+					{
+						static char key[16];
+						IntToString(j, key, sizeof(key));
+						static EquipData_t data;
+						if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
+							PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, data));
+					}
 				}
 			}
 			case 49:
@@ -12770,7 +12790,7 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 	AcceptEntityInput(entity, "FireUser1", attacker, entity);
 }
 
-int GetPlayerTempHealth(int client)
+stock int GetPlayerTempHealth(int client)
 {
 	if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
 		return 0;
@@ -12787,7 +12807,7 @@ int GetPlayerTempHealth(int client)
 	return tempHealth < 0 ? 0 : tempHealth;
 }
 
-bool GiveSkillPoint(int client, int amount)
+stock bool GiveSkillPoint(int client, int amount)
 {
 	if(!IsValidClient(client) || amount == 0)
 		return false;
@@ -12796,218 +12816,290 @@ bool GiveSkillPoint(int client, int amount)
 	return true;
 }
 
-int GiveEquipment(int client, int index = -1, int parts = -1)
+stock int GiveEquipment(int client, int parts = -1)
 {
 	if(!IsValidClient(client))
-		return -1;
-
-	if(index == -1)
+		return 0;
+	
+	if(g_mEquipData[client] == null)
+		g_mEquipData[client] = CreateTrie();
+	
+	static EquipData_t data;
+	
+	data.valid = true;
+	data.prefix = view_as<EquipPrefix_t>(GetRandomInt(1, 5));
+	data.parts = view_as<EquipPart_t>(0 <= parts <= 3 ? parts : GetRandomInt(0, 3));
+	data.crit = (GetRandomInt(0, 1) ? GetRandomInt(0, 5) : 0);
+	data.effect = (!GetRandomInt(0, 2) ? GetRandomInt(0, g_iMaxEqmEffects) : 0);
+	data.hashID = GetSysTickCount() + GetGameTickCount() + client + parts;
+	
+	SetRandomSeed(GetSysTickCount() + client);
+	
+	switch(data.parts)
 	{
-		for(int i = 0; i < 12; ++i)
+		case EquipPart_Head:
 		{
-			if(!g_eqmValid[client][i])
-			{
-				index = i;
-				break;
-			}
+			data.damage = GetRandomInt(1, 8);
+			data.health = GetRandomInt(5, 10);
+			data.crit = GetRandomInt(0, 3);
+			data.gravity = 0;
+			data.speed = 0;
+		}
+		case EquipPart_Body:
+		{
+			data.damage = GetRandomInt(1, 6);
+			data.health = GetRandomInt(10, 20);
+			data.crit = 0;
+			data.gravity = GetRandomInt(0, 3);
+			data.speed = GetRandomInt(0, 5);
+		}
+		case EquipPart_Hand:
+		{
+			data.damage = GetRandomInt(10, 20);
+			data.health = GetRandomInt(1, 5);
+			data.crit = GetRandomInt(5, 15);
+			data.gravity = 0;
+			data.speed = 0;
+		}
+		case EquipPart_Foot:
+		{
+			data.damage = GetRandomInt(1, 3);
+			data.health = GetRandomInt(1, 7);
+			data.crit = 0;
+			data.gravity = GetRandomInt(4, 10);
+			data.speed = GetRandomInt(5, 15);
 		}
 	}
-
-	if(index == -1)
-		return -1;
-
-	g_eqmValid[client][index] = true;
-	g_eqmPrefix[client][index] = GetRandomInt(1, 5);
-	g_eqmParts[client][index] = (0 <= parts <= 3 ? parts : GetRandomInt(0, 3));
-	g_eqmUpgrade[client][index] = (GetRandomInt(0, 1) ? GetRandomInt(0, 5) : 0);
-	g_eqmEffects[client][index] = (!GetRandomInt(0, 2) ? GetRandomInt(0, g_iMaxEqmEffects) : 0);
-
-	switch(g_eqmParts[client][index])
+	
+	SetRandomSeed(GetGameTickCount() + client);
+	
+	switch(data.prefix)
 	{
-		case 0:
-		{
-			g_eqmDamage[client][index] = GetRandomInt(1, 4);
-			g_eqmHealth[client][index] = GetRandomInt(10, 20);
-			g_eqmSpeed[client][index] = GetRandomInt(0, 3);
-			g_eqmGravity[client][index] = 0;
-		}
-		case 1:
-		{
-			g_eqmDamage[client][index] = GetRandomInt(0, 4);
-			g_eqmHealth[client][index] = GetRandomInt(15, 30);
-			g_eqmSpeed[client][index] = GetRandomInt(1, 5);
-			g_eqmGravity[client][index] = 0;
-		}
-		case 2:
-		{
-			g_eqmDamage[client][index] = 0;
-			g_eqmHealth[client][index] = GetRandomInt(40, 60);
-			g_eqmSpeed[client][index] = GetRandomInt(1, 4);
-			g_eqmGravity[client][index] = GetRandomInt(0, 10);
-		}
-		case 3:
-		{
-			g_eqmDamage[client][index] = GetRandomInt(0, 2);
-			g_eqmHealth[client][index] = GetRandomInt(15, 25);
-			g_eqmSpeed[client][index] = GetRandomInt(6, 12);
-			g_eqmGravity[client][index] = GetRandomInt(0, 15);
-		}
-		default:
-		{
-			g_eqmDamage[client][index] = 0;
-			g_eqmHealth[client][index] = 0;
-			g_eqmSpeed[client][index] = 0;
-			g_eqmGravity[client][index] = 0;
-		}
+		case EquipPrefix_Fire:
+			data.damage += GetRandomInt(5, 20);
+		case EquipPrefix_Water:
+			data.health += GetRandomInt(5, 20);
+		case EquipPrefix_Sky:
+			data.gravity += GetRandomInt(5, 20);
+		case EquipPrefix_Wind:
+			data.speed += GetRandomInt(5, 20);
+		case EquipPrefix_Lucky:
+			data.crit += GetRandomInt(5, 20);
 	}
-
-	RebuildEquipStr(client, index);
-	return index;
+	
+	static char key[16];
+	IntToString(data.hashID, key, sizeof(key));
+	RebuildEquipStr(data);
+	g_mEquipData[client].SetArray(key, data, sizeof(data));
+	
+	return data.hashID;
 }
 
-bool RebuildEquipStr(int client, int index)
+// 数组其实传的是指针，不需要引用传参
+void RebuildEquipStr(EquipData_t data)
 {
-	if(!IsValidClient(client) || index < 0 || !g_eqmValid[client])
-		return false;
-
-	switch(g_eqmPrefix[client][index])
+	switch(data.prefix)
 	{
-		case 1:
-			strcopy(g_esPrefix[client][index], 32, "烈火");
-		case 2:
-			strcopy(g_esPrefix[client][index], 32, "流水");
-		case 3:
-			strcopy(g_esPrefix[client][index], 32, "破天");
-		case 4:
-			strcopy(g_esPrefix[client][index], 32, "疾风");
-		case 5:
-			strcopy(g_esPrefix[client][index], 32, "惊魄");
+		case EquipPrefix_Fire:
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "烈火");
+		case EquipPrefix_Water:
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "流水");
+		case EquipPrefix_Sky:
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "破天");
+		case EquipPrefix_Wind:
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "疾风");
+		case EquipPrefix_Lucky:
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "惊魄");
 		default:
-			strcopy(g_esPrefix[client][index], 32, "");
+			strcopy(data.sPrefix, sizeof(data.sPrefix), "");
 	}
 
-	switch(g_eqmParts[client][index])
+	switch(data.parts)
 	{
-		case 0:
-			strcopy(g_esParts[client][index], 32, "帽");
-		case 1:
-			strcopy(g_esParts[client][index], 32, "腰带");
-		case 2:
-			strcopy(g_esParts[client][index], 32, "衣");
-		case 3:
-			strcopy(g_esParts[client][index], 32, "鞋");
+		case EquipPart_Head:
+			strcopy(data.sParts, sizeof(data.sParts), "帽");
+		case EquipPart_Hand:
+			strcopy(data.sParts, sizeof(data.sParts), "手套");
+		case EquipPart_Body:
+			strcopy(data.sParts, sizeof(data.sParts), "衣");
+		case EquipPart_Foot:
+			strcopy(data.sParts, sizeof(data.sParts), "鞋");
 		default:
-			strcopy(g_esParts[client][index], 32, "");
+			strcopy(data.sParts, sizeof(data.sParts), "");
 	}
 
-	switch(g_eqmEffects[client][index])
+	switch(data.effect)
 	{
 		case 1:
-			strcopy(g_esEffects[client][index], 128, "倒地被救起时恢复HP+20");
+			strcopy(data.sEffect, sizeof(data.sEffect), "倒地被救起时恢复HP+20");
 		case 2:
-			strcopy(g_esEffects[client][index], 128, "使用药丸时兴奋10秒");
+			strcopy(data.sEffect, sizeof(data.sEffect), "使用药丸时兴奋10秒");
 		case 3:
-			strcopy(g_esEffects[client][index], 128, "使用怒气技时怒气值恢复10");
+			strcopy(data.sEffect, sizeof(data.sEffect), "使用怒气技时怒气值恢复10");
 		case 4:
-			strcopy(g_esEffects[client][index], 128, "倒地被救起时兴奋10秒");
+			strcopy(data.sEffect, sizeof(data.sEffect), "倒地被救起时兴奋10秒");
 		case 5:
-			strcopy(g_esEffects[client][index], 128, "倒地时反伤HP+100并点燃攻击者");
+			strcopy(data.sEffect, sizeof(data.sEffect), "倒地时反伤HP+100并点燃攻击者");
 		case 6:
-			strcopy(g_esEffects[client][index], 128, "暴击时追加伤害上限+200");
+			strcopy(data.sEffect, sizeof(data.sEffect), "暴击时追加伤害上限+200");
 		case 7:
-			strcopy(g_esEffects[client][index], 128, "「霸气」伤害上限+300,附加回血功能");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「霸气」伤害上限+300,附加回血功能");
 		case 8:
-			strcopy(g_esEffects[client][index], 128, "暴击率+5");
+			strcopy(data.sEffect, sizeof(data.sEffect), "暴击率+5");
 		case 9:
-			strcopy(g_esEffects[client][index], 128, "「无敌」附加无限子弹功能");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「无敌」附加无限子弹功能");
 		case 10:
-			strcopy(g_esEffects[client][index], 128, "死亡时反伤杀害者3000伤害");
+			strcopy(data.sEffect, sizeof(data.sEffect), "死亡时反伤杀害者3000伤害");
 		case 11:
-			strcopy(g_esEffects[client][index], 128, "近战击中坦克时冰冻坦克1秒");
+			strcopy(data.sEffect, sizeof(data.sEffect), "近战击中坦克时冰冻坦克1秒");
 		case 12:
-			strcopy(g_esEffects[client][index], 128, "每次暴击能恢复5点HP");
+			strcopy(data.sEffect, sizeof(data.sEffect), "每次暴击能恢复5点HP");
 		case 13:
-			strcopy(g_esEffects[client][index], 128, "虚血不会衰减");
+			strcopy(data.sEffect, sizeof(data.sEffect), "虚血不会衰减");
 		case 14:
-			strcopy(g_esEffects[client][index], 128, "弹匣容量+15%");
+			strcopy(data.sEffect, sizeof(data.sEffect), "弹匣容量+15%");
 		case 15:
-			strcopy(g_esEffects[client][index], 128, "携带备用弹药+25%");
+			strcopy(data.sEffect, sizeof(data.sEffect), "携带备用弹药+25%");
 		case 16:
-			strcopy(g_esEffects[client][index], 128, "倒地取消(受到的)冰冻效果");
+			strcopy(data.sEffect, sizeof(data.sEffect), "倒地取消(受到的)冰冻效果");
 		case 17:
-			strcopy(g_esEffects[client][index], 128, "「顽强」触发几率+1/4");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「顽强」触发几率+1/4");
 		case 18:
-			strcopy(g_esEffects[client][index], 128, "「永生」触发几率+1/10");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「永生」触发几率+1/10");
 		case 19:
-			strcopy(g_esEffects[client][index], 128, "「牺牲」触发几率+1/3");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「牺牲」触发几率+1/3");
 		case 20:
-			strcopy(g_esEffects[client][index], 128, "「顽强」触发时处死控制者");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「顽强」触发时处死控制者");
 		case 21:
-			strcopy(g_esEffects[client][index], 128, "土雷引怪持续时间加倍");
+			strcopy(data.sEffect, sizeof(data.sEffect), "土雷引怪持续时间加倍");
 		case 22:
-			strcopy(g_esEffects[client][index], 128, "避免失衡效果(不包括被撞飞/拍飞)");
+			strcopy(data.sEffect, sizeof(data.sEffect), "避免失衡效果(不包括被撞飞/拍飞)");
 		case 23:
-			strcopy(g_esEffects[client][index], 128, "「轰炸」效果加倍");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「轰炸」效果加倍");
 		case 24:
-			strcopy(g_esEffects[client][index], 128, "「释冰」范围加倍");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「释冰」范围加倍");
 		case 25:
-			strcopy(g_esEffects[client][index], 128, "「纵火」范围加倍");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「纵火」范围加倍");
 		case 26:
-			strcopy(g_esEffects[client][index], 128, "「永康」回复实血并重置倒地次数");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「永康」回复实血并重置倒地次数");
 		case 27:
-			strcopy(g_esEffects[client][index], 128, "「电疗」替换为医疗包");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「电疗」替换为医疗包");
 		case 28:
-			strcopy(g_esEffects[client][index], 128, "「爆破」替换为胆汁");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「爆破」替换为胆汁");
 		case 29:
-			strcopy(g_esEffects[client][index], 128, "被冻结时不会受到伤害");
+			strcopy(data.sEffect, sizeof(data.sEffect), "被冻结时不会受到伤害");
 		case 30:
-			strcopy(g_esEffects[client][index], 128, "「霸气」目标包括普感");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「霸气」目标包括普感");
 		case 31:
-			strcopy(g_esEffects[client][index], 128, "获得弹药升级数量加倍");
+			strcopy(data.sEffect, sizeof(data.sEffect), "获得弹药升级数量加倍");
 		case 32:
-			strcopy(g_esEffects[client][index], 128, "「霸气」范围增加");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「霸气」范围增加");
 		case 33:
-			strcopy(g_esEffects[client][index], 128, "「护甲」复活/开局+100");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「护甲」复活/开局+100");
 		case 34:
-			strcopy(g_esEffects[client][index], 128, "「护甲」倒地救起/打包+50");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「护甲」倒地救起/打包+50");
 		case 35:
-			strcopy(g_esEffects[client][index], 128, "开局/复活满血");
+			strcopy(data.sEffect, sizeof(data.sEffect), "开局/复活满血");
 		case 36:
-			strcopy(g_esEffects[client][index], 128, "「王者之仁德」增加「顽强」效果");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「王者之仁德」增加「顽强」效果");
 		case 37:
-			strcopy(g_esEffects[client][index], 128, "被僵尸锤不减速");
+			strcopy(data.sEffect, sizeof(data.sEffect), "被僵尸锤不减速");
 		case 38:
-			strcopy(g_esEffects[client][index], 128, "水中/残血不减速");
+			strcopy(data.sEffect, sizeof(data.sEffect), "水中/残血不减速");
 		default:
-			strcopy(g_esEffects[client][index], 128, "");
+			strcopy(data.sEffect, sizeof(data.sEffect), "");
 	}
+	
+	bool legend = (data.damage >= g_iMaxEquipDamage ||
+		data.health >= g_iMaxEquipHealth ||
+		data.speed >= g_iMaxEquipSpeed ||
+		data.gravity >= g_iMaxEquipGravity ||
+		data.crit >= g_iMaxEquipCrit
+	);
 
-	if(g_eqmUpgrade[client][index] > 0 && g_eqmEffects[client][index] > 0)
-		strcopy(g_esUpgrade[client][index], 32, "玛瑙");
-	else if(g_eqmUpgrade[client][index] > 0 || g_eqmEffects[client][index] > 0)
-		strcopy(g_esUpgrade[client][index], 32, "水晶");
+	if(data.effect > 0 && legend)
+		strcopy(data.sNamed, sizeof(data.sNamed), "玛瑙");
+	else if(data.effect > 0 || legend)
+		strcopy(data.sNamed, sizeof(data.sNamed), "水晶");
 	else
-		strcopy(g_esUpgrade[client][index], 32, "琥珀");
-
-	return true;
+		strcopy(data.sNamed, sizeof(data.sNamed), "琥珀");
 }
 
 stock int IsPlayerHaveEffect(int client, int effect)
 {
+	if(g_mEquipData[client] == null)
+		return 0;
+	
 	int ExtraAdd = 0;
-	for(int i = 0; i < 4; i++)
+	for(int i = 0; i < sizeof(g_clCurEquip[]); i++)
 	{
-		if(g_clCurEquip[client][i] != -1)
+		if(!g_clCurEquip[client][i])
+			continue;
+		
+		static char key[16];
+		IntToString(g_clCurEquip[client][i], key, sizeof(key));
+		
+		static EquipData_t data;
+		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
+			continue;
+		
+		if(data.effect == effect)
 		{
-			if(g_eqmEffects[client][g_clCurEquip[client][i]] == effect)
-			{
-				ExtraAdd += 1;
-				// break;
-			}
+			ExtraAdd += 1;
+			// break;
 		}
 	}
 	
 	return ExtraAdd;
+}
+
+stock void CalcPlayerAttr(int client, int& damage = 0, int& health = 0, int& speed = 0, int& gravity = 0, int& crit = 0, bool withSkill = true)
+{
+	damage = health = speed = gravity = crit = 0;
+	
+	for(int i = 0; i < sizeof(g_clCurEquip[]); i++)
+	{
+		if(!g_clCurEquip[client][i])
+			continue;
+		
+		static char key[16];
+		IntToString(g_clCurEquip[client][i], key, sizeof(key));
+		
+		static EquipData_t data;
+		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
+			continue;
+		
+		if(data.damage > 0)
+			damage += data.damage;
+		if(data.health > 0)
+			health += data.health;
+		if(data.speed > 0)
+			speed += data.speed;
+		if(data.gravity > 0)
+			gravity += data.gravity;
+		if(data.crit > 0)
+			crit += data.crit;
+		
+		if(withSkill)
+		{
+			if(data.effect == 8)
+				crit += 5;
+			if(data.prefix == EquipPrefix_Lucky)
+				crit += 2;
+		}
+	}
+	
+	if(withSkill)
+	{
+		if(g_clSkill_1[client] & SKL_1_MaxHealth)
+			health += 50;
+		if(g_clSkill_1[client] & SKL_1_Movement)
+			speed += 10;
+		if(g_clSkill_1[client] & SKL_1_Gravity)
+			gravity += 20;
+		if(g_clSkill_5[client] & SKL_5_DmgExtra)
+			crit += crit / 3 + 25;
+	}
 }
 
 char StartRoundEvent(int event = -1, char[] text = "", int len = 0)

@@ -4354,7 +4354,8 @@ public void OnGameFrame()
 
 			if(g_iRoundEvent == 11)
 			{
-				CheatCommand(randPlayer, "z_spawn_old", "witch auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "witch auto");
+				SpawnCommand(-1, ZC_WITCH);
 				// PrintToServer("玩家 %N 刷出了一只 Witch", randPlayer);
 				g_fNextRoundEvent = curTime + 120.0;
 			}
@@ -4367,17 +4368,23 @@ public void OnGameFrame()
 					switch(randNumber)
 					{
 						case 1:
-							CheatCommand(randPlayer, "z_spawn_old", "smoker auto");
+							// CheatCommand(randPlayer, "z_spawn_old", "smoker auto");
+							SpawnCommand(-1, ZC_SMOKER);
 						case 2:
-							CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
+							// CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
+							SpawnCommand(-1, ZC_BOOMER);
 						case 3:
-							CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
+							// CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
+							SpawnCommand(-1, ZC_HUNTER);
 						case 4:
-							CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
+							// CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
+							SpawnCommand(-1, ZC_SPITTER);
 						case 5:
-							CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
+							// CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
+							SpawnCommand(-1, ZC_JOCKEY);
 						case 6:
-							CheatCommand(randPlayer, "z_spawn_old", "charger auto");
+							// CheatCommand(randPlayer, "z_spawn_old", "charger auto");
+							SpawnCommand(-1, ZC_CHARGER);
 					}
 				}
 
@@ -4387,17 +4394,23 @@ public void OnGameFrame()
 			}
 			else if(g_iRoundEvent == 15)
 			{
-				CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
-				CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
-				CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
-				CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "spitter auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "boomer auto");
+				SpawnCommand(-1, ZC_SPITTER);
+				SpawnCommand(-1, ZC_SPITTER);
+				SpawnCommand(-1, ZC_BOOMER);
+				SpawnCommand(-1, ZC_BOOMER);
 				// PrintToServer("玩家 %N 刷出了一只 Boomer 和 Spitter", randPlayer);
 				g_fNextRoundEvent = curTime + 30.0;
 			}
 			else if(g_iRoundEvent == 16)
 			{
-				CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
-				CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "hunter auto");
+				SpawnCommand(-1, ZC_HUNTER);
+				SpawnCommand(-1, ZC_HUNTER);
 				// PrintToServer("玩家 %N 刷出了一只 Hunter", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
 			}
@@ -4413,8 +4426,10 @@ public void OnGameFrame()
 			}
 			else if(g_iRoundEvent == 18)
 			{
-				CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
-				CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
+				// CheatCommand(randPlayer, "z_spawn_old", "jockey auto");
+				SpawnCommand(-1, ZC_JOCKEY);
+				SpawnCommand(-1, ZC_JOCKEY);
 				// PrintToServer("玩家 %N 刷出了一只 Jockey", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
 			}
@@ -4550,6 +4565,29 @@ int ChooseSpecialVictim(int attacker, int ignore = -1)
 	}
 	
 	return victim;
+}
+
+stock bool SpawnCommand(int spawnner, int zClass)
+{
+	if(!IsValidClient(spawnner))
+		spawnner = L4D_GetHighestFlowSurvivor();
+	
+	float vPos[3];
+	if(!L4D_GetRandomPZSpawnPosition(spawnner, zClass, 800, vPos))
+		return false;
+	
+	if(zClass == ZC_WITCH)
+	{
+		if(GetRandomInt(0, 1))
+			return L4D2_SpawnWitchBride(vPos, Float:{0.0, 0.0, 0.0}) > 0;
+		
+		return L4D2_SpawnWitch(vPos, Float:{0.0, 0.0, 0.0}) > 0;
+	}
+	
+	if(zClass == ZC_TANK)
+		return L4D2_SpawnTank(vPos, Float:{0.0, 0.0, 0.0}) > 0;
+	
+	return L4D2_SpawnSpecial(zClass, vPos, Float:{0.0, 0.0, 0.0}) > 0;
 }
 
 stock void SpawnCommonZombie(const char[] zombieName, float position[3], const char[] targetName = "")
@@ -11385,12 +11423,21 @@ public Action:Event_RP(Handle:timer, any:client)
 			case 0:
 			{
 				EmitSoundToAll(SOUND_BAD,client);
+				/*
 				CheatCommand(client, "z_spawn_old", "hunter auto");
 				CheatCommand(client, "z_spawn_old", "boomer auto");
 				CheatCommand(client, "z_spawn_old", "jockey auto");
 				CheatCommand(client, "z_spawn_old", "smoker auto");
 				CheatCommand(client, "z_spawn_old", "charger auto");
 				CheatCommand(client, "z_spawn_old", "spitter auto");
+				*/
+				
+				SpawnCommand(client, ZC_BOOMER);
+				SpawnCommand(client, ZC_CHARGER);
+				SpawnCommand(client, ZC_HUNTER);
+				SpawnCommand(client, ZC_JOCKEY);
+				SpawnCommand(client, ZC_SMOKER);
+				SpawnCommand(client, ZC_SPITTER);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04由于人品极差,召唤了一大堆小BOSS到他身边.", client);
 			}
 			case 1:
@@ -11415,10 +11462,17 @@ public Action:Event_RP(Handle:timer, any:client)
 			case 3:
 			{
 				EmitSoundToAll(SOUND_BAD,client);
+				/*
 				CheatCommand(client, "z_spawn_old", "witch auto");
 				CheatCommand(client, "z_spawn_old", "witch auto");
 				CheatCommand(client, "z_spawn_old", "witch auto");
 				CheatCommand(client, "z_spawn_old", "witch auto");
+				*/
+				
+				SpawnCommand(client, ZC_WITCH);
+				SpawnCommand(client, ZC_WITCH);
+				SpawnCommand(client, ZC_WITCH);
+				SpawnCommand(client, ZC_WITCH);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04招了一群美女出来准备围观爆菊花.", client);
 			}
 			case 4:
@@ -11576,10 +11630,18 @@ public Action:Event_RP(Handle:timer, any:client)
 			case 21:
 			{
 				EmitSoundToAll(SOUND_BAD,client);
+				/*
 				CheatCommand(client, "z_spawn_old", "boomer auto");
 				CheatCommand(client, "z_spawn_old", "boomer auto");
 				CheatCommand(client, "z_spawn_old", "boomer auto");
 				CheatCommand(client, "z_spawn_old", "boomer auto");
+				*/
+				
+				SpawnCommand(client, ZC_BOOMER);
+				SpawnCommand(client, ZC_BOOMER);
+				SpawnCommand(client, ZC_BOOMER);
+				SpawnCommand(client, ZC_BOOMER);
+				
 				CheatCommand(client, "script", "GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
 				L4D2_RunScript("GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,OP特赠BOOMER胆汁一口.", client);
@@ -11640,7 +11702,8 @@ public Action:Event_RP(Handle:timer, any:client)
 			case 27:
 			{
 				EmitSoundToAll(SOUND_BAD,client);
-				CheatCommand(client, "z_spawn_old", "tank auto");
+				// CheatCommand(client, "z_spawn_old", "tank auto");
+				SpawnCommand(client, ZC_TANK);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04闲着无聊,把自家的宠物坦克牵了出来玩玩.", client);
 			}
 			case 28:
@@ -11659,10 +11722,18 @@ public Action:Event_RP(Handle:timer, any:client)
 			case 29:
 			{
 				EmitSoundToAll(SOUND_BAD,client);
+				
+				/*
 				CheatCommand(client, "z_spawn_old", "hunter auto");
 				CheatCommand(client, "z_spawn_old", "hunter auto");
 				CheatCommand(client, "z_spawn_old", "hunter auto");
 				CheatCommand(client, "z_spawn_old", "hunter auto");
+				*/
+				
+				SpawnCommand(client, ZC_HUNTER);
+				SpawnCommand(client, ZC_HUNTER);
+				SpawnCommand(client, ZC_HUNTER);
+				SpawnCommand(client, ZC_HUNTER);
 				PrintToChatAll("\x03[\x05RP\x03] %N\x04召唤了一队职业灭团Hunter.", client);
 			}
 			case 30:
@@ -11870,7 +11941,8 @@ public Action:Event_RP(Handle:timer, any:client)
 			case 50:
 			{
 				EmitSoundToAll(SOUND_BAD,client);
-				CheatCommand(client, "z_spawn_old", "tank auto");
+				// CheatCommand(client, "z_spawn_old", "tank auto");
+				SpawnCommand(client, ZC_TANK);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04画个圈圈召唤出了坦克.", client);
 			}
 			case 51:
@@ -11888,10 +11960,16 @@ public Action:Event_RP(Handle:timer, any:client)
 			case 52:
 			{
 				EmitSoundToAll(SOUND_BAD,client);
+				/*
 				CheatCommand(client, "z_spawn_old", "spitter auto");
 				CheatCommand(client, "z_spawn_old", "spitter auto");
 				CheatCommand(client, "z_spawn_old", "spitter auto");
 				CheatCommand(client, "z_spawn_old", "spitter auto");
+				*/
+				SpawnCommand(client, ZC_SPITTER);
+				SpawnCommand(client, ZC_SPITTER);
+				SpawnCommand(client, ZC_SPITTER);
+				SpawnCommand(client, ZC_SPITTER);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04画个圈圈发现有好多口水妈.", client);
 			}
 			case 53:

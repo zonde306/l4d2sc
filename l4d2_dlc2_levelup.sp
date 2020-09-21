@@ -12540,7 +12540,7 @@ stock int GiveEquipment(int client, int parts = -1)
 	static EquipData_t data;
 	
 	data.valid = true;
-	data.prefix = view_as<EquipPrefix_t>(GetRandomInt(1, 5));
+	data.prefix = view_as<EquipPrefix_t>(GetRandomInt(0, 4));
 	data.parts = view_as<EquipPart_t>(0 <= parts <= 3 ? parts : GetRandomInt(0, 3));
 	data.crit = (GetRandomInt(0, 1) ? GetRandomInt(0, 5) : 0);
 	data.effect = (!GetRandomInt(0, 2) ? GetRandomInt(0, g_iMaxEqmEffects) : 0);

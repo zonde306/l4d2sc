@@ -1058,7 +1058,7 @@ public void OnPluginStart()
 	CreateTimer(1.0, PluginStart);
 
 	//Autoconfig for plugin
-	AutoExecConfig(true, "l4dinfectedbots");
+	AutoExecConfig(true, "l4d_infectedbots");
 }
 
 public void ConVarChanged_Cvars(ConVar convar, const char[] oldValue, const char[] newValue)

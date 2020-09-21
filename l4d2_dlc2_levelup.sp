@@ -383,6 +383,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
 const int g_iMaxEqmEffects = 38;
+// bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
 char g_szSavePath[256];
@@ -623,6 +624,10 @@ public OnPluginStart()
 	HookEvent("player_left_start_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("survival_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("scavenge_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	// HookEvent("charger_carry_end", Event_PlayerReleased);
+	// HookEvent("charger_pummel_end", Event_PlayerReleased);
+	// HookEvent("pounce_stopped", Event_PlayerReleased);
+	// HookEvent("charger_impact", Event_PlayerReleased);
 	
 	// 检查第一回合用
 	HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -1346,6 +1351,7 @@ void Initialization(int client, bool invalid = false)
 	g_fForgiveOfFF[client] = 0.0;
 	g_iForgiveTKTarget[client] = 0;
 	g_iForgiveFFTarget[client] = 0;
+	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
 	
@@ -4715,8 +4721,8 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		
 		if(IsPlayerHaveEffect(victim, 37) && StrEqual(classname, "infected", false))
 		{
-			// 将伤害类型替换为不会减速
-			damagetype = (DMG_ENERGYBEAM|DMG_RADIATION);
+			// 取消攻击者，避免减速效果
+			attacker = inflictor = 0;
 		}
 	}
 	
@@ -8791,7 +8797,7 @@ public Action:TankEventEndx1(Handle:timer)
 
 public Action:CommandSlapPlayer(Handle:timer, any:client)
 {
-	if(g_csSlapCount[client] >= 0 && IsClientInGame(client) && IsPlayerAlive(client))
+	if(g_bIsGamePlaying && g_csSlapCount[client] >= 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		// ServerCommand("sm_slap \"%N\" \"1\"",client);
 		SlapPlayer(client, 1, true);
@@ -8806,7 +8812,7 @@ public Action:CommandSlapPlayer(Handle:timer, any:client)
 
 public Action:CommandSlapTank(Handle:timer, any:client)
 {
-	if(g_csSlapCount[client] >= 0 && IsClientInGame(client) && IsPlayerAlive(client))
+	if(g_bIsGamePlaying && g_csSlapCount[client] >= 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		// ServerCommand("sm_slap \"%N\" \"0\"",client);
 		SlapPlayer(client, 0, true);

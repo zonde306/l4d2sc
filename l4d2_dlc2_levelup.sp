@@ -401,10 +401,10 @@ bool g_bHasJumping[MAXPLAYERS+1];
 bool g_bIsPaincEvent = false;
 bool g_bIsPaincIncap = false;
 
-new bool:NCJ_1 = false;
-new bool:NCJ_2 = false;
-new bool:NCJ_3 = false;
-new bool:NCJ_ON = false;
+new bool:g_bIsAngryCritActive = false;
+new bool:g_bIsAngryLastStandActive = false;
+new bool:g_bIsAngryBloodthirstyActive = false;
+new bool:g_bIsAngryActive = false;
 
 #define STAR_1_MDL		"models/editor/air_node_hint.mdl"
 #define STAR_2_MDL		"models/editor/air_node.mdl"
@@ -880,10 +880,10 @@ public OnMapStart()
 {
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
 
-	NCJ_1 = false;
-	NCJ_2 = false;
-	NCJ_3 = false;
-	NCJ_ON = false;
+	g_bIsAngryCritActive = false;
+	g_bIsAngryLastStandActive = false;
+	g_bIsAngryBloodthirstyActive = false;
+	g_bIsAngryActive = false;
 	g_bHasRPActive = false;
 	g_ttTankKilled = 0;
 	g_iRoundEvent = 0;
@@ -2530,7 +2530,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 			if(g_clAngryMode[client] != 2)
 			{
 				g_clAngryMode[client] = 2;
-				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03霸者之号令\x01,效果:\x03全员暴击率+100,持续40秒\x01.");
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03霸者之号令\x01,效果:\x03全员暴击率+500,持续40秒\x01.");
 			}
 			else
 			{
@@ -2605,7 +2605,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 			if(g_clAngryMode[client] != 7)
 			{
 				g_clAngryMode[client] = 7;
-				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03嗜血如命\x01,效果:\x03全员获得嗜血天赋,持续75秒\x01.");
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03嗜血如命\x01,效果:\x03全员获得嗜血(主+近)天赋,持续75秒\x01.");
 			}
 			else
 			{
@@ -4909,8 +4909,8 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		chance += 5;
 	if(g_clSkill_4[attacker] & SKL_4_DmgExtra)
 		chance += 10;
-	if(NCJ_1)
-		chance += 100;
+	if(g_bIsAngryCritActive)
+		chance += 500;
 	
 	for(int i = 0; i < 4; ++i)
 	{
@@ -5336,8 +5336,8 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		chance += 5;
 	if(g_clSkill_4[attacker] & SKL_4_DmgExtra)
 		chance += 10;
-	if(NCJ_1)
-		chance += 100;
+	if(g_bIsAngryCritActive)
+		chance += 500;
 	
 	for(int i = 0; i < 4; ++i)
 	{
@@ -5631,12 +5631,16 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			}
 		}
 		
-		if (StrEqual(weapon, "smg") || StrEqual(weapon, "smg_silenced") || StrEqual(weapon, "smg_mp5")
+		bool isGunShot = (StrEqual(weapon, "smg") || StrEqual(weapon, "smg_silenced") || StrEqual(weapon, "smg_mp5")
 			|| StrEqual(weapon, "rifle") || StrEqual(weapon, "rifle_sg552") || StrEqual(weapon, "rifle_ak47")
 			|| StrEqual(weapon, "autoshotgun") || StrEqual(weapon, "shotgun_spas") || StrEqual(weapon, "rifle_m60")
 			|| StrEqual(weapon, "sniper_awp") || StrEqual(weapon, "sniper_military") || StrEqual(weapon, "sniper_scout")
 			|| StrEqual(weapon, "hunting_rifle") || StrEqual(weapon, "pumpshotgun") || StrEqual(weapon, "shotgun_chrome")
-			|| StrEqual(weapon, "grenade_launcher") || StrEqual(weapon, "rifle_desert") || StrEqual(weapon, "melee"))
+			|| StrEqual(weapon, "grenade_launcher") || StrEqual(weapon, "rifle_desert")
+		);
+		bool isMeleeHack = (StrEqual(weapon, "melee"));
+		
+		if (isGunShot || isMeleeHack)
 		{
 			if ((g_clSkill_5[attacker] & SKL_5_RetardBullet) && !GetRandomInt(0, 2))
 			{
@@ -5661,22 +5665,23 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 					AddHealth(attacker, 5 * mulEffect);
 				}
 			}
-		}
-		
-		if (StrEqual(weapon, "melee") && ((g_clSkill_5[attacker] & SKL_5_Vampire) || NCJ_3) && !GetRandomInt(0, 2))
-		{
-			// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+1);
 			
-			int health = dmg / 30;
-			AddHealth(attacker, (health > 1 ? health : 1));
-			// ClientCommand(attacker, "play \"ui/littlereward.wav\"");
-			
-			if (!g_bHasVampire[attacker])
+			// 【嗜血如命】激活时允许主武器触发，否则只能由近战武器触发
+			if ((g_bIsAngryBloodthirstyActive || isMeleeHack) && (g_bIsAngryBloodthirstyActive || (g_clSkill_5[attacker] & SKL_5_Vampire)) && !GetRandomInt(0, 2))
 			{
-				g_bHasVampire[attacker] = true;
-				g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue");
-				SetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[attacker] * 1.15);
-				CreateTimer(1.0, Timer_StopVampire, attacker);
+				// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+1);
+				
+				int health = dmg / 30;
+				AddHealth(attacker, (health > 1 ? health : 1));
+				// ClientCommand(attacker, "play \"ui/littlereward.wav\"");
+				
+				if (!g_bHasVampire[attacker])
+				{
+					g_bHasVampire[attacker] = true;
+					g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue");
+					SetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[attacker] * 1.15);
+					CreateTimer(1.0, Timer_StopVampire, attacker);
+				}
 			}
 		}
 		
@@ -5838,7 +5843,7 @@ void GiveAngryPoint(int victim, int amount)
 	if(!IsPlayerAlive(victim))
 		return;
 	
-	if(g_clAngryPoint[victim] >= 100 && !NCJ_ON && g_clAngryMode[victim] > 0)
+	if(g_clAngryPoint[victim] >= 100 && !g_bIsAngryActive && g_clAngryMode[victim] > 0)
 	{
 		g_clAngryPoint[victim] -= 100;
 		
@@ -5890,9 +5895,9 @@ void TriggerAngrySkill(int victim, int mode)
 		}
 		case 2:
 		{
-			NCJ_1 = true;
-			NCJ_ON = true;
-			CreateTimer(40.0, Timer_NCJ1, 0, TIMER_FLAG_NO_MAPCHANGE);
+			g_bIsAngryCritActive = true;
+			g_bIsAngryActive = true;
+			CreateTimer(40.0, Timer_AngryCritEnd, 0, TIMER_FLAG_NO_MAPCHANGE);
 			
 			if(g_pCvarAllow.BoolValue)
 				for (new i = 1; i <= MaxClients; i++)
@@ -5906,9 +5911,9 @@ void TriggerAngrySkill(int victim, int mode)
 				}
 			
 			if(g_pCvarAllow.BoolValue)
-				PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+100,持续40秒\x04.",victim);
+				PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+500,持续40秒\x04.",victim);
 			else
-				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+100,持续40秒）\x01。");
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04霸者之号令\x05（全员暴击率+500,持续40秒）\x01。");
 		}
 		case 3:
 		{
@@ -5992,9 +5997,9 @@ void TriggerAngrySkill(int victim, int mode)
 		}
 		case 6:
 		{
-			NCJ_2 = true;
-			NCJ_ON = true;
-			CreateTimer(60.0, Timer_NCJ2, 0, TIMER_FLAG_NO_MAPCHANGE);
+			g_bIsAngryLastStandActive = true;
+			g_bIsAngryActive = true;
+			CreateTimer(60.0, Timer_AngryLastStandEnd, 0, TIMER_FLAG_NO_MAPCHANGE);
 			
 			if(g_pCvarAllow.BoolValue)
 				for (new i = 1; i <= MaxClients; i++)
@@ -6019,9 +6024,9 @@ void TriggerAngrySkill(int victim, int mode)
 		}
 		case 7:
 		{
-			NCJ_3 = true;
-			NCJ_ON = true;
-			CreateTimer(75.0, Timer_NCJ3, 0, TIMER_FLAG_NO_MAPCHANGE);
+			g_bIsAngryBloodthirstyActive = true;
+			g_bIsAngryActive = true;
+			CreateTimer(75.0, Timer_AngryBloodthirstyEnd, 0, TIMER_FLAG_NO_MAPCHANGE);
 			for (new i = 1; i <= MaxClients; i++)
 			{
 				if(IsClientInGame(i) && IsPlayerAlive(i))
@@ -6033,17 +6038,17 @@ void TriggerAngrySkill(int victim, int mode)
 			}
 
 			if(g_pCvarAllow.BoolValue)
-				PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋,持续75秒\x04.",victim);
+				PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋(主+近),持续75秒\x04.",victim);
 			else
-				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血天赋,持续75秒）\x01。");
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04嗜血如命\x05（全员获得嗜血(主+近)天赋,持续75秒）\x01。");
 		}
 	}
 }
 
-public Action:Timer_NCJ1(Handle:timer, any:client)
+public Action:Timer_AngryCritEnd(Handle:timer, any:client)
 {
-	NCJ_1 = false;
-	NCJ_ON = false;
+	g_bIsAngryCritActive = false;
+	g_bIsAngryActive = false;
 	
 	if(g_pCvarAllow.BoolValue)
 		PrintToChatAll("\x03【\x05霸者之号令\x03】\x04 已结束。");
@@ -6051,10 +6056,10 @@ public Action:Timer_NCJ1(Handle:timer, any:client)
 		PrintToChat(client, "\x03[提示]\x01 \x05霸者之号令\x01 已结束。");
 }
 
-public Action:Timer_NCJ2(Handle:timer, any:client)
+public Action:Timer_AngryLastStandEnd(Handle:timer, any:client)
 {
-	NCJ_2 = false;
-	NCJ_ON = false;
+	g_bIsAngryLastStandActive = false;
+	g_bIsAngryActive = false;
 	
 	if(g_pCvarAllow.BoolValue)
 		PrintToChatAll("\x03【\x05背水一战\x03】\x04 已结束。");
@@ -6062,10 +6067,10 @@ public Action:Timer_NCJ2(Handle:timer, any:client)
 		PrintToChat(client, "\x03[提示]\x01 \x05背水一战\x01 已结束。");
 }
 
-public Action:Timer_NCJ3(Handle:timer, any:client)
+public Action:Timer_AngryBloodthirstyEnd(Handle:timer, any:client)
 {
-	NCJ_3 = false;
-	NCJ_ON = false;
+	g_bIsAngryBloodthirstyActive = false;
+	g_bIsAngryActive = false;
 	
 	if(g_pCvarAllow.BoolValue)
 		PrintToChatAll("\x03【\x05嗜血如命\x03】\x04 已结束。");
@@ -6234,7 +6239,8 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				}
 			}
 		}
-
+		
+		g_fFreezeTime[victim] = GetGameTime();
 		// Initialization(victim);
 		ClientSaveToFileSave(victim, true);
 	}
@@ -6250,7 +6256,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(attacker), 5);
 				
 				EmitSoundToClient(attacker,g_soundLevel);
-				if(!IsFakeClient(attacker)) PrintToChat(attacker, "\x03[\x05提示\x03]\x04你使用了\x03热血\x04天赋兴奋5秒!");
+				if(!IsFakeClient(attacker)) PrintToChat(attacker, "\x03[\x05提示\x03]\x04你触发了\x03热血\x04天赋兴奋5秒!");
 			}
 			
 			g_ttSpecialKilled[attacker] += 1;
@@ -6371,7 +6377,7 @@ void RewardPicker(int client)
 		{
 			case 0:
 			{
-				if(!NCJ_ON)
+				if(!g_bIsAngryActive)
 				{
 					TriggerAngrySkill(client, GetRandomInt(1, 7));
 				}
@@ -8581,6 +8587,7 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 	g_clAngryPoint[bot] = g_clAngryPoint[client];
 	g_iExtraArmor[bot] = g_iExtraArmor[client];
 	g_iExtraAmmo[bot] = g_iExtraAmmo[client];
+	g_fFreezeTime[bot] = g_fFreezeTime[client];
 	
 	if(g_mEquipData[bot] == null)
 		g_mEquipData[bot] = CreateTrie();
@@ -8971,8 +8978,11 @@ int GetDefaultClip(int weapon)
 	if(!GetEdictClassname(weapon, className, 64))
 		return -1;
 	
-	return L4D2_GetIntWeaponAttribute(className, L4D2IWA_ClipSize);
+	int clipSize = L4D2_GetIntWeaponAttribute(className, L4D2IWA_ClipSize);
+	if(HasEntProp(weapon, Prop_Send, "m_hasDualWeapons") && GetEntProp(weapon, Prop_Send, "m_hasDualWeapons", 1))
+		return clipSize * 2;
 	
+	return clipSize;
 	/*
 	int clip = -1;
 	if(g_WeaponClipSize.GetValue(className, clip) && clip > 0)
@@ -9131,7 +9141,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			hasInfAmmo = true;
 			weaponSpeed = 0.8;
 		}
-		else if(g_iRoundEvent == 2 || NCJ_2 || g_csHasGodMode[client])
+		else if(g_iRoundEvent == 2 || g_bIsAngryLastStandActive || g_csHasGodMode[client])
 		{
 			// 临时无限子弹
 			SetEntProp(weapon, Prop_Send, "m_iClip1", 2);
@@ -9194,7 +9204,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		// 必须要目前没有 高爆/燃烧 子弹时才需要提供升级弹药
 		if(GetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded") <= 0)
 		{
-			if(g_iRoundEvent == 12 || NCJ_2)
+			if(g_iRoundEvent == 12 || g_bIsAngryLastStandActive)
 			{
 				// 临时无限燃烧子弹(1=燃烧.2=高爆.4=激光)
 				SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", 1);
@@ -9261,8 +9271,11 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			{
 				if(GetEntProp(weapon, Prop_Send, "m_hasDualWeapons"))
 				{
-					// 双持手枪
-					SetEntProp(weapon, Prop_Send, "m_iClip1", 31);
+					// 双持手枪，特殊处理，以修复只有一侧武器开火动画
+					if(GetRandomInt(0, 1))
+						SetEntProp(weapon, Prop_Send, "m_iClip1", 31);
+					else
+						SetEntProp(weapon, Prop_Send, "m_iClip1", 30);
 				}
 				else
 				{
@@ -10388,7 +10401,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 			
-			if((g_iRoundEvent == 2 || NCJ_2 || g_csHasGodMode[client]) && (buttons & IN_RELOAD) &&
+			if((g_iRoundEvent == 2 || g_bIsAngryLastStandActive || g_csHasGodMode[client]) && (buttons & IN_RELOAD) &&
 				(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
 				StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1))
 			{

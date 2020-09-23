@@ -3179,6 +3179,26 @@ int CalcPlayerPower(int client)
 	return power;
 }
 
+int CalcEquipPower(EquipData_t data)
+{
+	int power = 0;
+	
+	if(data.effect > 0)
+		power += 250;
+	if(data.effect == 8)
+		power += 5 * 4;
+	if(data.prefix == EquipPrefix_Lucky)
+		power += 2 * 4;
+	
+	power += data.damage * 5;
+	power += data.health * 8;
+	power += data.speed * 6;
+	power += data.gravity * 3;
+	power += data.crit * 4;
+	
+	return power;
+}
+
 void StatusEqmFuncD(int client)
 {
 	Panel menu = CreatePanel();
@@ -3381,7 +3401,7 @@ public int MenuHandler_OpenLucky(Menu menu, MenuAction action, int client, int s
 }
 
 // char FormatEquip(int client, int index, char[] buffer = "", int len = 0)
-stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len = 0)
+stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len = 0, bool lite = false)
 {
 	char text[255];
 	if(!data.valid)
@@ -3413,11 +3433,22 @@ stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len
 	// 正在使用
 	if(g_clCurEquip[client][data.parts] == data.hashID)
 		StrCat(extrastr, sizeof(extrastr), " √");
-
-	int lentex = FormatEx(text, 255, "%s%s%s 伤害+%d 血量+%d％ 速度+%d％ 暴击+%d‰ 跳跃+%d％ %s",
-		data.sPrefix, data.sNamed, data.sParts,
-		data.damage, data.health, data.speed, data.crit, data.gravity, extrastr
-	);
+	
+	int lentex = 0;
+	int power = CalcEquipPower(data);
+	
+	if(lite)
+	{
+		lentex = FormatEx(text, 255, "%s%s%s%s(%d)", data.sPrefix, data.sNamed, data.sParts, extrastr, power);
+	}
+	else
+	{
+		lentex = FormatEx(text, 255, "%s%s%s 伤害+%d 血量+%d％ 速度+%d％ 暴击+%d‰ 跳跃+%d％ %s(%d)",
+			data.sPrefix, data.sNamed, data.sParts,
+			data.damage, data.health, data.speed, data.crit, data.gravity, extrastr,
+			power
+		);
+	}
 
 	if(len > lentex)
 		strcopy(buffer, len, text);
@@ -3446,7 +3477,7 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 			continue;
 		}
 		
-		menu.AddItem(key, FormatEquip(client, data));
+		menu.AddItem(key, FormatEquip(client, data, _, _, true));
 	}
 	
 	// 然后是背包里的装备
@@ -3478,7 +3509,7 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 			continue;
 		}
 		
-		menu.AddItem(key, FormatEquip(client, data));
+		menu.AddItem(key, FormatEquip(client, data, _, _, true));
 	}
 	
 	if(menu.ItemCount > 0)
@@ -4076,7 +4107,7 @@ stock void FreezePlayer(int client, float time)
 		PrintHintText(client, "你被冻结 %.0f 秒", time);
 	}
 	
-	CheatCommandEx(client, "stopsound");
+	// CheatCommandEx(client, "stopsound");
 	SetEntPropFloat(client, Prop_Send, "m_TimeForceExternalView", 99999.3);
 	// SetEntityMoveType(client, MOVETYPE_NONE);
 	SetEntityRenderColor(client, 0, 128, 255, 192);
@@ -8488,6 +8519,13 @@ public void Event_PlayerReplaceBot(Event event, const char[] eventName, bool don
 	// g_bHasFirstJoin[client] = false;
 	g_bHasJumping[client] = false;
 	RegPlayerHook(client, false);
+	
+	// 修复数值不正常
+	g_iExtraAmmo[client] = 0;
+	g_iExtraArmor[client] = 0;
+	AddHealth(client, 0);
+	AddAmmo(client, 0);
+	AddArmor(client, 0);
 }
 
 public void Event_BotReplacePlayer(Event event, const char[] eventName, bool dontBroadcast)
@@ -9651,7 +9689,7 @@ public Action:SoH_ShotgunEndCock (Handle:timer, any:hPack)
 
 stock bool AddHealth(int client, int amount, bool limit = true, bool conv = false)
 {
-	if(!IsValidAliveClient(client) || amount == 0)
+	if(!IsValidAliveClient(client))
 		return false;
 
 	int team = GetClientTeam(client);
@@ -9705,7 +9743,7 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 
 stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = false, bool limit = true)
 {
-	if(!IsValidAliveClient(client) || amount == 0)
+	if(!IsValidAliveClient(client))
 		return false;
 
 	// 弹药上限
@@ -9913,7 +9951,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 
 stock bool AddArmor(int client, int amount, bool helmet = true)
 {
-	if(!IsValidAliveClient(client) || amount == 0)
+	if(!IsValidAliveClient(client))
 		return false;
 	
 	int count = g_iExtraArmor[client] + GetEntProp(client, Prop_Send, "m_ArmorValue") + amount;
@@ -12943,7 +12981,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 				// SetEntProp(i, Prop_Send, "m_currentReviveCount", 0);
 				SetEntProp(i, Prop_Send, "m_bIsOnThirdStrike", 0);
 				SetEntProp(i, Prop_Send, "m_isGoingToDie", 0);
-				CheatCommandEx(i, "stopsound");
+				// CheatCommandEx(i, "stopsound");
 			}
 
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "死亡之门");

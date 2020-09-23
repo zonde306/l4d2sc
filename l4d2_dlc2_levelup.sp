@@ -447,7 +447,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.0.0",
+	version = "1.1.0",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -1299,7 +1299,25 @@ void GenerateRandomStats(int client)
 	
 	// 装备
 	for(int i = 0; i < 4; ++i)
+	{
 		g_clCurEquip[client][i] = GiveEquipment(client, i);
+		if(!g_clCurEquip[client][i])
+			continue;
+		
+		static char key[16];
+		static EquipData_t data;
+		IntToString(g_clCurEquip[client][i], key, sizeof(key));
+		if(g_mEquipData[client].GetArray(key, data, sizeof(data)))
+		{
+			SetRandomSeed(client * (i + 1));
+			data.damage = GetRandomInt((data.prefix == EquipPrefix_Fire ? g_iMaxEquipDamage / 2 : 1), g_iMaxEquipDamage);
+			data.health = GetRandomInt((data.prefix == EquipPrefix_Water ? g_iMaxEquipHealth / 2 : 1), g_iMaxEquipHealth);
+			data.speed = GetRandomInt((data.prefix == EquipPrefix_Wind ? g_iMaxEquipSpeed / 2 : 1), g_iMaxEquipSpeed);
+			data.gravity = GetRandomInt((data.prefix == EquipPrefix_Sky ? g_iMaxEquipGravity / 2 : 1), g_iMaxEquipGravity);
+			data.crit = GetRandomInt((data.prefix == EquipPrefix_Lucky ? g_iMaxEquipCrit / 2 : 1), g_iMaxEquipCrit);
+			g_mEquipData[client].SetArray(key, data, sizeof(data));
+		}
+	}
 }
 
 void Initialization(int client, bool invalid = false)
@@ -3439,14 +3457,13 @@ stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len
 	
 	if(lite)
 	{
-		lentex = FormatEx(text, 255, "%s%s%s%s(%d)", data.sPrefix, data.sNamed, data.sParts, extrastr, power);
+		lentex = FormatEx(text, 255, "%s%s%s|(%d)%s", data.sPrefix, data.sNamed, data.sParts, power, extrastr);
 	}
 	else
 	{
-		lentex = FormatEx(text, 255, "%s%s%s 伤害+%d 血量+%d％ 速度+%d％ 暴击+%d‰ 跳跃+%d％ %s(%d)",
+		lentex = FormatEx(text, 255, "%s%s%s|伤害+%d|血量+%d％|速度+%d％|暴击+%d‰|跳跃+%d％|(%d)%s",
 			data.sPrefix, data.sNamed, data.sParts,
-			data.damage, data.health, data.speed, data.crit, data.gravity, extrastr,
-			power
+			data.damage, data.health, data.speed, data.crit, data.gravity, power, extrastr
 		);
 	}
 
@@ -8243,6 +8260,14 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 		{
 			L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(victim), GetClientUserId(attacker));
 			
+			// 放开受害者
+			int survivor = GetEntPropEnt(victim, Prop_Send, "m_pummelVictim");
+			if(IsValidAliveClient(survivor))
+				ForceDropVictim(victim, survivor);
+			survivor = GetEntPropEnt(victim, Prop_Send, "m_carryVictim");
+			if(IsValidAliveClient(survivor))
+				ForceDropVictim(victim, survivor);
+			
 			// 停止冲锋
 			if(IsChargerCharging(victim))
 			{
@@ -8251,15 +8276,21 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 				if(g_pfnEndCharge != null)
 					SDKCall(g_pfnEndCharge, GetEntPropEnt(victim, Prop_Send, "m_customAbility"));
 			}
-			
-			// 放开受害者
-			int survivor = GetEntPropEnt(victim, Prop_Send, "m_pummelVictim");
-			if(IsValidAliveClient(survivor))
-				ForceDropVictim(victim, survivor);
-			survivor = GetEntPropEnt(victim, Prop_Send, "m_carryVictim");
-			if(IsValidAliveClient(survivor))
-				ForceDropVictim(victim, survivor);
 		}
+	}
+	
+	if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && zClass == ZC_SURVIVOR && !IsFakeClient(attacker))
+	{
+		char msg[255];
+		int damage, health, speed, gravity, crit;
+		CalcPlayerAttr(victim, damage, health, speed, gravity, crit, true);
+		int power = CalcPlayerPower(victim);
+		
+		FormatEx(msg, sizeof(msg), "%N\n战斗力：%d丨攻击+%d丨生命+%d％丨速度+%d％丨跳跃+%d％丨暴击+%d‰", victim, power, damage, health, speed, gravity, crit);
+		if(GetEntProp(victim, Prop_Send, "m_bIsOnThirdStrike"))
+			Format(msg, sizeof(msg), "%s\n黑白状态", msg);
+		
+		PrintHintText(attacker, msg);
 	}
 }
 
@@ -8518,7 +8549,8 @@ public void Event_PlayerReplaceBot(Event event, const char[] eventName, bool don
 
 	// g_bHasFirstJoin[client] = false;
 	g_bHasJumping[client] = false;
-	RegPlayerHook(client, false);
+	// RegPlayerHook(client, false);
+	CreateTimer(0.1, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 	
 	// 修复数值不正常
 	g_iExtraAmmo[client] = 0;
@@ -8535,8 +8567,44 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 		return;
 	
 	ClientSaveToFileSave(client, true);
-	g_iExtraArmor[client] = 0;
-	g_iExtraAmmo[client] = 0;
+	
+	int bot = GetClientOfUserId(event.GetInt("bot"));
+	if(!IsValidClient(bot))
+		return;
+	
+	g_clSkill_1[bot] = g_clSkill_1[client];
+	g_clSkill_2[bot] = g_clSkill_2[client];
+	g_clSkill_3[bot] = g_clSkill_3[client];
+	g_clSkill_4[bot] = g_clSkill_4[client];
+	g_clSkill_5[bot] = g_clSkill_5[client];
+	g_clAngryMode[bot] = g_clAngryMode[client];
+	g_clAngryPoint[bot] = g_clAngryPoint[client];
+	g_iExtraArmor[bot] = g_iExtraArmor[client];
+	g_iExtraAmmo[bot] = g_iExtraAmmo[client];
+	
+	if(g_mEquipData[bot] == null)
+		g_mEquipData[bot] = CreateTrie();
+	else
+		g_mEquipData[bot].Clear();
+	
+	for(int i = 0; i < sizeof(g_clCurEquip[]); ++i)
+	{
+		g_clCurEquip[bot][i] = g_clCurEquip[client][i];
+		if(!g_clCurEquip[bot][i])
+			continue;
+		
+		static char key[16];
+		static EquipData_t data;
+		
+		IntToString(g_clCurEquip[bot][i], key, sizeof(key));
+		if(g_mEquipData[client].GetArray(key, data, sizeof(data)))
+			g_mEquipData[bot].SetArray(key, data, sizeof(data));
+		else
+			g_clCurEquip[bot][i] = 0;
+	}
+	
+	CreateTimer(0.1, Timer_RegPlayerHook, bot, TIMER_FLAG_NO_MAPCHANGE);
+	PrintToServer("%N copy to %N", client, bot);
 }
 
 void RegPlayerHook(int client, bool fullHealth = false)

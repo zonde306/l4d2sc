@@ -8636,7 +8636,8 @@ void RegPlayerHook(int client, bool fullHealth = false)
 
 public void PlayerHook_OnPostThinkPost(int client)
 {
-	if((g_clSkill_1[client] & SKL_1_NoRecoil) && (GetClientButtons(client) & IN_ATTACK))
+	if((g_clSkill_1[client] & SKL_1_NoRecoil) && (GetClientButtons(client) & IN_ATTACK) &&
+		!IsSurvivorHeld(client) && !IsPlayerIncapped(client) && !GetEntProp(client, Prop_Send, "m_isHangingFromLedge"))
 	{
 		// 无后坐力
 		SetEntProp(client, Prop_Send, "m_iShotsFired", 0);

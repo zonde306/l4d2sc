@@ -50,7 +50,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public Plugin myinfo =
 {
-	name = "电击器电错人修复",
+	name = "电击器修复",
 	author = "Lux",
 	description = "Fixes defibbing from failing when defibbing an alive character index",
 	version = PLUGIN_VERSION,

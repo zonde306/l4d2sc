@@ -37,7 +37,7 @@
 #define PLUGIN_NAME "[L4D2] Custom admin commands"
 #define PLUGIN_AUTHOR "honorcode23, Shadowysn (improvements)"
 #define PLUGIN_DESC "Allow admins to use new administrative or fun commands"
-#define PLUGIN_VERSION "1.3.5"
+#define PLUGIN_VERSION "1.3.7"
 #define PLUGIN_URL "https://forums.alliedmods.net/showthread.php?t=133475"
 #define PLUGIN_NAME_SHORT "Custom admin commands"
 #define PLUGIN_NAME_TECH "l4d2_custom_commands"
@@ -96,7 +96,7 @@ static Handle sdkCallPushPlayer = null;
 #define SIG_CallPushPlayer_LINUX "@_ZN13CTerrorPlayer5FlingERK6Vector17PlayerAnimEvent_tP20CBaseCombatCharacterf"
 #define SIG_CallPushPlayer_WINDOWS "\\x53\\x8B\\xDC\\x83\\xEC\\x08\\x83\\xE4\\xF0\\x83\\xC4\\x04\\x55\\x8B\\x6B\\x04\\x89\\x6C\\x24\\x04\\x8B\\xEC\\x81\\xEC\\xA8\\x00\\x00\\x00\\\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x8B\\x43\\x10"
 
-static Handle sdkDetonateAcid = null;
+//static Handle sdkDetonateAcid = null;
 #define NAME_DetonateAcid "CSpitterProjectile_Detonate"
 #define SIG_DetonateAcid_LINUX "@_ZN18CSpitterProjectile8DetonateEv"
 #define SIG_DetonateAcid_WINDOWS "\\x55\\x8B\\xEC\\x81\\xEC\\x94\\x00\\x00\\x00\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x2A\\x53\\x8B\\xD9"
@@ -850,7 +850,7 @@ Action CmdDontRush(int client, any args)
 	return Plugin_Handled;
 }
 
-Action CmdBugPlayer(int client, any args)
+/*Action CmdBugPlayer(int client, any args)
 {
 	if (!Cmd_CheckClient(client, client, false, -1, true)) return Plugin_Handled;
 	
@@ -868,7 +868,7 @@ Action CmdBugPlayer(int client, any args)
 		AcceptEntityInput(target_list[i], "becomeragdoll");
 	}
 	return Plugin_Handled;
-}
+}*/
 
 /*Action CmdDestroyPlayer(int client, any args)
 {
@@ -2295,7 +2295,7 @@ void MenuItem_NoRescue(Handle topmenu, TopMenuAction action, TopMenuObject objec
 	}
 }
 
-void MenuItem_BugPlayer(Handle topmenu, TopMenuAction action, TopMenuObject object_id, int param, char[] buffer, int maxlength)
+/*void MenuItem_BugPlayer(Handle topmenu, TopMenuAction action, TopMenuObject object_id, int param, char[] buffer, int maxlength)
 {
 	if (action == TopMenuAction_DisplayOption)
 	{
@@ -2305,7 +2305,7 @@ void MenuItem_BugPlayer(Handle topmenu, TopMenuAction action, TopMenuObject obje
 	{
 		DisplayBugPlayerMenu(param);
 	}
-}
+}*/
 
 void MenuItem_DontRush(Handle topmenu, TopMenuAction action, TopMenuObject object_id, int param, char[] buffer, int maxlength)
 {
@@ -2470,7 +2470,7 @@ void DisplayIncapPlayerMenu(int client)
 	Handle menu3 = CreateMenu(MenuHandler_IncapPlayer);
 	SetMenuTitle(menu3, "Select Player:");
 	SetMenuExitBackButton(menu3, true);
-	AddTargetsToMenu2(menu3, client, COMMAND_FILTER_CONNECTED);
+	AddTargetsToMenu2(menu3, client, COMMAND_FILTER_ALIVE);
 	DisplayMenu(menu3, client, MENU_TIME_FOREVER);
 }
 
@@ -2547,14 +2547,14 @@ void DisplayShakePlayerMenu(int client)
 	DisplayMenu(menu8, client, MENU_TIME_FOREVER);
 }
 
-void DisplayBugPlayerMenu(int client)
+/*void DisplayBugPlayerMenu(int client)
 {
 	Handle menu9 = CreateMenu(MenuHandler_BugPlayer);
 	SetMenuTitle(menu9, "Select Player:");
 	SetMenuExitBackButton(menu9, true);
 	AddTargetsToMenu2(menu9, client, COMMAND_FILTER_CONNECTED);
 	DisplayMenu(menu9, client, MENU_TIME_FOREVER);
-}
+}*/
 
 void DisplayDontRushMenu(int client)
 {
@@ -2932,7 +2932,7 @@ int MenuHandler_GodMode(Handle menu2, MenuAction action, int client, int param2)
 		char name[256], name2[256];
 		GetClientName(client, name, sizeof(name));
 		GetClientName(target, name2, sizeof(name2));
-		LogCommand("%s used the 'Gpd Mode' command on '%s'", name, name2);
+		LogCommand("%s used the 'God Mode' command on '%s'", name, name2);
 		DisplayGodModeMenu(client);
 	}
 }
@@ -3392,7 +3392,7 @@ int MenuHandler_ShakePlayer(Handle menu2a, MenuAction action, int client, int pa
 	}
 }
 
-int MenuHandler_BugPlayer(Handle menu9, MenuAction action, int client, int param2)
+/*int MenuHandler_BugPlayer(Handle menu9, MenuAction action, int client, int param2)
 {
 	if (action == MenuAction_End)
 	{
@@ -3419,7 +3419,7 @@ int MenuHandler_BugPlayer(Handle menu9, MenuAction action, int client, int param
 		AcceptEntityInput(target, "becomeragdoll");
 		DisplayBugPlayerMenu(client);
 	}
-}
+}*/
 	
 int MenuHandler_DontRush(Handle menu10, MenuAction action, int client, int param2)
 {
@@ -3695,26 +3695,22 @@ void CreateExplosion(float carPos[3])
 	{
 		case 1:
 		{
-			if (!IsSoundPrecached(EXPLOSION_SOUND))
-			{ PrecacheSound(EXPLOSION_SOUND); }
+			PrecacheSound(EXPLOSION_SOUND);
 			EmitAmbientGenericSound(carPos, EXPLOSION_SOUND);
 		}
 		case 2:
 		{
-			if (!IsSoundPrecached(EXPLOSION_SOUND2))
-			{ PrecacheSound(EXPLOSION_SOUND2); }
+			PrecacheSound(EXPLOSION_SOUND2);
 			EmitAmbientGenericSound(carPos, EXPLOSION_SOUND2);
 		}
 		case 3:
 		{
-			if (!IsSoundPrecached(EXPLOSION_SOUND3))
-			{ PrecacheSound(EXPLOSION_SOUND3); }
+			PrecacheSound(EXPLOSION_SOUND3);
 			EmitAmbientGenericSound(carPos, EXPLOSION_SOUND3);
 		}
 	}
 	
-	if (!IsSoundPrecached(EXPLOSION_DEBRIS))
-	{ PrecacheSound(EXPLOSION_DEBRIS); }
+	PrecacheSound(EXPLOSION_DEBRIS);
 	EmitAmbientGenericSound(carPos, EXPLOSION_DEBRIS);
 	
 	//BOOM!
@@ -3833,11 +3829,11 @@ void Charge(int client, int sender)
 	distance[1] = (spos[1] - tpos[1]);
 	distance[2] = (spos[2] - tpos[2]);
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", tvec);
-	ratio[0] =  FloatDiv(distance[0], SquareRoot(distance[1]*distance[1] + distance[0]*distance[0]));//Ratio x/hypo
-	ratio[1] =  FloatDiv(distance[1], SquareRoot(distance[1]*distance[1] + distance[0]*distance[0]));//Ratio y/hypo
+	ratio[0] = distance[0] / SquareRoot(distance[1]*distance[1] + distance[0]*distance[0]);//Ratio x/hypo
+	ratio[1] = distance[1] / SquareRoot(distance[1]*distance[1] + distance[0]*distance[0]);//Ratio y/hypo
 	
-	addVel[0] = FloatMul(ratio[0]*-1, 500.0);
-	addVel[1] = FloatMul(ratio[1]*-1, 500.0);
+	addVel[0] = ratio[0]*-1 * 500.0;
+	addVel[1] = ratio[1]*-1 * 500.0;
 	addVel[2] = 500.0;
 	SDKCall(sdkCallPushPlayer, client, addVel, 76, sender, 7.0);
 }
@@ -4100,11 +4096,11 @@ void EndGame()
 	distance[1] = (flCpos[1] - flTpos[1]);
 	distance[2] = (flCpos[2] - flTpos[2]);
 	GetEntPropVector(client, Prop_Data, "m_vecVelocity", tvec);
-	ratio[0] =  FloatDiv(distance[0], SquareRoot(distance[1]*distance[1] + distance[0]*distance[0]));//Ratio x/hypo
-	ratio[1] =  FloatDiv(distance[1], SquareRoot(distance[1]*distance[1] + distance[0]*distance[0]));//Ratio y/hypo
+	ratio[0] =  distance[0] / SquareRoot(distance[1]*distance[1] + distance[0]*distance[0]);//Ratio x/hypo
+	ratio[1] =  distance[1] / SquareRoot(distance[1]*distance[1] + distance[0]*distance[0]);//Ratio y/hypo
 	
-	addVel[0] = FloatMul(ratio[0]*-1, power);
-	addVel[1] = FloatMul(ratio[1]*-1, power);
+	addVel[0] = ratio[0]*-1 * power;
+	addVel[1] = ratio[1]*-1 * power;
 	addVel[2] = power;
 	final[0] = FloatAdd(addVel[0], tvec[0]);
 	final[1] = FloatAdd(addVel[1], tvec[1]);
@@ -4230,7 +4226,7 @@ void StartL4dRain(int client)
 
 void GodMode(int client, int sender)
 {
-	if (!Cmd_CheckClient(client, sender, true, -1, true)) return;
+	if (!Cmd_CheckClient(client, sender, false, -1, true)) return;
 	
 	if (GetEntProp(client, Prop_Data, "m_takedamage") <= 0)
 	{
@@ -4618,7 +4614,7 @@ void CreateAcidSpill(int client, int sender)
 	GetClientAbsOrigin(client, vecPos);
 	vecPos[2]+=16.0;
 	
-	int iAcid = CreateEntityByName("spitter_projectile");
+	/*int iAcid = CreateEntityByName("spitter_projectile");
 	if (IsValidEntity(iAcid))
 	{
 		DispatchSpawn(iAcid);
@@ -4627,7 +4623,8 @@ void CreateAcidSpill(int client, int sender)
 		SetEntPropEnt(iAcid, Prop_Send, "m_hThrower", sender); // A player who caused the acid to appear.
 		TeleportEntity(iAcid, vecPos, NULL_VECTOR, NULL_VECTOR);
 		SDKCall(sdkDetonateAcid, iAcid);
-	}
+	}*/
+	Logic_RunScript("DropSpit(Vector(%f, %f, %f))", vecPos[0], vecPos[1], vecPos[2]);
 }
 
 void SetAdrenalineEffect(int client, int sender, float timelimit = -1.0)
@@ -5018,12 +5015,12 @@ void PrepSDKCall()
 	if (sdkCallPushPlayer == null)
 	{ SetFailState("Cannot initialize %s SDKCall, signature is broken.", NAME_CallPushPlayer); return; }
 	
-	StartPrepSDKCall(SDKCall_Entity);
+	/*StartPrepSDKCall(SDKCall_Entity);
 	if (!PrepSDKCall_SetFromConf(hConf, SDKConf_Signature, NAME_DetonateAcid))
 	{ SetFailState("[SM] Failed to set %s %s from config!", PLUGIN_NAME_SHORT, NAME_DetonateAcid); }
 	sdkDetonateAcid = EndPrepSDKCall();
 	if (sdkDetonateAcid == null)
-	{ SetFailState("Cannot initialize %s SDKCall, signature is broken.", NAME_DetonateAcid); return; }
+	{ SetFailState("Cannot initialize %s SDKCall, signature is broken.", NAME_DetonateAcid); return; }*/
 	
 	// Signature end
 	

@@ -1,4 +1,24 @@
-#define PLUGIN_VERSION		"1.10"
+/*
+*	Mission and Weapons - Info Editor
+*	Copyright (C) 2020 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+
+#define PLUGIN_VERSION		"1.11"
 
 /*======================================================================================
 	Plugin Info:
@@ -11,6 +31,11 @@
 
 ========================================================================================
 	Change Log:
+
+1.11 (24-Sep-2020)
+	- Compatibility update for L4D2's "The Last Stand" update.
+	- Added support for the 2 new melee weapons.
+	- GameData .txt file updated.
 
 1.10 (02-Jul-2020)
 	- Fixed not always loading the correct map section data in the config for the current map.
@@ -109,7 +134,7 @@ char g_sLastMap[PLATFORM_MAX_PATH];
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "地图和武器数据编辑器",
+	name = "战役和武器修改器",
 	author = "SilverShot",
 	description = "Modify gamemodes.txt and weapons.txt values by config instead of conflicting VPK files.",
 	version = PLUGIN_VERSION,
@@ -379,6 +404,9 @@ void ReloadData()
 			ReplaceString(check, sizeof(check), ";knife;", ";");
 			ReplaceString(check, sizeof(check), ";machete;", ";");
 			ReplaceString(check, sizeof(check), ";tonfa;", ";");
+			ReplaceString(check, sizeof(check), ";pitchfork;", ";");
+			ReplaceString(check, sizeof(check), ";shovel;", ";");
+
 			int pos = strlen(check);
 			if( pos > 0 )
 			{

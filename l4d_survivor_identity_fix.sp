@@ -1,67 +1,71 @@
+#pragma semicolon 1
+#pragma newdecls required
+
+#define PLUGIN_NAME "幸存者模型修复"
+#define PLUGIN_AUTHOR "Merudo, Shadowysn"
+#define PLUGIN_DESC "Fix bug where a survivor will change identity when a player connects/disconnects if there are 5+ survivors"
+#define PLUGIN_VERSION "1.3"
+#define PLUGIN_URL "https://forums.alliedmods.net/showthread.php?p=2403731#post2403731"
+#define PLUGIN_NAME_SHORT "5+ Survivor Identity Fix"
+#define PLUGIN_NAME_TECH "survivor_identity_fix"
+
 #include <sourcemod>
 #include <sdktools>
 #include <dhooks>
 
-#pragma semicolon 1
-#pragma newdecls required
-
-#define PLUGIN_VERSION "1.0"
 #define TEAM_SURVIVOR 2
+#define TEAM_PASSING 4
 
-Handle hSetModel;
 char g_Models[MAXPLAYERS+1][128];
+
+#define GAMEDATA "l4d_survivor_identity_fix"
+
+Handle hConf = null;
+#define NAME_SetModel "CBasePlayer::SetModel"
+static Handle hDHookSetModel = null;
+
+#define SIG_SetModel_LINUX "@_ZN11CBasePlayer8SetModelEPKc"
+#define SIG_SetModel_WINDOWS "\\x55\\x8B\\x2A\\x8B\\x2A\\x2A\\x56\\x57\\x50\\x8B\\x2A\\xE8\\xC0\\x7B"
+
+#define SIG_L4D1SetModel_WINDOWS "\\x8B\\x2A\\x2A\\x2A\\x56\\x57\\x50\\x8B\\x2A\\xE8\\x2A\\x2A\\x2A\\x2A\\x8B\\x3D"
 
 public Plugin myinfo =
 {
-	name        = "幸存者闲置模式修复",
-	author      = "Merudo",
-	description = "Fix bug where a survivor will change identity when a player connects/disconnects if there are 5+ survivors",
-	version     = PLUGIN_VERSION,
-	url         = "https://forums.alliedmods.net/showthread.php?p=2403731#post2403731"
+	name = PLUGIN_NAME,
+	author = PLUGIN_AUTHOR,
+	description = PLUGIN_DESC,
+	version = PLUGIN_VERSION,
+	url = PLUGIN_URL
 }
 
 public void OnPluginStart()
 {
-	CreateConVar("l4d_survivor_identity_fix_version", PLUGIN_VERSION, "Survivor Change Fix Version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_NOTIFY|FCVAR_DONTRECORD);
-
-	Handle gamedata = LoadGameConfigFile("l4d_survivor_identity_fix");
-	if(gamedata == INVALID_HANDLE)
-	{
-		SetFailState("Survivor Identity Fix cannot find SetModel offset. Make sure l4d_survivor_identity_fix.txt is in /gamedata/");
-	}
-
-	int offset = GameConfGetOffset(gamedata, "SetModel");
-	hSetModel = DHookCreate(offset, HookType_Entity, ReturnType_Void, ThisPointer_CBaseEntity, SetModel);
-	DHookAddParam(hSetModel, HookParamType_CharPtr);
-	CloseHandle(gamedata);
+	GetGamedata();
+	
+	CreateConVar("l4d_survivor_identity_fix_version", PLUGIN_VERSION, "Survivor Change Fix Version", FCVAR_SPONLY|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	
 	HookEvent("player_bot_replace", Event_PlayerToBot, EventHookMode_Post);
 	HookEvent("bot_player_replace", Event_BotToPlayer, EventHookMode_Post);
-}
-
-public void OnClientPutInServer(int client)
-{
-    DHookEntity(hSetModel, true, client);
 }
 
 // ------------------------------------------------------------------------
 //  Stores the client of each survivor each time it is changed
 //  Needed because when Event_PlayerToBot fires, it's hunter model instead
 // ------------------------------------------------------------------------
+public MRESReturn SetModel_Pre(int client, Handle hParams)
+{ } // We need this pre hook even though it's empty, or else the post hook will crash the game.
+
 public MRESReturn SetModel(int client, Handle hParams)
 {
-	if(client < 1 || client > MaxClients)
-		return;
-	
-	if (GetClientTeam(client) != TEAM_SURVIVOR) 
+	if (!IsValidClient(client) || !IsSurvivor(client)) 
 	{
-		g_Models[client][0] = '\0' ;
+		g_Models[client][0] = '\0';
 		return;
 	}
 	
 	char model[128];
 	DHookGetParamString(hParams, 1, model, sizeof(model));
-	if (strcmp("models/infected/hunter.mdl", model)) strcopy(g_Models[client], 128, model); 
+	if (StrContains("models/infected", model, false) > -1) strcopy(g_Models[client], 128, model); 
 }
 
 // ------------------------------------------------------------------------
@@ -87,17 +91,13 @@ public Action Event_BotToPlayer(Handle event, const char[] name, bool dontBroadc
 {
 	int player = GetClientOfUserId(GetEventInt(event, "player"));
 	int bot    = GetClientOfUserId(GetEventInt(event, "bot"));
-	
-	char model[128];
-	
-	if (IsFakeClient(player)) return;  // ignore fake players (side product of creating bots)
 
-	if(player > 0 && IsClientInGame(player)) 
-	{
-		GetClientModel(bot, model, sizeof(model));
-		SetEntityModel(player, model);
-		SetEntProp(player, Prop_Send, "m_survivorCharacter", GetEntProp(bot, Prop_Send, "m_survivorCharacter"));
-	}
+	if (!IsValidClient(player) || IsFakeClient(player)) return;  // ignore fake players (side product of creating bots)
+
+	char model[128];
+	GetClientModel(bot, model, sizeof(model));
+	SetEntityModel(player, model);
+	SetEntProp(player, Prop_Send, "m_survivorCharacter", GetEntProp(bot, Prop_Send, "m_survivorCharacter"));
 }
 
 // --------------------------------------
@@ -109,8 +109,9 @@ public Action Event_PlayerToBot(Handle event, char[] name, bool dontBroadcast)
 	int bot    = GetClientOfUserId(GetEventInt(event, "bot")); 
 
 	if (IsFakeClient(player)) return;  // ignore fake players (side product of creating bots)
+	if (!IsValidClient(player) || !IsSurvivor(player) || IsFakeClient(player)) return;
 	
-	if(player > 0 && IsClientInGame(player) && GetClientTeam(player)==TEAM_SURVIVOR && g_Models[player][0] != '\0') 
+	if (g_Models[player][0] != '\0')
 	{
 		SetEntProp(bot, Prop_Send, "m_survivorCharacter", GetEntProp(player, Prop_Send, "m_survivorCharacter"));
 		SetEntityModel(bot, g_Models[player]); // Restore saved model. Player model is hunter at this point
@@ -119,4 +120,91 @@ public Action Event_PlayerToBot(Handle event, char[] name, bool dontBroadcast)
 			if (StrEqual(g_Models[player], survivor_models[i])) SetClientInfo(bot, "name", survivor_names[i]);
 		}
 	}
+}
+
+void GetGamedata()
+{
+	char filePath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, filePath, sizeof(filePath), "gamedata/%s.txt", GAMEDATA);
+	if( FileExists(filePath) )
+	{
+		hConf = LoadGameConfigFile(GAMEDATA); // For some reason this doesn't return null even for invalid files, so check they exist first.
+	}
+	else
+	{
+		PrintToServer("[SM] %s plugin unable to get %i.txt gamedata file. Generating...", PLUGIN_NAME_SHORT, GAMEDATA);
+		
+		Handle fileHandle = OpenFile(filePath, "a+");
+		if (fileHandle == null)
+		{ SetFailState("[SM] Couldn't generate gamedata file!"); }
+		
+		WriteFileLine(fileHandle, "\"Games\"");
+		WriteFileLine(fileHandle, "{");
+		WriteFileLine(fileHandle, "	\"left4dead\"");
+		WriteFileLine(fileHandle, "	{");
+		WriteFileLine(fileHandle, "		\"Signatures\"");
+		WriteFileLine(fileHandle, "		{");
+		WriteFileLine(fileHandle, "			\"%s\"", NAME_SetModel);
+		WriteFileLine(fileHandle, "			{");
+		WriteFileLine(fileHandle, "				\"library\"	\"server\"");
+		WriteFileLine(fileHandle, "				\"linux\"	\"%s\"", SIG_SetModel_LINUX);
+		WriteFileLine(fileHandle, "				\"windows\"	\"%s\"", SIG_L4D1SetModel_WINDOWS);
+		WriteFileLine(fileHandle, "				\"mac\"		\"%s\"", SIG_SetModel_LINUX);
+		WriteFileLine(fileHandle, "			}");
+		WriteFileLine(fileHandle, "		}");
+		WriteFileLine(fileHandle, "	}");
+		WriteFileLine(fileHandle, "	\"left4dead2\"");
+		WriteFileLine(fileHandle, "	{");
+		WriteFileLine(fileHandle, "		\"Signatures\"");
+		WriteFileLine(fileHandle, "		{");
+		WriteFileLine(fileHandle, "			\"%s\"", NAME_SetModel);
+		WriteFileLine(fileHandle, "			{");
+		WriteFileLine(fileHandle, "				\"library\"	\"server\"");
+		WriteFileLine(fileHandle, "				\"linux\"	\"%s\"", SIG_SetModel_LINUX);
+		WriteFileLine(fileHandle, "				\"windows\"	\"%s\"", SIG_SetModel_WINDOWS);
+		WriteFileLine(fileHandle, "				\"mac\"		\"%s\"", SIG_SetModel_LINUX);
+		WriteFileLine(fileHandle, "			}");
+		WriteFileLine(fileHandle, "		}");
+		WriteFileLine(fileHandle, "	}");
+		WriteFileLine(fileHandle, "}");
+		
+		CloseHandle(fileHandle);
+		hConf = LoadGameConfigFile(GAMEDATA);
+		if (hConf == null)
+		{ SetFailState("[SM] Failed to load auto-generated gamedata file!"); }
+		
+		PrintToServer("[SM] %s successfully generated %s.txt gamedata file!", PLUGIN_NAME_SHORT, GAMEDATA);
+	}
+	PrepDHooks();
+}
+
+void PrepDHooks()
+{
+	if (hConf == null)
+	{
+		SetFailState("Error: Gamedata not found");
+	}
+	
+	hDHookSetModel = DHookCreateDetour(Address_Null, CallConv_THISCALL, ReturnType_Void, ThisPointer_CBaseEntity);
+	DHookSetFromConf(hDHookSetModel, hConf, SDKConf_Signature, NAME_SetModel);
+	DHookAddParam(hDHookSetModel, HookParamType_CharPtr);
+	DHookEnableDetour(hDHookSetModel, false, SetModel_Pre);
+	DHookEnableDetour(hDHookSetModel, true, SetModel);
+}
+
+bool IsValidClient(int client, bool replaycheck = true)
+{
+	if (client <= 0 || client > MaxClients) return false;
+	if (!IsClientInGame(client)) return false;
+	if (replaycheck)
+	{
+		if (IsClientSourceTV(client) || IsClientReplay(client)) return false;
+	}
+	return true;
+}
+
+bool IsSurvivor(int client)
+{
+	if (GetClientTeam(client) != TEAM_SURVIVOR && GetClientTeam(client) != TEAM_PASSING) return false;
+	return true;
 }

@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.21"
+#define PLUGIN_VERSION		"1.22"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -37,6 +37,14 @@
 
 ========================================================================================
 	Change Log:
+
+1.22 (24-Sep-2020)
+	- Compatibility update for L4D2's "The Last Stand" update.
+	- Big thanks to "ProdigySim" for help updating various gamedata offsets and signatures.
+	- Added support for the 2 new melee weapons.
+	- Changed native "L4D_GetTeamScore" to accept values 0 and 1 which seems is the standard.
+	- Late loading with debug enabled now shows the g_pGameRules pointer.
+	- Moved hard coded Addon Eclipse offsets to gamedata.
 
 1.21 (01-Sep-2020)
 	- Removed teleporting the old and new tank players when using "L4D_ReplaceTank" native.
@@ -528,6 +536,10 @@ Handle g_hSDK_Call_UnRegisterForbiddenTarget;
 // Offsets
 // int ClearTeamScore_A;
 // int ClearTeamScore_B;
+int g_iAddonEclipse1;
+int g_iAddonEclipse2;
+int g_iAddonEclipse3;
+
 int VersusStartTimer;
 int m_rescueCheckTimer;
 int SpawnTimer;
@@ -597,6 +609,10 @@ ConVar g_hCvarVScriptBuffer;
 ConVar g_hCvarAddonsEclipse;
 ConVar g_hCvarRescueDeadTime;
 
+#if DEBUG
+bool g_bLateLoad;
+#endif
+
 
 
 // ====================================================================================================
@@ -621,6 +637,10 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
 	}
+
+	#if DEBUG
+	g_bLateLoad = late;
+	#endif
 
 	g_hThisPlugin = myself;
 	RegPluginLibrary("left4dhooks");
@@ -1021,6 +1041,8 @@ public void OnPluginStart()
 		g_aMeleeIDs.SetValue("electric_guitar",						8);
 		g_aMeleeIDs.SetValue("knife",								9);
 		g_aMeleeIDs.SetValue("golfclub",							10);
+		g_aMeleeIDs.SetValue("pitchfork",							11);
+		g_aMeleeIDs.SetValue("shovel",								12);
 	}
 
 
@@ -1377,7 +1399,10 @@ void AddonsDisabler_Unpatch()
 // ====================================================================================================
 public MRESReturn AddonsDisabler(int pThis, Handle hReturn, Handle hParams)
 {
-	//PrintToServer("##### DTR AddonsDisabler");
+	#if DEBUG
+	PrintToServer("##### DTR AddonsDisabler");
+	#endif
+
 	// Get client index like downtown:
 	// int m_nPlayerSlot = *(int *)((unsigned char *)SVC_ServerInfo + 48);
 	// IClient *pClient = g_pServer->GetClient(m_nPlayerSlot);
@@ -1386,11 +1411,16 @@ public MRESReturn AddonsDisabler(int pThis, Handle hReturn, Handle hParams)
 	if( cvar != -1 )
 	{
 		int ptr = DHookGetParam(hParams, 1);
-		int client = LoadFromAddress(view_as<Address>(ptr + 48), NumberType_Int8); // Network slot
+		int client = LoadFromAddress(view_as<Address>(ptr + g_iAddonEclipse1), NumberType_Int8); // Network slot
 
 		//PrintToServer("#### CALL g_hSDK_Call_GetClient");
+
 		client = SDKCall(g_hSDK_Call_GetClient, g_pServer, client); // Pointer to somewhere in client address, not their actual entity address.
-		client = LoadFromAddress(view_as<Address>(client + 48), NumberType_Int8); // Strange, don't know why but works. Found with sm_ptr dump.
+		client = LoadFromAddress(view_as<Address>(client + g_iAddonEclipse2), NumberType_Int8); // Strange, don't know why but works. Found with sm_ptr dump.
+
+		#if DEBUG
+		PrintToServer("#### AddonCheck for %d", client);
+		#endif
 
 		if( client > 0 && client <= MaxClients && IsClientConnected(client) )
 		{
@@ -1398,12 +1428,16 @@ public MRESReturn AddonsDisabler(int pThis, Handle hReturn, Handle hParams)
 			static char netID[32];
 			GetClientAuthId(client, AuthId_Steam2, netID, sizeof(netID), false);
 
+			#if DEBUG
+			PrintToServer("#### AddonCheck for %d [%s] (%N)", client, netID, client);
+			#endif
+
 			Action aResult = Plugin_Continue;
 			Call_StartForward(g_hForward_AddonsDisabler);
 			Call_PushString(netID);
 			Call_Finish(aResult);
 
-			StoreToAddress(view_as<Address>(ptr + 25), aResult == Plugin_Handled ? 0 : view_as<int>(!cvar), NumberType_Int8);
+			StoreToAddress(view_as<Address>(ptr + g_iAddonEclipse3), aResult == Plugin_Handled ? 0 : view_as<int>(!cvar), NumberType_Int8);
 		}
 	}
 
@@ -2859,6 +2893,11 @@ void LoadGameData()
 	}
 
 	#if DEBUG
+	if( g_bLateLoad )
+	{
+		LoadGameDataRules();
+	}
+
 	PrintToServer("Pointers:");
 	PrintToServer("%12d == g_pDirector", g_pDirector);
 	PrintToServer("%12d == g_pZombieManager", g_pZombieManager);
@@ -2887,6 +2926,13 @@ void LoadGameData()
 	#endif
 
 	// g_bLinuxOS = hGameData.GetOffset("OS") == 1;
+
+	g_iAddonEclipse1 = hGameData.GetOffset("AddonEclipse1");
+	ValidateOffset(g_iAddonEclipse1, "AddonEclipse1");
+	g_iAddonEclipse2 = hGameData.GetOffset("AddonEclipse2");
+	ValidateOffset(g_iAddonEclipse2, "AddonEclipse2");
+	g_iAddonEclipse3 = hGameData.GetOffset("AddonEclipse3");
+	ValidateOffset(g_iAddonEclipse3, "AddonEclipse3");
 
 	m_iCampaignScores = hGameData.GetOffset("m_iCampaignScores");
 	ValidateOffset(m_iCampaignScores, "m_iCampaignScores");
@@ -3020,6 +3066,10 @@ void LoadGameData()
 
 
 	#if DEBUG
+	PrintToServer("g_iAddonEclipse1 = %d", g_iAddonEclipse1);
+	PrintToServer("g_iAddonEclipse2 = %d", g_iAddonEclipse2);
+	PrintToServer("g_iAddonEclipse3 = %d", g_iAddonEclipse3);
+
 	PrintToServer("m_iCampaignScores = %d", m_iCampaignScores);
 	PrintToServer("m_fTankSpawnFlowPercent = %d", m_fTankSpawnFlowPercent);
 	PrintToServer("m_fWitchSpawnFlowPercent = %d", m_fWitchSpawnFlowPercent);
@@ -3490,8 +3540,8 @@ public int Native_SetVersusMaxCompletionScore(Handle plugin, int numParams)
 
 public int Native_GetTeamScore(Handle plugin, int numParams)
 {
-	#define SCORE_TEAM_A 1
-	#define SCORE_TEAM_B 2
+	#define SCORE_TEAM_A 0
+	#define SCORE_TEAM_B 1
 	#define SCORE_TYPE_ROUND 0
 	#define SCORE_TYPE_CAMPAIGN 1
 
@@ -3503,7 +3553,7 @@ public int Native_GetTeamScore(Handle plugin, int numParams)
 		int team = GetNativeCell(1);
 		if( team != SCORE_TEAM_A && team != SCORE_TEAM_B )
 		{
-			ThrowNativeError(SP_ERROR_PARAM, "Logical team %d is invalid. Accepted values: 1 or 2.", team);
+			ThrowNativeError(SP_ERROR_PARAM, "Logical team %d is invalid. Accepted values: 0 or 1.", team);
 		}
 
 		//campaign_score is a boolean so should be 0 (use round score) or 1 only

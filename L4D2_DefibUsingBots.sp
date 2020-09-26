@@ -2,13 +2,11 @@
 #include <sourcemod>
 #include <sdktools>
 
-#define PLUGIN_VERSION "1.6"
+#define PLUGIN_VERSION "1.7"
 #define STARTSHOOTING 1
 #define STOPSHOOTING 0
 
 static shoot[MAXPLAYERS + 1] = 0;
-
-static Handle:MedsArray = INVALID_HANDLE;
 
 public Plugin:myinfo = 
 {
@@ -33,9 +31,8 @@ public APLRes:AskPluginLoad2(Handle:myself, bool:late, String:error[], err_max)
 
 public OnPluginStart()
 {
-	CreateConVar("sm_defib_bots_version", PLUGIN_VERSION, "Defib Bots Version", FCVAR_PLUGIN | FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOTIFY);
+	CreateConVar("sm_defib_bots_version", PLUGIN_VERSION, "Defib Bots Version", FCVAR_SPONLY | FCVAR_REPLICATED | FCVAR_NOTIFY);
 	CreateTimer(1.0, BotsDefib, _, TIMER_REPEAT);
-	CreateTimer(1.0, CheckForPickUps, _, TIMER_REPEAT);
 	
 	HookEvent("defibrillator_used_fail", Event_DefibFailed);
 	HookEvent("defibrillator_interrupted", Event_DefibFailed);
@@ -45,107 +42,6 @@ public OnPluginStart()
 	RegAdminCmd("sm_regroup", RegroupBots, ADMFLAG_ROOT, "Commands Survivor Bots to move to your location");
 	RegAdminCmd("sm_attack", AttackSI, ADMFLAG_ROOT, "Orders Survivor Bots to Attack the SI you are aiming at");
 	RegAdminCmd("sm_retreat", RunAway, ADMFLAG_ROOT, "Orders Survivor Bots to retreat from the SI you are aiming at");
-}
-
-public OnEntityCreated(entity, const String:classname[])
-{
-	if (entity <= 0 || entity > 2048 || classname[0] != 'w')return;
-	CreateTimer(2.0, CheckEntityForGrab, entity);
-}
-
-// checking for Defibs for the defib pickup
-public OnEntityDestroyed(entity)
-{
-	if (entity <= 0 || entity > 2048)return;
-	
-	if (MedsArray != INVALID_HANDLE)
-	{
-		for (new i = 0; i <= GetArraySize(MedsArray) - 1; i++)
-		{
-			if (entity == GetArrayCell(MedsArray, i))
-			{
-				RemoveFromArray(MedsArray, i);
-			}
-		}
-	}
-}
-
-// Timer based functions
-public Action:CheckForPickUps(Handle:Timer)
-{
-	// trying to account for late loading and unexpected
-	// or unreported weapons (stripper created weapons dont seem to fire OnEntityCreated)
-	if (!IsServerProcessing())
-	{
-		return;
-	}
-	
-	for (new entity = 0; entity < 2048; entity++)
-	{
-		if (!IsValidEntity(entity))
-		{
-			continue;
-		}
-		new String:classname[128];
-		GetEntityClassname(entity, classname, sizeof(classname));
-		if (StrEqual(classname, "weapon_defibrillator", false)
-			 || StrEqual(classname, "weapon_defibrillator_spawn", false)
-			 || StrEqual(classname, "weapon_first_aid_kit", false)
-			 || StrEqual(classname, "weapon_first_aid_kit_spawn", false))
-		{
-			if (!IsDefibOwned(entity))
-			{
-				for (new i = 0; i <= GetArraySize(MedsArray) - 1; i++)
-				{
-					if (entity == GetArrayCell(MedsArray, i))
-					{
-						return;
-					}
-					else if (!IsValidEntity(entity))
-					{
-						RemoveFromArray(MedsArray, entity);
-					}
-				}
-				PushArrayCell(MedsArray, entity);
-			}
-			else if(IsDefibOwned(entity))
-			{
-				for (new i = 0; i <= GetArraySize(MedsArray) - 1; i++)
-				{
-					if (entity == GetArrayCell(MedsArray, i))
-					{
-						RemoveFromArray(MedsArray, i);
-					}
-				}
-			}
-		}
-	}
-}
-
-public Action:CheckEntityForGrab(Handle:timer, any:entity)
-{
-	if (IsValidEntity(entity) && MedsArray != INVALID_HANDLE)
-	{
-		new String:classname[128];
-		GetEntityClassname(entity, classname, sizeof(classname));
-		if (StrEqual(classname, "weapon_defibrillator", false)
-			 || StrEqual(classname, "weapon_defibrillator_spawn", false)
-			 || StrEqual(classname, "weapon_first_aid_kit", false)
-			 || StrEqual(classname, "weapon_first_aid_kit_spawn", false))
-		{
-			if (!IsDefibOwned(entity))
-			{
-				for (new i = 0; i <= GetArraySize(MedsArray) - 1; i++)
-				{
-					if (entity == GetArrayCell(MedsArray, i))
-					{
-						return;
-					}
-				}
-				PushArrayCell(MedsArray, entity);
-			}
-		}
-	}
 }
 
 public Action:BotsDefib(Handle:timer)
@@ -249,46 +145,6 @@ public Action:RunAway(client, args)
 			ScriptCommand(i, "script", "CommandABot({cmd=2,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", GetClientUserId(i), GetClientUserId(target));
 		}
 	}
-}
-
-// This only fires if we have Left4Downtown2!
-public Action:L4D2_OnFindScavengeItem(client, &item)
-{
-	if (!item)
-	{
-		decl Float:Origin[3], Float:TOrigin[3];
-		if (MedsArray != INVALID_HANDLE)
-		{
-			new iWeapon = GetPlayerWeaponSlot(client, 3);
-			if (iWeapon > MaxClients)
-			{
-				new String:weapon[32];
-				if (IsValidEdict(GetEdictClassname(GetPlayerWeaponSlot(client, 3), weapon, sizeof(weapon))))
-				{
-					if (StrEqual(weapon, "weapon_defibrillator") || StrEqual(weapon, "weapon_first_aid_kit"))
-					{
-						return Plugin_Continue;
-					}
-				}
-			}
-			for (new i = 0; i <= GetArraySize(MedsArray) - 1; i++)
-			{
-				new entity = GetArrayCell(MedsArray, i);
-				if (IsValidEntity(entity) && IsValidEdict(entity) && HasEntProp(entity, Prop_Send, "m_vecOrigin"))
-				{
-					GetEntPropVector(entity, Prop_Send, "m_vecOrigin", Origin);
-					GetEntPropVector(client, Prop_Send, "m_vecOrigin", TOrigin);
-					new Float:distance = GetVectorDistance(TOrigin, Origin);
-					if (distance < 300)
-					{
-						item = entity;
-						return Plugin_Changed;
-					}
-				}
-			}
-		}
-	}
-	return Plugin_Continue;
 }
 
 // Functions to allow the Bot to use Defibs
@@ -475,14 +331,3 @@ stock bool:IsInfected(client)
 	}
 	return false;
 } 
-
-public OnMapStart()
-{
-	MedsArray = CreateArray();
-}
-
-public OnMapEnd()
-{
-	CloseHandle(MedsArray);
-	MedsArray = INVALID_HANDLE;
-}

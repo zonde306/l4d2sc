@@ -657,8 +657,14 @@ public OnPluginStart()
 				g_tMeleeRange.SetValue("machete",			120);
 				g_tMeleeRange.SetValue("tonfa",				100);
 				g_tMeleeRange.SetValue("riotshield",		100);
+				g_tMeleeRange.SetValue("shovel",			150);
+				g_tMeleeRange.SetValue("pitchfork",			130);
 				
 				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Hooked.");
+			}
+			else
+			{
+				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Error.");
 			}
 			
 			g_hDetourTestSwingCollision = DHookCreateFromConf(hGameData, "CTerrorWeapon::TestSwingCollision");
@@ -679,6 +685,8 @@ public OnPluginStart()
 				g_tShoveRange.SetValue("tonfa",						100);
 				g_tShoveRange.SetValue("riotshield",				100);
 				g_tShoveRange.SetValue("weapon_chainsaw",			90);
+				g_tShoveRange.SetValue("shovel",					150);
+				g_tShoveRange.SetValue("pitchfork",					130);
 				
 				g_tShoveRange.SetValue("weapon_pistol",				90);
 				g_tShoveRange.SetValue("weapon_pistol_magnum",		90);
@@ -714,6 +722,10 @@ public OnPluginStart()
 				
 				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Hooked.");
 			}
+			else
+			{
+				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Error.");
+			}
 			
 			/*
 			g_hDetourIsInvulnerable = DHookCreateFromConf(hGameData, "CTerrorPlayer::IsInvulnerable");
@@ -730,6 +742,8 @@ public OnPluginStart()
 			
 			if(g_pfnOnSwingStart != null)
 				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::OnSwingStart Found.");
+			else
+				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::OnSwingStart Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Entity);
 			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnPummelEnded");
@@ -739,6 +753,8 @@ public OnPluginStart()
 			
 			if(g_pfnOnPummelEnded != null)
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnPummelEnded Found.");
+			else
+				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnPummelEnded Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Player);
 			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::FindUseEntity");
@@ -752,6 +768,8 @@ public OnPluginStart()
 			
 			if(g_pfnFindUseEntity != null)
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::FindUseEntity Found.");
+			else
+				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::FindUseEntity Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Entity);
 			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CCharge::EndCharge");
@@ -759,6 +777,8 @@ public OnPluginStart()
 			
 			if(g_pfnEndCharge != null)
 				LogMessage("l4d2_dlc2_levelup: CCharge::EndCharge Found.");
+			else
+				LogMessage("l4d2_dlc2_levelup: CCharge::EndCharge Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Player);
 			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnCarryEnded");
@@ -769,16 +789,18 @@ public OnPluginStart()
 			
 			if(g_pfnOnCarryEnded != null)
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnCarryEnded Found.");
+			else
+				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnCarryEnded Not Found.");
 			
-			/*
 			StartPrepSDKCall(SDKCall_Player);
 			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::IsInvulnerable");
 			PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
 			g_pfnIsInvulnerable = EndPrepSDKCall();
-			*/
 			
 			if(g_pfnIsInvulnerable != null)
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Found.");
+			else
+				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Not Found.");
 			
 			delete hGameData;
 		}
@@ -6012,10 +6034,24 @@ void TriggerAngrySkill(int victim, int mode)
 					}
 				}
 			
-			int health = GetEntProp(victim,Prop_Send,"m_iHealth") / 2;
-			if(health < 1)
-				health = 1;
-			SetEntProp(victim,Prop_Send,"m_iHealth",health);
+			if(!IsPlayerIncapped(victim))
+			{
+				if(GetEntProp(victim, Prop_Send, "m_isHangingFromLedge"))
+				{
+					int health = L4D2Direct_GetPreIncapHealth(victim) / 2;
+					if(health < 1)
+						health = 1;
+					
+					L4D2Direct_SetPreIncapHealth(victim, health);
+				}
+				else
+				{
+					int health = GetEntProp(victim,Prop_Send,"m_iHealth") / 2;
+					if(health < 1)
+						health = 1;
+					SetEntProp(victim,Prop_Send,"m_iHealth",health);
+				}
+			}
 			
 			if(g_pCvarAllow.BoolValue)
 				PrintToChatAll("\x03【\x05背水一战\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03自身HP减半,全员获得无限燃烧子弹,持续60秒\x04.",victim);
@@ -6240,7 +6276,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 			}
 		}
 		
-		g_fFreezeTime[victim] = GetGameTime();
+		g_fFreezeTime[victim] = 0.0;
 		// Initialization(victim);
 		ClientSaveToFileSave(victim, true);
 	}
@@ -8187,6 +8223,8 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	
 	// 希望不会冲突吧
 	int maxClip = CalcPlayerClip(client, weapon);
+	SetEntProp(weapon, Prop_Send, "m_iClip1", maxClip);
+	
 	int mulEffect = IsPlayerHaveEffect(client, 31);
 	if(mulEffect > 0)
 		maxClip += maxClip * mulEffect;
@@ -8292,7 +8330,7 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 		CalcPlayerAttr(victim, damage, health, speed, gravity, crit, true);
 		int power = CalcPlayerPower(victim);
 		
-		FormatEx(msg, sizeof(msg), "%N\n战斗力：%d丨攻击+%d丨生命+%d％丨速度+%d％丨跳跃+%d％丨暴击+%d‰", victim, power, damage, health, speed, gravity, crit);
+		FormatEx(msg, sizeof(msg), "%N\n战斗力：%d|攻击+%d|生命+%d％|速度+%d％|跳跃+%d％|暴击+%d‰", victim, power, damage, health, speed, gravity, crit);
 		if(GetEntProp(victim, Prop_Send, "m_bIsOnThirdStrike"))
 			Format(msg, sizeof(msg), "%s\n黑白状态", msg);
 		

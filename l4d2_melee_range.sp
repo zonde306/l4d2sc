@@ -1,4 +1,24 @@
-#define PLUGIN_VERSION 		"1.4"
+/*
+*	Melee Range
+*	Copyright (C) 2020 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+
+#define PLUGIN_VERSION 		"1.5"
 
 /*======================================================================================
 	Plugin Info:
@@ -11,6 +31,11 @@
 
 ========================================================================================
 	Change Log:
+
+1.5 (24-Sep-2020)
+	- Compatibility update for L4D2's "The Last Stand" update.
+	- Added support for the 2 new Melee weapons.
+	- Added 2 new cvars "l4d2_melee_range_weapon_pitchfork" and "l4d2_melee_range_weapon_shovel".
 
 1.4 (10-May-2020)
 	- Added better error log message when gamedata file is missing.
@@ -36,9 +61,10 @@
 ======================================================================================*/
 
 // TESTING:
-// give baseball_bat; give cricket_bat; give crowbar; give electric_guitar; give fireaxe; give frying_pan; give golfclub; give katana; give knife; give machete; give tonfa;
+// give baseball_bat; give cricket_bat; give crowbar; give electric_guitar; give fireaxe; give frying_pan; give golfclub; give katana; give knife; give machete; give tonfa; give pitchfork; give shovel
 // cv l4d2_melee_range_weapon_baseball_bat "700"; cv l4d2_melee_range_weapon_cricket_bat "700"; cv l4d2_melee_range_weapon_crowbar "700"; cv l4d2_melee_range_weapon_electric_guitar "700"; cv l4d2_melee_range_weapon_fireaxe "700";
 // cv l4d2_melee_range_weapon_frying_pan "700"; cv l4d2_melee_range_weapon_golfclub "700"; cv l4d2_melee_range_weapon_katana "700"; cv l4d2_melee_range_weapon_knife "700"; cv l4d2_melee_range_weapon_machete "700"; cv l4d2_melee_range_weapon_tonfa "700";
+// cv l4d2_melee_range_weapon_pitchfork "700"; cv l4d2_melee_range_weapon_shovel "700";
 // cv l4d2_melee_range_weapon_unknown "700";
 
 
@@ -51,7 +77,7 @@
 #include <dhooks>
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
-#define	MAX_MELEE			12
+#define	MAX_MELEE			14
 #define GAMEDATA			"l4d2_melee_range"
 
 
@@ -118,7 +144,9 @@ public void OnPluginStart()
 	g_hScripts.SetValue("knife",			8);
 	g_hScripts.SetValue("machete",			9);
 	g_hScripts.SetValue("tonfa",			10);
-	// g_hScripts.SetValue("riotshield",		11); // Uncommenting? Increase MAX_MELEE at top of plugin by 1, change unknown cvar below from index [11] to [12] and uncomment [11] cvar.
+	g_hScripts.SetValue("pitchfork",		11);
+	g_hScripts.SetValue("shovel",			12);
+	// g_hScripts.SetValue("riotshield",		13); // Uncommenting? Increase MAX_MELEE at top of plugin by 1, change unknown cvar below from index [13] to [14] and uncomment [13] cvar.
 
 	// CVARS
 	g_hCvarAllow = CreateConVar(		"l4d2_melee_range_allow",					"1",			"0=Plugin off, 1=Plugin on.", CVAR_FLAGS );
@@ -136,8 +164,10 @@ public void OnPluginStart()
 	g_hCvarRange[8] = CreateConVar(		"l4d2_melee_range_weapon_knife",			"70",			"70=Default. Range for Knife.", CVAR_FLAGS );
 	g_hCvarRange[9] = CreateConVar(		"l4d2_melee_range_weapon_machete",			"120",			"70=Default. Range for Machete.", CVAR_FLAGS );
 	g_hCvarRange[10] = CreateConVar(	"l4d2_melee_range_weapon_tonfa",			"120",			"70=Default. Range for Tonfa.", CVAR_FLAGS );
-	// g_hCvarRange[11] = CreateConVar(	"l4d2_melee_range_weapon_riotshield",		"70",			"70=Default. Range for Riot Shield.", CVAR_FLAGS );
-	g_hCvarRange[11] = CreateConVar(	"l4d2_melee_range_weapon_unknown",			"70",			"70=Default. Range for unknown melee weapons, 3rd party.", CVAR_FLAGS );
+	g_hCvarRange[11] = CreateConVar(	"l4d2_melee_range_weapon_pitchfork",		"120",			"70=Default. Range for Pitchfork.", CVAR_FLAGS );
+	g_hCvarRange[12] = CreateConVar(	"l4d2_melee_range_weapon_shovel",			"120",			"70=Default. Range for Shovel.", CVAR_FLAGS );
+	// g_hCvarRange[13] = CreateConVar(	"l4d2_melee_range_weapon_riotshield",		"70",			"70=Default. Range for Riot Shield.", CVAR_FLAGS );
+	g_hCvarRange[13] = CreateConVar(	"l4d2_melee_range_weapon_unknown",			"70",			"70=Default. Range for unknown melee weapons, 3rd party.", CVAR_FLAGS );
 	CreateConVar(						"l4d2_melee_range_version",					PLUGIN_VERSION,	"Melee Range plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,				"l4d2_melee_range");
 

@@ -57,7 +57,7 @@ public MRESReturn SetModel_Pre(int client, Handle hParams)
 
 public MRESReturn SetModel(int client, Handle hParams)
 {
-	if (!IsValidClient(client) || !IsSurvivor(client)) 
+	if (client <= 0 || client > MaxClients || !IsValidClient(client) || !IsSurvivor(client)) 
 	{
 		g_Models[client][0] = '\0';
 		return;

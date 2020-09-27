@@ -440,7 +440,7 @@ int g_iCommonHealth = 50;
 bool g_bRoundFirstStarting = false, g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
-Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null;
+Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null;
 
 public Plugin:myinfo =
 {
@@ -621,6 +621,7 @@ public OnPluginStart()
 	HookEvent("player_no_longer_it", Event_PlayerVomitTimeout);
 	HookEvent("player_shoved", Event_PlayerShoved);
 	HookEvent("bullet_impact", Event_BulletImpact);
+	HookEvent("christmas_gift_grab", Event_GiftPickup);
 	HookEvent("player_left_start_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("survival_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("scavenge_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
@@ -801,6 +802,20 @@ public OnPluginStart()
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Found.");
 			else
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Not Found.");
+			
+			StartPrepSDKCall(SDKCall_Static);
+			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnCarryEnded");
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+			g_pfnCreateGift = EndPrepSDKCall();
+			
+			if(g_pfnCreateGift != null)
+				LogMessage("l4d2_dlc2_levelup: CHolidayGift::Create Found.");
+			else
+				LogMessage("l4d2_dlc2_levelup: CHolidayGift::Create Not Found.");
 			
 			delete hGameData;
 		}
@@ -6308,15 +6323,21 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 	}
 }
 
-int DropItem( int client, const char[] Model )
+void DropItem( int client, const char[] Model )
 {
+	float vecPos[3];
+	GetEntPropVector( client, Prop_Send, "m_vecOrigin", vecPos );
+	vecPos[2] += 20.0;
+	
+	if(g_pfnCreateGift != null)
+	{
+		SDKCall(g_pfnCreateGift, vecPos, view_as<float>({0.0, 0.0, 0.0}), view_as<float>({0.0, 0.0, 0.0}), view_as<float>({0.0, 0.0, 0.0}), 0);
+		return;
+	}
+	
 	int entity = CreateEntityByName( "scripted_item_drop" );
 	if ( entity != -1 )
 	{
-		new Float:vecPos[3];
-		GetEntPropVector( client, Prop_Send, "m_vecOrigin", vecPos );
-		vecPos[2] += 20.0;
-
 		DispatchKeyValue( entity, "model", Model );
 		DispatchKeyValue( entity, "solid", "6" );
 		DispatchKeyValue( entity, "targetname", "reward_drop" );
@@ -6362,8 +6383,6 @@ int DropItem( int client, const char[] Model )
 
 		EmitAmbientSound("ui/gift_drop.wav", vecPos, entity, SNDLEVEL_CAR);
 	}
-
-	return entity;
 }
 
 public void DropGiftHook_OnThink(const char[] output, int caller, int activator, float delay)
@@ -8445,6 +8464,15 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 			}
 		}
 	}
+}
+
+public void Event_GiftPickup(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(client))
+		return;
+	
+	RewardPicker(client);
 }
 
 public bool TraceRayDontHitTeam(int entity, int mask, any data)

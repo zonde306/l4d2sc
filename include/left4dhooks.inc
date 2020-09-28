@@ -1191,7 +1191,7 @@ native int L4D_SetVersusMaxCompletionScore(int score);
  * @deprecated This function can be called through SDKTools using CTerrorGameRules,
  *			and so you should switch off to using SDKTools instead of this native.
  *
- * @param logical_team		0 for A, 1 for B
+ * @param logical_team		1 for A, 2 for B
  * @param campaign_score	true to get campaign score instead of map score
  *
  * @return			the logical team's map score

@@ -205,6 +205,7 @@ bool g_bDeadlineHint[MAXPLAYERS+1];
 int g_iExtraAmmo[MAXPLAYERS+1];
 int g_iExtraArmor[MAXPLAYERS+1];
 bool g_bAccurateShot[MAXPLAYERS+1];
+bool g_bSurvivalStarter[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -258,6 +259,8 @@ new Handle:cv_particle = INVALID_HANDLE;
 // new Handle: sdkAdrenaline = INVALID_HANDLE;
 int g_iOldMeleeSwingRange = 0, g_iOldShoveSwingRange = 0;
 StringMap g_tMeleeRange, g_tShoveRange;
+const int g_iUnknownMeleeRange = 90;
+const int g_iUnknownShoveRange = 90;
 
 new Float:cung_cdSaveCount[MAXPLAYERS+1][100][3];
 new g_cdSaveCount[MAXPLAYERS+1];
@@ -625,6 +628,10 @@ public OnPluginStart()
 	HookEvent("player_left_start_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("survival_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("scavenge_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("player_left_safe_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("start_holdout", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("survival_at_30min", Event_SurvivalAt30Min, EventHookMode_PostNoCopy);
+	HookEvent("survival_at_10min", Event_SurvivalAt10Min, EventHookMode_PostNoCopy);
 	// HookEvent("charger_carry_end", Event_PlayerReleased);
 	// HookEvent("charger_pummel_end", Event_PlayerReleased);
 	// HookEvent("pounce_stopped", Event_PlayerReleased);
@@ -658,8 +665,8 @@ public OnPluginStart()
 				g_tMeleeRange.SetValue("machete",			120);
 				g_tMeleeRange.SetValue("tonfa",				100);
 				g_tMeleeRange.SetValue("riotshield",		100);
-				g_tMeleeRange.SetValue("shovel",			150);
-				g_tMeleeRange.SetValue("pitchfork",			130);
+				g_tMeleeRange.SetValue("shovel",			130);
+				g_tMeleeRange.SetValue("pitchfork",			200);
 				
 				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Hooked.");
 			}
@@ -686,8 +693,8 @@ public OnPluginStart()
 				g_tShoveRange.SetValue("tonfa",						100);
 				g_tShoveRange.SetValue("riotshield",				100);
 				g_tShoveRange.SetValue("weapon_chainsaw",			90);
-				g_tShoveRange.SetValue("shovel",					150);
-				g_tShoveRange.SetValue("pitchfork",					130);
+				g_tShoveRange.SetValue("shovel",					130);
+				g_tShoveRange.SetValue("pitchfork",					200);
 				
 				g_tShoveRange.SetValue("weapon_pistol",				90);
 				g_tShoveRange.SetValue("weapon_pistol_magnum",		90);
@@ -1228,9 +1235,49 @@ public Action:Event_MissionLost(Handle:event, String:event_name[], bool:dontBroa
 	RestoreConVar();
 }
 
-public Action Event_PlayerLeftStartArea(Event event, const char[] event_name, bool dontBroadcast)
+public void Event_SurvivalAt10Min(Event event, const char[] event_name, bool dontBroadcast)
+{
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(!g_bSurvivalStarter[i])
+			continue;
+		
+		if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
+			continue;
+		
+		GiveSkillPoint(i, 1);
+		if(g_pCvarAllow.BoolValue)
+			PrintToChat(i, "\x03[提示]\x01 你因为生存了 10 分钟而获得 1 天赋点。");
+	}
+}
+
+public void Event_SurvivalAt30Min(Event event, const char[] event_name, bool dontBroadcast)
+{
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(!g_bSurvivalStarter[i])
+			continue;
+		
+		if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
+			continue;
+		
+		GiveSkillPoint(i, 3);
+		if(g_pCvarAllow.BoolValue)
+			PrintToChat(i, "\x03[提示]\x01 你因为生存了 30 分钟而获得 3 天赋点。");
+	}
+}
+
+public void Event_PlayerLeftStartArea(Event event, const char[] event_name, bool dontBroadcast)
 {
 	g_bIsGamePlaying = true;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		g_bSurvivalStarter[i] = false;
+		
+		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
+			g_bSurvivalStarter[i] = true;
+	}
 }
 
 public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
@@ -1406,6 +1453,7 @@ void Initialization(int client, bool invalid = false)
 	g_fForgiveOfFF[client] = 0.0;
 	g_iForgiveTKTarget[client] = 0;
 	g_iForgiveFFTarget[client] = 0;
+	g_bSurvivalStarter[client] = false;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -8207,16 +8255,22 @@ public void NotifyWeaponRange(any pack)
 	char msg[255];
 	msg[0] = EOS;
 	
-	if((g_clSkill_5[client] & SKL_5_MeleeRange) && g_tMeleeRange.GetValue(classname, range))
+	if(g_clSkill_5[client] & SKL_5_MeleeRange)
 	{
-		Format(msg, 255, "攻击范围 %d", range);
+		if(g_tMeleeRange == null || !g_tMeleeRange.GetValue(classname, range))
+			range = g_iUnknownMeleeRange;
+		
+		FormatEx(msg, 255, "攻击范围 %d", range);
 	}
-	if((g_clSkill_5[client] & SKL_5_ShoveRange) && g_tShoveRange.GetValue(classname, range))
+	if(g_clSkill_5[client] & SKL_5_ShoveRange)
 	{
+		if(g_tShoveRange == null || !g_tShoveRange.GetValue(classname, range))
+			range = g_iUnknownShoveRange;
+		
 		if(msg[0] == EOS)
-			Format(msg, 255, "推范围 %d", range);
+			FormatEx(msg, 255, "推范围 %d", range);
 		else
-			FormatEx(msg, 255, "%s丨推范围 %d", msg, range);
+			Format(msg, 255, "%s丨推范围 %d", msg, range);
 	}
 	
 	if(msg[0] != EOS)
@@ -11091,7 +11145,10 @@ public MRESReturn TestMeleeSwingCollisionPre(int pThis, Handle hReturn)
 			GetEntPropString(pThis, Prop_Data, "m_strMapSetScriptName", sTemp, sizeof(sTemp));
 			
 			int range = 0;
-			if( g_tMeleeRange != null && g_tMeleeRange.GetValue(sTemp, range) && range > g_hCvarMeleeRange.IntValue )
+			if(g_tMeleeRange == null || !g_tMeleeRange.GetValue(sTemp, range))
+				range = g_iUnknownMeleeRange;
+			
+			if(range > g_hCvarMeleeRange.IntValue)
 			{
 				g_iOldMeleeSwingRange = g_hCvarMeleeRange.IntValue;
 				g_hCvarMeleeRange.IntValue = range;
@@ -11132,7 +11189,10 @@ public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
 				GetEntPropString(pThis, Prop_Data, "m_strMapSetScriptName", sTemp, 32);
 			
 			int range = 0;
-			if( g_tShoveRange != null && g_tShoveRange.GetValue(sTemp, range) && range > g_hCvarShovRange.IntValue )
+			if(g_tShoveRange == null || !g_tShoveRange.GetValue(sTemp, range))
+				range = g_iUnknownShoveRange;
+			
+			if(range > g_hCvarShovRange.IntValue)
 			{
 				g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
 				g_hCvarShovRange.IntValue = range;
@@ -13017,13 +13077,13 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			g_hCvarPaincEvent.IntValue = 1;
 			PanicEvent();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "无限尸潮");
-			FormatEx(buffer, sizeof(buffer), "无限尸潮");
+			strcopy(buffer, sizeof(buffer), "无限尸潮");
 		}
 		case 1:
 		{
 			g_iRoundEvent = 2;
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "无限子弹");
-			FormatEx(buffer, sizeof(buffer), "无限主武器子弹(榴弹除外)");
+			strcopy(buffer, sizeof(buffer), "无限主武器子弹(榴弹除外)");
 		}
 		case 2:
 		{
@@ -13032,14 +13092,14 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			SetConVarString(g_hCvarMeleeRange, "2000");
 			SetConVarString(g_hCvarShovRange, "2000");
 			SetConVarString(g_hCvarShovTime, "0.3");
-			FormatEx(buffer, sizeof(buffer), "近战攻击范围和枪托范围超远");
+			strcopy(buffer, sizeof(buffer), "近战攻击范围和枪托范围超远");
 		}
 		case 3:
 		{
 			g_iRoundEvent = 4;
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "蹲坑神速");
 			SetConVarString(g_hCvarDuckSpeed, "300");
-			FormatEx(buffer, sizeof(buffer), "蹲下行走速度加快");
+			strcopy(buffer, sizeof(buffer), "蹲下行走速度加快");
 		}
 		case 4:
 		{
@@ -13048,14 +13108,14 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			SetConVarString(g_hCvarReviveTime, "1");
 			SetConVarString(g_hCvarMedicalTime, "1");
 			SetConVarString(g_hCvarDefibTime, "1");
-			FormatEx(buffer, sizeof(buffer), "打包和救人电击时间减少");
+			strcopy(buffer, sizeof(buffer), "打包和救人电击时间减少");
 		}
 		case 5:
 		{
 			g_iRoundEvent = 6;
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "极度兴奋");
 			SetConVarString(g_hCvarAdrenTime, "30");
-			FormatEx(buffer, sizeof(buffer), "打上肾上腺的兴奋时间是30秒");
+			strcopy(buffer, sizeof(buffer), "打上肾上腺的兴奋时间是30秒");
 		}
 		case 6:
 		{
@@ -13064,14 +13124,14 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			g_iCommonHealth = 100;
 			SetConVarString(g_hCvarZombieSpeed, "300");
 			SetConVarString(g_hCvarZombieHealth, "100");
-			FormatEx(buffer, sizeof(buffer), "普通僵尸速度加快血量增加");
+			strcopy(buffer, sizeof(buffer), "普通僵尸速度加快血量增加");
 		}
 		case 7:
 		{
 			g_iRoundEvent = 8;
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "意志坚定");
 			SetConVarString(g_hCvarReviveHealth, "100");
-			FormatEx(buffer, sizeof(buffer), "倒地被救起的血量为100");
+			strcopy(buffer, sizeof(buffer), "倒地被救起的血量为100");
 		}
 		case 8:
 		{
@@ -13081,26 +13141,26 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			SetConVarString(g_hCvarBurnHard, "0");
 			SetConVarString(g_hCvarBurnExpert, "0");
 
-			FormatEx(buffer, sizeof(buffer), "生还者免疫火烧");
+			strcopy(buffer, sizeof(buffer), "生还者免疫火烧");
 		}
 		case 9:
 		{
 			g_iRoundEvent = 10;
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "怒火街头");
-			FormatEx(buffer, sizeof(buffer), "玩家获取的怒气值加倍");
+			strcopy(buffer, sizeof(buffer), "玩家获取的怒气值加倍");
 		}
 		case 10:
 		{
 			g_iRoundEvent = 11;
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "女巫季节");
-			FormatEx(buffer, sizeof(buffer), "每120秒出现一个witch");
+			strcopy(buffer, sizeof(buffer), "每120秒出现一个witch");
 		}
 		case 11:
 		{
 			g_iRoundEvent = 12;
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "天赐神技");
-			FormatEx(buffer, sizeof(buffer), "生还者临时获得天赋:烈火-开枪1/2出现燃烧子弹");
+			strcopy(buffer, sizeof(buffer), "生还者临时获得天赋:烈火-开枪1/2出现燃烧子弹");
 		}
 		case 12:
 		{
@@ -13115,7 +13175,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "绝境求生");
-			FormatEx(buffer, sizeof(buffer), "每隔40秒刷8个特感");
+			strcopy(buffer, sizeof(buffer), "每隔40秒刷8个特感");
 		}
 		case 13:
 		{
@@ -13133,35 +13193,35 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			}
 
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "死亡之门");
-			FormatEx(buffer, sizeof(buffer), "倒地就死");
+			strcopy(buffer, sizeof(buffer), "倒地就死");
 		}
 		case 14:
 		{
 			g_iRoundEvent = 15;
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "感染季节");
-			FormatEx(buffer, sizeof(buffer), "每隔30秒刷两对Boomer和Spitter");
+			strcopy(buffer, sizeof(buffer), "每隔30秒刷两对Boomer和Spitter");
 		}
 		case 15:
 		{
 			g_iRoundEvent = 16;
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "狩猎盛宴");
-			FormatEx(buffer, sizeof(buffer), "每隔20秒刷两只Hunter");
+			strcopy(buffer, sizeof(buffer), "每隔20秒刷两只Hunter");
 		}
 		case 16:
 		{
 			g_iRoundEvent = 17;
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "运输大队");
-			FormatEx(buffer, sizeof(buffer), "每隔90秒刷一只携带补给的普感");
+			strcopy(buffer, sizeof(buffer), "每隔90秒刷一只携带补给的普感");
 		}
 		case 17:
 		{
 			g_iRoundEvent = 18;
 			g_fNextRoundEvent = GetGameTime();
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "乘骑派对");
-			FormatEx(buffer, sizeof(buffer), "每隔20秒刷两只Jockey");
+			strcopy(buffer, sizeof(buffer), "每隔20秒刷两只Jockey");
 		}
 		case 18:
 		{
@@ -13175,7 +13235,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			}
 			
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "血流不止");
-			FormatEx(buffer, sizeof(buffer), "打包/电击/复活血量改为虚血");
+			strcopy(buffer, sizeof(buffer), "打包/电击/复活血量改为虚血");
 		}
 		case 19:
 		{
@@ -13183,14 +13243,14 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			g_hCvarAccele.IntValue = 2000;
 			g_hCvarCollide.IntValue = 1;
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "弹力鞋");
-			FormatEx(buffer, sizeof(buffer), "连跳可以跳得更高更快");
+			strcopy(buffer, sizeof(buffer), "连跳可以跳得更高更快");
 		}
 
 		default:
 			buffer[0] = EOS;
 	}
 
-	if(len >= 32)
+	if(len > strlen(buffer))
 		strcopy(text, len, buffer);
 
 	return buffer;

@@ -5417,24 +5417,23 @@ public void PlayerHook_OnTraceAttackPost(int victim, int attacker, int inflictor
 public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
-	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || (damagetype & DMG_FALL))
+	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || damage <= 0.0 || hitbox <= 0 || (damagetype & DMG_FALL))
 		return Plugin_Continue;
 	
 	if(attacker == victim && (g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
 	{
-		static char classname[22];
+		static char classname[32];
 		GetEdictClassname(inflictor, classname, sizeof(classname));
-		if(!strcmp(classname, "grenade_launcher") || !strcmp(classname, "pipe_bomb_projectile"))
+		if(StrEqual(classname, "grenade_launcher_projectile", false))
 		{
 			float vPos[3], vDir[3];
 			GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
-			GetClientAbsOrigin(victim, vDir);
+			// GetClientAbsOrigin(victim, vDir);
+			GetEntPropVector(victim, Prop_Send, "m_vecOrigin", vDir);
 			SubtractVectors(vDir, vPos, vDir);
-			float distance = GetVectorLength(vDir, false);
 			NormalizeVector(vDir, vDir);
 			
-			// 距离越近，速度越大
-			ScaleVector(vDir, 1000.0 / distance);
+			ScaleVector(vDir, 800.0);
 			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
 			
 			// 避免掉落伤害、榴弹伤害降低
@@ -5443,9 +5442,6 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			return Plugin_Changed;
 		}
 	}
-	
-	if(damage <= 0.0 || hitbox <= 0)
-		return Plugin_Continue;
 	
 	int attackerTeam = GetClientTeam(attacker);
 	int victimTeam = GetClientTeam(victim);
@@ -5521,9 +5517,9 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		// 榴弹伤害增加
 		if((g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
 		{
-			static char classname[22];
+			static char classname[32];
 			GetEdictClassname(inflictor, classname, sizeof(classname));
-			if(!strcmp(classname, "grenade_launcher") || !strcmp(classname, "pipe_bomb_projectile"))
+			if(StrEqual(classname, "grenade_launcher_projectile", false))
 			{
 				float vPos[3];
 				GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
@@ -5641,9 +5637,9 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	}
 	else if(attackerTeam == victimTeam && ((g_clSkill_5[attacker] & SKL_5_RocketDude) || (g_clSkill_5[victim] & SKL_5_RocketDude)) && inflictor > MaxClients)
 	{
-		static char classname[22];
+		static char classname[32];
 		GetEdictClassname(inflictor, classname, sizeof(classname));
-		if(!strcmp(classname, "grenade_launcher") || !strcmp(classname, "pipe_bomb_projectile"))
+		if(StrEqual(classname, "grenade_launcher_projectile", false))
 		{
 			damage /= 4.0;
 			return Plugin_Changed;

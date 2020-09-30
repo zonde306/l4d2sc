@@ -152,7 +152,7 @@ enum()
 	SKL_5_Vampire = 16,
 	SKL_5_InfAmmo = 32,
 	SKL_5_Overkill = 64,
-	SKL_5_Missiles = 128,
+	SKL_5_RocketDude = 128,
 	SKL_5_ClipHold = 256,
 	SKL_5_Sneak = 512,
 	SKL_5_MeleeRange = 1024,
@@ -206,6 +206,7 @@ int g_iExtraAmmo[MAXPLAYERS+1];
 int g_iExtraArmor[MAXPLAYERS+1];
 bool g_bAccurateShot[MAXPLAYERS+1];
 bool g_bSurvivalStarter[MAXPLAYERS+1];
+bool g_bOnRocketDude[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -1454,6 +1455,7 @@ void Initialization(int client, bool invalid = false)
 	g_iForgiveTKTarget[client] = 0;
 	g_iForgiveFFTarget[client] = 0;
 	g_bSurvivalStarter[client] = false;
+	g_bOnRocketDude[client] = false;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -2840,7 +2842,7 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("「嗜血」近战击中特感时有几率吸血",(g_clSkill_5[client]&SKL_5_Vampire)));
 	menu.AddItem(tr("5_%d",SKL_5_InfAmmo), mps("「节省」主武器开枪有1/3几率回收子弹",(g_clSkill_5[client]&SKL_5_InfAmmo)));
 	menu.AddItem(tr("5_%d",SKL_5_Overkill), mps("「精准」主武器对普感1/4几率暴击",(g_clSkill_5[client]&SKL_5_Overkill)));
-	menu.AddItem(tr("5_%d",SKL_5_Missiles), mps("「爆发」榴弹/土制伤害大幅增加且可以导致失衡",(g_clSkill_5[client]&SKL_5_Missiles)));
+	menu.AddItem(tr("5_%d",SKL_5_RocketDude), mps("「火箭」允许榴弹跳",(g_clSkill_5[client]&SKL_5_RocketDude)));
 	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("「持久」冲锋枪25连射后改为消耗备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
 	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("「潜行」降低被特感发现的几率",(g_clSkill_5[client]&SKL_5_Sneak)));
 	
@@ -4804,8 +4806,16 @@ public Action Timer_ResetWeaponSpeed(Handle timer, any weapon)
 public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
-	if(!IsValidAliveClient(victim) || attacker <= 0 || damage <= 0.0 || (damagetype & DMG_FALL))
+	if(!IsValidAliveClient(victim) || damage <= 0.0)
 		return Plugin_Continue;
+	
+	if((damagetype & DMG_FALL) || attacker <= 0)
+	{
+		if(g_bOnRocketDude[victim])
+			return Plugin_Handled;
+		
+		return Plugin_Continue;
+	}
 	
 	float time = GetEngineTime();
 	if((g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -time) || (g_fFreezeTime[victim] > time && IsPlayerHaveEffect(victim, 29)))
@@ -4947,7 +4957,7 @@ public void EntityHook_OnProjectileSpawned(int entity)
 	
 	static char classname[64];
 	GetEntityClassname(entity, classname, 64);
-	if(g_clSkill_5[client] & SKL_5_Missiles)
+	if(g_clSkill_5[client] & SKL_5_RocketDude)
 	{
 		if(StrEqual(classname, "grenade_launcher_projectile", false) ||
 			StrEqual(classname, "spitter_projectile", false))
@@ -5406,7 +5416,34 @@ public void PlayerHook_OnTraceAttackPost(int victim, int attacker, int inflictor
 public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
-	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || damage <= 0.0 || hitbox <= 0 || (damagetype & DMG_FALL))
+	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || (damagetype & DMG_FALL))
+		return Plugin_Continue;
+	
+	if(attacker == victim && (g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
+	{
+		static char classname[22];
+		GetEdictClassname(inflictor, classname, sizeof(classname));
+		if(!strcmp(classname, "grenade_launcher") || !strcmp(classname, "pipe_bomb_projectile"))
+		{
+			float vPos[3], vDir[3];
+			GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
+			GetClientAbsOrigin(victim, vDir);
+			SubtractVectors(vDir, vPos, vDir);
+			float distance = GetVectorLength(vDir, false);
+			NormalizeVector(vDir, vDir);
+			
+			// 距离越近，速度越大
+			ScaleVector(vDir, 1000.0 / distance);
+			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
+			
+			// 避免掉落伤害、榴弹伤害降低
+			g_bOnRocketDude[victim] = true;
+			damage /= 4.0;
+			return Plugin_Changed;
+		}
+	}
+	
+	if(damage <= 0.0 || hitbox <= 0)
 		return Plugin_Continue;
 	
 	int attackerTeam = GetClientTeam(attacker);
@@ -5481,7 +5518,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)
 	{
 		// 榴弹伤害增加
-		if((g_clSkill_5[attacker] & SKL_5_Missiles) && inflictor > MaxClients)
+		if((g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
 		{
 			static char classname[22];
 			GetEdictClassname(inflictor, classname, sizeof(classname));
@@ -5600,6 +5637,16 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		
 		damage += extraDamage / 5.0;
 		return Plugin_Changed;
+	}
+	else if(attackerTeam == victimTeam && ((g_clSkill_5[attacker] & SKL_5_RocketDude) || (g_clSkill_5[victim] & SKL_5_RocketDude)) && inflictor > MaxClients)
+	{
+		static char classname[22];
+		GetEdictClassname(inflictor, classname, sizeof(classname));
+		if(!strcmp(classname, "grenade_launcher") || !strcmp(classname, "pipe_bomb_projectile"))
+		{
+			damage /= 4.0;
+			return Plugin_Changed;
+		}
 	}
 	
 	return Plugin_Continue;
@@ -10830,6 +10877,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		// 取消任何标记
 		g_iJumpFlags[client] = JF_None;
+	}
+	
+	if((flags & FL_ONGROUND) && g_bOnRocketDude[client] && vel[2] == 0.0)
+	{
+		// 已经成功落地
+		g_bOnRocketDude[client] = false;
 	}
 	
 	if(GetVectorLength(vel) > 9.0 && !(buttons & IN_SPEED))

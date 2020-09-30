@@ -2806,7 +2806,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+10",(g_clSkill_4[client]&SKL_4_DmgExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("「霸气」蹲下右键可以弹开周围的特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
 	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」射速增加",(g_clSkill_4[client]&SKL_4_FastFired)));
-	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("「神狙」AWP射速加快无限备用子弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
+	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("「神狙」AWP射速加快无限备弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("「嗜弹」武器上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
 	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("「扫射」M60无限弹匣子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
 	menu.AddItem(tr("4_%d",SKL_4_MoreDmgExtra), mps("「残忍」暴击伤害上限+200",(g_clSkill_4[client]&SKL_4_MoreDmgExtra)));
@@ -3052,6 +3052,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 	RegPlayerHook(client, false);
 	PrintToChat(client, "\x03[提示]\x01 技能获得：\x05%s\x01。", display);
 	PrintToServer("玩家 %N 选择了 %s", client, display);
+	OnSkillAttach(client, level, skill);
 	return 0;
 }
 
@@ -9934,6 +9935,32 @@ public Action:SoH_ShotgunEndCock (Handle:timer, any:hPack)
 		return Plugin_Stop;
 	}
 	return Plugin_Continue;
+}
+
+void OnSkillAttach(int client, int level, int skill)
+{
+	if(level == 4 && skill == SKL_4_SniperExtra)
+		CheatCommand(client, "give", "sniper_awp");
+	else if(level == 4 && skill == SKL_4_MachStrafe)
+		CheatCommand(client, "give", "rifle_m60");
+	else if(level == 5 && skill == SKL_5_RocketDude)
+		CheatCommand(client, "give", "grenade_launcher");
+	else if(level == 2 && skill == SKL_2_Chainsaw)
+		CheatCommand(client, "give", "chainsaw");
+	else if(level == 2 && skill == SKL_2_PainPills)
+		CheatCommand(client, "give", "pain_pills");
+	else if(level == 2 && skill == SKL_2_Defibrillator)
+		CheatCommand(client, "give", "defibrillator");
+	else if(level == 2 && skill == SKL_2_PipeBomb)
+		CheatCommand(client, "give", "pipe_bomb");
+	else if(level == 4 && skill == SKL_4_Terror)
+		CheatCommand(client, "give", "vomitjar");
+	else if(level == 3 && skill == SKL_3_MoreAmmo)
+		CheatCommand(client, "give", "ammo");
+	else if(level == 4 && skill == SKL_4_ClipSize)
+		CheatCommand(client, "give", "ammo");
+	else if(level == 2 && skill == SKL_2_HealBouns)
+		CheatCommand(client, "give", "first_aid_kit");
 }
 
 stock bool AddHealth(int client, int amount, bool limit = true, bool conv = false)

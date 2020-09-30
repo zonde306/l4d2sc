@@ -9474,6 +9474,21 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		
 		g_fNextCalmTime[client] = GetEngineTime() + 6.0;
 	}
+	else if((g_clSkill_5[client] & SKL_5_RocketDude) && StrContains(classname, "grenade_launcher", false) != -1)
+	{
+		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+		int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
+		if(ammo > 0 && clip >= 0)
+		{
+			// 将备用弹药移动到弹匣里
+			if(g_iExtraAmmo[client] > 0)
+				g_iExtraAmmo[client] -= 1;
+			else
+				SetEntProp(client, Prop_Send, "m_iAmmo", ammo - 1, _, ammoType);
+			
+			SetEntProp(weapon, Prop_Send, "m_iClip1", clip + 1);
+		}
+	}
 	
 	int pbDuration = IsPlayerHaveEffect(client, 21);
 	if(pbDuration > 0)

@@ -535,7 +535,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_fwOnGiveHealth = CreateGlobalForward("LV_OnGiveHealth", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
 	
 	// Action LV_OnGiveAmmo(int client, int& amount, int& limited)
-	g_fwOnGiveAmmo = CreateGlobalForward("LV_OnGiveAmmo", ET_Hook, Param_Cell, Param_CellByRef);
+	g_fwOnGiveAmmo = CreateGlobalForward("LV_OnGiveAmmo", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef);
 	
 	// Action LV_OnGiveAmmo(int client, int& amount, bool& helmet)
 	g_fwOnGiveArmor = CreateGlobalForward("LV_OnGiveArmor", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef);
@@ -5619,16 +5619,36 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		GetEdictClassname(inflictor, classname, sizeof(classname));
 		if(StrEqual(classname, "grenade_launcher_projectile", false))
 		{
-			float vPos[3], vDir[3];
+			float vPos[3], vDir[3], vVel[3], nVel[3], nDir[3];
 			GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
 			// GetClientAbsOrigin(victim, vDir);
 			GetEntPropVector(victim, Prop_Send, "m_vecOrigin", vDir);
+			GetEntDataVector(victim, g_iVelocityO, vVel);
+			
 			SubtractVectors(vDir, vPos, vDir);
 			NormalizeVector(vDir, vDir);
 			
-			ScaleVector(vDir, 800.0);
-			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
-			// SetEntPropVector(victim, Prop_Send, "m_vecBaseVelocity", vDir);
+			NormalizeVector(vVel, nVel);
+			nDir[0] = vDir[0]; nDir[1] = vDir[1]; nDir[2] = 0.0; nVel[2] = 0.0;
+			
+			ScaleVector(vDir, 300.0);
+			
+			if(GetVectorDotProduct(nVel, nDir) >= 0.0)
+			{
+				// 方向相同
+				AddVectors(vVel, vDir, vVel);
+			}
+			else
+			{
+				// 方向相反
+				float z = vDir[2];
+				NegateVector(vDir);
+				vDir[2] = z;
+				AddVectors(vVel, vDir, vVel);
+			}
+			
+			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vVel);
+			// SetEntPropVector(victim, Prop_Send, "m_vecBaseVelocity", vVel);
 			
 			// 避免掉落伤害、榴弹伤害降低
 			g_bOnRocketDude[victim] = true;

@@ -442,9 +442,11 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 // int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
 bool g_bRoundFirstStarting = false, g_bLateLoad = false;
-ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints;
+ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
-Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null;
+Handle g_pfnOnSwingStart, g_pfnOnPummelEnded, g_pfnEndCharge, g_pfnOnCarryEnded, g_pfnIsInvulnerable, g_pfnCreateGift;
+Handle g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
+	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent;
 
 public Plugin:myinfo =
 {
@@ -458,6 +460,110 @@ public Plugin:myinfo =
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	g_bLateLoad = late;
+	RegPluginLibrary("l4d2_dlc2_levelup");
+	
+	// void LV_GiveHealth(int client, int amount, bool limited, bool convertable)
+	CreateNative("LV_GiveHealth", Native_AddHealth);
+	
+	// void LV_GiveAmmo(int client, int amount, int limited)
+	CreateNative("LV_GiveAmmo", Native_AddAmmo);
+	
+	// void LV_GiveArmor(int client, int amount, bool helmet)
+	CreateNative("LV_GiveArmor", Native_AddArmor);
+	
+	// void LV_GivePoints(int client, int amount)
+	CreateNative("LV_GivePoints", Native_GiveSkillPoints);
+	
+	// int LV_GetPoints(int client)
+	CreateNative("LV_GetPoints", Native_GetSkillPoints);
+	
+	// int LV_GiveEquipment(int client, int parts)
+	CreateNative("LV_GiveEquipment", Native_GiveEquipment);
+	
+	// void LV_GenerateRandom(int client)
+	CreateNative("LV_GenerateRandom", Native_GenerateRandomStatus);
+	
+	// bool LV_SaveToFile(int client, bool checkpoint)
+	CreateNative("LV_SaveToFile", Native_SaveToFile);
+	
+	// bool LV_LoadFromFile(int client, bool checkpoint)
+	CreateNative("LV_LoadFromFile", Native_LoadFromFile);
+	
+	// bool LV_GetSkill(int client, int level, int skill)
+	CreateNative("LV_GetSkill", Native_GetSkill);
+	
+	// void LV_GiveSkill(int client, int level, int skill)
+	CreateNative("LV_GiveSkill", Native_GiveSkill);
+	
+	// void LV_RemoveSkill(int client, int level, int skill)
+	CreateNative("LV_RemoveSkill", Native_RemoveSkill);
+	
+	// int LV_GetEffects(int client, int effect)
+	CreateNative("LV_GetEffects", Native_GetEffects);
+	
+	// int LV_GetPower(int client)
+	CreateNative("LV_GetPower", Native_GetPower);
+	
+	// void LV_GetAttrs(int client, int& damage, int& health, int& speed, int& gravity, int& crit, bool withSkill)
+	CreateNative("LV_GetAttrs", Native_GetAttrs);
+	
+	// int LV_GetAngrySkill(int client)
+	CreateNative("LV_GetAngrySkill", Native_GetAngrySkill);
+	
+	// void LV_SetAngrySkill(int client, int skill)
+	CreateNative("LV_SetAngrySkill", Native_SetAngrySkill);
+	
+	// int LV_GetAngryPoints(int client)
+	CreateNative("LV_GetAngryPoints", Native_GetAngryPoints);
+	
+	// void LV_SetAngryPoints(int client, int amount)
+	CreateNative("LV_GiveAngryPoints", Native_GiveAngryPoints);
+	
+	// int LV_GetRoundEvent()
+	CreateNative("LV_GetRoundEvent", Native_GetRoundEvent);
+	
+	// void LV_SetRoundEvent(int event)
+	CreateNative("LV_SetRoundEvent", Native_SetRoundEvent);
+	
+	// void LV_FreezePlayer(int client, float duration)
+	CreateNative("LV_Freeze", Native_FreezePlayer);
+	
+	// Action LV_OnUpdateStatus(int client, bool& heal)
+	g_fwOnUpdateStatus = CreateGlobalForward("LV_OnUpdateStatus", ET_Hook, Param_Cell, Param_CellByRef);
+	
+	// Action LV_OnGiveHealth(int client, int& amount, bool& limited, bool& convertable)
+	g_fwOnGiveHealth = CreateGlobalForward("LV_OnGiveHealth", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
+	
+	// Action LV_OnGiveAmmo(int client, int& amount, int& limited)
+	g_fwOnGiveAmmo = CreateGlobalForward("LV_OnGiveAmmo", ET_Hook, Param_Cell, Param_CellByRef);
+	
+	// Action LV_OnGiveAmmo(int client, int& amount, bool& helmet)
+	g_fwOnGiveArmor = CreateGlobalForward("LV_OnGiveArmor", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef);
+	
+	// Action LV_OnGivePoints(int client, int& amount)
+	g_fwOnGivePoints = CreateGlobalForward("LV_OnGivePoints", ET_Hook, Param_Cell, Param_CellByRef);
+	
+	// Action LV_OnGiveEquipment(int client, int& parts)
+	g_fwOnGiveEquipment = CreateGlobalForward("LV_OnGiveEquipment", ET_Hook, Param_Cell, Param_CellByRef);
+	
+	// Action LV_OnSkillLearn(int client, int& level, int& skill)
+	g_fwOnSkillLearn = CreateGlobalForward("LV_OnSkillLearn", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef);
+	
+	// Action LV_OnSkillForget(int client, int& level, int& skill)
+	g_fwOnSkillForget = CreateGlobalForward("LV_OnSkillForget", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef);
+	
+	// Action LV_OnSkillForget(int client, float& duration)
+	g_fwOnFreeze = CreateGlobalForward("LV_OnFreeze", ET_Hook, Param_Cell, Param_CellByRef);
+	
+	// Action LV_OnGift(int client, int& reward)
+	g_fwOnGiftPickup = CreateGlobalForward("LV_OnGift", ET_Hook, Param_Cell);
+	
+	// Action LV_OnLottery(int client, int& reward)
+	g_fwOnLottery = CreateGlobalForward("LV_OnLottery", ET_Hook, Param_Cell);
+	
+	// Action LV_OnRoundEvent(int& event)
+	g_fwOnRoundEvent = CreateGlobalForward("LV_OnRoundEvent", ET_Hook, Param_Cell);
+	
 	return APLRes_Success;
 }
 
@@ -466,6 +572,9 @@ public OnPluginStart()
 	g_pCvarAllow = CreateConVar("lv_enable", "1", "是否开启插件", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_Cvarautomenu = CreateConVar("lv_automenu", "1", "是否在需要时候自动弹出天赋技能选单", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarKickSteamId = CreateConVar("lv_autokick", "0", "是否禁止 SteamID 不正确的玩家加入", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarRP = CreateConVar("lv_enable_rp", "1", "是否开启人品功能", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarRE = CreateConVar("lv_enable_re", "1", "是否开启天启功能", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarAS = CreateConVar("lv_enable_as", "1", "是否开启怒气技功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
@@ -812,7 +921,7 @@ public OnPluginStart()
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Static);
-			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnCarryEnded");
+			PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CHolidayGift::Create");
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
@@ -2602,7 +2711,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 			if(g_clAngryMode[client] != 1)
 			{
 				g_clAngryMode[client] = 1;
-				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03王者之仁德\x01,效果:\x03全员恢复满血(倒地/被控除外)\x01.");
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03王者之仁德\x01,效果:\x03附近队友恢复满血(倒地/被控除外)\x01.");
 			}
 			else
 			{
@@ -2632,7 +2741,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 			if(g_clAngryMode[client] != 3)
 			{
 				g_clAngryMode[client] = 3;
-				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03智者之教诲\x01,效果:\x03全员天赋点+1\x01.");
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03智者之教诲\x01,效果:\x03附近队友天赋点+1\x01.");
 			}
 			else
 			{
@@ -2647,7 +2756,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 			if(g_clAngryMode[client] != 4)
 			{
 				g_clAngryMode[client] = 4;
-				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03强者之霸气\x01,效果:\x03特感全员受到2500伤害\x01.");
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03强者之霸气\x01,效果:\x03附近特感受到2500伤害\x01.");
 			}
 			else
 			{
@@ -2662,7 +2771,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 			if(g_clAngryMode[client] != 5)
 			{
 				g_clAngryMode[client] = 5;
-				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03热血沸腾\x01,效果:\x03全员兴奋,持续50秒\x01.");
+				PrintToChat(client, "\x03[提示]\x01 你选择的是:\x03热血沸腾\x01,效果:\x03附近队友兴奋,持续50秒\x01.");
 			}
 			else
 			{
@@ -2889,7 +2998,34 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 		StatusChooseMenuFunc(client);
 		return 0;
 	}
-
+	
+	if((level == 1 && !(g_clSkill_1[client] & skill)) || (level == 2 && !(g_clSkill_2[client] & skill)) ||
+		(level == 3 && !(g_clSkill_3[client] & skill)) || (level == 4 && !(g_clSkill_4[client] & skill)) ||
+		(level == 5 && !(g_clSkill_5[client] & skill)))
+	{
+		Call_StartForward(g_fwOnSkillLearn);
+		Call_PushCell(client);
+		
+		int refLevel = level;
+		Call_PushCellRef(refLevel);
+		
+		int refSkill = skill;
+		Call_PushCellRef(refSkill);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return 0;
+		
+		if(refResult == Plugin_Changed)
+		{
+			level = refLevel;
+			skill = refSkill;
+		}
+	}
+	
 	switch(level)
 	{
 		case 1:
@@ -3082,7 +3218,31 @@ public int MenuHandler_CancelSkill(Menu menu, MenuAction action, int client, int
 		StatusChooseMenuFunc(client);
 		return 0;
 	}
-
+	
+	{
+		Call_StartForward(g_fwOnSkillForget);
+		Call_PushCell(client);
+		
+		int refLevel = level;
+		Call_PushCellRef(refLevel);
+		
+		int refSkill = skill;
+		Call_PushCellRef(refSkill);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return 0;
+		
+		if(refResult == Plugin_Changed)
+		{
+			level = refLevel;
+			skill = refSkill;
+		}
+	}
+	
 	if(selected == 0)
 	{
 		switch(level)
@@ -3410,6 +3570,12 @@ stock Menu CreateConfirmMenu(const char[] title, MenuHandler handler, const char
 
 void StatusEqmFuncB(int client)
 {
+	if(!g_pCvarRE.BoolValue)
+	{
+		PrintToChat(client, "\x03[提示]\x01 此功能已禁用。");
+		return;
+	}
+	
 	CreateConfirmPanel("========= 天启幸运箱 =========",
 		"确定打开天启幸运箱？\n需要 1 点，现有 %d 点",
 		g_clSkillPoint[client]).Send(client, MenuHandler_OpenLucky, MENU_TIME_FOREVER);
@@ -4168,6 +4334,15 @@ public int MenuHandler_SelectEquip(Menu menu, MenuAction action, int client, int
 
 void StatusSelectMenuFuncRP(int clientId)
 {
+	if(!IsValidClient(clientId))
+		return;
+	
+	if(!g_pCvarRP.BoolValue)
+	{
+		PrintToChat(clientId, "\x03[提示]\x01 此功能已禁用。");
+		return;
+	}
+	
 	if(IsPlayerAlive(clientId))
 	{
 		if(!g_bHasRPActive && !g_bIsRPActived[clientId])
@@ -4204,6 +4379,24 @@ void StatusSelectMenuFuncRP(int clientId)
 
 stock void FreezePlayer(int client, float time)
 {
+	{
+		Call_StartForward(g_fwOnFreeze);
+		Call_PushCell(client);
+		
+		float refTime = time;
+		Call_PushCellRef(refTime);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return;
+		
+		if(refResult == Plugin_Changed)
+			time = refTime;
+	}
+	
 	g_fFreezeTime[client] = GetEngineTime() + time;
 	
 	if(!IsFakeClient(client))
@@ -5435,6 +5628,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			
 			ScaleVector(vDir, 800.0);
 			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
+			// SetEntPropVector(victim, Prop_Send, "m_vecBaseVelocity", vDir);
 			
 			// 避免掉落伤害、榴弹伤害降低
 			g_bOnRocketDude[victim] = true;
@@ -5972,7 +6166,7 @@ void GiveAngryPoint(int victim, int amount)
 	if(!IsPlayerAlive(victim))
 		return;
 	
-	if(g_clAngryPoint[victim] >= 100 && !g_bIsAngryActive && g_clAngryMode[victim] > 0)
+	if(g_clAngryPoint[victim] >= 100 && !g_bIsAngryActive && g_clAngryMode[victim] > 0 && g_pCvarAS.BoolValue)
 	{
 		g_clAngryPoint[victim] -= 100;
 		
@@ -5994,18 +6188,6 @@ void TriggerAngrySkill(int victim, int mode)
 	{
 		case 1:
 		{
-			bool selfhelp = !!IsPlayerHaveEffect(victim, 36);
-			for(new i = 1; i <= MaxClients; i++)
-			{
-				if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
-				{
-					if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
-						CheatCommand(i, "give", "health");
-					else if(selfhelp || IsPlayerHaveEffect(i, 36))
-						CreateTimer(3.0, EventRevive, i);
-				}
-			}
-			
 			if(g_pCvarAllow.BoolValue)
 				for (new i = 1; i <= MaxClients; i++)
 				{
@@ -6017,10 +6199,30 @@ void TriggerAngrySkill(int victim, int mode)
 					}
 				}
 
+			
+			float vLoc[3], vPos[3];
+			GetClientAbsOrigin(victim, vLoc);
+			bool selfhelp = !!IsPlayerHaveEffect(victim, 36);
+			for(new i = 1; i <= MaxClients; i++)
+			{
+				if(!IsValidAliveClient(i))
+					continue;
+				
+				int et = GetClientTeam(i);
+				GetClientAbsOrigin(i, vPos);
+				if(et == team && GetVectorDistance(vLoc, vPos) < 1000.0)
+				{
+					if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
+						CheatCommand(i, "give", "health");
+					else if(selfhelp || IsPlayerHaveEffect(i, 36))
+						CreateTimer(3.0, EventRevive, i);
+				}
+			}
+			
 			if(g_pCvarAllow.BoolValue)
-				PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员恢复满血，倒地/被控除外\x04.",victim);
+				PrintToChatAll("\x03【\x05王者之仁德\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03附近队友恢复满血，倒地/被控除外\x04.",victim);
 			else
-				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（全员回血，倒地/被控除外）\x01。");
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04王者之仁德\x05（附近队友回血，倒地/被控除外）\x01。");
 		}
 		case 2:
 		{
@@ -6057,12 +6259,17 @@ void TriggerAngrySkill(int victim, int mode)
 					}
 				}
 			
+			float vLoc[3], vPos[3];
+			GetClientAbsOrigin(victim, vLoc);
 			for(new i = 1; i <= MaxClients; i++)
 			{
-				if(IsClientInGame(i) && GetClientTeam(i) == team)
-				{
+				if(!IsValidAliveClient(i))
+					continue;
+				
+				int et = GetClientTeam(i);
+				GetClientAbsOrigin(i, vPos);
+				if(et == team && GetVectorDistance(vLoc, vPos) < 1000.0)
 					GiveSkillPoint(i, 1);
-				}
 			}
 			
 			if(g_pCvarAllow.BoolValue)
@@ -6083,18 +6290,23 @@ void TriggerAngrySkill(int victim, int mode)
 					}
 				}
 			
+			float vLoc[3], vPos[3];
+			GetClientAbsOrigin(victim, vLoc);
 			for(new i = 1; i <= MaxClients; i++)
 			{
-				if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) != team)
-				{
-					DealDamage(victim,i,2500);
-				}
+				if(!IsValidAliveClient(i))
+					continue;
+				
+				int et = GetClientTeam(i);
+				GetClientAbsOrigin(i, vPos);
+				if(et != team && GetVectorDistance(vLoc, vPos) < 1000.0)
+					DealDamage(victim, i, (et == 3 ? 2500 : 25));
 			}
 
 			if(g_pCvarAllow.BoolValue)
-				PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03特感全员受到2500伤害\x04.",victim);
+				PrintToChatAll("\x03【\x05强者之霸气\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03附近特感受到2500伤害\x04.",victim);
 			else
-				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（特感全员受到2500伤害）\x01。");
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04强者之霸气\x05（附近特感受到2500伤害）\x01。");
 		}
 		case 5:
 		{
@@ -6109,20 +6321,23 @@ void TriggerAngrySkill(int victim, int mode)
 					}
 				}
 			
+			float vLoc[3], vPos[3];
+			GetClientAbsOrigin(victim, vLoc);
 			for(new i = 1; i <= MaxClients; i++)
 			{
-				if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == team)
-				{
-					// SDKCall(sdkAdrenaline, i, 50.0);
-					// CheatCommand(i, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
+				if(!IsValidAliveClient(i))
+					continue;
+				
+				int et = GetClientTeam(i);
+				GetClientAbsOrigin(i, vPos);
+				if(et == team && GetVectorDistance(vLoc, vPos) < 1000.0)
 					L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
-				}
 			}
 
 			if(g_pCvarAllow.BoolValue)
-				PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员兴奋,持续50秒\x04.",victim);
+				PrintToChatAll("\x03【\x05热血沸腾\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03附近队友兴奋,持续50秒\x04.",victim);
 			else
-				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（全员兴奋,持续50秒）\x01。");
+				PrintToChat(victim, "\x03[提示]\x01 你触发了怒气技：\x04热血沸腾\x05（附近队友兴奋,持续50秒）\x01。");
 		}
 		case 6:
 		{
@@ -6516,322 +6731,215 @@ void RewardPicker(int client)
 	static ConVar cv_incaphealth;
 	if(cv_incaphealth == null)
 		cv_incaphealth = FindConVar("survivor_incap_health");
-
-	if(CheckTankNumber() > 0)
+	
+	int reward = GetRandomInt((CheckTankNumber() ? 0 : 2), 9);
+	
 	{
-		new lucktype = GetRandomInt(0, 2);
-		switch(lucktype)
+		Call_StartForward(g_fwOnGiftPickup);
+		Call_PushCell(client);
+		
+		int refReward = reward;
+		Call_PushCellRef(refReward);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return;
+		
+		if(refResult == Plugin_Changed)
+			reward = refReward;
+	}
+	
+	switch(reward)
+	{
+		// 怒气触发
+		case 0:
 		{
-			case 0:
+			if(!g_bIsAngryActive && g_pCvarAS.BoolValue)
 			{
-				if(!g_bIsAngryActive)
+				TriggerAngrySkill(client, GetRandomInt(1, 7));
+			}
+			else
+			{
+				EmitSoundToClient( client, REWARD_SOUND );
+				GiveAngryPoint(client, 30);
+
+				if(g_pCvarAllow.BoolValue)
+					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+30\x04.",client);
+				else
+					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，怒气值＋30");
+			}
+		}
+		// 天启触发
+		case 1:
+		{
+			if(g_iRoundEvent == 0 || !g_pCvarRE.BoolValue)
+			{
+				if(g_pCvarAllow.BoolValue)
+					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,结果发现是一个空箱子...",client);
+				else
+					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，但是里面什么也没有。");
+			}
+			else if(GetRandomInt(0, 1))
+			{
+				if(g_pCvarAllow.BoolValue)
+					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 尝试打开天启幸运箱,箱子蠢蠢欲动,可惜还是没打开...",client);
+				else
+					PrintToChat(client, "\x03[提示]\x01 你尝试打开箱子，但是失败了。");
+			}
+			else
+			{
+				EmitSoundToClient( client, REWARD_SOUND );
+				StartRoundEvent();
+
+				if(g_pCvarAllow.BoolValue)
+					PrintToChatAll("\x03[提示]\x01 玩家 \x04%N\x01 打开了幸运箱，本回合天启更改为：\x05%s\x01。", client, g_szRoundEvent);
+				else
+					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，本回合天启更改为：\x05%s\x01。", g_szRoundEvent);
+			}
+		}
+		case 2:
+		{
+			EmitSoundToClient( client, REWARD_SOUND );
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03随机获得一件装备\x04.",client);
+			else
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，捡到了一个\x04奇怪的东西\x01。");
+
+			if(g_clSkillPoint[client] < 0)
+			{
+				GiveSkillPoint(client, 2);
+
+				if(g_pCvarAllow.BoolValue)
+					PrintToChat(client, "\x03[提示]\x01 由于你的天赋点是负数，获得装备改成了获得天赋点。");
+			}
+			else
+			{
+				new j = GiveEquipment(client);
+				if(!j)
 				{
-					TriggerAngrySkill(client, GetRandomInt(1, 7));
+					if(g_pCvarAllow.BoolValue)
+						PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
 				}
 				else
 				{
-					EmitSoundToClient( client, REWARD_SOUND );
-					GiveAngryPoint(client, 30);
-
-					if(g_pCvarAllow.BoolValue)
-						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+30\x04.",client);
-					else
-						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，怒气值＋30");
-				}
-			}
-			case 1:
-			{
-				if(g_iRoundEvent == 0)
-				{
-					if(g_pCvarAllow.BoolValue)
-						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,结果发现是一个空箱子...",client);
-					else
-						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，但是里面什么也没有。");
-				}
-				else if(GetRandomInt(0, 1))
-				{
-					if(g_pCvarAllow.BoolValue)
-						PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 尝试打开天启幸运箱,箱子蠢蠢欲动,可惜还是没打开...",client);
-					else
-						PrintToChat(client, "\x03[提示]\x01 你尝试打开箱子，但是失败了。");
-				}
-				else
-				{
-					EmitSoundToClient( client, REWARD_SOUND );
-					StartRoundEvent();
-
-					if(g_pCvarAllow.BoolValue)
-						PrintToChatAll("\x03[提示]\x01 玩家 \x04%N\x01 打开了幸运箱，本回合天启更改为：\x05%s\x01。", client, g_szRoundEvent);
-					else
-						PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，本回合天启更改为：\x05%s\x01。", g_szRoundEvent);
-				}
-			}
-			case 2:
-			{
-				new normaltype = GetRandomInt(0, 5);
-				switch(normaltype)
-				{
-					case 0:
+					static char key[16];
+					IntToString(j, key, sizeof(key));
+					static EquipData_t data;
+					if(g_pCvarAllow.BoolValue && g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
 					{
-						new Teletarget = -1;
-						for(new i = 1; i <= MaxClients; i++)
-						{
-							if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
-							{
-								Teletarget = i;
-								break;
-							}
-						}
-						if(Teletarget != -1)
-						{
-							new Float:vec[3];
-							GetClientAbsOrigin(Teletarget, vec);
-							vec[1] += GetRandomFloat(0.1,0.9);
-							vec[2] += GetRandomFloat(0.1,0.9);
-							TeleportEntity(client, vec, NULL_VECTOR, NULL_VECTOR);
-							// EmitSoundToClient( client, REWARD_SOUND );
-							EmitAmbientSound(SOUND_WARP, vec, client, SNDLEVEL_HELICOPTER);
-
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,原来是任意门,\x03被随机传送到一个队友身旁\x04.",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，原来是任意门，\x04被传送到了队友身边\x01。");
-						}
-						else
-						{
-							if(g_pCvarAllow.BoolValue)
-								PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,结果发现是一个空箱子...",client);
-							else
-								PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，但里面是空的。");
-						}
-					}
-					case 1:
-					{
-						EmitSoundToClient( client, REWARD_SOUND );
-						GiveAngryPoint(client, 20);
-
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+20\x04.",client);
-						else
-							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04怒气值+20\x01。");
-					}
-					case 2:
-					{
-						// CheatCommand(client, "give", "ammo");
-						AddAmmo(client, 999);
-						EmitSoundToClient( client, REWARD_SOUND );
-
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03弹药得到了补充\x04.",client);
-						else
-							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04弹药得到了补充\x01。");
-					}
-					case 3:
-					{
-						CheatCommand(client, "give", "weapon_rifle_m60");
-						CheatCommand(client, "give", "pain_pills");
-						CheatCommand(client, "give", "molotov");
-						CheatCommand(client, "give", "defibrillator");
-						EmitSoundToClient( client, REWARD_SOUND );
-
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03发现了大量物品\x04.",client);
-						else
-							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04发现了大量物品\x01。");
-					}
-					case 4:
-					{
-						EmitSoundToClient(client,SOUND_BAD);
-						// ServerCommand("sm_freeze \"%N\" \"30\"",client);
-						FreezePlayer(client, 30.0);
-
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,原来里面藏着一颗冰冻弹,\x03被冰冻30秒\x04.",client);
-						else
-							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04被冰冻30秒\x01。");
-					}
-					case 5:
-					{
-						EmitSoundToClient(client,SOUND_BAD);
-
-						Event event = CreateEvent("player_incapacitated_start");
-						event.SetInt("userid", GetClientUserId(client));
-						event.SetInt("attacker", 0);
-						event.SetInt("attackerentid", 0);
-						event.SetInt("type", 0);
-						event.SetString("weapon", "");
-						event.Fire(false);
-
-						SetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
-						SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
-						// SetEntProp(client, Prop_Send, "m_iMaxHealth", cv_incaphealth.IntValue);
-						
-						// 修复倒地没武器
-						// CheatCommand(client, "give", "pistol");
-						CreateTimer(0.2, Timer_GivePistol, client);
-						
-						event = CreateEvent("player_incapacitated");
-						event.SetInt("userid", GetClientUserId(client));
-						event.SetInt("attacker", 0);
-						event.SetInt("attackerentid", 0);
-						event.SetInt("type", 0);
-						event.SetString("weapon", "");
-						event.Fire(false);
-						
-						if(g_pCvarAllow.BoolValue)
-							PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
-						else
-							PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04被里面的玩具拳击倒了\x01。");
+						PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, data));
 					}
 				}
 			}
 		}
-	}
-	else
-	{
-		new lucktype = GetRandomInt(0, 7);
-		switch(lucktype)
+		case 3:
 		{
-			case 0:
+			if((GetEntProp(client,Prop_Send,"m_iHealth") < GetEntProp(client,Prop_Send,"m_iMaxHealth")) || GetEntProp(client, Prop_Send, "m_isIncapacitated"))
 			{
-				EmitSoundToClient( client, REWARD_SOUND );
-
-				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03随机获得一件装备\x04.",client);
-				else
-					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，捡到了一个\x04奇怪的东西\x01。");
-
-				if(g_clSkillPoint[client] < 0)
-				{
-					GiveSkillPoint(client, 2);
-
-					if(g_pCvarAllow.BoolValue)
-						PrintToChat(client, "\x03[提示]\x01 由于你的天赋点是负数，获得装备改成了获得天赋点。");
-				}
-				else
-				{
-					new j = GiveEquipment(client);
-					if(!j)
-					{
-						if(g_pCvarAllow.BoolValue)
-							PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
-					}
-					else
-					{
-						static char key[16];
-						IntToString(j, key, sizeof(key));
-						static EquipData_t data;
-						if(g_pCvarAllow.BoolValue && g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
-						{
-							PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, data));
-						}
-					}
-				}
+				CheatCommand(client, "give", "health");
+				SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
 			}
-			case 1:
-			{
-				if((GetEntProp(client,Prop_Send,"m_iHealth") < GetEntProp(client,Prop_Send,"m_iMaxHealth")) || GetEntProp(client, Prop_Send, "m_isIncapacitated"))
-				{
-					CheatCommand(client, "give", "health");
-					SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
-				}
-				EmitSoundToClient( client, REWARD_SOUND );
+			EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03恢复满血\x04.",client);
-				else
-					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04恢复满血\x01。");
-			}
-			case 2:
-			{
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03恢复满血\x04.",client);
+			else
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04恢复满血\x01。");
+		}
+		case 4:
+		{
 
-				GiveSkillPoint(client, 1);
-				EmitSoundToClient( client, REWARD_SOUND );
+			GiveSkillPoint(client, 1);
+			EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03获得天赋点一点\x04.",client);
-				else
-					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04获得天赋点一点\x01。");
-			}
-			case 3:
-			{
-				EmitSoundToClient( client, REWARD_SOUND );
-				GiveAngryPoint(client, 10);
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03获得天赋点一点\x04.",client);
+			else
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04获得天赋点一点\x01。");
+		}
+		case 5:
+		{
+			EmitSoundToClient( client, REWARD_SOUND );
+			GiveAngryPoint(client, 10);
 
-				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+10\x04.",client);
-				else
-					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04怒气值+10\x01。");
-			}
-			case 4:
-			{
-				// CheatCommand(client, "give", "ammo");
-				AddAmmo(client, 999);
-				EmitSoundToClient( client, REWARD_SOUND );
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03怒气值+10\x04.",client);
+			else
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04怒气值+10\x01。");
+		}
+		case 6:
+		{
+			// CheatCommand(client, "give", "ammo");
+			AddAmmo(client, 999);
+			EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03弹药得到了补充\x04.",client);
-				else
-					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04弹药得到了补充\x01。");
-			}
-			case 5:
-			{
-				CheatCommand(client, "give", "pipe_bomb");
-				CheatCommand(client, "give", "weapon_sniper_awp");
-				CheatCommand(client, "give", "pain_pills");
-				CheatCommand(client, "give", "first_aid_kit");
-				EmitSoundToClient( client, REWARD_SOUND );
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03弹药得到了补充\x04.",client);
+			else
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04弹药得到了补充\x01。");
+		}
+		case 7:
+		{
+			CheatCommand(client, "give", "pipe_bomb");
+			CheatCommand(client, "give", "weapon_sniper_awp");
+			CheatCommand(client, "give", "pain_pills");
+			CheatCommand(client, "give", "first_aid_kit");
+			EmitSoundToClient( client, REWARD_SOUND );
 
-				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03发现了大量物品\x04.",client);
-				else
-					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04发现了大量物品\x01。");
-			}
-			case 6:
-			{
-				EmitSoundToClient(client,SOUND_BAD);
-				// ServerCommand("sm_freeze \"%N\" \"30\"",client);
-				FreezePlayer(client, 30.0);
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03发现了大量物品\x04.",client);
+			else
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04发现了大量物品\x01。");
+		}
+		case 8:
+		{
+			EmitSoundToClient(client,SOUND_BAD);
+			// ServerCommand("sm_freeze \"%N\" \"30\"",client);
+			FreezePlayer(client, 30.0);
 
-				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,原来里面藏着一颗冰冻弹,\x03被冰冻30秒\x04.",client);
-				else
-					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，原来里面藏着一颗冰冻弹，\x04被冰冻30秒\x01。");
-			}
-			case 7:
-			{
-				EmitSoundToClient(client,SOUND_BAD);
-				
-				Event event = CreateEvent("player_incapacitated_start");
-				event.SetInt("userid", GetClientUserId(client));
-				event.SetInt("attacker", 0);
-				event.SetInt("attackerentid", 0);
-				event.SetInt("type", 0);
-				event.SetString("weapon", "");
-				event.Fire(false);
-				
-				SetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
-				SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
-				
-				// 修复倒地没武器
-				// CheatCommand(client, "give", "pistol");
-				CreateTimer(0.2, Timer_GivePistol, client);
-				
-				event = CreateEvent("player_incapacitated");
-				event.SetInt("userid", GetClientUserId(client));
-				event.SetInt("attacker", 0);
-				event.SetInt("attackerentid", 0);
-				event.SetInt("type", 0);
-				event.SetString("weapon", "");
-				event.Fire(false);
-				
-				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
-				else
-					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04被里面的玩具拳击倒了\x01。");
-			}
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,原来里面藏着一颗冰冻弹,\x03被冰冻30秒\x04.",client);
+			else
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，原来里面藏着一颗冰冻弹，\x04被冰冻30秒\x01。");
+		}
+		case 9:
+		{
+			EmitSoundToClient(client,SOUND_BAD);
+			
+			Event event = CreateEvent("player_incapacitated_start");
+			event.SetInt("userid", GetClientUserId(client));
+			event.SetInt("attacker", 0);
+			event.SetInt("attackerentid", 0);
+			event.SetInt("type", 0);
+			event.SetString("weapon", "");
+			event.Fire(false);
+			
+			SetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
+			SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
+			
+			// 修复倒地没武器
+			// CheatCommand(client, "give", "pistol");
+			CreateTimer(0.2, Timer_GivePistol, client);
+			
+			event = CreateEvent("player_incapacitated");
+			event.SetInt("userid", GetClientUserId(client));
+			event.SetInt("attacker", 0);
+			event.SetInt("attackerentid", 0);
+			event.SetInt("type", 0);
+			event.SetString("weapon", "");
+			event.Fire(false);
+			
+			if(g_pCvarAllow.BoolValue)
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
+			else
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04被里面的玩具拳击倒了\x01。");
 		}
 	}
+	
 }
 
 public Action Timer_GivePistol(Handle timer, any client)
@@ -6949,7 +7057,7 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 
 public Action:Round_Random_Event(Handle:timer, any:data)
 {
-	if(!g_pCvarAllow.BoolValue)
+	if(!g_pCvarRE.BoolValue)
 		return Plugin_Continue;
 	
 	RestoreConVar();
@@ -8784,6 +8892,22 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	int maxSpeed = 100;
 	int baseMaxHealth = GetMaxHealth(client);
 	int maxHealth = baseMaxHealth;
+	
+	{
+		Call_StartForward(g_fwOnUpdateStatus);
+		Call_PushCell(client);
+		
+		bool refFullHealth = fullHealth;
+		Call_PushCellRef(refFullHealth);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult == Plugin_Changed)
+			fullHealth = refFullHealth;
+	}
+	
 	for(int i = 0; i < sizeof(g_clCurEquip[]); ++i)
 	{
 		if(!g_clCurEquip[client][i])
@@ -9978,11 +10102,39 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 {
 	if(!IsValidAliveClient(client))
 		return false;
-
+	
 	int team = GetClientTeam(client);
 	int health = GetEntProp(client, Prop_Data, "m_iHealth");
 	int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
-
+	
+	{
+		Call_StartForward(g_fwOnGiveHealth);
+		Call_PushCell(client);
+		
+		int refAmount = amount;
+		Call_PushCellRef(refAmount);
+		
+		bool refLimit = limit;
+		Call_PushCellRef(refLimit);
+		
+		bool refConv = conv;
+		Call_PushCellRef(refConv);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return false;
+		
+		if(refResult == Plugin_Changed)
+		{
+			amount = refAmount;
+			limit = refLimit;
+			conv = refConv;
+		}
+	}
+	
 	if(team == 2 && !GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
 	{
 		float buffer = GetPlayerTempHealth(client) * 1.0;
@@ -10060,7 +10212,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 		cv_turret = FindConVar("ammo_turret_max");
 		cv_vomitjar = FindConVar("ammo_vomitjar_max");
 	}
-
+	
 	int maxAmmo = -1;
 	int primary = GetPlayerWeaponSlot(client, 0);
 	
@@ -10195,6 +10347,30 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 		}
 	}
 	
+	{
+		Call_StartForward(g_fwOnGiveAmmo);
+		Call_PushCell(client);
+		
+		int refAmount = amount;
+		Call_PushCellRef(refAmount);
+		
+		bool refLimit = limit;
+		Call_PushCellRef(refLimit);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return false;
+		
+		if(refResult == Plugin_Changed)
+		{
+			amount = refAmount;
+			limit = refLimit;
+		}
+	}
+	
 	// 实际可用上限，来自于游戏限制
 	int available = maxAmmo + maxClip;
 	if(available > g_iMaxAmmo)
@@ -10240,6 +10416,30 @@ stock bool AddArmor(int client, int amount, bool helmet = true)
 {
 	if(!IsValidAliveClient(client))
 		return false;
+	
+	{
+		Call_StartForward(g_fwOnGiveArmor);
+		Call_PushCell(client);
+		
+		int refAmount = amount;
+		Call_PushCellRef(refAmount);
+		
+		bool refHelmet = helmet;
+		Call_PushCellRef(refHelmet);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return false;
+		
+		if(refResult == Plugin_Changed)
+		{
+			amount = refAmount;
+			helmet = refHelmet;
+		}
+	}
 	
 	int count = g_iExtraArmor[client] + GetEntProp(client, Prop_Send, "m_ArmorValue") + amount;
 	
@@ -11760,10 +11960,29 @@ public bool:_TraceFilter(entity, contentsMask)
 
 public Action:Event_RP(Handle:timer, any:client)
 {
-	if(g_bHasRPActive && IsClientInGame(client) && IsPlayerAlive(client) && GetClientTeam(client) == TEAM_SURVIVORS)
+	if(g_bHasRPActive && IsValidAliveClient(client) && GetClientTeam(client) == TEAM_SURVIVORS)
 	{
 		g_bHasRPActive = false;
 		new RandomRP = GetRandomInt(0, 59);
+		
+		{
+			Call_StartForward(g_fwOnLottery);
+			Call_PushCell(client);
+			
+			int refReward = RandomRP;
+			Call_PushCellRef(refReward);
+			
+			Action refResult = Plugin_Continue;
+			if(Call_Finish(refResult) != SP_ERROR_NONE)
+				refResult = Plugin_Continue;
+			
+			if(refResult >= Plugin_Handled)
+				return;
+			
+			if(refResult == Plugin_Changed)
+				RandomRP = refReward;
+		}
+		
 		switch(RandomRP)
 		{
 			case 0:
@@ -12742,6 +12961,351 @@ public Action:Timer_RestoreDefault(Handle:timer, any:client)
 	return Plugin_Continue;
 }
 
+public int Native_AddHealth(Handle plugin, int argc)
+{
+	if(argc < 4)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	bool limit = GetNativeCell(3);
+	bool convertable = GetNativeCell(4);
+	
+	return AddHealth(client, amount, limit, convertable);
+}
+
+public int Native_AddAmmo(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	bool limit = GetNativeCell(3);
+	
+	return AddAmmo(client, amount, _, _, limit);
+}
+
+public int Native_AddArmor(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	bool helmet = GetNativeCell(3);
+	
+	return AddArmor(client, amount, helmet);
+}
+
+public int Native_GiveSkillPoints(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	
+	return GiveSkillPoint(client, amount);
+}
+
+public int Native_GetSkillPoints(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_clSkillPoint[client];
+}
+
+public int Native_GiveEquipment(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int parts = GetNativeCell(2);
+	
+	return GiveEquipment(client, parts);
+}
+
+public int Native_GenerateRandomStatus(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	GenerateRandomStats(client);
+	return 0;
+}
+
+public int Native_SaveToFile(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	bool checkpoint = GetNativeCell(2);
+	
+	return ClientSaveToFileSave(client, checkpoint);
+}
+
+public int Native_LoadFromFile(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	bool checkpoint = GetNativeCell(2);
+	
+	return ClientSaveToFileLoad(client, checkpoint);
+}
+
+public int Native_GetSkill(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int level = GetNativeCell(2);
+	int skill = GetNativeCell(3);
+	
+	switch(level)
+	{
+		case 1:
+			return (g_clSkill_1[client] & skill);
+		case 2:
+			return (g_clSkill_2[client] & skill);
+		case 3:
+			return (g_clSkill_3[client] & skill);
+		case 4:
+			return (g_clSkill_4[client] & skill);
+		case 5:
+			return (g_clSkill_5[client] & skill);
+	}
+	
+	return 0;
+}
+
+public int Native_GiveSkill(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int level = GetNativeCell(2);
+	int skill = GetNativeCell(3);
+	
+	switch(level)
+	{
+		case 1:
+			return (g_clSkill_1[client] |= skill);
+		case 2:
+			return (g_clSkill_2[client] |= skill);
+		case 3:
+			return (g_clSkill_3[client] |= skill);
+		case 4:
+			return (g_clSkill_4[client] |= skill);
+		case 5:
+			return (g_clSkill_5[client] |= skill);
+	}
+	
+	return 0;
+}
+
+public int Native_RemoveSkill(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int level = GetNativeCell(2);
+	int skill = GetNativeCell(3);
+	
+	switch(level)
+	{
+		case 1:
+			return (g_clSkill_1[client] &= ~skill);
+		case 2:
+			return (g_clSkill_2[client] &= ~skill);
+		case 3:
+			return (g_clSkill_3[client] &= ~skill);
+		case 4:
+			return (g_clSkill_4[client] &= ~skill);
+		case 5:
+			return (g_clSkill_5[client] &= ~skill);
+	}
+	
+	return 0;
+}
+
+public int Native_GetEffects(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int effect = GetNativeCell(2);
+	
+	return IsPlayerHaveEffect(client, effect);
+}
+
+public int Native_GetPower(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return CalcPlayerPower(client);
+}
+
+public int Native_GetAttrs(Handle plugin, int argc)
+{
+	if(argc < 6)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	bool withSkill = GetNativeCell(7);
+	
+	int damage, health, speed, gravity, crit;
+	CalcPlayerAttr(client, damage, health, speed, gravity, crit, withSkill);
+	
+	SetNativeCellRef(2, damage);
+	SetNativeCellRef(3, health);
+	SetNativeCellRef(4, speed);
+	SetNativeCellRef(5, gravity);
+	SetNativeCellRef(6, crit);
+	
+	return 0;
+}
+
+public int Native_GetAngrySkill(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_clAngryMode[client];
+}
+
+public int Native_SetAngrySkill(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int skill = GetNativeCell(2);
+	
+	return g_clAngryMode[client] = skill;
+}
+
+public int Native_GetAngryPoints(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_clAngryPoint[client];
+}
+
+public int Native_GiveAngryPoints(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	
+	GiveAngryPoint(client, amount);
+	return 0;
+}
+
+public int Native_GetRoundEvent(Handle plugin, int argc)
+{
+	return g_iRoundEvent;
+}
+
+public int Native_SetRoundEvent(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	StartRoundEvent(GetNativeCell(1));
+	return 0;
+}
+
+public int Native_FreezePlayer(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	float duration = GetNativeCell(2);
+	
+	FreezePlayer(client, duration);
+	return 0;
+}
+
 // 以隐藏的方式打开一个 MOTD 浏览器（也可以用于关闭）
 // 这个浏览器将会在客户端后台运行
 // 也就是如果这个网页播放的声音客户端听得到，但是看不到网页
@@ -12859,9 +13423,27 @@ stock int GetPlayerTempHealth(int client)
 
 stock bool GiveSkillPoint(int client, int amount)
 {
-	if(!IsValidClient(client) || amount == 0)
+	if(!IsValidClient(client))
 		return false;
-
+	
+	{
+		Call_StartForward(g_fwOnGivePoints);
+		Call_PushCell(client);
+		
+		int refAmount = amount;
+		Call_PushCellRef(refAmount);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return false;
+		
+		if(refResult == Plugin_Changed)
+			amount = refAmount;
+	}
+	
 	g_clSkillPoint[client] += amount;
 	return true;
 }
@@ -12873,6 +13455,24 @@ stock int GiveEquipment(int client, int parts = -1)
 	
 	if(g_mEquipData[client] == null)
 		g_mEquipData[client] = CreateTrie();
+	
+	{
+		Call_StartForward(g_fwOnGiveEquipment);
+		Call_PushCell(client);
+		
+		int refParts = parts;
+		Call_PushCellRef(refParts);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return 0;
+		
+		if(refResult == Plugin_Changed)
+			parts = refParts;
+	}
 	
 	static EquipData_t data;
 	
@@ -13159,7 +13759,24 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 
 	if(event == -1)
 		event = GetRandomInt(0, 19);
-
+	
+	{
+		Call_StartForward(g_fwOnRoundEvent);
+		
+		int refEvent = event;
+		Call_PushCellRef(refEvent);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return buffer;
+		
+		if(refResult == Plugin_Changed)
+			event = refEvent;
+	}
+	
 	switch(event)
 	{
 		case 0:

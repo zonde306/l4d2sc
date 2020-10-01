@@ -258,7 +258,7 @@ new Handle:cv_particle = INVALID_HANDLE;
 // new Handle:sdkCallPushPlayer = INVALID_HANDLE;
 // new Handle:g_hGameConf = INVALID_HANDLE;
 // new Handle: sdkAdrenaline = INVALID_HANDLE;
-int g_iOldMeleeSwingRange = 0, g_iOldShoveSwingRange = 0;
+int g_iOldMeleeSwingRange = 0, g_iOldShoveSwingRange = 0, g_iOldShoveCharger = -1;
 StringMap g_tMeleeRange, g_tShoveRange;
 const int g_iUnknownMeleeRange = 90;
 const int g_iUnknownShoveRange = 90;
@@ -437,7 +437,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 	g_hCvarShovRange, g_hCvarShovTime, g_hCvarMeleeRange, g_hCvarAdrenTime, g_hCvarDefibTime, g_hCvarZombieHealth,
 	g_hCvarIncapCount, g_hCvarPaincEvent, g_hCvarLimitSmoker, g_hCvarLimitBoomer, g_hCvarLimitHunter, g_hCvarLimitSpitter,
 	g_hCvarLimitJockey, g_hCvarLimitCharger, g_hCvarLimitSpecial, g_hCvarAccele, g_hCvarCollide, g_hCvarVelocity,
-	g_hCvarFirstAidMaxHeal, g_hCvarPainPillsMaxHeal, g_hCvarIncapCrawling;
+	g_hCvarFirstAidMaxHeal, g_hCvarPainPillsMaxHeal, g_hCvarIncapCrawling, g_hCvarChargerShove;
 
 // int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
@@ -646,6 +646,7 @@ public OnPluginStart()
 	g_hCvarFirstAidMaxHeal = FindConVar("first_aid_kit_max_heal");
 	g_hCvarPainPillsMaxHeal = FindConVar("pain_pills_health_threshold");
 	g_hCvarIncapCrawling = FindConVar("survivor_allow_crawling");
+	g_hCvarChargerShove = FindConVar("z_charger_allow_shove");
 
 	HookConVarChange(g_hCvarZombieHealth, ConVarChaged_ZombieHealth);
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
@@ -8540,31 +8541,25 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 		return;
 	
 	int zClass = GetEntProp(victim, Prop_Send, "m_zombieClass");
-	if((g_clSkill_4[attacker] & SKL_4_Shove) && zClass == ZC_CHARGER)
+	if((g_clSkill_4[attacker] & SKL_4_Shove) && zClass == ZC_CHARGER && !g_hCvarChargerShove.BoolValue)
 	{
-		static ConVar z_charger_allow_shove;
-		if(z_charger_allow_shove == null)
-			z_charger_allow_shove = FindConVar("z_charger_allow_shove");
-		if(z_charger_allow_shove == null || !z_charger_allow_shove.BoolValue)
+		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(victim), GetClientUserId(attacker));
+		
+		// 放开受害者
+		int survivor = GetEntPropEnt(victim, Prop_Send, "m_pummelVictim");
+		if(IsValidAliveClient(survivor))
+			ForceDropVictim(victim, survivor);
+		survivor = GetEntPropEnt(victim, Prop_Send, "m_carryVictim");
+		if(IsValidAliveClient(survivor))
+			ForceDropVictim(victim, survivor);
+		
+		// 停止冲锋
+		if(IsChargerCharging(victim))
 		{
-			L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(victim), GetClientUserId(attacker));
+			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
 			
-			// 放开受害者
-			int survivor = GetEntPropEnt(victim, Prop_Send, "m_pummelVictim");
-			if(IsValidAliveClient(survivor))
-				ForceDropVictim(victim, survivor);
-			survivor = GetEntPropEnt(victim, Prop_Send, "m_carryVictim");
-			if(IsValidAliveClient(survivor))
-				ForceDropVictim(victim, survivor);
-			
-			// 停止冲锋
-			if(IsChargerCharging(victim))
-			{
-				TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
-				
-				if(g_pfnEndCharge != null)
-					SDKCall(g_pfnEndCharge, GetEntPropEnt(victim, Prop_Send, "m_customAbility"));
-			}
+			if(g_pfnEndCharge != null)
+				SDKCall(g_pfnEndCharge, GetEntPropEnt(victim, Prop_Send, "m_customAbility"));
 		}
 	}
 	
@@ -11492,21 +11487,30 @@ public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
 	if( IsValidEntity(pThis) )
 	{
 		int owner = GetEntPropEnt(pThis, Prop_Send, "m_hOwnerEntity");
-		if( IsValidAliveClient(owner) && (g_clSkill_5[owner] & SKL_5_ShoveRange) )
+		if( IsValidAliveClient(owner) )
 		{
-			static char sTemp[32];
-			GetEntityClassname(pThis, sTemp, 32);
-			if(StrEqual(sTemp, "weapon_melee", false))
-				GetEntPropString(pThis, Prop_Data, "m_strMapSetScriptName", sTemp, 32);
-			
-			int range = 0;
-			if(g_tShoveRange == null || !g_tShoveRange.GetValue(sTemp, range))
-				range = g_iUnknownShoveRange;
-			
-			if(range > g_hCvarShovRange.IntValue)
+			if(g_clSkill_5[owner] & SKL_5_ShoveRange)
 			{
-				g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
-				g_hCvarShovRange.IntValue = range;
+				static char sTemp[32];
+				GetEntityClassname(pThis, sTemp, 32);
+				if(StrEqual(sTemp, "weapon_melee", false))
+					GetEntPropString(pThis, Prop_Data, "m_strMapSetScriptName", sTemp, 32);
+				
+				int range = 0;
+				if(g_tShoveRange == null || !g_tShoveRange.GetValue(sTemp, range))
+					range = g_iUnknownShoveRange;
+				
+				if(range > g_hCvarShovRange.IntValue)
+				{
+					g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
+					g_hCvarShovRange.IntValue = range;
+				}
+			}
+			
+			if(g_clSkill_4[owner] & SKL_4_Shove)
+			{
+				g_iOldShoveCharger = g_hCvarChargerShove.IntValue;
+				g_hCvarChargerShove.BoolValue = true;
 			}
 		}
 	}
@@ -11523,6 +11527,12 @@ public MRESReturn TestSwingCollisionPost(int pThis, Handle hReturn)
 	{
 		g_hCvarShovRange.IntValue = g_iOldShoveSwingRange;
 		g_iOldShoveSwingRange = 0;
+	}
+	
+	if(g_iOldShoveCharger > -1)
+	{
+		g_hCvarChargerShove.IntValue = g_iOldShoveCharger;
+		g_iOldShoveCharger = -1;
 	}
 	
 	return MRES_Ignored;

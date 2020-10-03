@@ -58,7 +58,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public Plugin myinfo =
 {
-	name = "猎人突袭推不掉修复",
+	name = "猎人突袭位置修复",
 	author = "Lux",
 	description = "Restores l4d1 style hunter alignment.",
 	version = PLUGIN_VERSION,

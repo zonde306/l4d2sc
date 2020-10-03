@@ -574,13 +574,13 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_fwOnFreeze = CreateGlobalForward("LV_OnFreeze", ET_Hook, Param_Cell, Param_CellByRef);
 	
 	// Action LV_OnGift(int client, int& reward)
-	g_fwOnGiftPickup = CreateGlobalForward("LV_OnGift", ET_Hook, Param_Cell);
+	g_fwOnGiftPickup = CreateGlobalForward("LV_OnGift", ET_Hook, Param_CellByRef);
 	
 	// Action LV_OnLottery(int client, int& reward)
-	g_fwOnLottery = CreateGlobalForward("LV_OnLottery", ET_Hook, Param_Cell);
+	g_fwOnLottery = CreateGlobalForward("LV_OnLottery", ET_Hook, Param_CellByRef);
 	
 	// Action LV_OnRoundEvent(int& event)
-	g_fwOnRoundEvent = CreateGlobalForward("LV_OnRoundEvent", ET_Hook, Param_Cell);
+	g_fwOnRoundEvent = CreateGlobalForward("LV_OnRoundEvent", ET_Hook, Param_CellByRef);
 	
 	return APLRes_Success;
 }
@@ -746,9 +746,16 @@ public OnPluginStart()
 	HookEvent("survivor_rescued", Event_SurvivorRescued);
 	HookEvent("weapon_drop", Event_WeaponDropped);
 	HookEvent("ammo_pickup", Event_AmmoPickup);
+	HookEvent("ammo_pile_weapon_cant_use_ammo", Event_AmmoPickup);
+	// HookEvent("weapon_out_of_ammo", Event_AmmoPickup);
+	// HookEvent("all_weapons_out_of_ammo", Event_AmmoPickup);
+	// HookEvent("ammo_pack_used_fail_doesnt_use_ammo", Event_AmmoPickup);
+	// HookEvent("ammo_pack_used_fail_full", Event_AmmoPickup);
 	HookEvent("item_pickup", Event_WeaponPickuped);
 	HookEvent("player_use", Event_PlayerUsed);
 	HookEvent("upgrade_pack_added", Event_UpgradePickup);
+	// HookEvent("upgrade_incendiary_ammo", Event_UpgradePickup);
+	// HookEvent("upgrade_explosive_ammo", Event_UpgradePickup);
 	HookEvent("player_now_it", Event_PlayerHitByVomit);
 	HookEvent("player_no_longer_it", Event_PlayerVomitTimeout);
 	HookEvent("player_shoved", Event_PlayerShoved);
@@ -759,6 +766,7 @@ public OnPluginStart()
 	HookEvent("scavenge_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("player_left_safe_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("start_holdout", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("versus_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("survival_at_30min", Event_SurvivalAt30Min, EventHookMode_PostNoCopy);
 	HookEvent("survival_at_10min", Event_SurvivalAt10Min, EventHookMode_PostNoCopy);
 	// HookEvent("charger_carry_end", Event_PlayerReleased);
@@ -2850,7 +2858,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」全部枪为连射",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
-	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装不卸下弹匣/弹药升级可叠加",(g_clSkill_1[client]&SKL_1_KeepClip)));
+	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装保留弹匣/升级包叠加补子弹",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
@@ -8518,6 +8526,9 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 			SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", clip);
 		}
 	}
+	
+	if(g_clSkill_1[client] & SKL_1_KeepClip)
+		AddAmmo(client, 999);
 	
 	if(g_iLastWeaponAmmo[client] > 0)
 	{

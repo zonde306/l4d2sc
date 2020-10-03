@@ -43,7 +43,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public Plugin myinfo =
 {
-	name = "牛冲锋停止修复",
+	name = "牛冲锋不会被人挡住",
 	author = "Lux",
 	description = "Fixes charger only allow to his 1 survivor index & allows charging same target more than once",
 	version = PLUGIN_VERSION,

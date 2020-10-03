@@ -8417,18 +8417,22 @@ public void NotifyWeaponRange(any pack)
 	int client = data.ReadCell();
 	data.ReadString(classname, 64);
 	
+	bool isMelee = false;
 	if(StrContains(classname, "melee", false) > -1)
 	{
 		int weapon = GetPlayerWeaponSlot(client, 1);
 		if(IsValidEntity(weapon) && HasEntProp(weapon, Prop_Data, "m_strMapSetScriptName"))
+		{
 			GetEntPropString(weapon, Prop_Data, "m_strMapSetScriptName", classname, 64);
+			isMelee = true;
+		}
 	}
 	
 	int range;
 	char msg[255];
 	msg[0] = EOS;
 	
-	if(g_clSkill_5[client] & SKL_5_MeleeRange)
+	if((g_clSkill_5[client] & SKL_5_MeleeRange) && isMelee)
 	{
 		if(g_tMeleeRange == null || !g_tMeleeRange.GetValue(classname, range))
 			range = g_iUnknownMeleeRange;

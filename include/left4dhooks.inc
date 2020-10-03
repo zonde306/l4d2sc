@@ -1761,12 +1761,13 @@ native void L4D2_SetFloatWeaponAttribute(const char[] weaponName, L4D2FloatWeapo
 
 
 /**
- * @brief Retrieve the index for a given melee weapon from the Melee Weapon Database
- * @remarks returns -1 if no match is found
+ * @brief Retrieve the index for a given melee weapon from the Melee Weapon Database.
+ * @remarks Index updated on OnMapStart - suggest using RequestFrame to find index.
+ * @remarks Index can change depending on available melee weapons each map.
  *
  * @param weaponName 	Weapon to lookup index id for
  *
- * @return				The index id
+ * @return				The index id. Returns -1 if no match is found or melee unavailable.
  */
 // L4D2 only.
 native int L4D2_GetMeleeWeaponIndex(const char[] weaponName);

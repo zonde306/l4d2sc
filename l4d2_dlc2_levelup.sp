@@ -442,7 +442,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 // int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
 bool g_bRoundFirstStarting = false, g_bLateLoad = false;
-ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS;
+ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS, g_pCvarSaveStatus;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
 Handle g_pfnOnSwingStart, g_pfnOnPummelEnded, g_pfnEndCharge, g_pfnOnCarryEnded, g_pfnIsInvulnerable, g_pfnCreateGift;
 Handle g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
@@ -609,6 +609,7 @@ public OnPluginStart()
 	g_pCvarRE = CreateConVar("lv_enable_re", "1", "是否开启天启功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarAS = CreateConVar("lv_enable_as", "1", "是否开启怒气技功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarSaveStatus = CreateConVar("lv_save_status", "0", "保存奖励计数", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
@@ -617,15 +618,15 @@ public OnPluginStart()
 	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率(0~100)", FCVAR_NONE, true, 0.0, true, 100.0);
 	g_pCvarStartPoints = CreateConVar("lv_starter_points","3", "初始天赋点数量", FCVAR_NONE, true, 0.0, true, 30.0);
 	
-	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
-	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
-	g_pCvarGivePills = CreateConVar("lv_bonus_give_pills", "20", "给队友递药/针多少次才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
-	g_pCvarOtherRevived = CreateConVar("lv_bonus_revive", "15", "救起队友多少次才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
-	g_pCvarProtected = CreateConVar("lv_bonus_protect", "40", "保护队友多少次才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
-	g_pCvarSpecialKilled = CreateConVar("lv_bonus_special_kill", "30", "干掉多少特感才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
-	g_pCvarCleared = CreateConVar("lv_bonus_cleared", "10", "清理多少个区域才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
-	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
-	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次才能获得一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarGivePills = CreateConVar("lv_bonus_give_pills", "20", "给队友递药/针多少次奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarOtherRevived = CreateConVar("lv_bonus_revive", "15", "救起队友多少次奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarProtected = CreateConVar("lv_bonus_protect", "40", "保护队友多少次奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarSpecialKilled = CreateConVar("lv_bonus_special_kill", "30", "干掉多少特感奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarCleared = CreateConVar("lv_bonus_cleared", "10", "清理多少个区域奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarTankDeath = CreateConVar("lv_bonus_tank", "1", "是否开启Tank死亡奖励.0=禁用.1=启用", FCVAR_NONE, true, 0.0, true, 1.0);
 	
 	AutoExecConfig(true, "l4d2_dlc2_levelup");
@@ -1181,7 +1182,7 @@ public OnMapStart()
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileLoad(i, true);
+		ClientSaveToFileLoad(i, g_pCvarSaveStatus.BoolValue);
 		
 		if(IsValidAliveClient(i))
 			RegPlayerHook(i, false);
@@ -1302,7 +1303,7 @@ public OnMapEnd()
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i, true);
+		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
 		OnEntityDestroyed(i);
 	}
 }
@@ -1317,7 +1318,7 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
-		ClientSaveToFileSave(i, true);
+		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
 		// Initialization(i);
 		g_bHasFirstJoin[i] = false;
 		// g_bHasJumping[i] = false;
@@ -1373,7 +1374,7 @@ public void Event_FinaleVehicleLeaving(Event event, const char[] eventName, bool
 	for(int i = 1; i <= MaxClients; ++i)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i, true);
+		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
 
 		if(IsValidAliveClient(i) && !GetEntProp(i, Prop_Send, "m_isIncapacitated") && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge"))
 		{
@@ -1394,7 +1395,7 @@ public Action:Event_MissionLost(Handle:event, String:event_name[], bool:dontBroa
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i, true);
+		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
 	}
 	
 	RestoreConVar();
@@ -1434,6 +1435,11 @@ public void Event_SurvivalAt30Min(Event event, const char[] event_name, bool don
 
 public void Event_PlayerLeftStartArea(Event event, const char[] event_name, bool dontBroadcast)
 {
+	L4D_OnFirstSurvivorLeftSafeArea(-1);
+}
+
+public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
+{
 	g_bIsGamePlaying = true;
 	
 	for(int i = 1; i <= MaxClients; ++i)
@@ -1441,13 +1447,19 @@ public void Event_PlayerLeftStartArea(Event event, const char[] event_name, bool
 		g_bSurvivalStarter[i] = false;
 		
 		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
+		{
 			g_bSurvivalStarter[i] = true;
+			
+			if(IsFakeClient(i))
+			{
+				GenerateRandomStats(i);
+				RegPlayerHook(i, g_Cvarhppack.BoolValue);
+				PrintToServer("为生还者机器人 %N 生成随机属性", i);
+			}
+		}
 	}
-}
-
-public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
-{
-	g_bIsGamePlaying = true;
+	
+	return Plugin_Continue;
 }
 
 public Action:Event_RoundStart(Handle:event, String:event_name[], bool:dontBroadcast)
@@ -6722,7 +6734,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 		
 		g_fFreezeTime[victim] = 0.0;
 		// Initialization(victim);
-		ClientSaveToFileSave(victim, true);
+		ClientSaveToFileSave(victim, g_pCvarSaveStatus.BoolValue);
 	}
 
 	if(g_bIsGamePlaying && IsValidClient(attacker))
@@ -8916,7 +8928,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	{
 		if(oldTeam <= 1 && newTeam >= 2)
 		{
-			// ClientSaveToFileLoad(client, true);
+			// ClientSaveToFileLoad(client, g_pCvarSaveStatus.BoolValue);
 			// RegPlayerHook(client, false);
 			CreateTimer(0.6, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 			// PrintToServer("读取 %N 的数据，原因：加入队伍");
@@ -8928,7 +8940,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 		}
 		else if(oldTeam >= 2 && newTeam == 1)
 		{
-			ClientSaveToFileSave(client, true);
+			ClientSaveToFileSave(client, g_pCvarSaveStatus.BoolValue);
 		}
 	}
 	else if(newTeam == 2 && g_pCvarAllow.BoolValue)
@@ -8990,7 +9002,7 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 	if(!IsValidClient(client))
 		return;
 	
-	ClientSaveToFileSave(client, true);
+	ClientSaveToFileSave(client, g_pCvarSaveStatus.BoolValue);
 	
 	int bot = GetClientOfUserId(event.GetInt("bot"));
 	if(!IsValidClient(bot))

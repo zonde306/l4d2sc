@@ -1,10 +1,10 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_NAME "幸存者模型修复"
+#define PLUGIN_NAME "幸存者身份修复"
 #define PLUGIN_AUTHOR "Merudo, Shadowysn"
 #define PLUGIN_DESC "Fix bug where a survivor will change identity when a player connects/disconnects if there are 5+ survivors"
-#define PLUGIN_VERSION "1.3"
+#define PLUGIN_VERSION "1.6"
 #define PLUGIN_URL "https://forums.alliedmods.net/showthread.php?p=2403731#post2403731"
 #define PLUGIN_NAME_SHORT "5+ Survivor Identity Fix"
 #define PLUGIN_NAME_TECH "survivor_identity_fix"
@@ -25,7 +25,7 @@ Handle hConf = null;
 static Handle hDHookSetModel = null;
 
 #define SIG_SetModel_LINUX "@_ZN11CBasePlayer8SetModelEPKc"
-#define SIG_SetModel_WINDOWS "\\x55\\x8B\\x2A\\x8B\\x2A\\x2A\\x56\\x57\\x50\\x8B\\x2A\\xE8\\xC0\\x7B"
+#define SIG_SetModel_WINDOWS "\\x55\\x8B\\x2A\\x8B\\x2A\\x2A\\x56\\x57\\x50\\x8B\\x2A\\xE8\\x2A\\x2A\\x2A\\x2A\\x8B\\x2A\\x2A\\x2A\\x2A\\x2A\\x8B\\x2A\\x8B\\x2A\\x2A\\x8B"
 
 #define SIG_L4D1SetModel_WINDOWS "\\x8B\\x2A\\x2A\\x2A\\x56\\x57\\x50\\x8B\\x2A\\xE8\\x2A\\x2A\\x2A\\x2A\\x8B\\x3D"
 
@@ -57,7 +57,8 @@ public MRESReturn SetModel_Pre(int client, Handle hParams)
 
 public MRESReturn SetModel(int client, Handle hParams)
 {
-	if (client <= 0 || client > MaxClients || !IsValidClient(client) || !IsSurvivor(client)) 
+	if (!IsValidClient(client)) return;
+	if (!IsSurvivor(client)) 
 	{
 		g_Models[client][0] = '\0';
 		return;
@@ -65,7 +66,10 @@ public MRESReturn SetModel(int client, Handle hParams)
 	
 	char model[128];
 	DHookGetParamString(hParams, 1, model, sizeof(model));
-	if (StrContains("models/infected", model, false) > -1) strcopy(g_Models[client], 128, model); 
+	if (StrContains(model, "models/infected", false) < 0)
+	{
+		strcopy(g_Models[client], 128, model);
+	}
 }
 
 // ------------------------------------------------------------------------
@@ -92,7 +96,7 @@ public Action Event_BotToPlayer(Handle event, const char[] name, bool dontBroadc
 	int player = GetClientOfUserId(GetEventInt(event, "player"));
 	int bot    = GetClientOfUserId(GetEventInt(event, "bot"));
 
-	if (!IsValidClient(player) || IsFakeClient(player)) return;  // ignore fake players (side product of creating bots)
+	if (!IsValidClient(player) || !IsSurvivor(player) || IsFakeClient(player)) return;  // ignore fake players (side product of creating bots)
 
 	char model[128];
 	GetClientModel(bot, model, sizeof(model));
@@ -108,8 +112,7 @@ public Action Event_PlayerToBot(Handle event, char[] name, bool dontBroadcast)
 	int player = GetClientOfUserId(GetEventInt(event, "player"));
 	int bot    = GetClientOfUserId(GetEventInt(event, "bot")); 
 
-	if (IsFakeClient(player)) return;  // ignore fake players (side product of creating bots)
-	if (!IsValidClient(player) || !IsSurvivor(player) || IsFakeClient(player)) return;
+	if (!IsValidClient(player) || !IsSurvivor(player) || IsFakeClient(player)) return; // ignore fake players (side product of creating bots)
 	
 	if (g_Models[player][0] != '\0')
 	{

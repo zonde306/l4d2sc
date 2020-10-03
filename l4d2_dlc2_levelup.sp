@@ -259,7 +259,7 @@ new Handle:cv_particle = INVALID_HANDLE;
 // new Handle:g_hGameConf = INVALID_HANDLE;
 // new Handle: sdkAdrenaline = INVALID_HANDLE;
 int g_iOldMeleeSwingRange = 0, g_iOldShoveSwingRange = 0, g_iOldShoveCharger = -1;
-StringMap g_tMeleeRange, g_tShoveRange;
+StringMap g_tMeleeRange, g_tShoveRange, g_tWeaponSkin;
 const int g_iUnknownMeleeRange = 90;
 const int g_iUnknownShoveRange = 90;
 
@@ -386,7 +386,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 38;
+const int g_iMaxEqmEffects = 39;
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
@@ -446,7 +446,7 @@ ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_p
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
 Handle g_pfnOnSwingStart, g_pfnOnPummelEnded, g_pfnEndCharge, g_pfnOnCarryEnded, g_pfnIsInvulnerable, g_pfnCreateGift;
 Handle g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
-	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent;
+	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent, g_fwOnAngrySkill, g_fwOnAngryPoint;
 
 public Plugin:myinfo =
 {
@@ -546,6 +546,15 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// void LV_GetEquipment(int client, int[] results, int size_results)
 	CreateNative("LV_GetEquipment", Native_GetEquipment);
 	
+	// void LV_TriggerAngry(int client, int mode)
+	CreateNative("LV_TriggerAngry", Native_TriggerAngry);
+	
+	// void LV_TriggerGift(int client, int mode)
+	CreateNative("LV_TriggerGift", Native_TriggerGift);
+	
+	// void LV_TriggerLottery(int client, int mode)
+	CreateNative("LV_TriggerLottery", Native_TriggerLottery);
+	
 	// Action LV_OnUpdateStatus(int client, bool& heal)
 	g_fwOnUpdateStatus = CreateGlobalForward("LV_OnUpdateStatus", ET_Hook, Param_Cell, Param_CellByRef);
 	
@@ -574,13 +583,19 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_fwOnFreeze = CreateGlobalForward("LV_OnFreeze", ET_Hook, Param_Cell, Param_CellByRef);
 	
 	// Action LV_OnGift(int client, int& reward)
-	g_fwOnGiftPickup = CreateGlobalForward("LV_OnGift", ET_Hook, Param_CellByRef);
+	g_fwOnGiftPickup = CreateGlobalForward("LV_OnGift", ET_Hook, Param_Cell, Param_CellByRef);
 	
 	// Action LV_OnLottery(int client, int& reward)
-	g_fwOnLottery = CreateGlobalForward("LV_OnLottery", ET_Hook, Param_CellByRef);
+	g_fwOnLottery = CreateGlobalForward("LV_OnLottery", ET_Hook, Param_Cell, Param_CellByRef);
 	
 	// Action LV_OnRoundEvent(int& event)
 	g_fwOnRoundEvent = CreateGlobalForward("LV_OnRoundEvent", ET_Hook, Param_CellByRef);
+	
+	// Action LV_OnArgryTrigger(int client, int& mode)
+	g_fwOnAngrySkill = CreateGlobalForward("LV_OnArgryTrigger", ET_Hook, Param_Cell, Param_CellByRef);
+	
+	// Action LV_OnGiveArgryPoints(int client, int& amount)
+	g_fwOnAngryPoint = CreateGlobalForward("LV_OnGiveArgryPoints", ET_Hook, Param_Cell, Param_CellByRef);
 	
 	return APLRes_Success;
 }
@@ -777,6 +792,19 @@ public OnPluginStart()
 	// 检查第一回合用
 	HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
 	HookEvent("player_team", Event__PlayerTeam);
+	
+	g_tWeaponSkin = CreateTrie();
+	g_tWeaponSkin.SetValue("weapon_pistol_magnum",		2);
+	g_tWeaponSkin.SetValue("weapon_smg_silenced",		1);
+	g_tWeaponSkin.SetValue("weapon_smg",				1);
+	g_tWeaponSkin.SetValue("weapon_shotgun_chrome",		1);
+	g_tWeaponSkin.SetValue("weapon_pumpshotgun",		1);
+	g_tWeaponSkin.SetValue("weapon_autoshotgun",		1);
+	g_tWeaponSkin.SetValue("weapon_rifle",				2);
+	g_tWeaponSkin.SetValue("weapon_rifle_ak47",			2);
+	g_tWeaponSkin.SetValue("weapon_hunting_rifle",		1);
+	g_tWeaponSkin.SetValue("crowbar",					1);
+	g_tWeaponSkin.SetValue("cricket_bat",				1);
 	
 	char sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4d2_dlc2_levelup");
@@ -2702,6 +2730,12 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 
 void StatusSelectMenuFuncNCJ(int client)
 {
+	if(!g_pCvarAS.BoolValue)
+	{
+		PrintToChat(client, "\x03[提示]\x01 功能已禁用。");
+		return;
+	}
+	
 	Menu menu = CreateMenu(MenuHandler_Angry);
 	menu.SetTitle("怒气系统\n怒气值：%d/100", g_clAngryPoint[client]);
 	menu.AddItem("1", mps("王者之仁德",g_clAngryMode[client]==1));
@@ -5658,6 +5692,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			nDir[0] = vDir[0]; nDir[1] = vDir[1]; nDir[2] = 0.0; nVel[2] = 0.0;
 			
 			ScaleVector(vDir, 300.0);
+			vDir[2] *= 1.5;
 			
 			if(GetVectorDotProduct(nVel, nDir) >= 0.0)
 			{
@@ -5667,9 +5702,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			else
 			{
 				// 方向相反
-				float z = vDir[2];
-				NegateVector(vDir);
-				vDir[2] = z;
+				vDir[0] = -vDir[0]; vDir[1] = -vDir[1];
 				AddVectors(vVel, vDir, vVel);
 			}
 			
@@ -6206,8 +6239,28 @@ void GiveAngryPoint(int victim, int amount)
 	if(!IsValidClient(victim))
 		return;
 	
+	if(g_iRoundEvent == 10)
+		amount *= 2;
+	
+	{
+		Call_StartForward(g_fwOnAngryPoint);
+		Call_PushCell(victim);
+		
+		int refAmount = amount;
+		Call_PushCellRef(refAmount);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return;
+		
+		if(refResult == Plugin_Changed)
+			amount = refAmount;
+	}
+	
 	g_clAngryPoint[victim] += amount;
-	if(g_iRoundEvent == 10) g_clAngryPoint[victim] += amount;
 	
 	if(!IsPlayerAlive(victim))
 		return;
@@ -6230,6 +6283,25 @@ void GiveAngryPoint(int victim, int amount)
 void TriggerAngrySkill(int victim, int mode)
 {
 	int team = GetClientTeam(victim);
+	
+	{
+		Call_StartForward(g_fwOnAngrySkill);
+		Call_PushCell(victim);
+		
+		int refMode = mode;
+		Call_PushCellRef(refMode);
+		
+		Action refResult = Plugin_Continue;
+		if(Call_Finish(refResult) != SP_ERROR_NONE)
+			refResult = Plugin_Continue;
+		
+		if(refResult >= Plugin_Handled)
+			return;
+		
+		if(refResult == Plugin_Changed)
+			mode = refMode;
+	}
+	
 	switch(mode)
 	{
 		case 1:
@@ -6769,7 +6841,7 @@ public void DropGiftHook_OnTouchPickup(const char[] output, int caller, int acti
 }
 
 //幸运箱奖励
-void RewardPicker(int client)
+void RewardPicker(int client, int reward = -1)
 {
 	if(!IsValidAliveClient(client))
 		return;
@@ -6778,7 +6850,8 @@ void RewardPicker(int client)
 	if(cv_incaphealth == null)
 		cv_incaphealth = FindConVar("survivor_incap_health");
 	
-	int reward = GetRandomInt((CheckTankNumber() ? 0 : 2), 9);
+	if(reward == -1)
+		reward = GetRandomInt((CheckTankNumber() ? 0 : 2), 9);
 	
 	{
 		Call_StartForward(g_fwOnGiftPickup);
@@ -7094,7 +7167,7 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 		if(g_pCvarTankDeath.BoolValue)
 			CreateTimer(0.1, Timer_TankDeath, data);
 
-		if(g_ttTankKilled == 1 || g_iRoundEvent == 0)
+		if(g_ttTankKilled >= 1 || g_iRoundEvent == 0)
 			CreateTimer(5.0, Round_Random_Event);
 	}
 	
@@ -8301,7 +8374,16 @@ public void UpdateWeaponAmmo(any data)
 		return;
 	
 	if(fullClip)
+	{
 		SetEntProp(weapon, Prop_Send, "m_iClip1", CalcPlayerClip(client, weapon));
+		
+		int skin = 0;
+		if(IsPlayerHaveEffect(client, 39) && g_tWeaponSkin.GetValue(classname, skin) && skin > 0)
+		{
+			if(!GetEntProp(weapon, Prop_Send, "m_nSkin"))
+				SetEntProp(weapon, Prop_Send, "m_nSkin", GetRandomInt(0, skin));
+		}
+	}
 	
 	AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
 	
@@ -8364,7 +8446,8 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 	event.GetString("item", classname, 64);
 	Format(classname, 64, "weapon_%s", classname);
 	if(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
-		StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1)
+		StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1 ||
+		StrContains(classname, "pistol", false) != -1 || StrContains(classname, "launcher", false) != -1)
 	{
 		DataPack data = CreateDataPack();
 		data.WriteCell(client);
@@ -8442,15 +8525,20 @@ public void NotifyWeaponRange(any pack)
 	int client = data.ReadCell();
 	data.ReadString(classname, 64);
 	
+	int weapon = -1;
 	bool isMelee = false;
 	if(StrContains(classname, "melee", false) > -1)
 	{
-		int weapon = GetPlayerWeaponSlot(client, 1);
+		weapon = GetPlayerWeaponSlot(client, 1);
 		if(IsValidEntity(weapon) && HasEntProp(weapon, Prop_Data, "m_strMapSetScriptName"))
 		{
 			GetEntPropString(weapon, Prop_Data, "m_strMapSetScriptName", classname, 64);
 			isMelee = true;
 		}
+	}
+	else
+	{
+		weapon = GetPlayerWeaponSlot(client, 0);
 	}
 	
 	int range;
@@ -8477,6 +8565,13 @@ public void NotifyWeaponRange(any pack)
 	
 	if(msg[0] != EOS)
 		PrintCenterText(client, msg);
+	
+	int skin = 0;
+	if(IsPlayerHaveEffect(client, 39) && g_tWeaponSkin.GetValue(classname, skin) && skin > 0)
+	{
+		if(weapon > MaxClients && IsValidEntity(weapon) && !GetEntProp(weapon, Prop_Send, "m_nSkin"))
+			SetEntProp(weapon, Prop_Send, "m_nSkin", GetRandomInt(0, skin));
+	}
 }
 
 public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBroadcast)
@@ -10981,6 +11076,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					data.WriteString(weaponName);
 					data.WriteCell(isSpawnner);
 					
+					// FIXME: 处理基于 weaponId 的 weapon_spawn 实体
 					// AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
 					RequestFrame(UpdateWeaponAmmo, data);
 				}
@@ -12024,8 +12120,24 @@ public Action:Event_RP(Handle:timer, any:client)
 {
 	if(g_bHasRPActive && IsValidAliveClient(client) && GetClientTeam(client) == TEAM_SURVIVORS)
 	{
+		TriggerRP(client);
+	}
+	else
+	{
 		g_bHasRPActive = false;
-		new RandomRP = GetRandomInt(0, 59);
+		PrintToChatAll("\x03[\x05RP\x03]%N\x04人品十分有问题,没有事情发生.", client);
+		ClientCommand(client, "play \"ambient/animal/crow_2.wav\"");
+	}
+}
+
+void TriggerRP(int client, int RandomRP = -1, bool force = false)
+{
+	if((g_bHasRPActive || force) && IsValidAliveClient(client) && GetClientTeam(client) == TEAM_SURVIVORS)
+	{
+		g_bHasRPActive = false;
+		
+		if(RandomRP == -1)
+			RandomRP = GetRandomInt(0, 59);
 		
 		{
 			Call_StartForward(g_fwOnLottery);
@@ -12698,8 +12810,6 @@ public Action:Event_RP(Handle:timer, any:client)
 	else
 	{
 		g_bHasRPActive = false;
-		PrintToChatAll("\x03[\x05RP\x03]%N\x04人品十分有问题,没有事情发生.", client);
-		ClientCommand(client, "play \"ambient/animal/crow_2.wav\"");
 	}
 }
 
@@ -13450,6 +13560,45 @@ public int Native_GetEquipment(Handle plugin, int argc)
 	return 0;
 }
 
+public int Native_TriggerAngry(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	TriggerAngrySkill(client, GetNativeCell(2));
+	return 0;
+}
+
+public int Native_TriggerGift(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	RewardPicker(client, GetNativeCell(2));
+	return 0;
+}
+
+public int Native_TriggerLottery(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	TriggerRP(client, GetNativeCell(2), true);
+	return 0;
+}
+
 // 以隐藏的方式打开一个 MOTD 浏览器（也可以用于关闭）
 // 这个浏览器将会在客户端后台运行
 // 也就是如果这个网页播放的声音客户端听得到，但是看不到网页
@@ -13800,6 +13949,8 @@ void RebuildEquipStr(EquipData_t data)
 			strcopy(data.sEffect, sizeof(data.sEffect), "被僵尸锤不减速");
 		case 38:
 			strcopy(data.sEffect, sizeof(data.sEffect), "水中/残血不减速");
+		case 39:
+			strcopy(data.sEffect, sizeof(data.sEffect), "武器随机皮肤");
 		default:
 			strcopy(data.sEffect, sizeof(data.sEffect), "");
 	}

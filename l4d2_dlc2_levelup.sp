@@ -528,6 +528,24 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// void LV_FreezePlayer(int client, float duration)
 	CreateNative("LV_Freeze", Native_FreezePlayer);
 	
+	// void LV_GetTempHealth(int client)
+	CreateNative("LV_GetTempHealth", Native_GetTempHealth);
+	
+	// int LV_GetCurrentAttacker(int client)
+	CreateNative("LV_GetCurrentAttacker", Native_GetCurrentAttacker);
+	
+	// int LV_GetCurrentVictim(int client)
+	CreateNative("LV_GetCurrentVictim", Native_GetCurrentVictim);
+	
+	// int LV_GetArmor(int client)
+	CreateNative("LV_GetArmor", Native_GetArmor);
+	
+	// int LV_GetAmmo(int client)
+	CreateNative("LV_GetAmmo", Native_GetAmmo);
+	
+	// void LV_GetEquipment(int client, int[] results, int size_results)
+	CreateNative("LV_GetEquipment", Native_GetEquipment);
+	
 	// Action LV_OnUpdateStatus(int client, bool& heal)
 	g_fwOnUpdateStatus = CreateGlobalForward("LV_OnUpdateStatus", ET_Hook, Param_Cell, Param_CellByRef);
 	
@@ -13331,12 +13349,94 @@ public int Native_FreezePlayer(Handle plugin, int argc)
 		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
 	
 	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
+	if(!IsValidAliveClient(client))
 		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
 	
 	float duration = GetNativeCell(2);
 	
 	FreezePlayer(client, duration);
+	return 0;
+}
+
+public int Native_GetTempHealth(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return GetPlayerTempHealth(client);
+}
+
+public int Native_GetCurrentAttacker(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return GetCurrentAttacker(client);
+}
+
+public int Native_GetCurrentVictim(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return GetCurrentVictim(client);
+}
+
+public int Native_GetArmor(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return GetEntProp(client, Prop_Send, "m_ArmorValue") + g_iExtraArmor[client];
+}
+
+public int Native_GetAmmo(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		ThrowNativeError(SP_ERROR_PARAM, "no primary weapon");
+	
+	int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+	return GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) + g_iExtraAmmo[client];
+}
+
+public int Native_GetEquipment(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int size = GetNativeCell(3);
+	if(size > sizeof(g_clCurEquip[]))
+		size = sizeof(g_clCurEquip[]);
+	
+	SetNativeArray(2, g_clCurEquip[client], size);
 	return 0;
 }
 

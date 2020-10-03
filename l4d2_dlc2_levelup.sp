@@ -453,7 +453,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.1.0",
+	version = "1.1.1",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -685,7 +685,7 @@ public OnPluginStart()
 	AddCommandListener(Command_Say, "say");
 	AddCommandListener(Command_Say, "say_team");
 	AddCommandListener(Command_Give, "give");
-	// AddCommandListener(Command_Away, "go_away_from_keyboard");
+	AddCommandListener(Command_Away, "go_away_from_keyboard");
 	// AddCommandListener(Command_Scripted, "scripted_user_func");
 
 	// HookEvent("tank_spawn", Event_TankSpawn);
@@ -2015,7 +2015,7 @@ void StatusSelectMenuFuncCS(int client)
 	}
 
 	Panel menu = CreatePanel();
-	menu.SetTitle("========= 全体传送 =========");
+	menu.SetTitle("全体传送");
 	menu.DrawText("确定将所有生还者传送到身边？");
 	menu.DrawText(tr("需要 2 点，现有 %d 点", g_clSkillPoint[client]));
 	menu.DrawText("警告：传送导致队友受伤会受到惩罚");
@@ -2228,13 +2228,13 @@ stock void PrintToLeftAll(const char[] text, any ...)
 
 public Action Command_Away(int client, const char[] command, int argc)
 {
-	if(!IsValidAliveClient(client) || GetClientTeam(client) != 2)
+	if(!IsValidAliveClient(client))
 		return Plugin_Continue;
-
-	// 被控禁止闲置(防被 Charger 锤地板不掉血)
-	if(IsSurvivorHeld(client))
+	
+	// 冻结禁止闲置
+	if(g_fFreezeTime[client] > GetEngineTime())
 		return Plugin_Handled;
-
+	
 	return Plugin_Continue;
 }
 
@@ -2387,18 +2387,18 @@ public Action Command_RandEvent(int client, int argc)
 void StatusChooseMenuFunc(int client, int pg = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_MainMenu);
-	menu.SetTitle(tr("天启•天赋•装备系统\n当前天赋点：%d", g_clSkillPoint[client]));
-	menu.AddItem("1", "一级天赋（耗点 1）");
-	menu.AddItem("2", "二级天赋（耗点 2）");
-	menu.AddItem("3", "三级天赋（耗点 3）");
-	menu.AddItem("4", "四级天赋（耗点 4）");
-	menu.AddItem("5", "五级天赋（耗点 5）");
-	menu.AddItem("6", "激活随机人品事件");
-	menu.AddItem("7", "商店菜单");
+	menu.SetTitle(tr("天启•天赋•装备系统(!lv)\n当前天赋点：%d", g_clSkillPoint[client]));
+	menu.AddItem("1", "一级天赋(1点)");
+	menu.AddItem("2", "二级天赋(2点)");
+	menu.AddItem("3", "三级天赋(3点)");
+	menu.AddItem("4", "四级天赋(4点)");
+	menu.AddItem("5", "五级天赋(5点)");
+	menu.AddItem("6", "激活随机人品事件(!rp)");
+	menu.AddItem("7", "商店菜单(!buy)");
 	menu.AddItem("8", "怒气系统");
 	menu.AddItem("9", "天启装备系统");
 	menu.AddItem("10", "全员传送");
-	menu.AddItem("11", "复活自己（只限刚加入游戏用）");
+	menu.AddItem("11", "复活自己(只限刚加入游戏用)");
 	menu.AddItem("12", "复活其他玩家");
 
 	menu.ExitButton = true;
@@ -2633,7 +2633,7 @@ public int MenuHandler_Respawn(Menu menu, MenuAction action, int client, int sel
 void StatusSelectMenuFuncBuy(int client, bool back = true)
 {
 	Menu menu = CreateMenu(MenuHandler_Shop);
-	menu.SetTitle("========= 商店菜单 =========\n全部两点，点到即售（现有 %d 点）", g_clSkillPoint[client]);
+	menu.SetTitle("商店菜单(!buy)\n全部两点，点到即售（现有 %d 点）", g_clSkillPoint[client]);
 
 	menu.AddItem("smg_silenced katana upgradepack_explosive", "冲锋枪(消音) + 武士刀 + 高爆弹药包");
 	menu.AddItem("shotgun_chrome fireaxe upgradepack_incendiary", "单喷(二代) + 消防斧 + 燃烧弹药包");
@@ -2642,7 +2642,7 @@ void StatusSelectMenuFuncBuy(int client, bool back = true)
 	menu.AddItem("sniper_scout crowbar firework_crate", "鸟狙(Scout) + 物理学圣剑(撬棍) + 烟花盒");
 	menu.AddItem("sniper_awp knife gascan", "大鸟(AWP) + 小刀 + 汽油桶");
 	menu.AddItem("rifle_m60 chainsaw vomitjar", "机枪(M60) + 电锯 + 胆汁");
-	menu.AddItem("grenade_launcher baseball_bat vomitjar", "榴弹 + 棒球棒 + 胆汁");
+	menu.AddItem("grenade_launcher cricket_bat vomitjar", "榴弹 + 板球棒 + 胆汁");
 	menu.AddItem("first_aid_kit adrenaline ammo", "医疗包 + 针筒 + 补充弹药");
 	menu.AddItem("defibrillator pain_pills ammo", "电击器 + 药丸 + 补充弹药");
 	// menu.AddItem("health", "回血");
@@ -2703,7 +2703,7 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 void StatusSelectMenuFuncNCJ(int client)
 {
 	Menu menu = CreateMenu(MenuHandler_Angry);
-	menu.SetTitle("========= 怒气系统 =========\n怒气值：%d/100", g_clAngryPoint[client]);
+	menu.SetTitle("怒气系统\n怒气值：%d/100", g_clAngryPoint[client]);
 	menu.AddItem("1", mps("王者之仁德",g_clAngryMode[client]==1));
 	menu.AddItem("2", mps("霸者之号令",g_clAngryMode[client]==2));
 	menu.AddItem("3", mps("智者之教诲",g_clAngryMode[client]==3));
@@ -2846,7 +2846,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 void StatusSelectMenuFuncA(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("========= 一级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
+	menu.SetTitle(tr("一级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("「强身」血量上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+10%",(g_clSkill_1[client]&SKL_1_Movement)));
@@ -2875,7 +2875,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 void StatusSelectMenuFuncB(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("========= 二级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
+	menu.SetTitle(tr("二级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("「狂锯」无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
 	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」杀死特感1/4几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
@@ -2906,8 +2906,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 void StatusSelectMenuFuncC(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle("========= 三级天赋 =========");
-	menu.SetTitle(tr("========= 三级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
+	menu.SetTitle(tr("三级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡时1/3几率与全图感染者同归于尽",(g_clSkill_3[client]&SKL_3_Sacrifice)));
 	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("「永生」死亡时复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
@@ -2936,7 +2935,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 void StatusSelectMenuFuncD(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("========= 四级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
+	menu.SetTitle(tr("四级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("「坚韧」被坦克击中随机恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
 	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+10",(g_clSkill_4[client]&SKL_4_DmgExtra)));
@@ -2969,7 +2968,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 void StatusSelectMenuFuncE(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("========= 五级天赋 =========\n你现在有 %d 天赋点", g_clSkillPoint[client]));
+	menu.SetTitle(tr("五级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("「烈火」主武器1/3几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("「碎骨」主武器1/3几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
@@ -3063,7 +3062,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 				// StatusSelectMenuFuncA(client);
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
-				m.SetTitle("========= 放弃技能 =========\n你确定放弃技能：\n%s", display);
+				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
 				m.AddItem(info, "确定");
 				m.AddItem(info, "取消");
 
@@ -3094,7 +3093,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 				// StatusSelectMenuFuncB(client);
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
-				m.SetTitle("========= 放弃技能 =========\n你确定放弃技能：\n%s", display);
+				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
 				m.AddItem(info, "确定");
 				m.AddItem(info, "取消");
 
@@ -3125,7 +3124,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 				// StatusSelectMenuFuncC(client);
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
-				m.SetTitle("========= 放弃技能 =========\n你确定放弃技能：\n%s", display);
+				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
 				m.AddItem(info, "确定");
 				m.AddItem(info, "取消");
 
@@ -3156,7 +3155,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 				// StatusSelectMenuFuncD(client);
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
-				m.SetTitle("========= 放弃技能 =========\n你确定放弃技能：\n%s", display);
+				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
 				m.AddItem(info, "确定");
 				m.AddItem(info, "取消");
 
@@ -3187,7 +3186,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 				// StatusSelectMenuFuncE(client);
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
-				m.SetTitle("========= 放弃技能 =========\n你确定放弃技能：\n%s", display);
+				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
 				m.AddItem(info, "确定");
 				m.AddItem(info, "取消");
 
@@ -3368,7 +3367,7 @@ public int MenuHandler_CancelSkill(Menu menu, MenuAction action, int client, int
 void StatusSelectMenuFuncEqment(int client)
 {
 	Panel menu = CreatePanel();
-	menu.SetTitle("========= 天启装备系统 =========");
+	menu.SetTitle("天启•装备系统");
 	menu.DrawText(tr("当前天启：%s", g_szRoundEvent));
 	menu.DrawItem("装备栏");
 	menu.DrawItem("打开天启幸运箱");
@@ -3829,7 +3828,7 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 void StatusEqmMenu(int client, char[] key, EquipData_t data)
 {
 	Menu menu = CreateMenu(MenuHandler_EquipInfo);
-	menu.SetTitle("========= 装备信息 =========\n%s", FormatEquip(client, data));
+	menu.SetTitle("装备信息\n%s", FormatEquip(client, data));
 	menu.AddItem(key, "穿上");
 	menu.AddItem(key, "卸下");
 	menu.AddItem(key, "改类型");
@@ -4019,7 +4018,7 @@ public int MenuHandler_SellEquip(Menu menu, MenuAction action, int client, int s
 void StatusEqmChangePoint(int client, char[] key)
 {
 	// 普通改造
-	CreateConfirmMenu("========= 改造装备 =========", MenuHandler_EquipProperty, key,
+	CreateConfirmMenu("【改造装备】", MenuHandler_EquipProperty, key,
 		"确定改造该装备的属性？\n现有 %d 点，需要 1 点",
 		g_clSkillPoint[client]).Display(client, MENU_TIME_FOREVER);
 }
@@ -4028,7 +4027,7 @@ void StatusEqmChangePoint(int client, char[] key)
 void StatusEqmChangePointLegend(int client, char[] key)
 {
 	// 传奇改造
-	CreateConfirmMenu("========= 改造装备 =========", MenuHandler_EquipSkill, key,
+	CreateConfirmMenu("【改造装备】", MenuHandler_EquipSkill, key,
 		"确定改造该装备以随机获得附加技能？\n现有 %d 点，需要 3 点",
 		g_clSkillPoint[client]).Display(client, MENU_TIME_FOREVER);
 }

@@ -5711,7 +5711,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			
 			// 避免掉落伤害、榴弹伤害降低
 			g_bOnRocketDude[victim] = true;
-			damage /= 4.0;
+			// damage /= 4.0;
 			return Plugin_Changed;
 		}
 	}
@@ -5788,6 +5788,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)
 	{
 		// 榴弹伤害增加
+		/*
 		if((g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
 		{
 			static char classname[32];
@@ -5807,6 +5808,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 				return Plugin_Changed;
 			}
 		}
+		*/
 		
 		// 忽略非主武器的射击
 		if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
@@ -5908,6 +5910,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		damage += extraDamage / 5.0;
 		return Plugin_Changed;
 	}
+	/*
 	else if(attackerTeam == victimTeam && ((g_clSkill_5[attacker] & SKL_5_RocketDude) || (g_clSkill_5[victim] & SKL_5_RocketDude)) && inflictor > MaxClients)
 	{
 		static char classname[32];
@@ -5918,6 +5921,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			return Plugin_Changed;
 		}
 	}
+	*/
 	
 	return Plugin_Continue;
 }
@@ -9736,7 +9740,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		
 		g_fNextCalmTime[client] = GetEngineTime() + 6.0;
 	}
-	else if((g_clSkill_5[client] & SKL_5_RocketDude) && StrContains(classname, "grenade_launcher", false) != -1)
+	else if((g_clSkill_5[client] & SKL_5_RocketDude) && !(GetEntityFlags(client) & FL_ONGROUND) && StrContains(classname, "grenade_launcher", false) != -1)
 	{
 		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 		int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);

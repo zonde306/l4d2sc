@@ -434,7 +434,7 @@ bool g_bIsPluginCrawling = false;
 
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
 	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath, g_pCvarReimburse,
-	g_pCvarSurvivorBot, g_pCvarInfectedBot;
+	g_pCvarSurvivorBot, g_pCvarInfectedBot, g_pCvarEquipment;
 
 ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hCvarBurnExpert, g_hCvarReviveHealth,
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
@@ -484,7 +484,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// int LV_GiveEquipment(int client, int parts)
 	CreateNative("LV_GiveEquipment", Native_GiveEquipment);
 	
-	// void LV_GenerateRandom(int client)
+	// void LV_GenerateRandom(int client, bool uncap)
 	CreateNative("LV_GenerateRandom", Native_GenerateRandomStatus);
 	
 	// bool LV_SaveToFile(int client, bool checkpoint)
@@ -614,6 +614,7 @@ public OnPluginStart()
 	g_pCvarAS = CreateConVar("lv_enable_as", "1", "是否开启怒气技功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSaveStatus = CreateConVar("lv_save_status", "0", "保存奖励计数", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarEquipment = CreateConVar("lv_enable_eq", "1", "是否开启装备功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "1", "是否为生还者机器人生存随机属性.0=禁用.1=启用.2=启用+强化", FCVAR_NONE, true, 0.0, true, 2.0);
 	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "1", "是否为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+强化", FCVAR_NONE, true, 0.0, true, 2.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
@@ -1464,9 +1465,9 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 			
 			if(g_pCvarSurvivorBot.BoolValue && IsFakeClient(i))
 			{
-				GenerateRandomStats(i);
+				GenerateRandomStats(i, g_pCvarSurvivorBot.IntValue > 1);
 				RegPlayerHook(i, g_Cvarhppack.BoolValue);
-				PrintToServer("为生还者机器人 %N 生成随机属性", i);
+				PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", i, CalcPlayerPower(i));
 			}
 		}
 	}
@@ -1548,7 +1549,7 @@ public void OnClientPutInServer(int client)
 	}
 }
 
-void GenerateRandomStats(int client)
+void GenerateRandomStats(int client, bool uncap)
 {
 	if(g_mEquipData[client] == null)
 		g_mEquipData[client] = CreateTrie();
@@ -1575,7 +1576,7 @@ void GenerateRandomStats(int client)
 	for(int i = 0; i < 4; ++i)
 	{
 		g_clCurEquip[client][i] = GiveEquipment(client, i);
-		if(!g_clCurEquip[client][i])
+		if(!uncap || !g_clCurEquip[client][i])
 			continue;
 		
 		static char key[16];
@@ -2495,7 +2496,7 @@ public int MenuHandler_MainMenu(Menu menu, MenuAction action, int client, int se
 		case 4:
 			StatusSelectMenuFuncE(client);
 		case 5:
-			StatusSelectMenuFuncRP(client);
+			StatusSelectMenuFuncRP(client, true);
 		case 6:
 			StatusSelectMenuFuncBuy(client);
 		case 7:
@@ -2767,6 +2768,7 @@ void StatusSelectMenuFuncNCJ(int client)
 	if(!g_pCvarAS.BoolValue)
 	{
 		PrintToChat(client, "\x03[提示]\x01 功能已禁用。");
+		StatusChooseMenuFunc(client);
 		return;
 	}
 	
@@ -3667,6 +3669,7 @@ void StatusEqmFuncB(int client)
 	if(!g_pCvarRE.BoolValue)
 	{
 		PrintToChat(client, "\x03[提示]\x01 此功能已禁用。");
+		StatusSelectMenuFuncEqment(client);
 		return;
 	}
 	
@@ -3677,6 +3680,13 @@ void StatusEqmFuncB(int client)
 
 void StatusEqmFuncC(int client)
 {
+	if(!g_pCvarEquipment.BoolValue)
+	{
+		PrintToChat(client, "\x03[提示]\x01 此功能已禁用。");
+		StatusSelectMenuFuncEqment(client);
+		return;
+	}
+	
 	CreateConfirmPanel("========= 装备幸运箱 =========",
 		"确定打开装备幸运箱？\n需要 3 点，现有 %d 点",
 		g_clSkillPoint[client]).Send(client, MenuHandler_OpenEquipment, MENU_TIME_FOREVER);
@@ -3823,6 +3833,13 @@ stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len
 
 void StatusEqmFuncA(int client, bool showEmpty = false)
 {
+	if(!g_pCvarEquipment.BoolValue)
+	{
+		PrintToChat(client, "\x03[提示]\x01 此功能已禁用。");
+		StatusSelectMenuFuncEqment(client);
+		return;
+	}
+	
 	Menu menu = CreateMenu(MenuHandler_SelectEquip);
 	menu.SetTitle("========= 装备栏 =========");
 	
@@ -4426,7 +4443,7 @@ public int MenuHandler_SelectEquip(Menu menu, MenuAction action, int client, int
 	return 0;
 }
 
-void StatusSelectMenuFuncRP(int clientId)
+void StatusSelectMenuFuncRP(int clientId, bool withMenu = false)
 {
 	if(!IsValidClient(clientId))
 		return;
@@ -4434,6 +4451,9 @@ void StatusSelectMenuFuncRP(int clientId)
 	if(!g_pCvarRP.BoolValue)
 	{
 		PrintToChat(clientId, "\x03[提示]\x01 此功能已禁用。");
+		
+		if(withMenu)
+			StatusChooseMenuFunc(clientId);
 		return;
 	}
 	
@@ -8128,6 +8148,7 @@ public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool do
 	int zClass = GetEntProp(client, Prop_Send, "m_zombieClass");
 	if(zClass != ZC_SURVIVOR && zClass != ZC_WITCH)
 	{
+		int power;
 		float vPos[3], vLoc[3], distance;
 		GetClientAbsOrigin(client, vPos);
 		
@@ -8138,43 +8159,44 @@ public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool do
 			
 			GetClientAbsOrigin(i, vLoc);
 			distance = GetVectorDistance(vPos, vLoc);
+			power = CalcPlayerPower(i);
 			
 			switch(zClass)
 			{
 				case ZC_SMOKER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSmoker");
-					PrintToChat(i, "\x04有一只 \x03Smoker\x04 出现了，距离 \x05%.0f\x01。", distance);
+					PrintToChat(i, "\x04有一只 \x03Smoker\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
 				}
 				case ZC_BOOMER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnBoomer");
-					PrintToChat(i, "\x04有一只 \x03Boomer\x04 出现了，距离 \x05%.0f\x01。", distance);
+					PrintToChat(i, "\x04有一只 \x03Boomer\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
 				}
 				case ZC_HUNTER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnHunter");
-					PrintToChat(i, "\x04有一只 \x03Hunter\x04 出现了，距离 \x05%.0f\x01。", distance);
+					PrintToChat(i, "\x04有一只 \x03Hunter\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
 				}
 				case ZC_SPITTER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSpitter");
-					PrintToChat(i, "\x04有一只 \x03Spitter\x04 出现了，距离 \x05%.0f\x01。", distance);
+					PrintToChat(i, "\x04有一只 \x03Spitter\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
 				}
 				case ZC_JOCKEY:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnJockey");
-					PrintToChat(i, "\x04有一只 \x03Jockey\x04 出现了，距离 \x05%.0f\x01。", distance);
+					PrintToChat(i, "\x04有一只 \x03Jockey\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
 				}
 				case ZC_CHARGER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnCharger");
-					PrintToChat(i, "\x04有一只 \x03Charger\x04 出现了，距离 \x05%.0f\x01。", distance);
+					PrintToChat(i, "\x04有一只 \x03Charger\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
 				}
 				case ZC_TANK:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnTank");
-					PrintToChat(i, "\x04有一只 \x03Tank\x04 出现了，距离 \x05%.0f\x01。", distance);
+					PrintToChat(i, "\x04有一只 \x03Tank\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
 				}
 			}
 		}
@@ -8678,7 +8700,7 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 		CalcPlayerAttr(victim, damage, health, speed, gravity, crit, true);
 		int power = CalcPlayerPower(victim);
 		
-		FormatEx(msg, sizeof(msg), "%N\n战斗力：%d|攻击+%d|生命+%d％|速度+%d％|跳跃+%d％|暴击+%d‰", victim, power, damage, health, speed, gravity, crit);
+		FormatEx(msg, sizeof(msg), "%N\n战斗力：%d|攻击+%d％|生命+%d％|速度+%d％|跳跃+%d％|暴击+%d‰", victim, power, damage, health, speed, gravity, crit);
 		if(GetEntProp(victim, Prop_Send, "m_bIsOnThirdStrike"))
 			Format(msg, sizeof(msg), "%s\n黑白状态", msg);
 		
@@ -8910,17 +8932,17 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	}
 	else if(newTeam == 2 && g_pCvarSurvivorBot.BoolValue)
 	{
-		GenerateRandomStats(client);
+		GenerateRandomStats(client, g_pCvarSurvivorBot.IntValue > 1);
 		// RegPlayerHook(client, false);
 		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
-		PrintToServer("为生还者机器人 %N 生成随机属性", client);
+		PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", client, CalcPlayerPower(client));
 	}
 	else if(newTeam == 3 && g_pCvarInfectedBot.BoolValue)
 	{
-		GenerateRandomStats(client);
+		GenerateRandomStats(client, g_pCvarInfectedBot.IntValue > 1);
 		// RegPlayerHook(client, false);
 		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
-		PrintToServer("为生还者机器人 %N 生成随机属性", client);
+		PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", client, CalcPlayerPower(client));
 	}
 	
 	if(newTeam <= 1)
@@ -13190,14 +13212,14 @@ public int Native_GiveEquipment(Handle plugin, int argc)
 
 public int Native_GenerateRandomStatus(Handle plugin, int argc)
 {
-	if(argc < 1)
+	if(argc < 2)
 		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
 	
 	int client = GetNativeCell(1);
 	if(!IsValidClient(client))
 		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
 	
-	GenerateRandomStats(client);
+	GenerateRandomStats(client, !!GetNativeCell(2));
 	return 0;
 }
 

@@ -12,9 +12,11 @@
 // #define _USE_DATABASE_MYSQL_		// 使用 MySQL 储存数据
 // #define _USE_DETOUR_FUNC_		// 使用 hook 伤害
 
+/*
 #if defined _USE_SKILL_DETECT_
 #include <l4d2_skill_detect>
 #endif	// _USE_SKILL_DETECT_
+*/
 
 #if defined _USE_DETOUR_FUNC_
 #include <dhooks>
@@ -492,10 +494,6 @@ public void OnPluginStart()
 	HookEvent("map_transition", Event_MissionComplete);
 	HookEvent("finale_vehicle_leaving", Event_FinaleComplete);
 	
-#if defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_SQLITE_
-	Timer_ConnectDatabase(null, 0);
-#endif
-	
 #if defined _USE_DETOUR_FUNC_
 	// 一些有用的 Hook
 	InitHook();
@@ -553,6 +551,13 @@ void InitHook()
 
 // 回血声音
 #define SOUND_STANDING_HEAL		"ui/beep07.wav"
+
+public void OnConfigsExecuted()
+{
+#if defined _USE_DATABASE_SQLITE_ || defined _USE_DATABASE_SQLITE_
+	Timer_ConnectDatabase(null, 0);
+#endif
+}
 
 public void OnMapStart()
 {
@@ -765,6 +770,7 @@ public Action Cmd_BuySpellMenu(int client, int argc)
 	return Plugin_Continue;
 }
 
+// FIXME: 字太多导致截断
 public Action Cmd_SkillMenu(int client, int argc)
 {
 	if(!IsValidClient(client))
@@ -2587,7 +2593,7 @@ void RoundEndSurvivorReward(int client, int total)
 #endif	// _USE_CONSOLE_MESSAGE_
 }
 
-#if defined _USE_SKILL_DETECT_
+// #if defined _USE_SKILL_DETECT_
 public int OnSkeet(int survivor, int hunter)
 {
 	if(!IsValidAliveClient(survivor))
@@ -2853,7 +2859,7 @@ public int OnBoomerVomitLanded(int boomer, int amount)
 		g_pCvarVomitLandedCash.IntValue);
 #endif	// _USE_CONSOLE_MESSAGE_
 }
-#endif	// _USE_SKILL_DETECT_
+// #endif	// _USE_SKILL_DETECT_
 
 #if !defined _USE_DETOUR_FUNC_
 public void OnEntityCreated(int entity, const char[] classname)
@@ -3142,10 +3148,11 @@ public Action Timer_OnMenuThink(Handle timer, any data)
 #endif	// _USE_PLUGIN_MAX_HEALTH_
 			
 			int health = GetEntProp(i, Prop_Data, "m_iHealth");
-			float buffer = GetEntPropFloat(i, Prop_Send, "m_healthBuffer");
+			// float buffer = GetEntPropFloat(i, Prop_Send, "m_healthBuffer");
+			int buffer = GetPlayerTempHealth(i);
 			
-			if(health + buffer < maxHealth && (GetClientTeam(i) == 3 ||
-				(!g_bInBattle[i] && GetEntProp(i, Prop_Send, "m_bIsOnThirdStrike", 1))))
+			if(health + buffer < maxHealth && (GetClientTeam(i) == 3/* ||
+				(!g_bInBattle[i] && GetEntProp(i, Prop_Send, "m_bIsOnThirdStrike", 1))*/))
 			{
 				float amount = g_iMaxMagic[i] * g_fStandingFactor * g_fThinkInterval;
 				if(amount > g_fMagic[i])
@@ -3398,20 +3405,25 @@ Action HandleTakeDamage(int victim, int attacker, float& damage, int& damageType
 		!HasEntProp(attacker, Prop_Send, "m_iTeamNum"))
 		return Plugin_Continue;
 	
+	float originalDamage = damage;
 	bool isSameTeam = (GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetEntProp(victim, Prop_Send, "m_iTeamNum"));
 	
 	// 修复 BOT 攻击队友造成伤害
+	/*
 	if(isSameTeam && IsValidClient(attacker) && IsValidClient(victim) && IsFakeClient(attacker))
 		return Plugin_Handled;
+	*/
 	
 	int grabber = GetCurrentAttacker(victim);
 	
 	// 修复攻击被控队友
+	/*
 	if(isSameTeam && grabber > 0 && IsValidClient(attacker) && IsValidClient(victim))
 	{
 		SDKHooks_TakeDamage(grabber, inflictor, attacker, damage, damageType, weapon, damageForce, damagePosition);
 		return Plugin_Handled;
 	}
+	*/
 	
 	float plusDamage = 0.0, minusDamage = 0.0;
 	
@@ -3504,7 +3516,7 @@ Action HandleTakeDamage(int victim, int attacker, float& damage, int& damageType
 	Call_PushFloat(minusDamage);
 	Call_Finish();
 	
-	if(damage < 1.0)
+	if(originalDamage > 1.0 && damage < 1.0)
 		damage = 1.0;
 	
 	return Plugin_Changed;
@@ -3514,35 +3526,7 @@ Action HandleTakeDamage(int victim, int attacker, float& damage, int& damageType
 public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
-	/*
-	if(!IsValidClient(attacker) || !IsValidEdict(victim) || damage < g_iDamageMin || (damagetype & INVALID_DAMAGE_TYPE))
-		return Plugin_Continue;
-	
-	if(!g_bDamageFriendly && GetClientTeam(attacker) == GetEntProp(victim, Prop_Send, "m_iTeamNum"))
-		return Plugin_Continue;
-	
-	if(g_fWillpower[attacker] < g_iDamageLimit)
-		return Plugin_Continue;
-	
-	SetRandomSeed(view_as<int>(GetGameTime()));
-	if(GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) > g_fDamageChance[attacker])
-		return Plugin_Continue;
-	
-	float plusDamage = damage * g_fDamageFactor[attacker];
-	if(plusDamage > g_fWillpower[attacker])
-		plusDamage = g_fWillpower[attacker];
-	
-	if(plusDamage < 1.0)
-		return Plugin_Continue;
-	
-	// PrintCenterText(attacker, "plus %.0f + %.0f damage", damage, plusDamage);
-	
-	damage += plusDamage;
-	damagetype |= DMG_CRIT;
-	WillpowerDecrease(attacker, plusDamage);
-	return Plugin_Changed;
-	*/
-	
+	// 造成伤害，但未扣减血量
 	return HandleTakeDamage(victim, attacker, damage, damagetype);
 }
 
@@ -3553,37 +3537,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
-	/*
-	if(!IsValidClient(victim) || attacker <= 0 || !IsValidEdict(attacker) || damage < g_iDefenseMin || (damagetype & INVALID_DAMAGE_TYPE))
-		return Plugin_Continue;
-	
-	if(!g_bDefenseFriendly && GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetClientTeam(victim))
-		return Plugin_Continue;
-	
-	if(g_fStamina[victim] < g_iDefenseLimit)
-		return Plugin_Continue;
-	
-	SetRandomSeed(view_as<int>(GetEngineTime()));
-	if(GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) > g_fDefenseChance[victim])
-		return Plugin_Continue;
-	
-	float minusDamage = damage * g_fDefenseFactor[victim];
-	if(minusDamage - 1.0 > damage)
-		minusDamage = damage - 1.0;
-	
-	if(minusDamage > g_fStamina[victim])
-		minusDamage = g_fStamina[victim];
-	
-	if(minusDamage < 1.0)
-		return Plugin_Continue;
-	
-	// PrintCenterText(victim, "take %.0f - %.0f damage", damage, minusDamage);
-	
-	damage -= minusDamage;
-	StaminaDecrease(victim, minusDamage);
-	return Plugin_Changed;
-	*/
-	
+	// 造成伤害，但未扣减血量
 	return HandleTakeDamage(victim, attacker, damage, damagetype, inflictor, weapon, damageForce, damagePosition);
 }
 
@@ -3591,149 +3545,11 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 // 最终受到的伤害，这里已经不会被其他东西修改了，可以放心设置
 public MRESReturn Hooked_AllowTakeDamage(Address pThis, Handle hReturn, Handle hParams)
 {
-	
 	int victim = DHookGetParam(hParams, 1);
 	int attacker = DHookGetParamObjectPtrVar(hParams, 2, 52, ObjectValueType_Ehandle);
 	float damage = DHookGetParamObjectPtrVar(hParams, 2, 60, ObjectValueType_Float);
 	int damageType = DHookGetParamObjectPtrVar(hParams, 2, 72, ObjectValueType_Int);
 	// int weapon = DHookGetParamObjectPtrVar(hParams, 2, 56, ObjectValueType_Ehandle);
-	
-	/*
-	if(victim < 1 || attacker < 1 || victim == attacker || !IsValidEdict(victim) || !IsValidEdict(attacker) ||
-		(damageType & INVALID_DAMAGE_TYPE) || !HasEntProp(victim, Prop_Send, "m_iTeamNum") ||
-		!HasEntProp(attacker, Prop_Send, "m_iTeamNum"))
-		return MRES_Ignored;
-	
-	bool isSameTeam = (GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetEntProp(victim, Prop_Send, "m_iTeamNum"));
-	
-	// 修复 BOT 攻击队友造成伤害
-	if(isSameTeam && IsValidClient(attacker) && IsValidClient(victim) && IsFakeClient(attacker))
-	{
-		DHookSetReturn(hReturn, false);
-		return MRES_Override;
-	}
-	
-	float plusDamage = 0.0, minusDamage = 0.0;
-	if(IsValidClient(attacker) && damage >= g_iDamageMin && (g_bDamageFriendly || !isSameTeam))
-	{
-		SetRandomSeed(GetSysTickCount() + attacker);
-		if(g_fWillpower[attacker] >= g_iDamageLimit &&
-			GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) <= g_fDamageChance[attacker])
-		{
-			plusDamage = damage * g_fDamageFactor[attacker];
-			if(plusDamage > g_fWillpower[attacker])
-				plusDamage = g_fWillpower[attacker];
-		}
-	}
-	
-	if(IsValidClient(victim) && damage >= g_iDefenseMin && (g_bDefenseFriendly || !isSameTeam))
-	{
-		SetRandomSeed(GetSysTickCount() + victim);
-		if(g_fStamina[victim] >= g_iDefenseLimit &&
-			GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) <= g_fDefenseChance[victim])
-		{
-			minusDamage = damage * g_fDefenseFactor[victim];
-			if(minusDamage > g_fStamina[victim])
-				minusDamage = g_fStamina[victim];
-		}
-	}
-	
-	float refDamage = damage;
-	int refDamageType = damageType;
-	float refPlusDmg = plusDamage;
-	float refMinusDmg = minusDamage;
-	Action result = Plugin_Continue;
-	Call_StartForward(g_fwOnDamagePre);
-	Call_PushCell(attacker);
-	Call_PushCell(victim);
-	Call_PushFloatRef(refDamage);
-	Call_PushCellRef(refDamageType);
-	Call_PushFloatRef(refPlusDmg);
-	Call_PushFloatRef(refMinusDmg);
-	Call_Finish(result);
-	
-	if(result >= Plugin_Handled)
-		return MRES_Ignored;
-	
-	if(result == Plugin_Changed)
-	{
-		damage = refDamage;
-		damageType = refDamageType;
-		plusDamage = refPlusDmg;
-		minusDamage = refMinusDmg;
-	}
-	
-	float fakeDamage = (GetEntProp(victim, Prop_Data, "m_iHealth") - damage - plusDamage + minusDamage);
-	if(fakeDamage < 0.0)
-	{
-		// 去除溢出伤害，减少不必要的精力消耗
-		plusDamage += fakeDamage;
-	}
-	
-	if(plusDamage >= 1.0)
-	{
-		// PrintCenterText(attacker, "＋%.0f dmg of %.0f dmg", plusDamage, damage);
-		
-		damage += plusDamage;
-		damageType |= DMG_CRIT;
-		WillpowerDecrease(attacker, plusDamage);
-	}
-	
-	if(minusDamage >= 1.0)
-	{
-		// PrintCenterText(victim, "－%.0f dmg of %.0f dmg", minusDamage, damage);
-		
-		damage -= minusDamage;
-		StaminaDecrease(victim, minusDamage);
-	}
-	
-	Call_StartForward(g_fwOnDamagePost);
-	Call_PushCell(attacker);
-	Call_PushCell(victim);
-	Call_PushFloat(damage);
-	Call_PushCell(damageType);
-	Call_PushFloat(plusDamage);
-	Call_PushFloat(minusDamage);
-	Call_Finish();
-	*/
-	
-	/*
-	if(!IsValidClient(victim) || attacker <= 0 || !IsValidEdict(attacker) || damage < g_iDefenseMin ||
-		(damageType & INVALID_DAMAGE_TYPE))
-		return MRES_Ignored;
-	
-	if(!g_bDefenseFriendly && GetEntProp(attacker, Prop_Send, "m_iTeamNum") == GetClientTeam(victim))
-		return MRES_Ignored;
-	
-	if(g_fStamina[victim] < g_iDefenseLimit)
-		return MRES_Ignored;
-	
-	SetRandomSeed(view_as<int>(GetEngineTime()));
-	if(GetRandomFloat(MIN_TRIGGER_CHANCE, 1.0) > g_fDefenseChance[victim])
-		return MRES_Ignored;
-	
-	float minusDamage = damage * g_fDefenseFactor[victim];
-	if(minusDamage - 1.0 > damage)
-		minusDamage = damage - 1.0;
-	
-	if(minusDamage > g_fStamina[victim])
-		minusDamage = g_fStamina[victim];
-	
-	// 才这么点伤害，没必要去减少了
-	if(minusDamage < 1.0)
-		return MRES_Ignored;
-	
-	// PrintCenterText(victim, "take %.0f - %.0f damage", damage, minusDamage);
-	
-	damage -= minusDamage;
-	StaminaDecrease(victim, minusDamage);
-	// PrintToChat(victim, "dmg %.0f", damage);
-	*/
-	
-	/*
-	if(damage < 1.0)
-		damage = 1.0;
-	*/
 	
 	Action result = HandleTakeDamage(victim, attacker, damage, damageType);
 	if(result == Plugin_Continue)
@@ -4551,16 +4367,18 @@ stock bool IsFriendly(int client, int other)
 }
 
 // 返回 display
-stock char[] GetSpellShowInfo(StringMap spl, int client, char[] bufDsp = "", int bufDspLen = 0, char[] bufDsc = "", int bufDscLen = 0)
+stock char[] GetSpellShowInfo(StringMap spl, int client, char[] bufDsp = "", int bufDspLen = 0, char[] bufDsc = "", int bufDscLen = 0, char[] bufVeb = "", int bufVebLen = 0)
 {
-	char classname[64], display[128], dspBuf[128], description[255], dscBuf[255];
+	char classname[64], display[128], dspBuf[128], description[255], dscBuf[255], verbose[128], vebBuf[128];
 	spl.GetString("classname", classname, 64);
 	spl.GetString("display", display, 128);
 	spl.GetString("description", description, 255);
+	spl.GetString("verbose", verbose, 128);
 	
 	Action result = Plugin_Continue;
 	strcopy(dspBuf, 128, display);
 	strcopy(dscBuf, 255, description);
+	strcopy(vebBuf, 128, verbose);
 	
 	Call_StartForward(g_fwOnSpellGetInfo);
 	Call_PushCell(client);
@@ -4569,6 +4387,8 @@ stock char[] GetSpellShowInfo(StringMap spl, int client, char[] bufDsp = "", int
 	Call_PushCell(128);
 	Call_PushStringEx(dscBuf, 255, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(255);
+	Call_PushStringEx(vebBuf, 128, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+	Call_PushCell(128);
 	Call_Finish(result);
 	
 	if(result >= Plugin_Handled)
@@ -4581,27 +4401,32 @@ stock char[] GetSpellShowInfo(StringMap spl, int client, char[] bufDsp = "", int
 	{
 		strcopy(display, 128, dspBuf);
 		strcopy(description, 255, dscBuf);
+		strcopy(verbose, 128, vebBuf);
 	}
 	
 	if(bufDspLen > 0)
 		strcopy(bufDsp, bufDspLen, display);
 	if(bufDscLen > 0)
 		strcopy(bufDsc, bufDscLen, description);
+	if(bufVebLen > 0)
+		strcopy(bufVeb, bufVebLen, verbose);
 	
 	return display;
 }
 
 // 返回 display
-stock char[] GetSkillShowInfo(StringMap skl, int client, char[] bufDsp = "", int bufDspLen = 0, char[] bufDsc = "", int bufDscLen = 0)
+stock char[] GetSkillShowInfo(StringMap skl, int client, char[] bufDsp = "", int bufDspLen = 0, char[] bufDsc = "", int bufDscLen = 0, char[] bufVeb = "", int bufVebLen = 0)
 {
-	char classname[64], display[128], dspBuf[128], description[255], dscBuf[255];
+	char classname[64], display[128], dspBuf[128], description[255], dscBuf[255], verbose[128], vebBuf[128];
 	skl.GetString("classname", classname, 64);
 	skl.GetString("display", display, 128);
 	skl.GetString("description", description, 255);
+	skl.GetString("description", verbose, 128);
 	
 	Action result = Plugin_Continue;
 	strcopy(dspBuf, 128, display);
 	strcopy(dscBuf, 255, description);
+	strcopy(vebBuf, 128, verbose);
 	
 	Call_StartForward(g_fwOnSkillGetInfo);
 	Call_PushCell(client);
@@ -4610,6 +4435,8 @@ stock char[] GetSkillShowInfo(StringMap skl, int client, char[] bufDsp = "", int
 	Call_PushCell(128);
 	Call_PushStringEx(dscBuf, 255, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(255);
+	Call_PushStringEx(vebBuf, 128, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+	Call_PushCell(128);
 	Call_Finish(result);
 	
 	if(result >= Plugin_Handled)
@@ -4622,12 +4449,15 @@ stock char[] GetSkillShowInfo(StringMap skl, int client, char[] bufDsp = "", int
 	{
 		strcopy(display, 128, dspBuf);
 		strcopy(description, 255, dscBuf);
+		strcopy(verbose, 128, vebBuf);
 	}
 	
 	if(bufDspLen > 0)
 		strcopy(bufDsp, bufDspLen, display);
 	if(bufDscLen > 0)
 		strcopy(bufDsc, bufDscLen, description);
+	if(bufVebLen > 0)
+		strcopy(bufVeb, bufVebLen, verbose);
 	
 	return display;
 }
@@ -5064,7 +4894,7 @@ char Serialization(ArrayList array, char[] output = "", int outMaxLength = 0)
 		if(i == 0)
 			strcopy(buffer, 1024, classname);
 		else
-			StrCat(buffer, 1024, tr("|%s", classname));
+			StrCat(buffer, 1024, tr(",%s", classname));
 	}
 	
 	if(outMaxLength > 0)
@@ -5081,7 +4911,7 @@ ArrayList Unserialization(const char[] input, ArrayList dataSrc)
 {
 	char dataTuple[32][64];
 	ArrayList array = CreateArray();
-	int count = ExplodeString(input, "|", dataTuple, 64, 64);
+	int count = ExplodeString(input, ",", dataTuple, 64, 64);
 	for(int i = 0; i < count; ++i)
 	{
 		StringMap data = FindValueByClassName(dataTuple[i], dataSrc);
@@ -6051,6 +5881,13 @@ public int Native_CreateSpell(Handle plugin, int argc)
 		spl.SetString("description", description, true);
 	}
 	
+	if(argc >= 6)
+	{
+		char verbose[64];
+		GetNativeString(6, verbose, 64);
+		spl.SetString("verbose", verbose, true);
+	}
+	
 	return g_hAllSpellList.Push(spl);
 }
 
@@ -6079,6 +5916,13 @@ public int Native_CreateSkill(Handle plugin, int argc)
 		char description[255];
 		GetNativeString(4, description, 255);
 		skill.SetString("description", description, true);
+	}
+	
+	if(argc >= 5)
+	{
+		char verbose[64];
+		GetNativeString(5, verbose, 64);
+		skill.SetString("verbose", verbose, true);
 	}
 	
 	return g_hAllSkillList.Push(skill);

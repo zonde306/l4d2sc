@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.26"
+#define PLUGIN_VERSION		"1.27"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -37,6 +37,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.27 (05-Oct-2020)
+	- Fixed not loading in L4D1 due to recent changes. Thanks to "TiTz" for reporting.
 
 1.26 (01-Oct-2020)
 	- L4D2: Fixed the new target filters not working correctly, now matches by modelname for Survivors instead of character netprop.
@@ -59,6 +62,7 @@
 
 1.23 (27-Sep-2020)
 	- Update by "ProdigySim" to fix Addons Eclipse. Thank you!
+	- Updated: L4D2 GameData file.
 
 1.22 (24-Sep-2020)
 	- Compatibility update for L4D2's "The Last Stand" update.
@@ -3154,11 +3158,6 @@ void LoadGameData()
 
 	// g_bLinuxOS = hGameData.GetOffset("OS") == 1;
 
-	g_iAddonEclipse1 = hGameData.GetOffset("AddonEclipse1");
-	ValidateOffset(g_iAddonEclipse1, "AddonEclipse1");
-	g_iAddonEclipse2 = hGameData.GetOffset("AddonEclipse2");
-	ValidateOffset(g_iAddonEclipse2, "AddonEclipse2");
-
 	m_iCampaignScores = hGameData.GetOffset("m_iCampaignScores");
 	ValidateOffset(m_iCampaignScores, "m_iCampaignScores");
 
@@ -3199,6 +3198,11 @@ void LoadGameData()
 
 	if( g_bLeft4Dead2 )
 	{
+		g_iAddonEclipse1 = hGameData.GetOffset("AddonEclipse1");
+		ValidateOffset(g_iAddonEclipse1, "AddonEclipse1");
+		g_iAddonEclipse2 = hGameData.GetOffset("AddonEclipse2");
+		ValidateOffset(g_iAddonEclipse2, "AddonEclipse2");
+
 		SpawnTimer = hGameData.GetOffset("SpawnTimer");
 		ValidateOffset(SpawnTimer, "SpawnTimer");
 

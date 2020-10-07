@@ -207,6 +207,10 @@ int g_iExtraArmor[MAXPLAYERS+1];
 bool g_bAccurateShot[MAXPLAYERS+1];
 bool g_bSurvivalStarter[MAXPLAYERS+1];
 bool g_bOnRocketDude[MAXPLAYERS+1];
+int g_iDamageChance[MAXPLAYERS+1];
+int g_iDamageChanceMin[MAXPLAYERS+1];
+int g_iDamageChanceMax[MAXPLAYERS+1];
+int g_iDamageBase[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -397,7 +401,6 @@ KeyValues g_kvSavePlayer[MAXPLAYERS+1];
 float g_ctPainPills[MAXPLAYERS+1], g_ctFullHealth[MAXPLAYERS+1], g_ctDefibrillator[MAXPLAYERS+1],
 	g_ctPipeBomb[MAXPLAYERS+1], g_ctGodMode[MAXPLAYERS+1], g_ctSelfHeal[MAXPLAYERS+1], g_ctConvTemp[MAXPLAYERS+1];
 
-new g_tkSkillType[MAXPLAYERS+1];
 new g_stFallDamageKilled = 0;
 bool g_bHasTeleportActived = false;
 bool g_bHasFirstJoin[MAXPLAYERS+1];
@@ -430,7 +433,7 @@ int g_iWeaponSpeedTotal = 0;
 bool g_bIsPluginCrawling = false;
 
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
-	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath;
+	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath, g_pCvarReimburse;
 
 ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hCvarBurnExpert, g_hCvarReviveHealth,
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
@@ -441,7 +444,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 
 // int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
-bool g_bRoundFirstStarting = false, g_bLateLoad = false;
+bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS, g_pCvarSaveStatus;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
 Handle g_pfnOnSwingStart, g_pfnOnPummelEnded, g_pfnEndCharge, g_pfnOnCarryEnded, g_pfnIsInvulnerable, g_pfnCreateGift;
@@ -615,8 +618,9 @@ public OnPluginStart()
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
 	cv_sndPortalFX = CreateConVar("lv_portals_soundfx","ui/pickup_misc42.wav", "读点声音文件途径", FCVAR_NONE);
 	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒)，过期无法读档.0=无限", FCVAR_NONE, true, 0.0);
-	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率(0~100)", FCVAR_NONE, true, 0.0, true, 100.0);
+	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
 	g_pCvarStartPoints = CreateConVar("lv_starter_points","3", "初始天赋点数量", FCVAR_NONE, true, 0.0, true, 30.0);
+	g_pCvarReimburse = CreateConVar("lv_expired_reimburse","1000", "存档过期战斗力补偿(补偿点数=先前战斗力/补偿数值).0=禁用", FCVAR_NONE, true, 0.0);
 	
 	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
@@ -687,7 +691,6 @@ public OnPluginStart()
 	// g_WeaponClipSize = new StringMap();
 	// g_WeaponDamage = new StringMap();
 	
-	CreateTimer(1.0, Timer_RestoreDefault);
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
 
 	RegConsoleCmd("lv", Command_Levelup, "", FCVAR_HIDDEN);
@@ -791,8 +794,8 @@ public OnPluginStart()
 	// HookEvent("charger_impact", Event_PlayerReleased);
 	
 	// 检查第一回合用
-	HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
-	HookEvent("player_team", Event__PlayerTeam);
+	// HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
+	// HookEvent("player_team", Event__PlayerTeam);
 	
 	g_tWeaponSkin = CreateTrie();
 	g_tWeaponSkin.SetValue("weapon_pistol_magnum",		2);
@@ -998,7 +1001,12 @@ public OnPluginStart()
 	if(g_bLateLoad)
 	{
 		OnMapStart();
+		OnConfigsExecuted();
 		g_bIsGamePlaying = L4D_HasAnySurvivorLeftSafeArea();
+	}
+	else
+	{
+		CreateTimer(1.0, Timer_RestoreDefault);
 	}
 }
 
@@ -1041,6 +1049,7 @@ public void ConVarChaged_ZombieHealth(ConVar cvar, const char[] oldValue, const 
 	PrintToServer("僵尸血量更改：%d丨%s", g_iCommonHealth, newValue);
 }
 
+/*
 public void Event__PlayerSpawnFirst(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(g_bRoundFirstStarting)
@@ -1085,6 +1094,7 @@ public void Event__PlayerTeam(Event event, const char[] eventName, bool dontBroa
 	// CheatCommand(client, "script", "::DifficultyBanalce_MinIntensity<-1");
 	// CheatCommand(client, "script", "::DamageLimit_RealHealthValue<--1");
 }
+*/
 
 public OnMapStart()
 {
@@ -1313,7 +1323,7 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 	g_ttTankKilled = 0;
 	g_iRoundEvent = 0;
 	g_fNextRoundEvent = 0.0;
-	g_bRoundFirstStarting = false;
+	// g_bRoundFirstStarting = false;
 	g_bIsGamePlaying = false;
 
 	for(new i = 1; i <= MaxClients; i++)
@@ -1350,7 +1360,6 @@ public Action:Event_FinaleWin(Handle:event, String:event_name[], bool:dontBroadc
 	{
 		g_cdSaveCount[client] = -1;
 		g_bCanGunShover[client] = false;
-		g_tkSkillType[client] = 0;
 		if(IsClientConnected(i) && !IsFakeClient(i))
 		{
 			g_clSkillPoint[client] += 3;
@@ -1459,6 +1468,7 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 		}
 	}
 	
+	PrintToServer("游戏开始");
 	return Plugin_Continue;
 }
 
@@ -1599,7 +1609,6 @@ void Initialization(int client, bool invalid = false)
 	g_bHasRetarding[client] = false;
 	g_bIsRPActived[client] = false;
 	g_cdSaveCount[client] = -1;
-	g_tkSkillType[client] = 0;
 	g_iBulletFired[client] = 0;
 	g_iReloadWeaponOldClip[client] = 0;
 	g_iReloadWeaponKeepClip[client] = 0;
@@ -1632,6 +1641,10 @@ void Initialization(int client, bool invalid = false)
 	g_iForgiveFFTarget[client] = 0;
 	g_bSurvivalStarter[client] = false;
 	g_bOnRocketDude[client] = false;
+	g_iDamageBase[client] = 0;
+	g_iDamageChance[client] = 0;
+	g_iDamageChanceMax[client] = 0;
+	g_iDamageChanceMin[client] = 0;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -1689,6 +1702,7 @@ bool ClientSaveToFileLoad(int client, bool remember = false)
 		g_kvSavePlayer[client].ImportFromFile(tr("%s/%s.txt", g_szSavePath, steamId));
 	}
 	
+	int power = g_kvSavePlayer[client].GetNum("power", 0);
 	int deadline = g_pCvarValidity.IntValue;
 	if(deadline > 0)
 	{
@@ -1706,6 +1720,10 @@ bool ClientSaveToFileLoad(int client, bool remember = false)
 			}
 		}
 	}
+	
+	int points = g_pCvarStartPoints.IntValue;
+	if(g_pCvarReimburse.IntValue > 0 && power > 0 && g_bDeadlineHint[client])
+		points += power / g_pCvarReimburse.IntValue;
 	
 	char name[MAX_NAME_LENGTH], ip[16], country[32], code[3];
 	GetClientName(client, name, MAX_NAME_LENGTH);
@@ -1728,7 +1746,7 @@ bool ClientSaveToFileLoad(int client, bool remember = false)
 	g_kvSavePlayer[client].SetString("steamId_3", steamId3);
 
 	// 技能和属性
-	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", g_pCvarStartPoints.IntValue);
+	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", points);
 	g_clSkill_1[client] = g_kvSavePlayer[client].GetNum("skill_1", 0);
 	g_clSkill_2[client] = g_kvSavePlayer[client].GetNum("skill_2", 0);
 	g_clSkill_3[client] = g_kvSavePlayer[client].GetNum("skill_3", 0);
@@ -1850,6 +1868,7 @@ bool ClientSaveToFileSave(int client, bool remember = false)
 	g_kvSavePlayer[client].SetString("country", country);
 	g_kvSavePlayer[client].SetString("country_code", code);
 	g_kvSavePlayer[client].SetNum("deadline", GetTime());
+	g_kvSavePlayer[client].SetNum("power", CalcPlayerPower(client));
 
 	// 技能和属性
 	g_kvSavePlayer[client].SetNum("skill_point", g_clSkillPoint[client]);
@@ -2957,7 +2976,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡时1/3几率与全图感染者同归于尽",(g_clSkill_3[client]&SKL_3_Sacrifice)));
 	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("「永生」死亡时复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
 	menu.AddItem(tr("3_%d",SKL_3_IncapFire), mps("「纵火」倒地时点燃攻击者和周围的普感",(g_clSkill_3[client]&SKL_3_IncapFire)));
-	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("「妙手」救起队友时随机获得物品或天赋点",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
+	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("「妙手」帮助队友时随机获得物品或天赋点",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
 	menu.AddItem(tr("3_%d",SKL_3_Freeze), mps("「释冰」倒地时冻结攻击者和周围特感12秒",(g_clSkill_3[client]&SKL_3_Freeze)));
 	menu.AddItem(tr("3_%d",SKL_3_Kickback), mps("「轰炸」暴击时1/2几率附加击退效果",(g_clSkill_3[client]&SKL_3_Kickback)));
 	menu.AddItem(tr("3_%d",SKL_3_GodMode), mps("「无敌」每80秒获得9秒无敌时间",(g_clSkill_3[client]&SKL_3_GodMode)));
@@ -3452,7 +3471,7 @@ public int MenuHandler_EquipMain(Menu menu, MenuAction action, int client, int s
 			CalcPlayerAttr(client, damage, health, speed, gravity, crit, true);
 			
 			PrintToChat(client,
-				"\x05[属性]\x01 伤害+\x03%d\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 战斗力=\x03%d\x01.",
+				"\x05[属性]\x01 伤害+\x03%d％\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 战斗力=\x03%d\x01.",
 				damage,health,speed,gravity,crit,CalcPlayerPower(client)
 			);
 			
@@ -3787,7 +3806,7 @@ stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len
 	}
 	else
 	{
-		lentex = FormatEx(text, 255, "%s%s%s|伤害+%d|血量+%d％|速度+%d％|暴击+%d‰|跳跃+%d％|(%d)%s",
+		lentex = FormatEx(text, 255, "%s%s%s|伤害+%d％|血量+%d％|速度+%d％|暴击+%d‰|跳跃+%d％|(%d)%s",
 			data.sPrefix, data.sNamed, data.sParts,
 			data.damage, data.health, data.speed, data.crit, data.gravity, power, extrastr
 		);
@@ -3936,7 +3955,7 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 				CalcPlayerAttr(client, damage, health, speed, gravity, crit, false);
 				
 				PrintToChat(client,
-					"\x03[提示]\x01 成功穿上该装备,穿上后 伤害+\x03%d\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 附加:\x03%s\x01.",
+					"\x03[提示]\x01 成功穿上该装备,穿上后 伤害+\x03%d％\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 附加:\x03%s\x01.",
 					damage,health,speed,gravity,crit,data.sEffect
 				);
 				// EmitSoundToClient(client,g_soundLevel);
@@ -3956,7 +3975,7 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 				CalcPlayerAttr(client, damage, health, speed, gravity, crit, false);
 				
 				PrintToChat(client,
-					"\x03[提示]\x01 成功卸下该装备,卸下后 伤害+\x03%d\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 取消:\x03%s\x01.",
+					"\x03[提示]\x01 成功卸下该装备,卸下后 伤害+\x03%d％\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 取消:\x03%s\x01.",
 					damage,health,speed,gravity,crit,data.sEffect
 				);
 			}
@@ -5246,32 +5265,22 @@ public void ZombieHook_OnTraceAttackPost(int victim, int attacker, int inflictor
 }
 */
 
-public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
-	int &ammotype, int hitbox, int hitgroup)
+// 临时、根据情况的不在这里计算
+void CalcDamageExtra(int attacker, int& chance, int& minChDmg, int& maxChDmg, int& baseDmg)
 {
-	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 || GetClientTeam(attacker) != 2 || (damagetype & DMG_FALL))
-		return Plugin_Continue;
+	if(!IsValidClient(attacker))
+		return;
 	
-	static char victimName[64];
-	GetEntityClassname(victim, victimName, 64);
-	
-	int chance = 0;
-	if((g_clSkill_5[attacker] & SKL_5_Overkill) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && ammotype > 2 && ammotype < 12 && !GetRandomInt(0, 3))
-	{
-		// 100% 触发为 1000
-		chance += 250;
-	}
-	
-	int extraDamage = 0;
-	int extraChanceDamage = GetRandomInt(50, 100);
+	chance = 0;
+	minChDmg = 50;
+	maxChDmg = 100;
+	baseDmg = 0;
 	
 	// 技能和事件的几率加成
 	if(g_clSkill_1[attacker] & SKL_1_DmgExtra)
 		chance += 5;
 	if(g_clSkill_4[attacker] & SKL_4_DmgExtra)
 		chance += 10;
-	if(g_bIsAngryCritActive)
-		chance += 500;
 	
 	for(int i = 0; i < 4; ++i)
 	{
@@ -5299,21 +5308,29 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		
 		// 装备伤害
 		if(data.damage > 0)
-			extraDamage += data.damage;
+			baseDmg += data.damage;
 		
 		// 暴击伤害加成
 		if(data.effect == 6)
-			extraChanceDamage += GetRandomInt(50, 200);
+			maxChDmg += 200;
 	}
 	
-	if(g_clSkill_5[attacker] & SKL_5_DmgExtra)
-		chance += chance / 3 + 25;
-	
 	if(g_clSkill_4[attacker] & SKL_4_MoreDmgExtra)
-		extraChanceDamage += GetRandomInt(50, 200);
+		maxChDmg += 200;
 	
 	if(g_clSkill_5[attacker] & SKL_5_DmgExtra)
-		extraChanceDamage = extraChanceDamage / 3 + GetRandomInt(10, 30);
+	{
+		chance += chance / 3;
+		minChDmg /= 3;
+		maxChDmg /= 3;
+	}
+}
+
+public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
+	int &ammotype, int hitbox, int hitgroup)
+{
+	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 || GetClientTeam(attacker) != 2 || (damagetype & DMG_FALL))
+		return Plugin_Continue;
 	
 	// 忽略非主武器的攻击
 	if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
@@ -5333,6 +5350,23 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		}
 	}
 	
+	int chance = g_iDamageChance[attacker];
+	int minChDmg = g_iDamageChanceMin[attacker];
+	int maxChDmg = g_iDamageChanceMax[attacker];
+	int baseDmg = g_iDamageBase[attacker];
+	float originalDamage = damage;
+	
+	if(victim > MaxClients)
+	{
+		if((g_clSkill_5[attacker] & SKL_5_Overkill) &&
+			(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
+			ammotype > 2 && ammotype < 12 && !GetRandomInt(0, 3))
+			chance += 250;
+	}
+	
+	if(g_bIsAngryCritActive)
+		chance += 500;
+	
 	if(g_bAccurateShot[attacker] || GetRandomInt(1, 1000) <= chance)
 	{
 		// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
@@ -5345,7 +5379,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 				ClientCommand(attacker, "play \"ui/littlereward.wav\"");
 		}
 		
-		damage += float(extraChanceDamage);
+		damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 		damagetype |= DMG_CRIT;
 		// g_bAccurateShot[attacker] = false;
 		
@@ -5358,7 +5392,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		*/
 	}
 	
-	damage += float(extraDamage);
+	damage += originalDamage * baseDmg / 100.0;
 	return Plugin_Changed;
 }
 
@@ -5451,6 +5485,9 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	
 	if((g_clSkill_2[subject] & SKL_2_HealBouns) || (g_clSkill_2[client] & SKL_2_HealBouns))
 		AddHealth(subject, 50, false);
+	
+	if(g_bIsGamePlaying && (g_clSkill_3[client] & SKL_3_ReviveBonus) && client != subject)
+		GiveHelpBouns(client);
 	
 	int mulEffect = IsPlayerHaveEffect(subject, 34);
 	if((g_clSkill_1[subject] & SKL_1_Armor) && mulEffect > 0)
@@ -5731,70 +5768,14 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	int attackerTeam = GetClientTeam(attacker);
 	int victimTeam = GetClientTeam(victim);
 	
-	int chance = 0;
-	int extraDamage = 0;
-	int extraChanceDamage = GetRandomInt(50, 100);
+	int chance = g_iDamageChance[attacker];
+	int minChDmg = g_iDamageChanceMin[attacker];
+	int maxChDmg = g_iDamageChanceMax[attacker];
+	int baseDmg = g_iDamageBase[attacker];
+	float originalDamage = damage;
 	
-	// 技能和事件的几率加成
-	if(g_clSkill_1[attacker] & SKL_1_DmgExtra)
-		chance += 5;
-	if(g_clSkill_4[attacker] & SKL_4_DmgExtra)
-		chance += 10;
 	if(g_bIsAngryCritActive)
 		chance += 500;
-	
-	for(int i = 0; i < 4; ++i)
-	{
-		if(!g_clCurEquip[attacker][i])
-			continue;
-		
-		static char key[16];
-		IntToString(g_clCurEquip[attacker][i], key, sizeof(key));
-		
-		static EquipData_t data;
-		if(!g_mEquipData[attacker].GetArray(key, data, sizeof(data)) || !data.valid)
-			continue;
-		
-		// 暴击率
-		if(data.crit > 0)
-			chance += data.crit;
-		
-		// 装备附加技能
-		if(data.effect == 8)
-			chance += 5;
-		
-		// 装备前缀
-		if(data.prefix == EquipPrefix_Lucky)
-			chance += 2;
-		
-		// 装备伤害
-		if(data.damage > 0)
-			extraDamage += data.damage;
-		
-		// 暴击伤害加成
-		if(data.effect == 6)
-			extraChanceDamage += GetRandomInt(50, 200);
-	}
-	
-	if(g_clSkill_5[attacker] & SKL_5_DmgExtra)
-		chance += chance / 3 + 25;
-	
-	if(g_tkSkillType[victim] > 2)
-		chance /= 2;
-	
-	if(extraDamage > 0)
-	{
-		if(g_tkSkillType[victim] == 7)
-			extraDamage /= 2;
-	}
-	
-	if(g_clSkill_4[attacker] & SKL_4_MoreDmgExtra)
-		extraChanceDamage += GetRandomInt(50, 200);
-	
-	if(g_clSkill_5[attacker] & SKL_5_DmgExtra)
-		extraChanceDamage = extraChanceDamage / 3 + GetRandomInt(10, 30);
-	if(g_tkSkillType[victim] > 6)
-		extraChanceDamage = extraChanceDamage / 3 + GetRandomInt(10, 30);
 	
 	// 生还者攻击特感
 	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)
@@ -5834,9 +5815,15 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			{
 				GetEntityClassname(inflictor, className, 64);
 				if(StrEqual(className, "weapon_sniper_awp", false))
+				{
 					damage *= 3;
+					originalDamage = damage;
+				}
 				else if(StrEqual(className, "weapon_sniper_scout", false))
+				{
 					damage *= 2;
+					originalDamage = damage;
+				}
 			}
 		}
 		
@@ -5855,16 +5842,13 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 					ClientCommand(attacker, "play \"ui/littlereward.wav\"");
 			}
 			
-			damage += float(extraChanceDamage);
+			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 			damagetype |= DMG_CRIT;
 			// g_bAccurateShot[attacker] = false;
 			
 			if(g_clSkill_3[attacker] & SKL_3_Kickback)
 			{
 				new RanChance = 2;
-				if(g_tkSkillType[victim] > 6)
-					RanChance ++;
-				
 				if(GetRandomInt(1,4) > RanChance)
 				{
 					// Charge(victim, attacker, 250.0, 250.0);
@@ -5888,7 +5872,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			*/
 		}
 		
-		damage += float(extraDamage);
+		damage += originalDamage * baseDmg / 100.0;
 		return Plugin_Changed;
 	}
 	// 特感攻击生还者
@@ -5902,24 +5886,23 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			if(!IsFakeClient(attacker))
 				ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 			
-			damage += extraChanceDamage / 10.0;
+			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 			damagetype |= DMG_CRIT;
 			
 			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !IsSurvivorHeld(victim))
 			{
 				new RanChance = 2;
-				if(g_tkSkillType[attacker] > 6)
-					RanChance ++;
-				
 				if(GetRandomInt(1,4) > RanChance)
 					Charge(victim, attacker);
 			}
 			
+			/*
 			if(g_pCvarAllow.BoolValue)
-				PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage / 10, extraDamage / 5);
+				PrintCenterText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage / 10, extraDamage / 5);
+			*/
 		}
 		
-		damage += extraDamage / 5.0;
+		damage += originalDamage * baseDmg / 100.0;
 		return Plugin_Changed;
 	}
 	/*
@@ -5997,41 +5980,6 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			if(!IsFakeClient(victim))
 				PrintToChat(victim,"\x03[\x05提示\x03]\x04你使用\x03坚韧\x04天赋随机恢复\x03%d\x04HP!",hp);
 		}
-		if(g_tkSkillType[attacker] % 2 == 0 && g_tkSkillType[attacker] > 0 && GetEntProp(attacker, Prop_Send, "m_zombieClass") == 8)
-		{
-			if (g_tkSkillType[attacker] > 4)
-			{
-				if(g_tkSkillType[attacker] == 8) DealDamage(attacker,victim,50,2);
-				CreateTimer(2.0, SSJ4_DMG, victim);
-			}
-			new RandomFix = GetRandomInt(1, 10);
-			if (RandomFix >= 7)
-			{
-				new ValidClient[18];
-				new j = 0;
-				for(new i = 1; i <= MaxClients; i++)
-				{
-					if(!IsClientInGame(i)) continue;
-					if(!IsClientConnected(i)) continue;
-					if(!IsPlayerAlive(i)) continue;
-					if(GetClientTeam(i) != 2) continue;
-					ValidClient[j] = i;
-					j ++;
-				}
-				j --;
-				new randomclient = ValidClient[GetRandomInt(0, j)];
-				decl Float:TeleportOrigin[3],Float:PlayerOrigin[3];
-				GetClientAbsOrigin(randomclient, PlayerOrigin);
-				TeleportOrigin[0] = PlayerOrigin[0];
-				TeleportOrigin[1] = PlayerOrigin[1];
-				TeleportOrigin[2] = (PlayerOrigin[2]+0.2);
-				TeleportEntity(attacker, TeleportOrigin, NULL_VECTOR, NULL_VECTOR);
-				for(new i = 0;i < 5;i ++)
-				{
-					EmitSoundToAll(SOUND_WARP,attacker);
-				}
-			}
-		}
 	}
 
 	if (attackPlayer && GetClientTeam(victim) == TEAM_INFECTED && GetClientTeam(attacker) == 2)
@@ -6060,7 +6008,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		
 		if (isGunShot || isMeleeHack)
 		{
-			if ((g_clSkill_5[attacker] & SKL_5_RetardBullet) && !GetRandomInt(0, 2))
+			if ((g_clSkill_5[attacker] & SKL_5_RetardBullet) && !GetRandomInt(0, 5))
 			{
 				if (!g_bHasRetarding[victim])
 				{
@@ -7170,8 +7118,6 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 	bool solo = GetEventBool(event, "solo");
 	bool melee = GetEventBool(event, "melee_only");
 
-	g_tkSkillType[client] = 0;
-	
 	if(g_pCvarAllow.BoolValue)
 	{
 		g_ttTankKilled ++;
@@ -7458,6 +7404,9 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 		g_sLastWeapon[subject][0] = EOS;
 	}
 	
+	if(g_bIsGamePlaying && IsValidClient(client) && (g_clSkill_3[client] & SKL_3_ReviveBonus) && client != subject)
+		GiveHelpBouns(client);
+	
 	if(g_iRoundEvent == 19)
 	{
 		ApplyHealthSwap(subject);
@@ -7516,54 +7465,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		}
 		if(g_bIsGamePlaying && client != subject && (g_clSkill_3[client] & SKL_3_ReviveBonus))
 		{
-			new RandomGiv = GetRandomInt(0, 11);
-			switch(RandomGiv)
-			{
-				case 0:
-				{
-					CheatCommand(client, "give", "adrenaline");
-
-					if(g_pCvarAllow.BoolValue)
-						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03肾上腺素\x04!");
-				}
-				case 1:
-				{
-					CheatCommand(client, "give", "pain_pills");
-
-					if(g_pCvarAllow.BoolValue)
-						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03止痛药\x04!");
-				}
-				case 2:
-				{
-					CheatCommand(client, "give", "molotov");
-
-					if(g_pCvarAllow.BoolValue)
-						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03燃烧瓶\x04!");
-				}
-				case 3:
-				{
-					CheatCommand(client, "upgrade_add", "INCENDIARY_AMMO");
-
-					if(g_pCvarAllow.BoolValue)
-						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03燃烧子弹\x04!");
-				}
-				case 4:
-				{
-					CheatCommand(client, "give", "defibrillator");
-
-					if(g_pCvarAllow.BoolValue)
-						PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03电击器\x04!");
-				}
-				case 5:
-				{
-					if(!GetRandomInt(0, 3))
-					{
-						GiveSkillPoint(client, 1);
-						if(g_pCvarAllow.BoolValue)
-							PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你救起队友随机获得了\x03天赋点一点\x04!");
-					}
-				}
-			}
+			GiveHelpBouns(client);
 		}
 	}
 	
@@ -7611,6 +7513,66 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	{
 		SetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 0);
 		SetEntProp(subject, Prop_Send, "m_isGoingToDie", 0);
+	}
+}
+
+void GiveHelpBouns(int client)
+{
+	new RandomGiv = GetRandomInt(0, 11);
+	switch(RandomGiv)
+	{
+		case 0:
+		{
+			CheatCommand(client, "give", "adrenaline");
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你帮助队友随机获得了\x03肾上腺素\x04!");
+		}
+		case 1:
+		{
+			CheatCommand(client, "give", "pain_pills");
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你帮助队友随机获得了\x03止痛药\x04!");
+		}
+		case 2:
+		{
+			CheatCommand(client, "give", "molotov");
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你帮助队友随机获得了\x03燃烧瓶\x04!");
+		}
+		case 3:
+		{
+			CheatCommand(client, "upgrade_add", "INCENDIARY_AMMO");
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你帮助队友随机获得了\x03燃烧子弹\x04!");
+		}
+		case 4:
+		{
+			CheatCommand(client, "give", "defibrillator");
+
+			if(g_pCvarAllow.BoolValue)
+				PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你帮助队友随机获得了\x03电击器\x04!");
+		}
+		case 5:
+		{
+			if(!GetRandomInt(0, 3))
+			{
+				GiveSkillPoint(client, 1);
+				if(g_pCvarAllow.BoolValue)
+					PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你帮助队友随机获得了\x03天赋点一点\x04!");
+			}
+		}
+		case 6:
+		{
+			int number = GetRandomInt(1, 10);
+			AddHealth(client, number, true, true);
+			
+			if(g_pCvarAllow.BoolValue)
+				PrintToChat(client, "\x03[\x05提示\x03]妙手天赋:\x04你帮助队友随机获得了\x03HP+%d\x04!", number);
+		}
 	}
 }
 
@@ -7739,7 +7701,7 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	
 	if(award == 81)
 	{
-		if(g_bIsGamePlaying && !g_pCvarAllow.BoolValue)
+		if(g_bIsGamePlaying && !g_pCvarAllow.BoolValue && g_pCvarTankDeath.BoolValue)
 			// 克局过后没有死亡
 			GiveSkillPoint(client, 1);
 
@@ -8797,7 +8759,6 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 						delete trace;
 						
 						// TODO: 计算暴击和额外伤害
-						// FIXME: 未触发 TraceAttack
 						if(iTarget > 0 && damage > 0.0 && GetVectorDistance(fBeamTwoStart, fBeamTwoEnd) <= L4D2_GetFloatWeaponAttribute(classname, L4D2FWA_Range))
 						{
 							// EmitSoundToAll(SOUND_IMPACT1, iTarget,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
@@ -8836,7 +8797,8 @@ public void Event_GiftPickup(Event event, const char[] eventName, bool dontBroad
 	if(!IsValidClient(client))
 		return;
 	
-	RewardPicker(client);
+	if(g_pCvarGiftChance.IntValue > 0)
+		RewardPicker(client);
 }
 
 public bool TraceRayDontHitTeam(int entity, int mask, any data)
@@ -9046,10 +9008,13 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 
 void RegPlayerHook(int client, bool fullHealth = false)
 {
-	int gravity = 100;
-	int maxSpeed = 100;
 	int baseMaxHealth = GetMaxHealth(client);
-	int maxHealth = baseMaxHealth;
+	
+	int damage, health, speed, gravity, crit;
+	CalcPlayerAttr(client, damage, health, speed, gravity, crit);
+	
+	int chance, minChDmg, maxChDmg, baseDmg;
+	CalcDamageExtra(client, chance, minChDmg, maxChDmg, baseDmg);
 	
 	{
 		Call_StartForward(g_fwOnUpdateStatus);
@@ -9066,57 +9031,15 @@ void RegPlayerHook(int client, bool fullHealth = false)
 			fullHealth = refFullHealth;
 	}
 	
-	for(int i = 0; i < sizeof(g_clCurEquip[]); ++i)
-	{
-		if(!g_clCurEquip[client][i])
-			continue;
-		
-		static char key[16];
-		IntToString(g_clCurEquip[client][i], key, sizeof(key));
-		
-		static EquipData_t data;
-		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
-			continue;
-		
-		if(data.health > 0)
-			maxHealth += (data.health * baseMaxHealth / 100);
-		
-		if(data.speed > 0)
-			maxSpeed += data.speed;
-		
-		if(data.gravity > 0)
-			gravity += data.gravity;
-	}
-	
-	if(g_clSkill_1[client] & SKL_1_MaxHealth)
-		maxHealth += 50;
-	
+	int maxHealth = (baseMaxHealth + (baseMaxHealth * health / 100));
 	SetEntProp(client, Prop_Data, "m_iMaxHealth", maxHealth);
-
-	if(fullHealth)
-	{
-		// 满血
-		SetEntProp(client, Prop_Data, "m_iHealth", maxHealth);
-		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
-
-		// 脱离黑白状态
-		SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
-		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
-	}
-
-	if(g_clSkill_1[client] & SKL_1_Movement)
-		maxSpeed += 10;
-
-	// SetEntPropFloat(client, Prop_Data, "m_flLaggedMovementValue", maxSpeed / 100.0);
-	// SetEntPropFloat(client, Prop_Data, "m_flMaxspeed", g_cvMaxSpeed.FloatValue * maxSpeed / 100.0);
-	g_fMaxSpeedModify[client] = maxSpeed / 100.0;
+	g_fMaxSpeedModify[client] = 1.0 + (speed / 100.0);
+	g_fMaxGravityModify[client] = 1.0 + (gravity / 100.0);
+	g_iDamageBase[client] = baseDmg;
+	g_iDamageChance[client] = chance;
+	g_iDamageChanceMax[client] = maxChDmg;
+	g_iDamageChanceMin[client] = minChDmg;
 	
-	if(g_clSkill_1[client] & SKL_1_Gravity)
-		gravity += 20;
-
-	// SetEntityGravity(client, gravity / 100.0);
-	g_fMaxGravityModify[client] = gravity / 100.0;
-
 	float curTime = GetEngineTime();
 	g_ctPainPills[client] = (g_clSkill_2[client] & SKL_2_PainPills ? curTime + 120.0 : 0.0);
 	g_ctPipeBomb[client] = (g_clSkill_2[client] & SKL_2_PipeBomb ? curTime + 100.0 : 0.0);
@@ -9126,7 +9049,19 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	g_ctGodMode[client] = (g_clSkill_3[client] & SKL_3_GodMode ? curTime + 80.0 : 0.0);
 	g_ctConvTemp[client] = (g_clSkill_4[client] & SKL_4_TempRespite ? curTime + 2.0 : 0.0);
 	g_csHasGodMode[client] = false;
-
+	
+	if(fullHealth)
+	{
+		// 满血
+		SetEntProp(client, Prop_Data, "m_iHealth", maxHealth);
+		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
+		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		
+		// 脱离黑白状态
+		SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
+		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
+	}
+	
 	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	// SDKUnhook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
@@ -9605,7 +9540,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			AddAmmo(client, 1, ammoType, true);
 			hasGetAmmo = true;
 		}
-		else if((g_clSkill_3[client] & SKL_3_Accurate) && clip == maxClip)
+		else if(((g_clSkill_3[client] & SKL_3_Accurate) && clip == maxClip) ||							// 第一枪一定会暴击
+			((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= GetEngineTime()))		// 潜行攻击
 		{
 			// 只有非无限子弹才生效
 			g_bAccurateShot[client] = true;
@@ -10232,6 +10168,9 @@ public Action:SoH_ShotgunEndCock (Handle:timer, any:hPack)
 
 void OnSkillAttach(int client, int level, int skill)
 {
+	if(!g_bIsGamePlaying)
+		return;
+	
 	if(level == 4 && skill == SKL_4_SniperExtra)
 		CheatCommand(client, "give", "sniper_awp");
 	else if(level == 4 && skill == SKL_4_MachStrafe)
@@ -10249,11 +10188,15 @@ void OnSkillAttach(int client, int level, int skill)
 	else if(level == 4 && skill == SKL_4_Terror)
 		CheatCommand(client, "give", "vomitjar");
 	else if(level == 3 && skill == SKL_3_MoreAmmo)
-		CheatCommand(client, "give", "ammo");
+		AddAmmo(client, 999);
 	else if(level == 4 && skill == SKL_4_ClipSize)
-		CheatCommand(client, "give", "ammo");
+		AddAmmo(client, 999);
 	else if(level == 2 && skill == SKL_2_HealBouns)
 		CheatCommand(client, "give", "first_aid_kit");
+	else if(level == 1 && skill == SKL_1_NoRecoil)
+		CheatCommand(client, "upgrade_add", "LASER_SIGHT");
+	else if(level == 1 && skill == SKL_1_Armor)
+		AddArmor(client, 100);
 }
 
 stock bool AddHealth(int client, int amount, bool limit = true, bool conv = false)
@@ -11161,7 +11104,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if(!(g_clSkill_2[client] & SKL_2_IncapCrawling) && !g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue && GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
 		{
 			// 禁止自带的倒地爬行
-			buttons &= ~(IN_FORWARD|IN_LEFT|IN_RIGHT|IN_BACK|IN_MOVELEFT|IN_MOVERIGHT);
+			buttons &= ~IN_FORWARD;
 		}
 	}
 
@@ -12547,7 +12490,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 					EmitSoundToClient(i,g_soundLevel,client);
 					if(IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS) g_clSkill_3[client] |= SKL_3_ReviveBonus;
 				}
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04发动魔法卡:\x03技能获取\x04,全队获得天赋\x03妙手-救起队友时随机获得物品或天赋点\x04.", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04发动魔法卡:\x03技能获取\x04,全队获得天赋\x03妙手-帮助队友时随机获得物品或天赋点\x04.", client);
 			}
 			case 36:
 			{

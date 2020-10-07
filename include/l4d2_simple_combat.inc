@@ -50,7 +50,7 @@ forward void SC_OnGainExperiencePost(int client, int amount);
 forward Action SC_OnGainCashPre(int client, int& amount);
 forward void SC_OnGainCashPost(int client, int amount);
 
-// 战斗状态回调
+// 战斗相关回调
 forward Action SC_OnCombatStartPre(int client);
 forward void SC_OnCombatStartPost(int client);
 forward Action SC_OnCombatEndPre(int client);
@@ -58,7 +58,7 @@ forward void SC_OnCombatEndPost(int client);
 forward Action SC_OnDamagePre(int attacker, int victim, float& damage, int& damageType, float& plusDamage, float& minusDamage);
 forward void SC_OnDamagePost(int attacker, int victim, float damage, int damageType, float plusDamage, float minusDamage);
 
-// 保存读取回调
+// 保存读取相关回调
 forward Action SC_OnSavePre(int client, int userId, bool mysql);
 forward void SC_OnSavePost(int client, int userId, bool mysql);
 forward Action SC_OnLoadPre(int client, int userId, bool mysql);
@@ -86,8 +86,8 @@ forward Action SC_OnSkillDisplay(int client, const char[] classname, char[] disp
 forward Action SC_OnSpellDescription(int client, const char[] classname, char[] description, int descriptionMaxLength);
 #pragma deprecated 使用 SC_OnSkillGetInfo 代替
 forward Action SC_OnSkillDescription(int client, const char[] classname, char[] description, int descriptionMaxLength);
-forward Action SC_OnSpellGetInfo(int client, const char[] classname, char[] display, int displayMaxLength, char[] description, int descriptionMaxLength);
-forward Action SC_OnSkillGetInfo(int client, const char[] classname, char[] display, int displayMaxLength, char[] description, int descriptionMaxLength);
+forward Action SC_OnSpellGetInfo(int client, const char[] classname, char[] display, int displayMaxLength, char[] description, int descriptionMaxLength, char[] verbose, int verboseMaxLength);
+forward Action SC_OnSkillGetInfo(int client, const char[] classname, char[] display, int displayMaxLength, char[] description, int descriptionMaxLength, char[] verbose, int verboseMaxLength);
 
 // 主菜单项目
 native int SC_AddMainMenuItem(const char[] info, const char[] display);
@@ -168,7 +168,7 @@ forward void SC_OnGainSpellPost(int client, const char[] classname);
 // 参数 3 = 使用(释放)消耗多少魔力
 // 参数 4 = 购买价格
 // 参数 5 = 介绍
-native int SC_CreateSpell(const char[] classname, const char[] display, int consume, int cost, const char[] description="");
+native int SC_CreateSpell(const char[] classname, const char[] display, int consume, int cost, const char[] description="", const char[] verbose="");
 
 // 搜索法术，索引不保证长期有效
 native int SC_FindSpell(const char[] classname);
@@ -234,9 +234,9 @@ forward void SC_OnLostSkillPost(int client, const char[] oldClassname, const cha
 // 创建技能
 // 参数 1 = 类名，需要保证唯一
 // 参数 2 = 显示的名字
-// 参数 3 = 适用的 m_zombieClass 范围，不知道就给 0
+// 参数 3 = 适用的 m_zombieClass 范围，通用传0
 // 参数 4 = 介绍
-native int SC_CreateSkill(const char[] classname, const char[] display, int zombieType, const char[] description);
+native int SC_CreateSkill(const char[] classname, const char[] display, int zombieType=0, const char[] description="", const char[] verbose="");
 
 // 寻找技能
 native int SC_FindSkill(const char[] classname);

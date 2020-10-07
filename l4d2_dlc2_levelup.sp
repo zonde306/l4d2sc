@@ -1466,9 +1466,10 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 			if(g_pCvarSurvivorBot.BoolValue && IsFakeClient(i))
 			{
 				GenerateRandomStats(i, g_pCvarSurvivorBot.IntValue > 1);
-				RegPlayerHook(i, g_Cvarhppack.BoolValue);
 				PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", i, CalcPlayerPower(i));
 			}
+			
+			RegPlayerHook(i, g_Cvarhppack.BoolValue);
 		}
 	}
 	

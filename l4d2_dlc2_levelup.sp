@@ -433,7 +433,8 @@ int g_iWeaponSpeedTotal = 0;
 bool g_bIsPluginCrawling = false;
 
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
-	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath, g_pCvarReimburse;
+	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath, g_pCvarReimburse,
+	g_pCvarSurvivorBot, g_pCvarInfectedBot;
 
 ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hCvarBurnExpert, g_hCvarReviveHealth,
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
@@ -613,6 +614,8 @@ public OnPluginStart()
 	g_pCvarAS = CreateConVar("lv_enable_as", "1", "是否开启怒气技功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSaveStatus = CreateConVar("lv_save_status", "0", "保存奖励计数", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "1", "是否为生还者机器人生存随机属性.0=禁用.1=启用.2=启用+强化", FCVAR_NONE, true, 0.0, true, 2.0);
+	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "1", "是否为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+强化", FCVAR_NONE, true, 0.0, true, 2.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
@@ -1459,7 +1462,7 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 		{
 			g_bSurvivalStarter[i] = true;
 			
-			if(IsFakeClient(i))
+			if(g_pCvarSurvivorBot.BoolValue && IsFakeClient(i))
 			{
 				GenerateRandomStats(i);
 				RegPlayerHook(i, g_Cvarhppack.BoolValue);
@@ -8905,7 +8908,14 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 			ClientSaveToFileSave(client, g_pCvarSaveStatus.BoolValue);
 		}
 	}
-	else if(newTeam == 2 && g_pCvarAllow.BoolValue)
+	else if(newTeam == 2 && g_pCvarSurvivorBot.BoolValue)
+	{
+		GenerateRandomStats(client);
+		// RegPlayerHook(client, false);
+		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
+		PrintToServer("为生还者机器人 %N 生成随机属性", client);
+	}
+	else if(newTeam == 3 && g_pCvarInfectedBot.BoolValue)
 	{
 		GenerateRandomStats(client);
 		// RegPlayerHook(client, false);

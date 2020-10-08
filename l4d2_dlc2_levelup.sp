@@ -624,7 +624,7 @@ public OnPluginStart()
 	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒)，过期无法读档.0=无限", FCVAR_NONE, true, 0.0);
 	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
 	g_pCvarStartPoints = CreateConVar("lv_starter_points","3", "初始天赋点数量", FCVAR_NONE, true, 0.0, true, 30.0);
-	g_pCvarReimburse = CreateConVar("lv_expired_reimburse","1000", "存档过期战斗力补偿(补偿点数=先前战斗力/补偿数值).0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarReimburse = CreateConVar("lv_expired_reimburse","1750", "存档过期战斗力补偿(补偿点数=先前战斗力/补偿数值).0=禁用", FCVAR_NONE, true, 0.0);
 	
 	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
@@ -3550,8 +3550,11 @@ int CalcEquipPower(EquipData_t data)
 		power += 250;
 	if(data.effect == 8)
 		power += 5 * 4;
+	
+	/*
 	if(data.prefix == EquipPrefix_Lucky)
 		power += 2 * 4;
+	*/
 	
 	power += data.damage * 5;
 	power += data.health * 8;
@@ -4267,7 +4270,7 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 			{
 				data.damage += GetRandomInt(-1, 3);
 				data.health += GetRandomInt(-1, 5);
-				data.speed += GetRandomInt(-15, 30);
+				data.speed += GetRandomInt(-5, 10);
 				data.gravity += GetRandomInt(-5, 10);
 			}
 		}
@@ -4281,11 +4284,11 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 			case EquipPrefix_Water:
 				data.health += GetRandomInt(1, 10);
 			case EquipPrefix_Sky:
-				data.gravity += GetRandomInt(1, 10);
+				data.gravity += GetRandomInt(1, 5);
 			case EquipPrefix_Wind:
-				data.speed += GetRandomInt(1, 10);
+				data.speed += GetRandomInt(1, 5);
 			case EquipPrefix_Lucky:
-				data.crit += GetRandomInt(1, 10);
+				data.crit += GetRandomInt(1, 5);
 		}
 		
 		RebuildEquipStr(data);
@@ -5326,9 +5329,11 @@ void CalcDamageExtra(int attacker, int& chance, int& minChDmg, int& maxChDmg, in
 		if(data.effect == 8)
 			chance += 5;
 		
+		/*
 		// 装备前缀
 		if(data.prefix == EquipPrefix_Lucky)
 			chance += 2;
+		*/
 		
 		// 装备伤害
 		if(data.damage > 0)
@@ -8528,6 +8533,9 @@ public void NotifyWeaponRange(any pack)
 	char classname[64];
 	int client = data.ReadCell();
 	data.ReadString(classname, 64);
+	
+	if(!IsValidAliveClient(client))
+		return;
 	
 	int weapon = -1;
 	bool isMelee = false;
@@ -14021,8 +14029,11 @@ stock void CalcPlayerAttr(int client, int& damage = 0, int& health = 0, int& spe
 		{
 			if(data.effect == 8)
 				crit += 5;
+			
+			/*
 			if(data.prefix == EquipPrefix_Lucky)
 				crit += 2;
+			*/
 		}
 	}
 	

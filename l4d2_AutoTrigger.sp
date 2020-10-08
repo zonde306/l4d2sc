@@ -21,14 +21,20 @@ new bool:WarpTriggerTwo;
 new bool:WarpTriggerThree;
 new bool:WarpTriggerFour;
 new TriggeringBot;
-
 new bool:GameRunning;
-
+new bool:ScavengeRoundStarted;
 new bool:FinaleHasStarted;
+new bool:EscapeReady;
+new bool:ConfirmFinaleTank1Death;
+new bool:ConfirmFinaleTank2Death;
+new bool:ConfirmPourFinale;
+new bool:ConfirmPourFinale2;
+new bool:GameOver;
+
 
 public Plugin:myinfo =
 {
-	name = "机器人自动开机关",
+	name = "机器人自动触发",
 	author = "Xanaguy",
 	description = "An improved version of ijj's variant of the L4D2 Survivor AI Auto Trigger",
 	version = PLUGIN_VERSION,
@@ -42,10 +48,17 @@ public OnPluginStart()
 	CreateTimer(3.0, CheckAroundTriggers, 0, TIMER_REPEAT);
 	
 	HookEvent("finale_start", FinaleBegins);
+	HookEvent("scavenge_round_start", ConfirmScavenge);
+	HookEvent("scavenge_round_halftime", GameEnds);
+	HookEvent("scavenge_round_finished", GameEnds);
 	HookEvent("round_end", GameEnds);
 	HookEvent("map_transition", GameEnds);
 	HookEvent("mission_lost", GameEnds);
 	HookEvent("finale_win", GameEnds);
+	HookEvent("round_start_pre_entity", GameEnds);
+	HookEvent("finale_vehicle_ready", EscapeTheHorde);
+	HookEvent("tank_killed", ConfirmTankDeath);
+	HookEvent("gascan_pour_completed", ConfirmFinalePour);
 }
 
 public OnMapStart()
@@ -59,6 +72,13 @@ public OnMapStart()
 	WarpTriggerThree = false;
 	WarpTriggerFour = false;
 	FinaleHasStarted = false;
+	ScavengeRoundStarted = false;
+	EscapeReady = false;
+	ConfirmFinaleTank1Death = false;
+	ConfirmFinaleTank2Death = false;
+	ConfirmPourFinale = false;
+	ConfirmPourFinale2 = false;
+	GameOver = false;
 }
 
 public OnMapEnd()
@@ -71,6 +91,14 @@ public OnMapEnd()
 	WarpTriggerTwo = false;
 	WarpTriggerThree = false;
 	WarpTriggerFour = false;
+	FinaleHasStarted = false;
+	ScavengeRoundStarted = false;
+	EscapeReady = false;
+	ConfirmFinaleTank1Death = false;
+	ConfirmFinaleTank2Death = false;
+	ConfirmPourFinale = false;
+	ConfirmPourFinale2 = false;
+	GameOver = false;
 }
 
 public OnClientConnected(client)
@@ -117,13 +145,64 @@ public OnClientDisconnect_Post(client)
 
 public Action:GameEnds(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	CreateTimer(7.0, DelayedBoolReset, 0);
+	CreateTimer(7.0, DelayedBoolReset);
+	GameOver = true;
 	FinaleHasStarted = false;
 }
 
 public Action:FinaleBegins(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	FinaleHasStarted = true;
+}
+
+public Action:EscapeTheHorde(Handle:event, String:name[], bool:dontBroadcast)
+{
+	EscapeReady = true;
+}
+
+public Action:ConfirmScavenge(Handle:event, String:name[], bool:dontBroadcast)
+{
+	ScavengeRoundStarted = true;
+}
+
+public Action:ScavengeHalfTime(Handle:event, String:name[], bool:dontBroadcast)
+{
+	ScavengeRoundStarted = false;
+}
+
+public Action:ScavengeRoundConcluded(Handle:event, String:name[], bool:dontBroadcast)
+{
+	ScavengeRoundStarted = false;
+}
+
+public Action:ConfirmTankDeath(Handle:event, String:name[], bool:dontBroadcast)
+{
+	if (FinaleHasStarted)
+	{
+		ConfirmFinaleTank1Death = true;
+	}
+	else
+	{
+		if (FinaleHasStarted && ConfirmFinaleTank1Death)
+		{
+			ConfirmFinaleTank2Death = true;
+		}
+	}
+}
+
+public Action:ConfirmFinalePour(Handle:event, String:name[], bool:dontBroadcast)
+{
+	if (FinaleHasStarted)
+	{
+		ConfirmPourFinale = true;
+	}
+	else
+	{
+		if (FinaleHasStarted && ConfirmPourFinale)
+		{
+			ConfirmPourFinale2 = true;
+		}
+	}
 }
 
 public Action:DelayedBoolReset(Handle:Timer)
@@ -136,6 +215,9 @@ public Action:DelayedBoolReset(Handle:Timer)
 	WarpTriggerTwo = false;
 	WarpTriggerThree = false;
 	WarpTriggerFour = false;
+	FinaleHasStarted = false;
+	EscapeReady = false;
+	GameOver = false;
 }
 
 public Action:CheckAroundTriggers(Handle:timer)
@@ -143,6 +225,8 @@ public Action:CheckAroundTriggers(Handle:timer)
 	if (!GameRunning) return Plugin_Continue;
 		
 	if (!AllBotTeam()) return Plugin_Continue;
+	
+	if (GameOver) return Plugin_Continue;
 	
 
 	decl String:mapname[64];
@@ -162,9 +246,9 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 400.0) && !WarpTrigger)
 		{
-			//PrintToServer("[AutoTrigger] Bot found stuck near supermarket, initiating in 10 seconds.");
-			//PrintToServer("[AutoTrigger] Crescendo will end 60 seconds after that.");
-			PrintToServer("[AutoTrigger] The bots will deliver Whitaker's Cola...");
+			//PrintToChatAll("\x04[AutoTrigger] \x01Bot found stuck near supermarket, initiating in 10 seconds.");
+			//PrintToChatAll("\x04[AutoTrigger] \x01Crescendo will end 60 seconds after that.");
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots will deliver Whitaker's Cola...");
 
 			// position cola: -7377.6 -1372.1 427.2
 			new Handle:posonedata = CreateDataPack();
@@ -194,7 +278,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(gunshop, posx);
 			if (CheckforBots(posx, 200.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] Just in case the bots fail to call Whitaker the first time...");
+				PrintToChatAll("\x04[AutoTrigger] \x01Just in case the bots fail to call Whitaker the first time...");
 				
 				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gunshop_door_button", "Press");
 				
@@ -218,9 +302,9 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(door, pos1);
 			if (CheckforBots(pos1, 200.0) && !MapTrigger)
 			{
-				//PrintToServer("[AutoTrigger] Bot found close to the Emergency Door, open sesame...");
-				//PrintToServer("[AutoTrigger] Warping them all ahead in 30 seconds.");
-				PrintToServer("[AutoTrigger] They open the door...");
+				//PrintToChatAll("\x04[AutoTrigger] \x01Bot found close to the Emergency Door, open sesame...");
+				//PrintToChatAll("\x04[AutoTrigger] \x01Warping them all ahead in 30 seconds.");
+				PrintToChatAll("\x04[AutoTrigger] \x01They open the door...");
 
 				AcceptEntityInput(door, "Open");
 
@@ -242,9 +326,9 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(glass, pos2);
 			if (CheckforBots(pos2, 500.0) && !MapTrigger)
 			{
-				//PrintToServer("[AutoTrigger] Bot found close to the Alarmed Windows, open sesame...");
-				//PrintToServer("[AutoTrigger] Warping them all ahead in 30 seconds.");
-				PrintToServer("[AutoTrigger] They shoot out the store window...");
+				//PrintToChatAll("\x04[AutoTrigger] \x01Bot found close to the Alarmed Windows, open sesame...");
+				//PrintToChatAll("\x04[AutoTrigger] \x01Warping them all ahead in 30 seconds.");
+				PrintToChatAll("\x04[AutoTrigger] \x01They shoot out the store window...");
 
 				new Handle:posxdata = CreateDataPack();
 				WritePackFloat(posxdata, 1207.4);
@@ -264,9 +348,9 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(escalator, pos3);
 			if (CheckforBots(pos3, 500.0) && !WarpTrigger)
 			{
-				//PrintToServer("[AutoTrigger] Bot found close to the Alarmed Windows, open sesame...");
-				//PrintToServer("[AutoTrigger] Warping them all ahead in 30 seconds.");
-				PrintToServer("[AutoTrigger] They can't go up that escalator thanks to nav... Warping...");
+				//PrintToChatAll("\x04[AutoTrigger] \x01Bot found close to the Alarmed Windows, open sesame...");
+				//PrintToChatAll("\x04[AutoTrigger] \x01Warping them all ahead in 30 seconds.");
+				PrintToChatAll("\x04[AutoTrigger] \x01They can't go up that escalator thanks to nav... Warping...");
 
 				new Handle:posxdata = CreateDataPack();
 				WritePackFloat(posxdata, -537.854309);
@@ -291,7 +375,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 		if (CheckforBots(pos1, 200.0) && !MapTrigger)
 		{
-			//PrintToServer("[AutoTrigger] TEST01.");
+			//PrintToChatAll("\x04[AutoTrigger] \x01TEST01.");
 			CreateTimer(5.0, BotsUnstick);
 			MapTrigger = true;
 		}
@@ -303,7 +387,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos2, 200.0) && !MapTriggerTwo)
 		{
-			//PrintToServer("[AutoTrigger] TEST02.");
+			//PrintToChatAll("\x04[AutoTrigger] \x01TEST02.");
 			CreateTimer(10.0, BotsStick);
 			MapTriggerTwo = true;
 		}
@@ -332,12 +416,12 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 			if (CheckforBots(pos1, 250.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] They activate The Screaming Oak...");
+				PrintToChatAll("\x04[AutoTrigger] \x01They activate The Screaming Oak...");
 				AcceptEntityInput(button, "Press");
 				
 				if (!IsVersus())
 				{
-					PrintToServer("[AutoTrigger] Campaign Survivor Bots suck at traversing the coaster. They will be warped in 3 minutes...");
+					PrintToChatAll("\x04[AutoTrigger] \x01Campaign Survivor Bots suck at traversing the coaster. They will be warped in 3 minutes...");
 					new Handle:postwodata = CreateDataPack();
 					WritePackFloat(postwodata, -3572.179443);
 					WritePackFloat(postwodata, 1450.377319);
@@ -346,7 +430,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 				}
 				MapTrigger = true;
 
-				//CreateTimer(250.0, C2M3WarpAllBotToThere, 0);
+				//CreateTimer(250.0, C2M3WarpAllBotToThere);
 			}
 		}
 	
@@ -359,7 +443,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		// to: -4315.1 2311.4 313.2
 		if (CheckforBots(posx, 200.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] The coaster alarm has been disabled!");
+			PrintToChatAll("\x04[AutoTrigger] \x01The coaster alarm has been disabled!");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, -4315.1);
@@ -385,7 +469,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 200.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] Lights...");
+			PrintToChatAll("\x04[AutoTrigger] \x01Lights...");
 			//AcceptEntityInput(lightsbutton, "Press");
 			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "stage_lights_button", "Use");
 			MapTrigger = true;
@@ -405,7 +489,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			SetConVarInt(FindConVar("sb_unstick"), 0);
 			MapTrigger = true;
 
-			PrintToServer("[AutoTrigger] The ferry was called...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The ferry was called...");
 	
 			CreateTimer(150.0, BotsUnstick);
 		}
@@ -435,22 +519,22 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 200.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] The plank will be lowered...");
-				
-			new Handle:posonedata = CreateDataPack();
-			WritePackFloat(posonedata, -358.478455);
-			WritePackFloat(posonedata, -4138.272461);
-			WritePackFloat(posonedata, 79.031250);
-			CreateTimer(15.0, WarpAllBots, posonedata);
-			CreateTimer(15.0, BridgeMiniFinale);
-				
-			new Handle:postwodata = CreateDataPack();
-			WritePackFloat(postwodata, -40.596180);
-			WritePackFloat(postwodata, -4241.562500);
-			WritePackFloat(postwodata, 110.183243);
-			CreateTimer(30.0, WarpAllBots, postwodata);
-				
-			WarpTrigger = true;
+		PrintToChatAll("\x04[AutoTrigger] \x01The plank will be lowered...");
+			
+		new Handle:posonedata = CreateDataPack();
+		WritePackFloat(posonedata, -358.478455);
+		WritePackFloat(posonedata, -4138.272461);
+		WritePackFloat(posonedata, 79.031250);
+		CreateTimer(15.0, WarpAllBots, posonedata);
+		CreateTimer(15.0, BridgeMiniFinale);
+			
+		new Handle:postwodata = CreateDataPack();
+		WritePackFloat(postwodata, -40.596180);
+		WritePackFloat(postwodata, -4241.562500);
+		WritePackFloat(postwodata, 110.183243);
+		CreateTimer(30.0, WarpAllBots, postwodata);
+			
+		WarpTrigger = true;
 		}
 
 	}
@@ -469,7 +553,12 @@ public Action:CheckAroundTriggers(Handle:timer)
 		// finale balcony coordinates - getpos 1524.9 1937.5 188.1	
 		if (CheckforBots(pos1, 300.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] Virgil has been contacted...");
+			PrintToChatAll("\x04[AutoTrigger] \x01Virgil has been contacted...");
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, 1667.1);
+			WritePackFloat(posonedata, -114.4);
+			WritePackFloat(posonedata, 286.0);
+			CreateTimer(0.1, WarpAllBots, posonedata);
 			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "escape_gate_button", "Press");
 			//AcceptEntityInput(button, "Press");
 			MapTrigger = true;
@@ -490,7 +579,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		// confusion spot -1413.3 -9390.2 671.1
 		if (CheckforBots(pos1, 200.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] Here comes the elevator...");
+			PrintToChatAll("\x04[AutoTrigger] \x01Here comes the elevator...");
 			SetConVarInt(FindConVar("sb_unstick"), 0);
 			MapTrigger = true;
 		}
@@ -532,7 +621,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 100.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] They are ready to run for the tower...");
+			PrintToChatAll("\x04[AutoTrigger] \x01They are ready to run for the tower...");
 			/*
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, pos1[0]);
@@ -563,7 +652,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (!IsValidEntity(button) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The tractor has started!");
+			PrintToChatAll("\x04[AutoTrigger] \x01The tractor has started!");
 			//CreateTimer(100.0, C5M4BotsActions);
 			MapTrigger = true;
 			
@@ -580,7 +669,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		pos1[2] = 302.0;
 		if (CheckforBots(pos1, 100.0) && !MapTriggerTwo)
 		{
-			PrintToServer("[AutoTrigger] 15秒后恢复。");
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots move on...");
 			CreateTimer(5.0, ResumeBotsActions);
 			MapTriggerTwo = true;
 		}
@@ -607,7 +696,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 			if (CheckforBots(pos1, 200.0) && !MapTrigger)
 			{
-				//PrintToServer("[AutoTrigger] C5M5FinaleTrigger.");
+				//PrintToChatAll("\x04[AutoTrigger] \x01C5M5FinaleTrigger.");
 				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio_fake_button", "Use");
 				//AcceptEntityInput(button, "Press");
 				
@@ -630,7 +719,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		// to: 36.9 1888.7 -1.9;
 		if (CheckforBots(posx, 200.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] The bots proceed...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots proceed...");
 
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, 36.9);
@@ -655,7 +744,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos3, 200.0) && !WarpTriggerTwo && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] A fail-safe has been activated.");
+			PrintToChatAll("\x04[AutoTrigger] \x01A fail-safe has been activated.");
 
 			new Handle:postwodata = CreateDataPack();
 			WritePackFloat(postwodata, 7106.062012);
@@ -680,12 +769,12 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 			if (CheckforBots(pos1, 150.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] Someone opens the door...");
+				PrintToChatAll("\x04[AutoTrigger] \x01Someone opens the door...");
 				AcceptEntityInput(button, "Press");
 				if (!IsVersus())
-				CreateTimer(5.0, TankDoor01COOP, 0);
+				CreateTimer(5.0, TankDoor01COOP);
 				else if (!IsCoop())
-				CreateTimer(5.0, TankDoor01VERSUS, 0);
+				CreateTimer(5.0, TankDoor01VERSUS);
 
 				MapTrigger = true;
 			}
@@ -702,9 +791,9 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 			if (CheckforBots(pos2, 100.0) && !MapTriggerTwo)
 			{
-				PrintToServer("[AutoTrigger] The bots move on...");
+				PrintToChatAll("\x04[AutoTrigger] \x01The bots move on...");
 				AcceptEntityInput(FindEntityByName("tankdoorout_button", -1), "Press");
-				CreateTimer(5.0, TankDoor02, 0);
+				CreateTimer(5.0, TankDoor02);
 				MapTriggerTwo = true;
 			}
 		}
@@ -715,7 +804,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		posx[2] = 200.843201;
 		if (CheckforBots(posx, 200.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] The bots must go around these barrels...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots must go around these barrels...\x01");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, 5030.492676);
@@ -737,7 +826,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		// to: -5408.7 858.6 696.4
 		if (CheckforBots(posx, 200.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] Thanks to the Scavenge exclusive ladder on the ship, the bots will instead be warped to the top of the pile of crap. This will result in the panic event.\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01Thanks to the Scavenge exclusive ladder on the ship, the bots will instead be warped to the top of the pile of crap. This will result in the panic event.\x01");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, -5408.7);
@@ -763,7 +852,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 			if (CheckforBots(pos1, 300.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] Bot found close to the first generator button, pressing...");
+				PrintToChatAll("\x04[AutoTrigger] \x01They see the boat and start the first generator.");
 				AcceptEntityInput(FindEntityByName("finale_start_button", -1), "Press");
 				CreateTimer(5.0, C7M3GeneratorStart);
 				MapTrigger = true;
@@ -783,7 +872,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 			if (CheckforBots(pos1, 300.0) && !MapTriggerTwo)
 			{
-				PrintToServer("[AutoTrigger] Bot found close to the second generator button, pressing...");
+				PrintToChatAll("\x04[AutoTrigger] \x01The second generator starts...");
 				AcceptEntityInput(FindEntityByName("finale_start_button1", -1), "Press");
 				CreateTimer(5.0, C7M3GeneratorStart1);
 				MapTriggerTwo = true;
@@ -803,7 +892,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 			if (CheckforBots(pos1, 300.0) && !MapTriggerThree)
 			{
-				PrintToServer("[AutoTrigger] Bot found close to the third generator button, pressing...");
+				PrintToChatAll("\x04[AutoTrigger] \x01The third generator starts...");
 				AcceptEntityInput(FindEntityByName("finale_start_button2", -1), "Press");
 				CreateTimer(5.0, C7M3GeneratorStart2);
 				MapTriggerThree = true;
@@ -817,21 +906,64 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(pos1, 100.0) && !MapTriggerFourth)
 		{
-			PrintToServer("[AutoTrigger] Bot found at a stuck spot, warping them all ahead in 10 seconds");
+			PrintToChatAll("\x04[AutoTrigger] \x01They're on the bridge...");
 		
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, -123.2);
 			WritePackFloat(posdata, -1747.9);
 			WritePackFloat(posdata, 314.0);
 			CreateTimer(10.0, WarpAllBots, posdata);
-			CreateTimer(12.0, C7M3BridgeStartButton, 0);
+			CreateTimer(12.0, C7M3BridgeStartButton);
 
 			MapTriggerFourth = true;
 
-			CreateTimer(30.0, C7M3GeneratorFinaleButtonStart, 0);
+			CreateTimer(30.0, C7M3GeneratorFinaleButtonStart);
 		}
 	}
 	
+	if (StrContains(mapname, "c8m3_sewers", false) != -1)
+	{
+		new c8m3button = FindEntityByName("washer_lift_button2", -1);
+		
+		if (!IsValidEntity(c8m3button))
+		{
+			WarpTrigger = true;
+		}
+		else
+		{
+			decl Float:pos1[3];
+			GetEntityAbsOrigin(c8m3button, pos1);
+			
+			if (CheckforBots(pos1, 200.0) && !WarpTrigger)
+			{
+				if (IsCoop())
+				{
+					PrintToChatAll("\x04[AutoTrigger] \x01The bots will teleport to after the hole drop in 60 seconds.\x01");
+			
+					new Handle:posdata = CreateDataPack();
+					WritePackFloat(posdata, 10837.338867);
+					WritePackFloat(posdata, 6953.696777);
+					WritePackFloat(posdata, 200.227829);
+					CreateTimer(60.0, WarpAllBots, posdata);
+					
+					WarpTrigger = true;
+				}
+				if (IsVersus())
+				{
+					PrintToChatAll("\x04[AutoTrigger] \x01The bots will teleport to after the hole drop in 45 seconds.\x01");
+			
+					new Handle:posdata = CreateDataPack();
+					WritePackFloat(posdata, 10837.338867);
+					WritePackFloat(posdata, 6953.696777);
+					WritePackFloat(posdata, 200.227829);
+					CreateTimer(45.0, WarpAllBots, posdata);
+					
+					WarpTrigger = true;
+				}
+			}
+		}
+	}
+		
 	if (StrContains(mapname, "c9m2_lots", false) != -1)
 	{
 		// Crash Course 02
@@ -852,14 +984,14 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 			if (CheckforBots(pos1, 500.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] Starting the generator...");
+				PrintToChatAll("\x04[AutoTrigger] \x01Starting the generator...");
 				AcceptEntityInput(button, "Press");
-				CreateTimer(5.0, GeneratorStart, 0);
+				CreateTimer(5.0, GeneratorStart);
 				MapTrigger = true;
 
 				// Crash Cause 02 - Generator Second Start
-				CreateTimer(205.0, GeneratorStartTwoReady, 0);
-				CreateTimer(210.0, GeneratorStartTwo, 0);
+				CreateTimer(205.0, GeneratorStartTwoReady);
+				CreateTimer(210.0, GeneratorStartTwo);
 			}
 		}
 	}
@@ -874,7 +1006,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(posx, 200.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] Just in case the bots are trying to get in through the window...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01Just in case the bots are trying to get in through the window...\x01");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, -7326.758301);
@@ -896,7 +1028,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(pos1, 200.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The forklift lowers...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The forklift lowers...");
 			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button", "Use");
 			MapTrigger = true;
 		}
@@ -916,13 +1048,13 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(pos1, 400.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] John Slater has been contacted...");
+			PrintToChatAll("\x04[AutoTrigger] \x01John Slater has been contacted...");
 			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio_button", "Use");
 			//UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "orator_boat_radio", "Kill");
 
 			MapTrigger = true;
 
-			CreateTimer(20.0, C10M5FinaleStart, 0);
+			CreateTimer(20.0, C10M5FinaleStart);
 		}
 	}
 
@@ -943,7 +1075,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 	
 		if (CheckforBots(pos1, 900.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The barricade is burning...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
 			AcceptEntityInput(gascans, "Ignite");
 			MapTrigger = true;
 		}
@@ -955,11 +1087,22 @@ public Action:CheckAroundTriggers(Handle:timer)
 		// pos -5033.4 9164.0 -129.9
 		
 		new button = FindEntityByName("radio_fake_button", -1);
-
-		if (!IsValidEntity(button) && !MapTrigger)
+		
+		if ((button == -1) && !MapTrigger && !FinaleHasStarted)
 		{
-			//PrintToServer("[AutoTrigger] Preparing to fuel the plane...");
-			CreateTimer(20.0, C11M5FinaleStart, 0);
+			PrintToChatAll("\x04[AutoTrigger] \x01Preparing to fuel the plane...");
+			CreateTimer(20.0, C11M5FinaleStart);
+			MapTrigger = true;
+		}
+		
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(button, pos1);
+
+		if (CheckforBots(pos1, 1500.0) && !MapTrigger && !FinaleHasStarted)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio_fake_button", "Press");
+			PrintToChatAll("\x04[AutoTrigger] \x01Preparing to fuel the plane...");
+			CreateTimer(20.0, C11M5FinaleStart);
 			MapTrigger = true;
 		}
 	}
@@ -984,7 +1127,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		*/
 		if (CheckforBots(posdoor, 300.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] Opening the door...");
+			PrintToChatAll("\x04[AutoTrigger] \x01Opening the door...");
 			MapTrigger = true;
 			
 			//TeleportEntity(TriggeringBot, postriggerer, anglestriggerer, NULL_VECTOR); // move bot infront of the door, facing it
@@ -1002,7 +1145,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(posx, 200.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] Bots are going to derail the train car...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01Bots are going to derail the train car...\x01");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, 8254.743164);
@@ -1024,7 +1167,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(posx, 100.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The bunker opens...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The bunker opens...");
 			AcceptEntityInput(FindEntityByName("bunker_button", -1), "Press");
 			MapTrigger = true;
 		}
@@ -1041,7 +1184,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(posx, 600.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The bots have shot the barrels...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots have shot the barrels...");
 			
 			CreateTimer(1.0, BotsStopMove);
 			CreateTimer(7.0, C13M2Trigger);
@@ -1056,7 +1199,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 500.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] To make sure the bots don't shortcut past the first road part, they will be teleported past the ladder in 30 seconds...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01To make sure the bots don't shortcut past the first road part, they will be teleported past the ladder in 30 seconds...\x01");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, 6080.580078);
@@ -1075,7 +1218,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		{
 			if (!IsVersus())
 			{
-				PrintToServer("[AutoTrigger] Poor bots will get swept up in the current...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01Poor bots will get swept up in the current...\x01");
 			
 				new Handle:postwodata = CreateDataPack();
 				WritePackFloat(postwodata, 127.612053);
@@ -1104,10 +1247,30 @@ public Action:CheckAroundTriggers(Handle:timer)
 			if (!IsValidEntity(button) && !MapTrigger)
 			{
 				MapTrigger = true;
-				CreateTimer(1.0, BotsStick, 0);
-				CreateTimer(20.0, FinaleStart, 0);
-				CreateTimer(23.0, BotsUnstick, 0);
+				CreateTimer(1.0, BotsStick);
+				CreateTimer(20.0, FinaleStart);
+				CreateTimer(23.0, BotsUnstick);
 			}
+		}
+	}
+
+	if (StrContains(mapname, "c14m1_junkyard", false) != -1)
+	{
+		// The Last Stand 01
+		// pos -2348.668701 500.814484 -14.431280
+		
+		decl Float:pos1[3];
+		pos1[0] = -2348.668701;
+		pos1[1] = 500.814484;
+		pos1[2] = -14.431280;
+		
+		if (CheckforBots(pos1, 400.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01They trigger the fuel pump...");
+
+			CreateTimer(10.0, C14M1PanicEvent);
+			
+			MapTrigger = true;
 		}
 	}
 
@@ -1122,7 +1285,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(gauntletdoor, posx);
 			if (CheckforBots(posx, 100.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] Initiating gauntlet...");
+				PrintToChatAll("\x04[AutoTrigger] \x01Initiating gauntlet...");
 				
 				CreateTimer(5.0, RunBusStationEvent);
 				
@@ -1142,7 +1305,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(wthfourdoor, posx);
 			if (CheckforBots(posx, 150.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] The alarm goes off...");
+				PrintToChatAll("\x04[AutoTrigger] \x01The alarm goes off...");
 				
 				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "emergency_door", "Open");
 				if (IsVersus())
@@ -1166,7 +1329,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(brushone, pos1);
 			if (CheckforBots(pos1, 150.0) && !WarpTrigger)
 			{
-				PrintToServer("[AutoTrigger] A board bars the way...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01A board bars the way...\x01");
 			
 				new Handle:posonedata = CreateDataPack();
 				WritePackFloat(posonedata, 7816.887695);
@@ -1186,7 +1349,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(brushtwo, pos2);
 			if (CheckforBots(pos2, 150.0) && !WarpTrigger)
 			{
-				PrintToServer("[AutoTrigger] A board bars the way...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01A board bars the way...\x01");
 			
 				new Handle:postwodata = CreateDataPack();
 				WritePackFloat(postwodata, 7816.887695);
@@ -1204,7 +1367,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(pos3, 200.0) && !WarpTriggerTwo && IsVersus())
 		{
-			PrintToServer("[AutoTrigger] The team moves through the alley...x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team moves through the alley...x01");
 			
 			new Handle:posfourdata = CreateDataPack();
 			WritePackFloat(posfourdata, 6870.991699);
@@ -1226,7 +1389,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(truck, posx);
 			if (CheckforBots(posx, 1000.0) && !WarpTrigger)
 			{
-				PrintToServer("[AutoTrigger] A vehicle bars the way...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01A vehicle bars the way...\x01");
 			
 				new Handle:posonedata = CreateDataPack();
 				WritePackFloat(posonedata, -2985.330811);
@@ -1244,7 +1407,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(pos1, 200.0) && !WarpTriggerTwo)
 		{
-			PrintToServer("[AutoTrigger] The team approaches the radio...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team approaches the radio...\x01");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, 6870.991699);
@@ -1266,7 +1429,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(barrier, posx);
 			if (CheckforBots(posx, 400.0) && !WarpTrigger)
 			{
-				PrintToServer("[AutoTrigger] The team moves out...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01The team moves out...\x01");
 			
 				new Handle:posdata = CreateDataPack();
 				WritePackFloat(posdata, -209.543518);
@@ -1284,7 +1447,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(pos1, 200.0) && !WarpTriggerTwo)
 		{
-			PrintToServer("[AutoTrigger] The team enters the bar...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team enters the bar...\x01");
 			
 			new Handle:posonedata = CreateDataPack();
 			WritePackFloat(posonedata, -5.968750);
@@ -1301,7 +1464,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(pos2, 1000.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The team moves on...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team moves on...\x01");
 			
 			new Handle:postwodata = CreateDataPack();
 			WritePackFloat(postwodata, -1751.634888);
@@ -1321,7 +1484,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 50.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] The team ascends to the roof...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team ascends to the roof...\x01");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, -1363.125000);
@@ -1338,7 +1501,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 200.0) && !WarpTriggerTwo)
 		{
-			PrintToServer("[AutoTrigger] The team ascends to the roof...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team ascends to the roof...\x01");
 			
 			new Handle:posonedata = CreateDataPack();
 			WritePackFloat(posonedata, -977.075439);
@@ -1357,7 +1520,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(bomb, pos2);
 			if (CheckforBots(pos2, 500.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] The fuse is lit...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01The fuse is lit...\x01");
 				CreateTimer(9.0, UrbanFlightJoke);
 				CreateTimer(10.0, TowerGoesBoom);
 				CreateTimer(12.0, NeverMind);
@@ -1377,7 +1540,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(shelves, posx);
 			if (CheckforBots(posx, 400.0) && !WarpTrigger)
 			{
-				PrintToServer("[AutoTrigger] I'll just pretend those shelves do not exist...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01I'll just pretend those shelves do not exist...\x01");
 			
 				new Handle:posdata = CreateDataPack();
 				WritePackFloat(posdata, 1004.188477);
@@ -1397,7 +1560,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(fence, pos1);
 			if (CheckforBots(pos1, 350.0) && !WarpTriggerTwo)
 			{
-				PrintToServer("[AutoTrigger] I'll just pretend this fence doesn't exist either...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01I'll just pretend this fence doesn't exist either...\x01");
 			
 				new Handle:posonedata = CreateDataPack();
 				WritePackFloat(posonedata, 2691.872559);
@@ -1416,7 +1579,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos2, 400.0) && !WarpTriggerThree)
 		{
-			PrintToServer("[AutoTrigger] A walk in the park...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01A walk in the park...\x01");
 			
 			new Handle:postwodata = CreateDataPack();
 			WritePackFloat(postwodata, -514.125793);
@@ -1434,7 +1597,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos3, 400.0) && !WarpTriggerFour)
 		{
-			PrintToServer("[AutoTrigger] The team moves through the alley...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team moves through the alley...\x01");
 			
 			new Handle:posthreedata = CreateDataPack();
 			WritePackFloat(posthreedata, -2723.947266);
@@ -1456,7 +1619,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(finaledoor, posx);
 			if (CheckforBots(posx, 200.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] The door opens...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01The door opens...\x01");
 				AcceptEntityInput(FindEntityByName("gas_storage_door", -1), "Open");
 				MapTrigger = true;
 			}
@@ -1470,7 +1633,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 100.0) && MapTrigger && !WarpTrigger && !WarpTriggerTwo)
 		{
-			PrintToServer("[AutoTrigger] The fail safe has been activated. Bots will warp to key points to activate objectives in complete order.\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The fail safe has been activated. Bots will warp to key points to activate objectives in complete order.\x01");
 			CreateTimer(60.0, UF4FailSafeOne);
 			CreateTimer(75.0, UF4FailSafeTwo);
 			CreateTimer(135.0, UF4FailSafeThree);
@@ -1486,7 +1649,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos2, 100.0) && MapTrigger && !WarpTrigger && !WarpTriggerTwo)
 		{
-			PrintToServer("[AutoTrigger] The fail safe has been activated. Bots will warp to key points to activate objectives in complete order.\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The fail safe has been activated. Bots will warp to key points to activate objectives in complete order.\x01");
 			CreateTimer(60.0, UF4FailSafeOne);
 			CreateTimer(75.0, UF4FailSafeTwo);
 			CreateTimer(135.0, UF4FailSafeThree);
@@ -1494,15 +1657,9 @@ public Action:CheckAroundTriggers(Handle:timer)
 			WarpTriggerTwo = true;
 		}
 		
-		decl Float:pos3[3];
-		
-		pos3[0] = -1944.317749;
-		pos3[1] = 3049.523682;
-		pos3[2] = 260.031250;
-		
-		if (CheckforBots(pos3, 500.0) && WarpTriggerThree)
+		if (EscapeReady && !WarpTriggerThree)
 		{
-			PrintToServer("[AutoTrigger] The game/round will end in 30 seconds.\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The game/round will end in 30 seconds.\x01");
 			CreateTimer(30.0, UFFinish);
 			WarpTrigger = true;
 		}
@@ -1518,7 +1675,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 300.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] The team goes through the warehouse...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team goes through the warehouse...\x01");
 			
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, -3140.874756);
@@ -1541,7 +1698,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(ffm2button, posx);
 			if (CheckforBots(posx, 250.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] Someone pushed the button...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01Someone pushed the button...\x01");
 				AcceptEntityInput(FindEntityByName("m2_panic_button", -1), "Press");
 				MapTrigger = true;
 			}
@@ -1558,7 +1715,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 300.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The elevator starts...\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The elevator starts...\x01");
 			AcceptEntityInput(FindEntityByName("m3_panic_button", -1), "Press");
 			MapTrigger = true;
 		}
@@ -1575,7 +1732,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(caboosedoor, posx);
 			if (CheckforBots(posx, 175.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] They gather in the caboose.\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01They gather in the caboose.\x01");
 				CreateTimer(0.1, BotsStick);
 				
 				new Handle:posdata = CreateDataPack();
@@ -1602,7 +1759,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(fffinaleprep, posx);
 			if (CheckforBots(posx, 175.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] The train conductor has been contacted...\x01");
+				PrintToChatAll("\x04[AutoTrigger] \x01The train conductor has been contacted...\x01");
 				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "coop_finale_button1", "Use");
 				MapTrigger = true;
 			}
@@ -1636,13 +1793,34 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 100.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] The cop needs their help.\x01");
+			PrintToChatAll("\x04[AutoTrigger] \x01The cop needs their help.\x01");
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, -2881.040771);
 			WritePackFloat(posdata, 165.394073);
 			WritePackFloat(posdata, 188.076096);
 			CreateTimer(10.0, WarpAllBots, posdata);
 			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_daybreak01_hotel", true))
+	{
+		new checkpoint = FindEntityByName("checkpointdoor", -1);
+		
+		decl Float:pos1[3];
+		
+		GetEntityAbsOrigin(checkpoint, pos1);
+
+		if (CheckforBots(pos1, 100.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The chapter ends...");
+			AcceptEntityInput(checkpoint, "close");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 7145.191);
+			WritePackFloat(posdata, 11606.381);
+			WritePackFloat(posdata, -762.96875);
+			CreateTimer(0.1, WarpAllBots, posdata);
+			MapTrigger = true;
 		}
 	}
 	
@@ -1653,7 +1831,6 @@ public Action:CheckAroundTriggers(Handle:timer)
 		if (gascans == -1) // has it been destroyed already? continue without doing anything.
 		{
 			MapTrigger = true;
-			return Plugin_Continue;
 		}
 			
 		decl Float:pos1[3];
@@ -1661,12 +1838,13 @@ public Action:CheckAroundTriggers(Handle:timer)
 	
 		if (CheckforBots(pos1, 900.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The barricade is burning...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
 			AcceptEntityInput(gascans, "Ignite");
+			CreateTimer(0.1, DayBreak03GasCans);
 			MapTrigger = true;
 		}
 		
-		new daybreakdoor = FindEntityByName("emergency_door", -1);
+		new daybreakdoor = FindEntityByName("FortPointDoor1", -1);
 		
 		decl Float:posx[3];
 		
@@ -1675,15 +1853,58 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(daybreakdoor, posx);
 			if (CheckforBots(posx, 150.0) && !MapTriggerTwo)
 			{
-				PrintToServer("[AutoTrigger] The alarm goes off...");
+				PrintToChatAll("\x04[AutoTrigger] \x01The alarm goes off...");
 				
-				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "emergency_door", "Open");
+				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "FortPointDoor1", "Open");
+				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "FortPointDoor2", "Open");
+				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "fortpointblocker", "UnblockNav");
 
 				MapTriggerTwo = true;
 			}
 		}
 	}
 	
+	if (StrEqual(mapname, "l4d2_daybreak05_rescue", true))
+	{
+		new daybreaklock = FindEntityByName("button_lockdoor", -1);
+		if (daybreaklock == -1)
+		{
+			MapTrigger = true;
+		}
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(daybreaklock, pos1);
+
+		if (CheckforBots(pos1, 100.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The finale starts in 10 seconds.");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 6299.7275);
+			WritePackFloat(posdata, 7256.4473);
+			WritePackFloat(posdata, -4591.9688);
+			CreateTimer(0.1, WarpAllBots, posdata);
+			CreateTimer(0.1, BotsStick);
+			CreateTimer(0.5, DayBreak05PreFinale);
+			CreateTimer(9.8, DayBreak05Finale);
+			CreateTimer(10.0, BotsUnstick);
+			MapTrigger = true;
+		}
+		if ((FinaleHasStarted && !MapTriggerTwo) || (ScavengeRoundStarted && !MapTriggerTwo))
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever1", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever2", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever3", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever4", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever5", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever6", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever7", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever8", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever9", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever10", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever11", "Press");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorlever12", "Press");
+			MapTriggerTwo = true;
+		}
+	}
 	if (StrEqual(mapname, "l4d2_wanli01", true))
 	{
 		new planecheckpoint = FindEntityByName("b_airplane_door_exit", -1);
@@ -1695,7 +1916,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(planecheckpoint, posx);
 			if (CheckforBots(posx, 300.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] The team has collected all of their parachutes.");
+				PrintToChatAll("\x04[AutoTrigger] \x01The team has collected all of their parachutes.");
 				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "b_para01A", "Use");
 				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "b_para01B", "Use");
 				UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "b_para01C", "Use");
@@ -1740,7 +1961,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 			GetEntityAbsOrigin(fireworksbutton, posx);
 			if (CheckforBots(posx, 300.0) && !MapTrigger)
 			{
-				PrintToServer("[AutoTrigger] Hey, I wonder what these things do.");
+				PrintToChatAll("\x04[AutoTrigger] \x01Hey, I wonder what these things do.");
 				AcceptEntityInput(fireworksbutton, "Use");
 			}
 		}
@@ -1756,7 +1977,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 
 		if (CheckforBots(posx, 1500.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The ice melts... You have 7 minutes...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The ice melts... You have 7 minutes...");
 			AcceptEntityInput(FindEntityByName("rescueboat_triggerfinale", -1), "ForceFinaleStart");
 			CreateTimer(0.1, BotsStick);
 			CreateTimer(60.0, IceMelt1);
@@ -1780,15 +2001,15 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 300.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] Someone opens the door...");
+			PrintToChatAll("\x04[AutoTrigger] \x01Someone opens the door...");
 			AcceptEntityInput(tankdoor, "Press");
 			if (!IsVersus())
 			{
-				CreateTimer(5.0, TankDoor01COOP, 0);
+				CreateTimer(5.0, TankDoor01COOP);
 			}
 			else if (!IsCoop())
 			{
-				CreateTimer(5.0, TankDoor01VERSUS, 0);
+				CreateTimer(5.0, TankDoor01VERSUS);
 			}
 			MapTrigger = true;
 		}
@@ -1800,9 +2021,9 @@ public Action:CheckAroundTriggers(Handle:timer)
 			
 		if (CheckforBots(pos2, 100.0) && !MapTriggerTwo)
 		{
-			PrintToServer("[AutoTrigger] The bots move on...");
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots move on...");
 			AcceptEntityInput(FindEntityByName("tankdoorout_button", -1), "Press");
-			CreateTimer(5.0, TankDoor02, 0);
+			CreateTimer(5.0, TankDoor02);
 			MapTriggerTwo = true;
 		}
 	}
@@ -1816,16 +2037,22 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 250.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] Someone opens the door...");
+			PrintToChatAll("\x04[AutoTrigger] \x01Someone opens the door...");
 			if (IsCoop())
 			{
-				PrintToServer("[AutoTrigger] The alarm will be disabled in 60 seconds.");
+				PrintToChatAll("\x04[AutoTrigger] \x01The alarm will be disabled in 60 seconds.");
 				CreateTimer(60.0, RoadToNoWhereFix);
 			}
 			if (IsVersus())
 			{
-				PrintToServer("[AutoTrigger] The alarm will be disabled in 40 seconds.");
+				PrintToChatAll("\x04[AutoTrigger] \x01The alarm will be disabled in 40 seconds.");
 				CreateTimer(60.0, RoadToNoWhereFix);
+			}
+			else
+			{
+				PrintToChatAll("\x04[AutoTrigger] \x01The alarm will be disabled in 50 seconds.");
+				CreateTimer(50.0, RoadToNoWhereFix);
+				MapTrigger = true;
 			}
 		}
 	}
@@ -1839,17 +2066,55 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 250.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] They break an alarmed window...");
+			PrintToChatAll("\x04[AutoTrigger] \x01They break an alarmed window...");
 			if (IsCoop())
 			{
-				PrintToServer("[AutoTrigger] The alarm will be disabled in 30 seconds.");
+				PrintToChatAll("\x04[AutoTrigger] \x01The alarm will be disabled in 30 seconds.");
 				CreateTimer(30.0, RoadToNoWhereFix2);
 			}
 			if (IsVersus())
 			{
-				PrintToServer("[AutoTrigger] The alarm will be disabled in 10 seconds.");
+				PrintToChatAll("\x04[AutoTrigger] \x01The alarm will be disabled in 10 seconds.");
 				CreateTimer(10.0, RoadToNoWhereFix2);
 			}
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_roadtonowhere_route05", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -8343.231;
+		posx[1] = 10529.924;
+		posx[2] = 26.03125;
+
+		if (CheckforBots(posx, 200.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Fail-safe for the vent...");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -8654.613);
+			WritePackFloat(posdata, 10918.472);
+			WritePackFloat(posdata, 26.03125);
+			CreateTimer(20.0, WarpAllBots, posdata);
+			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "rr_highway1", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 504.38254;
+		posx[1] = -293.03943;
+		posx[2] = 64.03125;
+
+		if (CheckforBots(posx, 200.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01A blown out bridge... Wait, why are we traveling by truck if that's the case?");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -1744.6862);
+			WritePackFloat(posdata, 1461.7263);
+			WritePackFloat(posdata, -525.11285);
+			CreateTimer(20.0, WarpAllBots, posdata);
+			WarpTrigger = true;
 		}
 	}
 	
@@ -1862,7 +2127,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 500.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] They must get the power back on...");
+			PrintToChatAll("\x04[AutoTrigger] \x01They must get the power back on...");
 			CreateTimer(0.1, BotsStick);
 			CreateTimer(60.0, SuicideBlitz2PowerSwitch);
 			CreateTimer(75.0, SuicideBlitz2ReturnToElevator);
@@ -1890,7 +2155,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 300.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] Someone shoots the gas can...");
+			PrintToChatAll("\x04[AutoTrigger] \x01Someone shoots the gas can...");
 			CreateTimer(10.0, SuicideBlitz2Gascan);
 			MapTrigger = true;
 		}
@@ -1905,7 +2170,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 300.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] The alarm has been disabled.");
+			PrintToChatAll("\x04[AutoTrigger] \x01The alarm has been disabled.");
 			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "alarm_off_relay", "trigger");
 			MapTrigger = true;
 		}
@@ -1920,7 +2185,7 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 300.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] The team crosses the plank... (60 seconds)");
+			PrintToChatAll("\x04[AutoTrigger] \x01The team crosses the plank... (60 seconds)");
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, -5803.865234);
 			WritePackFloat(posdata, 5366.454590);
@@ -1939,11 +2204,18 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(posx, 250.0) && !MapTrigger)
 		{
-			PrintToServer("[AutoTrigger] They call for help...");
+			PrintToChatAll("\x04[AutoTrigger] \x01They call for help...");
 			AcceptEntityInput(FindEntityByName("radio_btn", -1), "Press");
 			CreateTimer(0.1, BotsStick);
 			CreateTimer(60.0, SuicideBlitz2FinaleRelay);
 			CreateTimer(60.0, BotsUnstick);
+			
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, 6532.612793);
+			WritePackFloat(posonedata, -4401.844238);
+			WritePackFloat(posonedata, 443.843048);
+			CreateTimer(61.0, WarpAllBots, posonedata);
+			
 			MapTrigger = true;
 		}
 		
@@ -1954,13 +2226,1848 @@ public Action:CheckAroundTriggers(Handle:timer)
 		
 		if (CheckforBots(pos1, 250.0) && !WarpTrigger)
 		{
-			PrintToServer("[AutoTrigger] A fail-safe has been activated.");
+			PrintToChatAll("\x04[AutoTrigger] \x01A fail-safe has been activated.");
 			new Handle:posdata = CreateDataPack();
 			WritePackFloat(posdata, 7245.513672);
 			WritePackFloat(posdata, -5023.473633);
 			WritePackFloat(posdata, 152.031250);
 			CreateTimer(10.0, WarpAllBots, posdata);
 			
+			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_7hours_later_01", true))
+	{
+		new SevenHours01 = FindEntityByName("checkpoint_entrance", -1);
+		
+		decl Float:posx[3];
+		
+		GetEntityAbsOrigin(SevenHours01, posx);
+		
+		if (CheckforBots(posx, 250.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The chapter ends...");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 8869.981);
+			WritePackFloat(posdata, -3636.1667);
+			WritePackFloat(posdata, 501.03262);
+			CreateTimer(3.0, WarpAllBots, posdata);
+			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_7hours_later_02", true))
+	{
+		new gascans = FindEntityByName("barricade_gas_can", -1);
+		
+		if (gascans == -1) // has it been destroyed already? continue without doing anything.
+		{
+			MapTrigger = true;
+		}
+			
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(gascans, pos1);
+	
+		if (CheckforBots(pos1, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
+			AcceptEntityInput(gascans, "Ignite");
+			MapTrigger = true;
+		}
+	}
+		
+	if (StrEqual(mapname, "l4d2_7hours_later_03", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 5127.115234;
+		posx[1] = 2471.270752;
+		posx[2] = -1004.028931;
+		
+		if (CheckforBots(posx, 2000.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots move on...");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 4152.597168);
+			WritePackFloat(posdata, -1624.366943);
+			WritePackFloat(posdata, -1057.730225);
+			CreateTimer(45.0, WarpAllBots, posdata);
+			
+			CreateTimer(0.1, BotsStick);
+			CreateTimer(45.0, BotsUnstick);
+			
+			WarpTrigger = true;
+		}
+		
+		new bunkerdoor1 = FindEntityByName("level_end_entrance", -1);
+		
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(bunkerdoor1, pos1);
+	
+		if (CheckforBots(pos1, 500.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The generator starts, and the doors open.");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "generator_relay", "trigger");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "generator_soundscape_relay", "trigger");
+			AcceptEntityInput(bunkerdoor1, "Open");
+			CreateTimer(0.1, BotsStick);
+			CreateTimer(45.0, BotsUnstick);
+			MapTrigger = true;
+		}
+	}
+
+	if (StrEqual(mapname, "l4d2_7hours_later_05", true))
+	{
+		new button = FindEntityByName("radio_fake_button", -1);
+		
+		if ((button == -1) && !MapTrigger && !FinaleHasStarted)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Preparing to fuel the plane...");
+			CreateTimer(20.0, C11M5FinaleStart);
+			MapTrigger = true;
+		}
+		
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(button, pos1);
+
+		if (CheckforBots(pos1, 500.0) && !MapTrigger && !FinaleHasStarted)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio_fake_button", "Press");
+			PrintToChatAll("\x04[AutoTrigger] \x01Preparing to fuel the plane...");
+			CreateTimer(20.0, C11M5FinaleStart);
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "dm1_suburbs", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -2910.7952;
+		posx[1] = 1376.5933;
+		posx[2] = -11.96875;
+
+		if (CheckforBots(posx, 100.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01A fail-safe has been activated.");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -2522.4868);
+			WritePackFloat(posdata, 2022.8943);
+			WritePackFloat(posdata, 71.81948);
+			CreateTimer(5.0, WarpAllBots, posdata);
+			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "dm4_caves", true))
+	{
+		new gascans = FindEntityByName("barricade_gas_can", -1);
+		
+		if (gascans == -1) // has it been destroyed already? continue without doing anything.
+		{
+			MapTrigger = true;
+		}
+			
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(gascans, pos1);
+	
+		if (CheckforBots(pos1, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
+			AcceptEntityInput(gascans, "Ignite");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "dm5_summit", true))
+	{
+		new dmradio = FindEntityByName("radio", -1);
+		
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(dmradio, pos1);
+		
+		if (CheckforBots(pos1, 500.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The Finale will start in one minute.");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 2540.635254);
+			WritePackFloat(posdata, 1328.842407);
+			WritePackFloat(posdata, 368.031250);
+			CreateTimer(60.0, WarpAllBots, posdata);
+			
+			WarpTrigger = true;
+		}
+	}	
+	
+	if (StrEqual(mapname, "dprm5_milltown_escape", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -5800.668945;
+		posx[1] = 5730.528320;
+		posx[2] = 100.031250;
+		
+		if (CheckforBots(posx, 125.0) && !MapTrigger && !FinaleHasStarted)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The Finale will start in thirty seconds.");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -5799.499023);
+			WritePackFloat(posdata, 7438.325195);
+			WritePackFloat(posdata, 292.031250);
+			CreateTimer(30.0, WarpAllBots, posdata);
+			
+			MapTrigger = true;
+		}
+	}	
+	
+	if (StrEqual(mapname, "l4d_yama_2", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -1009.031250;
+		posx[1] = -10721.271484;
+		posx[2] = -735.968750;
+		
+		if (CheckforBots(posx, 250.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots move through the building.");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -798.257385);
+			WritePackFloat(posdata, -10645.315430);
+			WritePackFloat(posdata, -735.968750);
+			CreateTimer(1.0, WarpAllBots, posdata);
+			
+			WarpTrigger = true;
+		}
+	}
+	if (StrEqual(mapname, "l4d_yama_3", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 6009.167480;
+		posx[1] = 9188.841797;
+		posx[2] = 1721.531250;
+		
+		if (CheckforBots(posx, 250.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The tram is on its way.");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 5950.164551);
+			WritePackFloat(posdata, 9178.969727);
+			WritePackFloat(posdata, 1721.531250);
+			CreateTimer(31.0, WarpAllBots, posdata);
+			
+			CreateTimer(0.1, Yama3TramTrigger);
+			CreateTimer(0.1, BotsStick);
+			CreateTimer(31.0, BotsStopMove);
+			CreateTimer(31.5, Yama3Tram2Trigger);
+			CreateTimer(60.0, BotsUnstick);
+			CreateTimer(60.0, BotsStartMove);
+			
+			MapTrigger = true;
+		}
+		
+		new Yama3Generator = FindEntityByName("generator_button", -1);
+		
+		decl Float:pos2[3];
+		GetEntityAbsOrigin(Yama3Generator, pos2);
+		
+		if (CheckforBots(pos2, 500.0) && !MapTriggerThree)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Someone restores the power...");
+			CreateTimer(0.1, BotsStick);
+			AcceptEntityInput(Yama3Generator, "Press");
+			CreateTimer(12.0, Yama3GeneratorEvent);
+			CreateTimer(12.0, BotsUnstick);
+			
+			MapTriggerThree = true;
+		}
+		
+		//if (IsCoop() || IsSurvival())
+		//{
+		//	MapTriggerTwo = true;
+		//}
+		
+		//if (IsVersus() && !MapTriggerTwo)
+		//{
+		//	if (IsM12() && !MapTriggerTwo)
+		//	{
+		//	}
+		//}
+	}
+	
+	if (StrEqual(mapname, "l4d_yama_4", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 2778.998291;
+		posx[1] = 6105.070313;
+		posx[2] = -1503.468750;
+		
+		if (CheckforBots(posx, 250.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The tram takes off...");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 2778.998291);
+			WritePackFloat(posdata, 6105.070313);
+			WritePackFloat(posdata, -1503.468750);
+			CreateTimer(1.0, WarpAllBots, posdata);
+			
+			CreateTimer(1.1, Yama3Tram2Trigger);
+			CreateTimer(1.1, BotsStick);
+			CreateTimer(1.1, BotsStopMove);
+			CreateTimer(30.0, BotsStartMove);
+			CreateTimer(30.0, BotsUnstick);
+			
+			MapTrigger = true;
+		}
+		
+		decl Float:pos2[3];
+		pos2[0] = -5532.913086;
+		pos2[1] = -7339.814941;
+		pos2[2] = 472.031250;
+		
+		if (CheckforBots(pos2, 250.0) && !MapTriggerThree)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01They quickly move on.");
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, -5594.154785);
+			WritePackFloat(posonedata, -7937.647461);
+			WritePackFloat(posonedata, 464.031250);
+			CreateTimer(5.0, WarpAllBots, posonedata);
+			
+			MapTriggerThree = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d_yama_5", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -115.434006;
+		posx[1] = -1065.479736;
+		posx[2] = -127.968750;
+		
+		if (CheckforBots(posx, 100.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The finale will start in 10 seconds.");
+			CreateTimer(10.0, YamaFinale);
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "cbm2_town", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 2307.6592;
+		posx[1] = 3347.5374;
+		posx[2] = -7.968752;
+
+		if (CheckforBots(posx, 200.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The church bells will be disabled in 45 seconds.");
+			
+			new Handle:posonedata = CreateDataPack();
+			
+			WritePackFloat(posonedata, 3355.4392);
+			WritePackFloat(posonedata, 3102.8496);
+			WritePackFloat(posonedata, 176.03125);
+			CreateTimer(45.0, WarpAllBots, posonedata);
+			CreateTimer(45.1, BloodProofPanicButton);
+			
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "cbm3_bunker", true))
+	{
+		new BloodProofTrain = FindEntityByName("finale_trigger", -1);
+		if (BloodProofTrain == -1)
+		{
+			MapTrigger = true;
+		}
+		decl Float:posx[3];
+		GetEntityAbsOrigin(BloodProofTrain, posx);
+
+		if (CheckforBots(posx, 500.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The finale will begin in 10 seconds.");
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, -5181.362);
+			WritePackFloat(posonedata, -1947.4912);
+			WritePackFloat(posonedata, 35.005466);
+			CreateTimer(15.0, WarpAllBots, posonedata);
+			CreateTimer(10.0, BloodProofFinale);
+			MapTrigger = true;
+		}
+		
+		new BloodProofElevator = FindEntityByName("elevator_button", -1);
+		if (BloodProofElevator == -1)
+		{
+			WarpTrigger = true;
+		}
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(BloodProofElevator, pos1);
+
+		if (CheckforBots(pos1, 500.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The elevator is out of power...");
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, 943.2632);
+			WritePackFloat(postwodata, 12350.609);
+			WritePackFloat(postwodata, 384.03125);
+			CreateTimer(10.0, WarpAllBots, postwodata);
+			CreateTimer(10.1, BloodProofGenerator);
+			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "bloodtracks_01", true))
+	{
+		new BloodTrackButton1 = FindEntityByName("firstbutton", -1);
+		if (BloodTrackButton1 == -1)
+		{
+			MapTrigger = true;
+		}
+		decl Float:posx[3];
+		GetEntityAbsOrigin(BloodTrackButton1, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			AcceptEntityInput(BloodTrackButton1, "Press");
+			PrintToChatAll("\x04[AutoTrigger] \x01The crane has been activated.");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -514.9055);
+			WritePackFloat(posdata, 4941.2227);
+			WritePackFloat(posdata, 330.94687);
+			CreateTimer(30.0, WarpAllBots, posdata);
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "bloodtracks_02", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 873.7083;
+		posx[1] = -6259.8574;
+		posx[2] = -1818.1196;
+
+		if (CheckforBots(posx, 1000.0) && !MapTrigger)
+		{
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, 873.7083);
+			WritePackFloat(posonedata, -6259.8574);
+			WritePackFloat(posonedata, -1818.1196);
+			CreateTimer(15.0, WarpAllBots, posonedata);
+			CreateTimer(30.0, BloodTracksBoomMessage);
+			CreateTimer(31.0, BotsStartMove);
+			MapTrigger = true;
+		}
+		decl Float:pos1[3];
+		pos1[0] = 873.7083;
+		pos1[1] = -6259.8574;
+		pos1[2] = -1818.1196;
+
+		if (CheckforBots(pos1, 250.0) && !MapTriggerTwo)
+		{
+			CreateTimer(0.1, BotsStopMove);
+			MapTriggerTwo = true;
+		}
+		decl Float:pos2[3];
+		pos2[0] = 881.3888;
+		pos2[1] = -6815.616;
+		pos2[2] = -1818.1196;
+
+		if (CheckforBots(pos2, 200.0) && !WarpTrigger)
+		{
+			if (!IsVersus())
+			{
+				PrintToChatAll("\x04[AutoTrigger] \x01The bots move too slowly in an infinite horde. They will warp to the end saferoom in 3 minutes..");
+				new Handle:posdata = CreateDataPack();
+				WritePackFloat(posdata, -514.9055);
+				WritePackFloat(posdata, 4941.2227);
+				WritePackFloat(posdata, 330.94687);
+				CreateTimer(180.0, WarpAllBots, posdata);
+				WarpTrigger = true;
+			}
+		}
+	}
+	
+	if (StrEqual(mapname, "bloodtracks_03", true))
+	{
+		new BloodTrackDoor = FindEntityByName("pushdoor", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(BloodTrackDoor, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "doorrelay", "Trigger");
+			MapTrigger = true;
+		}
+		new BloodTracksScavengeBypass = FindEntityByName("notscavengebrush", -1);
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(BloodTracksScavengeBypass, pos1);
+
+		if (CheckforBots(pos1, 200.0) && !WarpTrigger)
+		{
+			if (!IsVersus() && !IsM12() && !IsScavenge())
+			{
+				PrintToChatAll("\x04[AutoTrigger] \x01A brush is in the way. Warping bots ahead in 45 seconds.");
+				new Handle:posdata = CreateDataPack();
+				WritePackFloat(posdata, 2101.17);
+				WritePackFloat(posdata, -3847.6663);
+				WritePackFloat(posdata, -2791.9688);
+				CreateTimer(45.0, WarpAllBots, posdata);
+				WarpTrigger = true;
+			}
+			
+			if (!IsCoop() && !IsSurvival())
+			{
+				PrintToChatAll("\x04[AutoTrigger] \x01A brush is in the way. Warping bots ahead in 20 seconds.");
+				new Handle:posdata = CreateDataPack();
+				WritePackFloat(posdata, 2101.17);
+				WritePackFloat(posdata, -3847.6663);
+				WritePackFloat(posdata, -2791.9688);
+				CreateTimer(20.0, WarpAllBots, posdata);
+				WarpTrigger = true;
+			}
+			else
+			{
+				PrintToChatAll("\x04[AutoTrigger] \x01A brush is in the way. Warping bots ahead in 30 seconds.");
+				new Handle:posdata = CreateDataPack();
+				WritePackFloat(posdata, 2101.17);
+				WritePackFloat(posdata, -3847.6663);
+				WritePackFloat(posdata, -2791.9688);
+				CreateTimer(30.0, WarpAllBots, posdata);
+				WarpTrigger = true;
+			}
+		}
+	}
+	
+	if (StrEqual(mapname, "bloodtracks_04", true))
+	{
+		new BloodTrackRadio = FindEntityByName("radio", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(BloodTrackRadio, posx);
+
+		if (CheckforBots(posx, 200.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio", "ForceFinaleStart");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "msd1_town", true))
+	{
+		new FCShelf = FindEntityByName("mt_bshelf_mbtt", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(FCShelf, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			CreateTimer(10.0, FarewellChenming1Intro1);
+			CreateTimer(15.0, FarewellChenming1Intro2);
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots prepare to move out.");
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -9055.649);
+			WritePackFloat(posdata, 1775.881);
+			WritePackFloat(posdata, -14994.789);
+			CreateTimer(20.0, WarpAllBots, posdata);
+			MapTrigger = true;
+		}
+		
+		decl Float:pos1[3];
+		pos1[0] = 881.3888;
+		pos1[1] = -6815.616;
+		pos1[2] = -1818.1196;
+		
+		if (CheckforBots(pos1, 600.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01They investigate the map...");
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, 881.3888);
+			WritePackFloat(posonedata, -6815.616);
+			WritePackFloat(posonedata, -1818.1196);
+			CreateTimer(5.0, WarpAllBots, posonedata);
+			WarpTrigger = true;
+		}
+		
+		new FCBarricade = FindEntityByName("mt_suiji2_bb2", -1);
+		decl Float:pos2[3];
+		GetEntityAbsOrigin(FCBarricade, pos2);
+
+		if (CheckforBots(pos2, 300.0) && !WarpTriggerTwo)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Fail-safe for the barricade.");
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, -5336.3423);
+			WritePackFloat(postwodata, -2583.5493);
+			WritePackFloat(postwodata, -14987.969);
+			CreateTimer(5.0, WarpAllBots, postwodata);
+			WarpTriggerTwo = true;
+		}
+		
+		new FCC4 = FindEntityByName("mt_c4_fangzhi", -1);
+		decl Float:pos3[3];
+		GetEntityAbsOrigin(FCC4, pos3);
+
+		if (CheckforBots(pos3, 400.0) && !MapTriggerTwo)
+		{
+			CreateTimer(0.1, BotsStopMove);
+			CreateTimer(5.0, FarewellChenming1C4);
+			CreateTimer(10.0, BotsStartMove);
+			MapTriggerTwo = true;
+		}
+		
+		new FCTrainDoor = FindEntityByName("mt_rtrain_dbtt", -1);
+		decl Float:pos4[3];
+		GetEntityAbsOrigin(FCTrainDoor, pos4);
+
+		if (CheckforBots(pos4, 300.0) && !MapTriggerThree)
+		{
+			CreateTimer(0.1, BotsStick);
+			CreateTimer(5.0, FarewellChenming1TrainDoor);
+			CreateTimer(5.1, BotsUnstick);
+			
+			new Handle:posfourthdata = CreateDataPack();
+			WritePackFloat(posfourthdata, -1458.5002);
+			WritePackFloat(posfourthdata, -2783.1628);
+			WritePackFloat(posfourthdata, -14928.292);
+			CreateTimer(7.0, WarpAllBots, posfourthdata);
+			MapTriggerThree = true;
+		}
+		
+		decl Float:pos5[3];
+		pos5[0] = 2244.5063;
+		pos5[1] = -2708.7224;
+		pos5[2] = -14917.969;
+
+		if (CheckforBots(pos5, 2000.0) && !WarpTriggerThree)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The chapter will end in 15 seconds.");
+			
+			new Handle:posthreedata = CreateDataPack();
+			WritePackFloat(posthreedata, 2244.5063);
+			WritePackFloat(posthreedata, -2708.7224);
+			WritePackFloat(posthreedata, -14917.969);
+			CreateTimer(15.0, WarpAllBots, posthreedata);
+			
+			new Handle:posfifthdata = CreateDataPack();
+			WritePackFloat(posfifthdata, 1670.6831);
+			WritePackFloat(posfifthdata, -2467.672);
+			WritePackFloat(posfifthdata, -14925.969);
+			CreateTimer(14.0, WarpAllBots, posfifthdata);
+			
+			CreateTimer(0.1, BotsStick);
+			CreateTimer(15.1, BotsUnstick);
+			WarpTriggerThree = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "msd2_gasstation", true))
+	{
+		new FCProgress = -1;
+		while ((FCProgress = FindEntityByClassname(FCProgress, "game_scavenge_progress_display")) != -1)
+		{
+			if (GetEntProp(FCProgress, Prop_Send, "m_bActive", 1))
+			{
+				return Plugin_Continue;
+			}
+			if (!MapTrigger)
+			{
+				PrintToChatAll("\x04[AutoTrigger] \x01The bots will start collecting cans in 10 seconds.");
+				
+				new Handle:posdata = CreateDataPack();
+				WritePackFloat(posdata, -5299.5776);
+				WritePackFloat(posdata, -611.5952);
+				WritePackFloat(posdata, 9373.031);
+				CreateTimer(10.0, WarpAllBots, posdata);
+				MapTrigger = true;
+			}
+		}
+		
+		decl Float:pos1[3];
+		pos1[0] = -6930.7393;
+		pos1[1] = -2501.1003;
+		pos1[2] = 9357.7;
+		if (CheckforBots(pos1, 600.0))
+		{
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, -6392.6313);
+			WritePackFloat(posonedata, -903.43494);
+			WritePackFloat(posonedata, 9356.031);
+			CreateTimer(0.1, WarpAllBots, posonedata);
+		}
+	}
+	
+	if (StrEqual(mapname, "msdnew_tccity_newway", true))
+	{
+		decl Float:pos1[3];
+		pos1[0] = -1463.2125;
+		pos1[1] = -1668.0717;
+		pos1[2] = -644.96875;
+		
+		if (CheckforBots(pos1, 600.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01They must find the key...");
+			
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, -67.46766);
+			WritePackFloat(posonedata, -2535.5662);
+			WritePackFloat(posonedata, -529.5105);
+			CreateTimer(15.0, WarpAllBots, posonedata);
+			CreateTimer(15.1, FareWellChenming3Key);
+			CreateTimer(0.1, BotsStick);
+			CreateTimer(180.0, BotsUnstick);
+			CreateTimer(30.0, FareWellChenming3Door);
+			
+			new Handle:posfourthdata = CreateDataPack();
+			WritePackFloat(posfourthdata, -1416.718);
+			WritePackFloat(posfourthdata, -942.2169);
+			WritePackFloat(posfourthdata, -644.96875);
+			CreateTimer(35.0, WarpAllBots, posfourthdata);
+			
+			new Handle:posthreedata = CreateDataPack();
+			WritePackFloat(posthreedata, -1416.718);
+			WritePackFloat(posthreedata, -942.2169);
+			WritePackFloat(posthreedata, -644.96875);
+			CreateTimer(179.0, WarpAllBots, posthreedata);
+			MapTrigger = true;
+		}
+		
+		decl Float:pos2[3];
+		pos2[0] = 5113.601;
+		pos2[1] = 3075.1455;
+		pos2[2] = -957.85315;
+
+		if (CheckforBots(pos2, 300.0) && !MapTriggerTwo)
+		{
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, 5113.601);
+			WritePackFloat(postwodata, 3075.1455);
+			WritePackFloat(postwodata, -957.85315);
+			CreateTimer(0.1, WarpAllBots, postwodata);
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "ccm_xfm_closebtt", "Press");
+			CreateTimer(7.0, FareWellChenming3Button);
+			CreateTimer(0.1, BotsStick);
+			MapTriggerTwo = true;
+		}
+		
+		decl Float:pos3[3];
+		pos3[0] = 5537.5244;
+		pos3[1] = 3830.3096;
+		pos3[2] = -895.27094;
+
+		if (CheckforBots(pos3, 300.0) && !MapTriggerThree)
+		{
+			CreateTimer(150.0, BotsUnstick);
+			MapTriggerThree = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_city17_02", true))
+	{
+		new C17Door = FindEntityByName("emergency_door", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(C17Door, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "emergency_door", "Open");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_city17_03", true))
+	{
+		new C17gascans = FindEntityByName("barricade_gas_can", -1);
+		if (C17gascans == -1)
+		{
+			MapTrigger = true;
+		}
+		
+		decl Float:posx[3];
+		GetEntityAbsOrigin(C17gascans, posx);
+
+		if (CheckforBots(posx, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
+			AcceptEntityInput(C17gascans, "Ignite");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "c14m2_campground", true))
+	{
+		new DamItLogs = FindEntityByName("player_blocker_logs", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(DamItLogs, posx);
+
+		if (CheckforBots(posx, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The logs will move in 30 seconds.");
+			
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 1377.314);
+			WritePackFloat(posdata, -7991.3955);
+			WritePackFloat(posdata, 1220.0874);
+			CreateTimer(30.0, WarpAllBots, posdata);
+			CreateTimer(0.1, BotsStick);
+			CreateTimer(31.0, BotsUnstick);
+			CreateTimer(30.1, DamItButton);
+			
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "c14m3_dam", true))
+	{
+		new DamItgascans = FindEntityByName("barricade_gas_can", -1);
+		if (DamItgascans == -1)
+		{
+			MapTrigger = true;
+		}
+		
+		decl Float:posx[3];
+		GetEntityAbsOrigin(DamItgascans, posx);
+
+		if (CheckforBots(posx, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
+			AcceptEntityInput(DamItgascans, "Ignite");
+			MapTrigger = true;
+		}
+		
+		new DamItDoorButton = FindEntityByName("door_button", -1);
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(DamItDoorButton, pos1);
+
+		if (CheckforBots(pos1, 900.0) && !MapTriggerTwo)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01They make a run for it...");
+			AcceptEntityInput(DamItDoorButton, "Press");
+			MapTriggerTwo = true;
+		}
+		
+		new DamItGate = FindEntityByName("gate4", -1);
+		decl Float:pos2[3];
+		GetEntityAbsOrigin(DamItGate, pos2);
+
+		if (CheckforBots(pos2, 300.0) && !MapTriggerThree)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Standby for the gate.");
+			CreateTimer(0.1, BotsStick);
+			MapTriggerThree = true;
+		}
+		
+		new DamItElevator = FindEntityByName("elevator02", -1);
+		decl Float:pos3[3];
+		GetEntityAbsOrigin(DamItElevator, pos3);
+
+		if (CheckforBots(pos3, 200.0) && !MapTriggerFourth)
+		{
+			CreateTimer(0.1, BotsUnstick);
+			MapTriggerFourth = true;
+		}
+		
+		new DamItElevator02 = FindEntityByName("elevator", -1);
+		decl Float:pos4[3];
+		GetEntityAbsOrigin(DamItElevator02, pos4);
+
+		if (CheckforBots(pos4, 200.0) && !WarpTrigger)
+		{
+			CreateTimer(0.1, BotsStopMove);
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -1255.8767);
+			WritePackFloat(posdata, -4854.0864);
+			WritePackFloat(posdata, 1708.191);
+			CreateTimer(3.0, WarpAllBots, posdata);
+			CreateTimer(4.0, DamItElevator2);
+			WarpTrigger = true;
+		}
+		
+		decl Float:pos5[3];
+		pos5[0] = -1262.7723;
+		pos5[1] = -4856.5737;
+		pos5[2] = 2432.0312;
+		
+		decl Float:pos6[3];
+		pos6[0] = -1262.7723;
+		pos6[1] = -4856.5737;
+		pos6[2] = 2432.0312;
+
+		if ((CheckforBots(pos5, 200.0) && !WarpTriggerTwo) || (CheckforBots(pos6, 200.0) && !WarpTriggerTwo))
+		{
+			CreateTimer(0.1, BotsStartMove);
+			CreateTimer(0.2, BotsStick);
+			
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, -1028.9502);
+			WritePackFloat(postwodata, -6265.917);
+			WritePackFloat(postwodata, 2496.887);
+			CreateTimer(15.0, WarpAllBots, postwodata);
+			CreateTimer(15.1, BotsUnstick);
+			WarpTriggerTwo = true;
+		}
+
+		if (FinaleHasStarted && !WarpTriggerThree)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The round/game will end in 90 seconds.");
+			new Handle:posthreedata = CreateDataPack();
+			WritePackFloat(posthreedata, 5891.305);
+			WritePackFloat(posthreedata, -2273.051);
+			WritePackFloat(posthreedata, 1206.3392);
+			CreateTimer(90.0, WarpAllBots, posthreedata);
+			WarpTriggerThree = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "dkr_m5_stadium", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 432.44824;
+		posx[1] = 4631.059;
+		posx[2] = -269.32016;
+
+		if (CheckforBots(posx, 500.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Lights...");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "stage_lights_button", "Use");
+			MapTrigger = true;
+		}
+
+		if (FinaleHasStarted && !MapTriggerTwo)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Enjoy the show...");
+			
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -422.2746);
+			WritePackFloat(posdata, 960.26495);
+			WritePackFloat(posdata, 0.03125);
+			CreateTimer(14.5, WarpAllBots, posdata);
+			CreateTimer(15.0, DKRFireworks1);
+			
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, -420.49805);
+			WritePackFloat(posonedata, 3795.1475);
+			WritePackFloat(posonedata, 0.03125);
+			CreateTimer(29.5, WarpAllBots, posonedata);
+			CreateTimer(30.0, DKRFireworks2);
+			
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, 918.40796);
+			WritePackFloat(postwodata, 2386.9297);
+			WritePackFloat(postwodata, -286.82074);
+			CreateTimer(44.5, WarpAllBots, postwodata);
+			CreateTimer(45.0, DKRFlashPots);
+			
+			new Handle:posthreedata = CreateDataPack();
+			WritePackFloat(posthreedata, -761.8109);
+			WritePackFloat(posthreedata, 2393.7964);
+			WritePackFloat(posthreedata, 0.03125);
+			CreateTimer(59.5, WarpAllBots, posthreedata);
+			CreateTimer(60.0, DKRSpotLights);
+			CreateTimer(75.0, DKRFinaleTank1);
+			
+			MapTriggerTwo = true;
+		}
+
+		if (FinaleHasStarted && ConfirmFinaleTank1Death && MapTriggerTwo && !MapTriggerThree)
+		{
+			CreateTimer(15.0, DKRFinalePhase2);
+			
+			new Handle:posfourdata = CreateDataPack();
+			WritePackFloat(posfourdata, 378.65445);
+			WritePackFloat(posfourdata, 1723.3558);
+			WritePackFloat(posfourdata, -377.96875);
+			CreateTimer(44.5, WarpAllBots, posfourdata);
+			CreateTimer(45.0, DKRSpeakers);
+			
+			new Handle:posfivedata = CreateDataPack();
+			WritePackFloat(posfivedata, 54.758644);
+			WritePackFloat(posfivedata, 4131.7393);
+			WritePackFloat(posfivedata, 0.03125);
+			CreateTimer(59.5, WarpAllBots, posfivedata);
+			CreateTimer(60.0, DKRScavenge);
+			CreateTimer(240.0, DKRScavengeBypass);
+			
+			new Handle:possevendata = CreateDataPack();
+			WritePackFloat(possevendata, 1397.6992);
+			WritePackFloat(possevendata, 4068.0261);
+			WritePackFloat(possevendata, -377.96875);
+			CreateTimer(269.5, WarpAllBots, possevendata);
+			CreateTimer(270.0, DKRGate1);
+			
+			new Handle:poseightdata = CreateDataPack();
+			WritePackFloat(poseightdata, 2009.3824);
+			WritePackFloat(poseightdata, 3919.076);
+			WritePackFloat(poseightdata, -377.96875);
+			CreateTimer(289.5, WarpAllBots, poseightdata);
+			CreateTimer(290.0, DKRFireworksCluster3);
+			CreateTimer(299.9, BotsStopMove);
+			CreateTimer(300.0, DKRMic);
+			
+			new Handle:posninedata = CreateDataPack();
+			WritePackFloat(posninedata, 918.40796);
+			WritePackFloat(posninedata, 2386.9297);
+			WritePackFloat(posninedata, 0.03125);
+			CreateTimer(300.1, WarpAllBots, posninedata);
+			CreateTimer(300.2, DKRMicGuarantee);
+			CreateTimer(312.0, BotsStartMove);
+			CreateTimer(312.1, DKRDisableMic);
+			
+			MapTriggerThree = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_deadcity01_riverside", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -2174.2773;
+		posx[1] = -588.87006;
+		posx[2] = -58.899265;
+
+		if (CheckforBots(posx, 150.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Warping bots to the elevator to prevent shortcuts.");
+			CreateTimer(15.0, DCII1Elevator);
+			MapTrigger = true;
+		}
+		
+		decl Float:pos1[3];
+		pos1[0] = -2701.326;
+		pos1[1] = -375.22253;
+		pos1[2] = -183.96875;
+
+		if (CheckforBots(pos1, 150.0) && !MapTrigger)
+		{
+			CreateTimer(0.1, BotsStopMove);
+			CreateTimer(10.0, BotsStartMove);
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_deadcity04_outpost", true))
+	{
+		new DCIIScvPrep = FindEntityByName("trigger_finale_btn", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(DCIIScvPrep, posx);
+
+		if (CheckforBots(posx, 500.0) && !MapTrigger && !FinaleHasStarted)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The... 'finale' will begin in 20.");
+			AcceptEntityInput(DCIIScvPrep, "Use");
+			CreateTimer(20.0, DCIIScavengeEvent);
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_deadcity05_plant", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 4744.4077;
+		posx[1] = 10387.633;
+		posx[2] = 424.03125;
+
+		if (CheckforBots(posx, 200.0) && !MapTrigger)
+		{
+			CreateTimer(0.1, BotsStopMove);
+			
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, posx[0]);
+			WritePackFloat(posdata, posx[1]);
+			WritePackFloat(posdata, posx[2]);
+			CreateTimer(0.2, WarpAllBots, posdata);
+			CreateTimer(0.3, RunBusStationEvent);
+			CreateTimer(10.0, BotsStartMove);
+			
+			MapTrigger = true;
+		}
+	}
+	if (StrEqual(mapname, "deathrow02_outskirts", true))
+	{
+		new DRDoor = FindEntityByName("Emergency_Exit_Door", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(DRDoor, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			AcceptEntityInput(DRDoor, "Open");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "cdta_02road", true))
+	{
+		new CDTAAlarm = FindEntityByName("gbutton", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(CDTAAlarm, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -7492.749);
+			WritePackFloat(posdata, -6518.827);
+			WritePackFloat(posdata, 431.99423);
+			CreateTimer(30.0, WarpAllBots, posdata);
+			
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "cdta_04onarail", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -1043.982;
+		posx[1] = 3621.3691;
+		posx[2] = 917.03125;
+
+		if (CheckforBots(posx, 150.0) && !MapTrigger)
+		{
+			CreateTimer(0.1, BotsStopMove);
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -1504.7284);
+			WritePackFloat(posdata, 3641.996);
+			WritePackFloat(posdata, 973.63727);
+			CreateTimer(3.0, WarpAllBots, posdata);
+			CreateTimer(140.0, BotsStartMove);
+			CreateTimer(140.1, CDTA04Train);
+		}
+	}
+	
+	if (StrEqual(mapname, "cdta_05finalroad", true))
+	{
+		if (!FinaleHasStarted)
+		{
+			SetConVarInt(FindConVar("sb_unstick"), 0);
+		}
+		else
+		{
+			SetConVarInt(FindConVar("sb_unstick"), 1);
+		}
+		
+		new DAGasPump = FindEntityByName("fueltruck-button", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(DAGasPump, posx);
+
+		if (CheckforBots(posx, 1000.0) && !MapTrigger && IsCoop())
+		{
+			CreateTimer(30.0, DAGasLever);
+			PrintToChatAll("\x04[AutoTrigger] \x01Bots will collect the gas for the pilot in 30 seconds. And will return in 2 minutes after that.");
+			
+			new Handle:posxdata = CreateDataPack();
+			WritePackFloat(posxdata, 212.18498);
+			WritePackFloat(posxdata, -1118.3547);
+			WritePackFloat(posxdata, 883.8139);
+			CreateTimer(29.5, WarpAllBots, posxdata);
+			
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -7792.7573);
+			WritePackFloat(posdata, -7914.6284);
+			WritePackFloat(posdata, 919.5485);
+			CreateTimer(90.0, WarpAllBots, posdata);
+			
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, -8449.011);
+			WritePackFloat(postwodata, -11884.115);
+			WritePackFloat(postwodata, 855.9715);
+			CreateTimer(150.0, WarpAllBots, postwodata);
+			
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_diescraper1_apartment_361", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 10658.119;
+		posx[1] = 7388.1016;
+		posx[2] = 353.43677;
+
+		if (CheckforBots(posx, 100.0) && !WarpTrigger)
+		{
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 10643.413);
+			WritePackFloat(posdata, 7374.211);
+			WritePackFloat(posdata, 38.501827);
+			CreateTimer(5.0, WarpAllBots, posdata);
+			
+			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_diescraper3_mid_361", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -428.14487;
+		posx[1] = -596.2446;
+		posx[2] = -1999.9688;
+
+		if (CheckforBots(posx, 300.0) && !WarpTrigger)
+		{
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 614.0295);
+			WritePackFloat(posdata, -413.7362);
+			WritePackFloat(posdata, -1999.9688);
+			CreateTimer(30.0, WarpAllBots, posdata);
+			WarpTrigger = true;
+		}
+		
+		decl Float:pos1[3];
+		pos1[0] = -428.14487;
+		pos1[1] = -596.2446;
+		pos1[2] = -1999.9688;
+
+		if (CheckforBots(pos1, 300.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "generator_lever_button", "Use");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "store_shutter_nav", "UnblockNav");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_diescraper4_top_361", true))
+	{
+		new DSFinale = FindEntityByName("finale_radio", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(DSFinale, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "finale_radio", "ForceFinaleStart");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "ft_m5_finale", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 7052.859;
+		posx[1] = 9295.024;
+		posx[2] = 5760.0312;
+
+		if (CheckforBots(posx, 300.0) && !WarpTrigger)
+		{
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 7293.286);
+			WritePackFloat(posdata, 9309.878);
+			WritePackFloat(posdata, 5920.0312);
+			CreateTimer(10.0, WarpAllBots, posdata);
+			
+			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_ahs_mallarea_vs", true))
+	{
+		new Finals = FindEntityByName("radio", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(Finals, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger && !FinaleHasStarted)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio", "ForceFinaleStart");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "splash1", true))
+	{
+		new splash1button = FindEntityByName("cres_button", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(splash1button, posx);
+
+		if (CheckforBots(posx, 700.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "cres_button", "Use");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "splash3", true))
+	{
+		new splash3elevator = FindEntityByName("elevator", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(splash3elevator, posx);
+
+		if (CheckforBots(posx, 250.0) && !MapTrigger)
+		{
+			CreateTimer(0.1, BotsStopMove);
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 3766.673);
+			WritePackFloat(posdata, -4858.7075);
+			WritePackFloat(posdata, 130.07637);
+			CreateTimer(15.0, WarpAllBots, posdata);
+			CreateTimer(17.5, Splash3CreepyAssHousePre);
+			CreateTimer(20.0, Splash3CreepyAssHouse);
+			CreateTimer(90.0, BotsStartMove);
+			
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, 3795.4307);
+			WritePackFloat(posonedata, -5232.4365);
+			WritePackFloat(posonedata, -145.96875);
+			CreateTimer(90.1, WarpAllBots, posonedata);
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "splash4", true))
+	{
+		new splash4gate2 = FindEntityByName("gate2_button", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(splash4gate2, posx);
+
+		if (CheckforBots(posx, 200.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Ladies and gentlemen, we hope you enjoy this Journey on Splash Mountain. The ride will begin in 10 seconds.");
+			CreateTimer(3.0, Splash4Gate2Wheel);
+			MapTrigger = true;
+		}
+		
+		new splash4gate1 = FindEntityByName("wheel_turn1_button", -1);
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(splash4gate1, pos1);
+
+		if (CheckforBots(pos1, 400.0) && !MapTriggerTwo)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01They find the missing wheel...");
+			
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 2195.6565);
+			WritePackFloat(posdata, -8696.019);
+			WritePackFloat(posdata, 334.9983);
+			CreateTimer(30.0, WarpAllBots, posdata);
+			CreateTimer(35.0, Splash4BoatGate1);
+			
+			MapTriggerTwo = true;
+		}
+		
+		decl Float:pos2[3];
+		pos2[0] = 2964.408;
+		pos2[1] = -7133.5186;
+		pos2[2] = 968.03125;
+
+		if (CheckforBots(pos2, 300.0) && !WarpTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01A dead end for the bots...");
+			
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, 2630.0293);
+			WritePackFloat(posonedata, -7778.4897);
+			WritePackFloat(posonedata, 970.03125);
+			CreateTimer(10.0, WarpAllBots, posonedata);
+			CreateTimer(15.0, Splash4BoatGate3);
+			
+			WarpTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "splash5", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -619.0;
+		posx[1] = -6912.0;
+		posx[2] = 437.5;
+		
+		if (CheckforBots(posx, 250.0))
+		{
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, 680.625);
+			WritePackFloat(posdata, -4217.25);
+			WritePackFloat(posdata, 405.5);
+			CreateTimer(0.1, WarpAllBots, posdata);
+		}
+		
+		decl Float:pos1[3];
+		pos1[0] = -2751.1519;
+		pos1[1] = -2829.6992;
+		pos1[2] = 586.03125;
+
+		if (CheckforBots(pos1, 250.0) && !MapTrigger && !FinaleHasStarted)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01End of the line... This concludes our tour of Disney World. Now we gotta get the fuck out. The finale will commence in 10 seconds.");
+			CreateTimer(10.0, Splash5FinaleStart);
+			MapTrigger = true;
+		}
+		
+		if (FinaleHasStarted && !MapTriggerTwo)
+		{
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, 680.625);
+			WritePackFloat(postwodata, -4217.25);
+			WritePackFloat(postwodata, 405.5);
+			CreateTimer(30.0, WarpAllBots, postwodata);
+			CreateTimer(45.0, Splash5GasCan8);
+			CreateTimer(60.0, Splash5GasCan3);
+			CreateTimer(75.0, Splash5GasCan6);
+			CreateTimer(90.0, Splash5GasCan4);
+			
+			MapTriggerTwo = true;
+		}
+
+		if (FinaleHasStarted && ConfirmPourFinale && !MapTriggerThree && !EscapeReady)
+		{
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, 680.625);
+			WritePackFloat(postwodata, -4217.25);
+			WritePackFloat(postwodata, 405.5);
+			CreateTimer(30.0, WarpAllBots, postwodata);
+			CreateTimer(45.0, Splash5GasCan1);
+			CreateTimer(60.0, Splash5GasCan2);
+			CreateTimer(75.0, Splash5GasCan5);
+			CreateTimer(90.0, Splash5GasCan7);
+			MapTriggerThree = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d_5tolifef03", true))
+	{
+		if (FinaleHasStarted && !MapTrigger && !EscapeReady)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The bots proceed in the finale...");
+			
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, -3083.1772);
+			WritePackFloat(posonedata, 6923.102);
+			WritePackFloat(posonedata, -469.52893);
+			CreateTimer(120.0, WarpAllBots, posonedata);
+			
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "gasfever_1", true))
+	{
+		new gasfever1button = FindEntityByName("gauntlet_trigger_on", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(gasfever1button, posx);
+
+		if (CheckforBots(posx, 250.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gauntlet_trigger_on", "Use");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "gasfever_2", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -2143.649;
+		posx[1] = -1546.7096;
+		posx[2] = 5855.8857;
+
+		if (CheckforBots(posx, 1000.0) && !WarpTrigger)
+		{
+			new Handle:posdata = CreateDataPack();
+			WritePackFloat(posdata, -3230.1184);
+			WritePackFloat(posdata, -845.41907);
+			WritePackFloat(posdata, 5878.0024);
+			CreateTimer(10.0, WarpAllBots, posdata);
+			
+			WarpTrigger = true;
+		}
+		
+		new gasfever2button = FindEntityByName("Bridge_button", -1);
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(gasfever2button, pos1);
+
+		if (CheckforBots(posx, 500.0) && !MapTrigger)
+		{
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, 782.5558);
+			WritePackFloat(posonedata, 2314.9136);
+			WritePackFloat(posonedata, 5893.675);
+			CreateTimer(10.0, WarpAllBots, posonedata);
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "gasfever_3", true))
+	{
+		if (!IsValidEntity(FindEntityByName("finale_start_button", -1)) && !MapTrigger)
+		{
+			MapTrigger = true;
+		}
+		else
+		{
+			decl Float:pos1[3];
+			GetEntityAbsOrigin(FindEntityByName("finale_start_button", -1), pos1);
+
+			if (CheckforBots(pos1, 300.0) && !MapTrigger)
+			{
+				PrintToChatAll("\x04[AutoTrigger] \x01They start the first generator...");
+				
+				AcceptEntityInput(FindEntityByName("finale_start_button", -1), "Press");
+				CreateTimer(5.0, C7M3GeneratorStart);
+				MapTrigger = true;
+				
+				new Handle:posdata = CreateDataPack();
+				WritePackFloat(posdata, 3108.4167);
+				WritePackFloat(posdata, 10304.475);
+				WritePackFloat(posdata, 5915.9194);
+				CreateTimer(20.0, WarpAllBots, posdata);
+			}
+		}
+
+		if (!IsValidEntity(FindEntityByName("finale_start_button1", -1)) && MapTrigger && !MapTriggerTwo)
+		{
+			MapTriggerTwo = true;
+		}
+		else
+		{
+			decl Float:pos1[3];
+			GetEntityAbsOrigin(FindEntityByName("finale_start_button1", -1), pos1);
+
+			if (CheckforBots(pos1, 300.0) && !MapTriggerTwo)
+			{
+				PrintToChatAll("\x04[AutoTrigger] \x01The second generator starts...");
+				
+				AcceptEntityInput(FindEntityByName("finale_start_button1", -1), "Press");
+				CreateTimer(5.0, C7M3GeneratorStart1);
+				MapTriggerTwo = true;
+				new Handle:posonedata = CreateDataPack();
+				WritePackFloat(posonedata, 1211.1577);
+				WritePackFloat(posonedata, 9821.683);
+				WritePackFloat(posonedata, 6102.237);
+				CreateTimer(20.0, WarpAllBots, posonedata);
+			}
+		}
+
+		if (!IsValidEntity(FindEntityByName("finale_start_button2", -1)) && MapTrigger && MapTriggerTwo && !MapTriggerThree)
+		{
+			MapTriggerThree = true;
+		}
+		
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(FindEntityByName("finale_start_button2", -1), pos1);
+
+		if (CheckforBots(pos1, 300.0) && !MapTriggerThree)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The third generator starts...");
+			AcceptEntityInput(FindEntityByName("finale_start_button2", -1), "Press");
+			CreateTimer(5.0, C7M3GeneratorStart2);
+			MapTriggerThree = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "jsgone01_crash", true))
+	{
+		new G60gascans = FindEntityByName("barricade_gas_can", -1);
+		if (G60gascans == -1)
+		{
+			MapTrigger = true;
+		}
+		decl Float:posx[3];
+		GetEntityAbsOrigin(G60gascans, posx);
+
+		if (CheckforBots(posx, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
+			AcceptEntityInput(G60gascans, "Ignite");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "jsgone02_end", true))
+	{
+		new G60Door = FindEntityByName("emergency_door", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(G60Door, posx);
+
+		if (CheckforBots(posx, 200.0) && !MapTrigger && !FinaleHasStarted)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "emergency_door", "Use");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "suburbs2", true))
+	{
+		new LastLinePC = FindEntityByName("button1", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(LastLinePC, posx);
+
+		if (CheckforBots(posx, 400.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button1", "Use");
+			MapTrigger = true;
+		}
+		
+		new LastLineGascan = FindEntityByName("gascan", -1);
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(LastLineGascan, pos1);
+
+		if (CheckforBots(posx, 400.0) && !MapTriggerTwo)
+		{
+			CreateTimer(0.1, BotsStopMove);
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "relay1", "Trigger");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gascan", "Kill");
+			CreateTimer(60.0, BotsStartMove);
+			MapTriggerTwo = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "busstation3", true))
+	{
+		if (FinaleHasStarted && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button4", "Kill");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button3", "Unlock");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button3", "Use");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button2", "Use");
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button1", "Use");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "campanar_coop_vs", true))
+	{
+		new LastSummergascans = FindEntityByName("barricade_gas_can", -1);
+		if (LastSummergascans == -1)
+		{
+			MapTrigger = true;
+		}
+		
+		decl Float:posx[3];
+		GetEntityAbsOrigin(LastSummergascans, posx);
+
+		if (CheckforBots(posx, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
+			AcceptEntityInput(LastSummergascans, "Ignite");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "alboraya_coop_vs", true))
+	{
+		decl Float:posx[3];
+		posx[0] = 8353.692;
+		posx[1] = 8748.271;
+		posx[2] = 64.03125;
+
+		if (CheckforBots(posx, 150.0) && !WarpTrigger)
+		{
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, 8077.6436);
+			WritePackFloat(posonedata, 8622.418);
+			WritePackFloat(posonedata, 64.03125);
+			CreateTimer(10.0, WarpAllBots, posonedata);
+			WarpTrigger = true;
+		}
+		
+		new LastSummerButton = FindEntityByName("alarmstop1", -1);
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(LastSummerButton, pos1);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "alarmstop1", "Use");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "cullera_coop_vs", true))
+	{
+		decl Float:posx[3];
+		posx[0] = -6187.5;
+		posx[1] = -2410.0;
+		posx[2] = -1370.375;
+
+		if (CheckforBots(posx, 150.0) && !WarpTrigger)
+		{
+			CreateTimer(0.1, BotsStick);
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, -5937.888);
+			WritePackFloat(posonedata, 217.6694);
+			WritePackFloat(posonedata, -1258.8883);
+			CreateTimer(10.0, WarpAllBots, posonedata);
+			CreateTimer(10.1, BotsUnstick);
+			WarpTrigger = true;
+		}
+		
+		new LastSummerRadio = FindEntityByName("radio", -1);
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(LastSummerRadio, pos1);
+
+		if (CheckforBots(posx, 200.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio", "ForceFinaleStart");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_sbtd_02", true))
+	{
+		new SBTDButton = FindEntityByName("slide_door_btn", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(SBTDButton, posx);
+
+		if (CheckforBots(posx, 300.0) && !MapTrigger)
+		{
+			UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "slide_door_btn", "Use");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "l4d2_sbtd_03", true))
+	{
+		new SBTDgascans = FindEntityByName("barricade_gas_can", -1);
+		if (SBTDgascans == -1)
+		{
+			MapTrigger = true;
+		}
+		
+		decl Float:posx[3];
+		GetEntityAbsOrigin(SBTDgascans, posx);
+
+		if (CheckforBots(posx, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01Down goes the wall...");
+			AcceptEntityInput(SBTDgascans, "Ignite");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "eu03_oldtown_b16", true))
+	{
+		new TTgascans = FindEntityByName("barricade_gas_can", -1);
+		if (TTgascans == -1)
+		{
+			MapTrigger = true;
+		}
+		
+		decl Float:posx[3];
+		GetEntityAbsOrigin(TTgascans, posx);
+
+		if (CheckforBots(posx, 900.0) && !MapTrigger)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The barricade is burning...");
+			AcceptEntityInput(TTgascans, "Ignite");
+			MapTrigger = true;
+		}
+	}
+	
+	if (StrEqual(mapname, "wfp4_commstation", true))
+	{
+		new WF4Radio = FindEntityByName("wf4_final_cboxbtt", -1);
+		decl Float:posx[3];
+		GetEntityAbsOrigin(WF4Radio, posx);
+
+		if (CheckforBots(posx, 200.0) && !MapTrigger && !FinaleHasStarted)
+		{
+			PrintToChatAll("\x04[AutoTrigger] \x01The finale will start in 30 seconds...");
+			new Handle:posfourdata = CreateDataPack();
+			WritePackFloat(posfourdata, -2326.9055);
+			WritePackFloat(posfourdata, -7812.5933);
+			WritePackFloat(posfourdata, -1519.9688);
+			CreateTimer(29.5, WarpAllBots, posfourdata);
+			CreateTimer(30.0, WF4FinaleStart);
+			MapTrigger = true;
+		}
+		
+		new WF4Button1 = FindEntityByName("wf4_generator_btt1", -1);
+		new WF4Button2 = FindEntityByName("wf4_generator_btt2", -1);
+		new WF4Button3 = FindEntityByName("wf4_generator_btt3", -1);
+		new WF4Button4 = FindEntityByName("wf4_generator_btt4", -1);
+
+		if (WF4Button1 == -1 && FinaleHasStarted && !MapTriggerTwo)
+		{
+			MapTriggerTwo = true;
+		}
+
+		if (WF4Button2 == -1 && FinaleHasStarted && !MapTriggerThree)
+		{
+			MapTriggerThree = true;
+		}
+
+		if (WF4Button3 == -1 && FinaleHasStarted && !MapTriggerFourth)
+		{
+			MapTriggerFourth = true;
+		}
+
+		if (WF4Button4 == -1 && FinaleHasStarted && !WarpTrigger)
+		{
+			WarpTrigger = true;
+		}
+
+		if (FinaleHasStarted && !MapTriggerTwo)
+		{
+			new Handle:posonedata = CreateDataPack();
+			WritePackFloat(posonedata, -1524.4092);
+			WritePackFloat(posonedata, -8447.203);
+			WritePackFloat(posonedata, -1439.1017);
+			CreateTimer(15.0, WarpAllBots, posonedata);
+			CreateTimer(20.0, WF4TimedButton1);
+			MapTriggerTwo = true;
+		}
+		
+		decl Float:pos1[3];
+		GetEntityAbsOrigin(WF4Button1, pos1);
+
+		if (CheckforBots(pos1, 400.0) && FinaleHasStarted && !MapTriggerThree)
+		{
+			new Handle:postwodata = CreateDataPack();
+			WritePackFloat(postwodata, -3187.8936);
+			WritePackFloat(postwodata, -7767.919);
+			WritePackFloat(postwodata, -1535.9688);
+			CreateTimer(15.0, WarpAllBots, postwodata);
+			CreateTimer(20.0, WF4TimedButton2);
+			MapTriggerThree = true;
+		}
+		
+		decl Float:pos2[3];
+		GetEntityAbsOrigin(WF4Button2, pos2);
+
+		if (CheckforBots(pos2, 400.0) && FinaleHasStarted && !MapTriggerFourth)
+		{
+			new Handle:posthreedata = CreateDataPack();
+			WritePackFloat(posthreedata, -3633.8118);
+			WritePackFloat(posthreedata, -8951.031);
+			WritePackFloat(posthreedata, -1535.9688);
+			CreateTimer(15.0, WarpAllBots, posthreedata);
+			CreateTimer(20.0, WF4TimedButton3);
+			MapTriggerFourth = true;
+		}
+		
+		decl Float:pos3[3];
+		GetEntityAbsOrigin(WF4Button3, pos3);
+
+		if (CheckforBots(pos3, 400.0) && FinaleHasStarted && !WarpTrigger)
+		{
+			new Handle:posfifthdata = CreateDataPack();
+			WritePackFloat(posfifthdata, -3633.8118);
+			WritePackFloat(posfifthdata, -8951.031);
+			WritePackFloat(posfifthdata, -1535.9688);
+			CreateTimer(15.0, WarpAllBots, posfifthdata);
+			CreateTimer(20.0, WF4TimedButton4);
+			WarpTrigger = true;
+		}
+
+		if (FinaleHasStarted && MapTriggerTwo && !MapTriggerThree)
+		{
+			new Handle:possixdata = CreateDataPack();
+			WritePackFloat(possixdata, -3187.8936);
+			WritePackFloat(possixdata, -7767.919);
+			WritePackFloat(possixdata, -1535.9688);
+			CreateTimer(15.0, WarpAllBots, possixdata);
+			CreateTimer(20.0, WF4TimedButton1);
+			MapTriggerThree = true;
+		}
+
+		if (FinaleHasStarted && MapTriggerTwo && MapTriggerThree && !MapTriggerFourth)
+		{
+			new Handle:possevendata = CreateDataPack();
+			WritePackFloat(possevendata, -3633.8118);
+			WritePackFloat(possevendata, -8951.031);
+			WritePackFloat(possevendata, -1535.9688);
+			CreateTimer(15.0, WarpAllBots, possevendata);
+			CreateTimer(20.0, WF4TimedButton2);
+			MapTriggerFourth = true;
+		}
+
+		if (FinaleHasStarted && MapTriggerTwo && MapTriggerThree && MapTriggerFourth && !WarpTrigger)
+		{
+			new Handle:poseightdata = CreateDataPack();
+			WritePackFloat(poseightdata, -3633.8118);
+			WritePackFloat(poseightdata, -8951.031);
+			WritePackFloat(poseightdata, -1535.9688);
+			CreateTimer(15.0, WarpAllBots, poseightdata);
+			CreateTimer(20.0, WF4TimedButton3);
 			WarpTrigger = true;
 		}
 	}
@@ -1976,7 +4083,7 @@ public Action:WarpAllBots(Handle:Timer, Handle:posdata)
 	position[2] = ReadPackFloat(posdata);
 	CloseHandle(posdata);
 	
-	PrintToServer("[AutoTrigger] Bots have been repositioned.");
+	PrintToChatAll("\x04[AutoTrigger] \x01Bots have been repositioned.");
 	
 	for (new target = 1; target <= MaxClients; target++)
 	{
@@ -2102,14 +4209,14 @@ public Action:ResumeBotsActions(Handle:Timer)
 public Action:RunBusStationEvent(Handle:Timer)
 {
 	AcceptEntityInput(FindEntityByName("finale_cleanse_entrance_door", -1), "Close");
-	//PrintToServer("[AutoTrigger] They gather in the CEDA Trailer...");
+	//PrintToChatAll("\x04[AutoTrigger] \x01They gather in the CEDA Trailer...");
 	CreateTimer(5.0, RunBusStationEvent2);
 }
 
 public Action:RunBusStationEvent2(Handle:Timer)
 {
 	AcceptEntityInput(FindEntityByName("finale_cleanse_exit_door", -1), "Open");
-	//PrintToServer("[AutoTrigger] They run for it...");
+	//PrintToChatAll("\x04[AutoTrigger] \x01They run for it...");
 }
 /*
 public Action:C2M3WarpAllBotToThere(Handle:Timer)
@@ -2123,7 +4230,7 @@ public Action:C2M3WarpAllBotToThere(Handle:Timer)
 	// to: -4315.1 2311.4 313.2
 	if (CheckforBots(posx, 300.0) && !WarpTrigger)
 	{
-		PrintToServer("[AutoTrigger] Bot found at a stuck spot, warping them all ahead in 50 seconds");
+		PrintToChatAll("\x04[AutoTrigger] \x01Bot found at a stuck spot, warping them all ahead in 50 seconds");
 		
 		new Handle:posdata = CreateDataPack();
 		WritePackFloat(posdata, -4315.1);
@@ -2141,7 +4248,7 @@ public Action:C3M3WarpAllBotToThere(Handle:Timer)
 	posx[2] = ;
 	if (CheckForBots(posx, 2000.0) && !WarpTrigger)
 	{
-		PrintToServer("[AutoTrigger] Bots can't seem to simply lower the plank... I'll have to do it for them...");
+		PrintToChatAll("\x04[AutoTrigger] \x01Bots can't seem to simply lower the plank... I'll have to do it for them...");
 		
 		new Handle:posdata = CreateDataPack();
 		WritePackFloat(posdata, -4315.1);
@@ -2154,13 +4261,13 @@ public Action:C3M3WarpAllBotToThere(Handle:Timer)
 */
 public Action:C3M4FinaleStart(Handle:Timer)
 {
-	PrintToServer("[AutoTrigger] Virgil is on his way!");
+	PrintToChatAll("\x04[AutoTrigger] \x01Virgil is on his way!");
 	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "escape_gate_triggerfinale", "Use");
 }
 
 public Action:C5M5FinaleStart(Handle:Timer)
 {
-	PrintToServer("[AutoTrigger] The bridge lowers...");
+	PrintToChatAll("\x04[AutoTrigger] \x01The bridge lowers...");
 	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "finale", "Use");
 }
 
@@ -2169,7 +4276,7 @@ public Action:C10M5FinaleStart(Handle:Timer)
 	// c10m5 - finale start
 	if (MapTrigger && !MapTriggerTwo)
 	{
-		PrintToServer("[AutoTrigger] John Slater is on his way!");
+		PrintToChatAll("\x04[AutoTrigger] \x01John Slater is on his way!");
 		UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio", "Use");
 		MapTriggerTwo = true;
 	}
@@ -2178,12 +4285,30 @@ public Action:C10M5FinaleStart(Handle:Timer)
 public Action:C11M5FinaleStart(Handle:Timer)
 {
 	// c11m5 - finale start
-	if (MapTrigger && !MapTriggerTwo)
+	if (MapTrigger && !MapTriggerTwo && !FinaleHasStarted)
 	{
-		PrintToServer("[AutoTrigger] The plane is fueling up!");
+		PrintToChatAll("\x04[AutoTrigger] \x01The plane is fueling up!");
 		UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "radio", "Use");
 		MapTriggerTwo = true;
 	}
+}
+
+public Action:C14M1PanicEvent(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "fuel_button", "Press");
+	CreateTimer(90.0, C14M1PanicEventPart2);
+}
+
+public Action:C14M1PanicEventPart2(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "generator_counter", "SetValue", "", "4");
+	CreateTimer(60.0, C14M1PanicEventPart3);
+}
+
+public Action:C14M1PanicEventPart3(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "drop_button", "Press");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "unblock_container_path", "UnblockNav");
 }
 
 public Action:GeneratorStart(Handle:Timer)
@@ -2214,7 +4339,7 @@ public Action:GeneratorStart(Handle:Timer)
 public Action:GeneratorStartTwoReady(Handle:Timer)
 {
 	// Crash Cause 02 - Generator Second Start
-	PrintToServer("[AutoTrigger] The generator has been restarted!");
+	PrintToChatAll("\x04[AutoTrigger] \x01The generator has been restarted!");
 	AcceptEntityInput(FindEntityByName("generator_switch", -1), "Press");
 }
 
@@ -2344,7 +4469,7 @@ public Action:C7M3WarpBotsToGenerator1(Handle:Timer)
 	// c7m3 - after they start the first generator, warp them to the special spot,
 	// there has an another generator
 	// teleport them off to -1224.8 814.7 222.0
-	PrintToServer("[AutoTrigger] Start c7m3 trigger1-1.");
+	PrintToChatAll("\x04[AutoTrigger] \x01Start c7m3 trigger1-1.");
 	new Handle:posdata = CreateDataPack();
 	WritePackFloat(posdata, -1224.8);
 	WritePackFloat(posdata, 814.7);
@@ -2358,7 +4483,7 @@ public Action:C7M3WarpBotsToGenerator2(Handle:Timer)
 	// c7m3 - after they start the second generator, warp them to the special spot,
 	// there has the last generator
 	// teleport them off to 1781.9 678.1 -33.9
-	PrintToServer("[AutoTrigger] Start c7m3 trigger2-1.");
+	PrintToChatAll("\x04[AutoTrigger] \x01Start c7m3 trigger2-1.");
 	new Handle:posdata = CreateDataPack();
 	WritePackFloat(posdata, 1781.9);
 	WritePackFloat(posdata, 678.1);
@@ -2369,22 +4494,23 @@ public Action:C7M3WarpBotsToGenerator2(Handle:Timer)
 public Action:C7M3BridgeStartButton(Handle:Timer)
 {
 	// The Sacrifice 03 - C7M3 Bridge Start Button
-	PrintToServer("[AutoTrigger] The bridge goes up...");
+	PrintToChatAll("\x04[AutoTrigger] \x01The bridge goes up...");
 	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "bridge_start_button", "Use");
 }
 
 public Action:C7M3GeneratorFinaleButtonStart(Handle:Timer)
 {
 	// The Sacrifice 03 - Generator final button start
-	PrintToServer("[AutoTrigger] Rest in peace, Survivor Bot...");
+	PrintToChatAll("\x04[AutoTrigger] \x01Rest in peace, Survivor Bot...");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "generator_final_button_relay", "Trigger", "", "0");
 }
 
 public Action:C13M2Trigger(Handle:Timer)
 {
-	//PrintToServer("[AutoTrigger] Start c13m2 trigger.");
+	//PrintToChatAll("\x04[AutoTrigger] \x01Start c13m2 trigger.");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_barrels", "StopGlowing", "", "0");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_barrels", "Kill", "", "0");
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_clip", "Kill", "", "0");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_button", "Kill", "", "0");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_explosion", "Explode", "", "3");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_fire", "Start", "", "0");
@@ -2396,7 +4522,7 @@ public Action:C13M2Trigger(Handle:Timer)
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_murette", "Break", "", "3");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_impact", "Explode", "", "3");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_explosion_sound", "PlaySound", "", "3");
-	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "barrier", "EnableMotion", "", "2.5");
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "barrier", "Kill", "", "3");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_smoke", "Start", "", "0");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_smoke", "Stop", "", "10");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_dummy", "Kill", "", "0");
@@ -2407,10 +4533,8 @@ public Action:C13M2Trigger(Handle:Timer)
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_new_particle", "Stop", "", "5");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "ceda_truck_alarm", "PlaySound", "", "3.5");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_nav_blocker", "UnblockNav", "", "3");
-	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "scene_relay", "Trigger", "", "4.5");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_barrels_hurt_trigger", "Enable", "", "3");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "bridge_barrels_hurt_trigger", "Disable", "", "10");
-	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "barrier", "DisableMotion", "", "8");
 	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "template_onslaught_hint", "ForceSpawn", "", "4");
 }
 
@@ -2464,7 +4588,7 @@ public Action:UFFinish(Handle:Timer)
 
 public Action:UrbanFlightJoke(Handle:Timer)
 {
-	PrintToServer("[AutoTrigger] Huh. I guess this is a du-\x01");
+	PrintToChatAll("\x04[AutoTrigger] \x01Huh. I guess this is a du-\x01");
 }
 
 public Action:TowerGoesBoom(Handle:Timer)
@@ -2476,7 +4600,7 @@ public Action:TowerGoesBoom(Handle:Timer)
 
 public Action:NeverMind(Handle:Timer)
 {
-	PrintToServer("[AutoTrigger] Never mind...\x01");
+	PrintToChatAll("\x04[AutoTrigger] \x01Never mind...\x01");
 }
 
 public Action:IceMelt1(Handle:Timer)
@@ -2594,6 +4718,365 @@ public Action:SuicideBlitz2Gascan(Handle:Timer)
 	AcceptEntityInput(FindEntityByName("event_gascan", -1), "Ignite");
 }
 
+public Action:Yama3TramTrigger(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "engine_button", "Press");
+}
+
+public Action:Yama3Tram2Trigger(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "cablecar_door", "Press");
+}
+
+public Action:YamaFinale(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "scav_finale_starter", "ForceFinaleStart");
+}
+
+public Action:Yama3GeneratorEvent(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "generator_button", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "generator_door", "Unlock");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "generator_door", "Open");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "sound_generator_start", "StopSound");
+}
+
+public Action:DayBreak03GasCans(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gascan_relay", "Trigger");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "barricade_gas_can", "Kill");
+}
+
+public Action:DayBreak05PreFinale(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button_lockdoor", "Press");
+}
+
+public Action:DayBreak05Finale(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "finale_button", "Press");
+}
+
+public Action:BloodProofFinale(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "finale_trigger", "ForceFinaleStart");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "train_engine_relay", "Trigger");
+}
+
+public Action:BloodTracksBoomMessage(Handle:Timer)
+{
+	PrintToChatAll("\x04[AutoTrigger] \x01Motherf--");
+	CreateTimer(0.5, BloodTracksBoom);
+}
+
+public Action:BloodTracksBoom(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "extra_triggers", "Trigger");
+}
+
+public Action:FarewellChenming1Intro1(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "mt_bshelf_mbtt", "Press");
+}
+
+public Action:FarewellChenming1Intro2(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "mt_start_wdoor", "Open");
+}
+
+public Action:FarewellChenming1C4(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "mt_c4_fangzhi", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "mt_c4_downtime", "Trigger");
+}
+
+public Action:FarewellChenming1TrainDoor(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "mt_rtrain_dbtt", "UnLock", "", "0");
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "mt_rtrain_dmovel", "Open", "", "5");
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "mt_rtrain_dbtt", "Kill", "", "5");
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "doorsound", "PlaySound", "", "5");
+}
+
+public Action:FareWellChenming3Door(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "ccm_df_dbutton", "Press");
+}
+
+public Action:FareWellChenming3Key(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "ccm_df_keypick", "Press");
+}
+
+public Action:FareWellChenming3Button(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "ccm_dxtd_opbtt", "Press");
+}
+
+public Action:BloodProofPanicButton(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button_stop_panic", "Press");
+}
+
+public Action:BloodProofGenerator(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "power_button", "Press");
+}
+
+public Action:DamItButton(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button_remote", "Unlock");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "button_remote", "Press");
+}
+
+public Action:DamItElevator2(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "elevator_button01", "Press");
+}
+
+public Action:DKRFireworks1(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "fireworks_logic_relay", "Trigger");
+}
+
+public Action:DKRFireworks2(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "fireworks_logic_relay", "Trigger");
+}
+
+public Action:DKRFlashPots(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "flashpot_logic_relay", "Trigger");
+}
+
+public Action:DKRSpotLights(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "spotlight_logic_relay", "Trigger");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "spotlight_relay1", "Trigger");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "spotlight_relay2", "Trigger");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "spotlight_relay3", "Trigger");
+}
+
+public Action:DKRFinaleTank1(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "tank1_logic_relay", "Trigger");
+}
+
+public Action:DKRFinalePhase2(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "stage2_logic_relay", "Trigger");
+}
+
+public Action:DKRSpeakers(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "speaker_logic_relay", "Trigger");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "speaker_relay", "Trigger");
+}
+
+public Action:DKRScavenge(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "morelights_relay", "Trigger");
+}
+
+public Action:DKRScavengeBypass(Handle:Timer)
+{
+	if (!ConfirmPourFinale)
+	{
+		UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "scav_counter2", "SetValue", "", "1");
+	}
+}
+
+public Action:DKRGate1(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate_open", "Open");
+}
+
+public Action:DKRFireworksCluster3(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "fireworkscluster_relay", "Trigger");
+}
+
+public Action:DKRMic(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "mic_relay", "Trigger");
+}
+
+public Action:DKRMicGuarantee(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "touch_counter", "SetValue", "", "1");
+}
+
+public Action:DKRDisableMic(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "touch_counter", "SetValue", "", "0");
+}
+
+public Action:DAGasLever(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "fueltruck-button", "Use");
+}
+
+public Action:DCII1Elevator(Handle:Timer)
+{
+	new Handle:posdata = CreateDataPack();
+	WritePackFloat(posdata, -3414.9094);
+	WritePackFloat(posdata, -800.1222);
+	WritePackFloat(posdata, -57.860825);
+	CreateTimer(0.1, WarpAllBots, posdata);
+	MapTrigger = false;
+}
+
+public Action:DCIIScavengeEvent(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "trigger_finale", "ForceFinaleStart");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "roadway_door_2", "Open");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "relay_scavenge_postIO", "Trigger");
+}
+
+public Action:Splash3CreepyAssHousePre(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "", "Press");
+}
+
+public Action:Splash3CreepyAssHouse(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "elev_button", "Use");
+}
+
+public Action:Splash4Gate2Wheel(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate2_button", "Press");
+	PrintToChatAll("\x04[AutoTrigger] \x01Please keep your hands, feet, and weapons inside the ride at all times. Or just run like hell to the second gate.");
+	CreateTimer(7.0, Splash4Gate2WheelStart);
+}
+
+public Action:Splash4Gate2WheelStart(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "boat_train", "StartForward");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate1_brush", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate1_navblocker", "UnblockNav");
+}
+
+public Action:Splash4BoatGate1(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wheel_turn1_button", "Press");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate2_boat_start_relay", "Trigger");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate2_brush", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate2_navblocker", "UnblockNav");
+}
+
+public Action:Splash4BoatGate3(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate3_wheel", "Press");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate3_boat_start_relay", "Trigger");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate3_brush", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "gate3_navblocker", "UnblockNav");
+}
+
+public Action:Splash5FinaleStart(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "4");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button0", "Kill");
+	
+}
+
+public Action:Splash5GasCan8(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "1");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button8", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "car8", "StopGlowing");
+}
+
+public Action:Splash5GasCan3(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "2");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button3", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "car3", "StopGlowing");
+}
+
+public Action:Splash5GasCan6(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "3");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button6", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "car6", "StopGlowing");
+}
+
+public Action:Splash5GasCan4(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "4");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button4", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "car4", "StopGlowing");
+}
+
+public Action:Splash5GasCan1(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "1");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button1", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "car1", "StopGlowing");
+}
+
+public Action:Splash5GasCan2(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "2");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button2", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "car2", "StopGlowing");
+}
+
+public Action:Splash5GasCan5(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "3");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button5", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "car5", "StopGlowing");
+}
+
+public Action:Splash5GasCan7(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "gascan_counter", "SetValue", "", "4");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "siphon_button7", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "car7", "StopGlowing");
+}
+
+public Action:CDTA04Train(Handle:Timer)
+{
+	if (!MapTrigger)
+	{
+		MapTrigger = true;
+	}
+}
+
+public Action:WF4FinaleStart(Handle:Timer)
+{
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_final_cboxbtt", "Use");
+}
+
+public Action:WF4TimedButton1(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "wf4_generator_counter", "SetValue", "", "1");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_generator_btt1", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_generator_fake1", "StopGlowing");
+}
+
+public Action:WF4TimedButton2(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "wf4_generator_counter", "SetValue", "", "2");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_generator_btt2", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_generator_fake2", "StopGlowing");
+}
+
+public Action:WF4TimedButton3(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "wf4_generator_counter", "SetValue", "", "3");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_generator_btt3", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_generator_fake3", "StopGlowing");
+}
+
+public Action:WF4TimedButton4(Handle:Timer)
+{
+	UnflagAndExecuteCommandTwo(TriggeringBot, "ent_fire", "wf4_generator_counter", "SetValue", "", "4");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_generator_btt4", "Kill");
+	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "wf4_generator_fake4", "StopGlowing");
+}
+
 public Action:FinaleStart(Handle:Timer)
 {
 	if (FinaleHasStarted) return Plugin_Continue;
@@ -2603,7 +5086,7 @@ public Action:FinaleStart(Handle:Timer)
 	
 	if (!TriggeringBot) return Plugin_Continue;
 	UnflagAndExecuteCommand(TriggeringBot, "ent_fire", "trigger_finale", "");
-	PrintToServer("[AutoTrigger] The finale has started!");
+	PrintToChatAll("\x04[AutoTrigger] \x01The finale has started!");
 	return Plugin_Continue;
 }
 
@@ -2717,6 +5200,33 @@ stock bool:IsCoop()
 	decl String:gamemode[56];
 	GetConVarString(FindConVar("mp_gamemode"), gamemode, sizeof(gamemode));
 	if (StrContains(gamemode, "coop", false) > -1)
+		return true;
+	return false;
+}
+
+stock bool:IsM12()
+{
+	decl String:gamemode[56];
+	GetConVarString(FindConVar("mp_gamemode"), gamemode, sizeof(gamemode));
+	if (StrContains(gamemode, "mutation12", false) > -1)
+		return true;
+	return false;
+}
+
+stock bool:IsScavenge()
+{
+	decl String:gamemode[56];
+	GetConVarString(FindConVar("mp_gamemode"), gamemode, sizeof(gamemode));
+	if (StrContains(gamemode, "scavenge", false) > -1)
+		return true;
+	return false;
+}
+
+stock bool:IsSurvival()
+{
+	decl String:gamemode[56];
+	GetConVarString(FindConVar("mp_gamemode"), gamemode, sizeof(gamemode));
+	if (StrContains(gamemode, "survival", false) > -1)
 		return true;
 	return false;
 }

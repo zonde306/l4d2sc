@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.27"
+#define PLUGIN_VERSION		"1.29"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -37,6 +37,14 @@
 
 ========================================================================================
 	Change Log:
+
+1.29 (10-Oct-2020)
+	- Fixed "L4D_StaggerPlayer" not working with NULL_VECTOR. Thanks to "Zippeli" for reporting.
+
+1.28 (09-Oct-2020)
+	- Added command "sm_l4dd_unreserve" to remove lobby reservation. Added for testing purposes but is functional.
+	- Fixed L4D1 GameData failing to find "g_pServer" address. Thanks to "Ja-Forces" for reporting.
+	- Fixed native "L4D_OnFirstSurvivorLeftSafeArea" throwing errors about null pointer.
 
 1.27 (05-Oct-2020)
 	- Fixed not loading in L4D1 due to recent changes. Thanks to "TiTz" for reporting.
@@ -1114,6 +1122,7 @@ public void OnPluginStart()
 	//									COMMANDS
 	// ====================================================================================================
 	// When adding or removing plugins that use any detours during gameplay. To optimize forwards by disabling unused or enabling required functions that were previously unused. TODO: Not needed when using extra-api.ext.
+	RegAdminCmd("sm_l4dd_unreserve",	CmdLobby,	ADMFLAG_ROOT, "Removes lobby reservation.");
 	RegAdminCmd("sm_l4dd_reload",		CmdReload,	ADMFLAG_ROOT, "Reloads the detour hooks, enabling or disabling depending if they're required by other plugins.");
 	RegAdminCmd("sm_l4dd_detours",		CmdDetours,	ADMFLAG_ROOT, "Lists the currently active forwards and the plugins using them.");
 	RegAdminCmd("sm_l4dhooks_reload",	CmdReload,	ADMFLAG_ROOT, "Reloads the detour hooks, enabling or disabling depending if they're required by other plugins.");
@@ -1656,6 +1665,11 @@ public MRESReturn AddonsDisabler(int pThis, Handle hReturn, Handle hParams)
 // ====================================================================================================
 //										DYNAMIC DETOURS SETUP
 // ====================================================================================================
+public Action CmdLobby(int client, int args)
+{
+	Native_LobbyUnreserve(null, 0);
+}
+
 public Action CmdDetours(int client, int args)
 {
 	CheckRequiredDetours(client + 1);
@@ -3134,9 +3148,9 @@ void LoadGameData()
 	PrintToServer("%12d == g_pZombieManager", g_pZombieManager);
 	PrintToServer("%12d == g_pGameRules", g_pGameRules);
 	PrintToServer("%12d == g_pNavMesh", g_pNavMesh);
+	PrintToServer("%12d == g_pServer", g_pServer);
 	if( g_bLeft4Dead2 )
 	{
-		PrintToServer("%12d == g_pServer", g_pServer);
 		PrintToServer("%12d == g_pWeaponInfoDatabase", g_pWeaponInfoDatabase);
 		PrintToServer("%12d == g_pMeleeWeaponInfoStore", g_pMeleeWeaponInfoStore);
 		PrintToServer("%12d == ScriptedEventManagerPtr", ScriptedEventManagerPtr);
@@ -3859,6 +3873,11 @@ public int Native_StaggerPlayer(Handle plugin, int numParams)
 	int a2 = GetNativeCell(2);
 	float vDir[3];
 	GetNativeArray(3, vDir, 3);
+
+	if( IsNativeParamNullVector(3) )
+	{
+		GetEntPropVector(a2, Prop_Send, "m_vecOrigin", vDir);
+	}
 
 	//PrintToServer("#### CALL g_hSDK_Call_StaggerPlayer");
 	SDKCall(g_hSDK_Call_StaggerPlayer, a1, a2, vDir);
@@ -5825,6 +5844,8 @@ public MRESReturn SetCampaignScores(Handle hReturn, Handle hParams)
 public MRESReturn OnFirstSurvivorLeftSafeArea(Handle hReturn, Handle hParams)
 {
 	//PrintToServer("##### DTR OnFirstSurvivorLeftSafeArea");
+	if( DHookIsNullParam(hParams, 1) ) return MRES_Ignored;
+
 	int value = DHookGetParam(hParams, 1);
 
 	Action aResult = Plugin_Continue;

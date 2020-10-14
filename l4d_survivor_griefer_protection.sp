@@ -12,23 +12,23 @@ Fixed - Admins are now completely immune (mikaelangelis)
 Feature - Added KickType option to cfg(delete old cfg) [1 = Immediate] [2 = Vote Kick] (edwinvega86)
 // >>> CHANGELOG <<< */
 
+#pragma semicolon 1
+#pragma newdecls required
+
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
 
-#pragma semicolon 1
-#pragma newdecls required
-
 static int iAttempts[MAXPLAYERS+1];
-static bool bFirstSpawn[MAXPLAYERS+1];
+static bool bFirstSpawn[MAXPLAYERS+1], bSilenced[MAXPLAYERS+1];
 static float fFirstSpawn[MAXPLAYERS+1], fOrigin[MAXPLAYERS+1][3], fDamageLimit[MAXPLAYERS+1];
 static char sMessage[32];
 
-ConVar JumpAttempts, DamageAllowance, WaitTime, KickMessage, KickType;
+ConVar JumpAttempts, DamageAllowance, WaitTime, KickMessage, KickType, Silence;
 
 public Plugin myinfo =
 {
-	name = "防加入就黑枪跳楼",
+	name = "防加入就坑人",
 	author = "MasterMind420",
 	description = "Prevent Friendly Fire From Newly Connected Players For A Period Of Time",
 	version = "1.3",
@@ -37,11 +37,12 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
-	WaitTime = CreateConVar("l4d_wait_time", "45", "Friendly Fire Threshold In Seconds", FCVAR_NOTIFY);
-	KickType = CreateConVar("l4d_kick_type", "1", "[1 = Immediate Kick] [2 = Vote Kick]", FCVAR_NOTIFY);
-	KickMessage = CreateConVar("l4d_kick_message", "禁止捣乱", "Auto Kick Message", FCVAR_NOTIFY);
-	JumpAttempts = CreateConVar("l4d_attempts", "3", "[0 = NoKick] Attempts When Jumping Off Ledge Before Kick", FCVAR_NOTIFY);
-	DamageAllowance = CreateConVar("l4d_damage_allowance", "200.0", "[0.0 = NoKick] Amount Of Damage Allowed Before Kick", FCVAR_NOTIFY);
+	WaitTime = CreateConVar("l4d_wait_time", "45", "禁止搞事持续时间(秒)", FCVAR_NOTIFY);
+	KickType = CreateConVar("l4d_kick_type", "1", "踢出模式.1=直接.2=起票", FCVAR_NOTIFY);
+	KickMessage = CreateConVar("l4d_kick_message", "踢出显示的内容", "不许捣乱", FCVAR_NOTIFY);
+	JumpAttempts = CreateConVar("l4d_attempts", "3", "跳楼几次会被踢出", FCVAR_NOTIFY);
+	DamageAllowance = CreateConVar("l4d_damage_allowance", "200.0", "总计伤害多少会被踢出", FCVAR_NOTIFY);
+	Silence = CreateConVar("l4d_silence", "45", "在投票阶段阻止说话时间", FCVAR_NOTIFY);
 
 	HookEvent("player_disconnect", eEvents);
 
@@ -75,7 +76,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3])
 {
-	if (IsValidClient(attacker) && IsClientInGame(attacker) && GetClientTeam(attacker) == 2 && !IsClientAdmin(attacker) || attacker == 0)
+	if ((IsValidClient(attacker) && IsClientInGame(attacker) && GetClientTeam(attacker) == 2 && !IsClientAdmin(attacker) && attacker != victim) || attacker == 0)
 	{
 		if (IsValidClient(victim) && IsClientInGame(victim) && GetClientTeam(victim) == 2)
 		{
@@ -83,6 +84,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 			{
 				iAttempts[victim] += 1;
 				CreateTimer(0.1, Teleport, GetClientUserId(victim), TIMER_FLAG_NO_MAPCHANGE);
+				LogMessage("%N 正在尝试跳楼", victim);
 				return Plugin_Handled;
 			}
 
@@ -93,13 +95,10 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 				if (GetConVarFloat(DamageAllowance) > 0.0 && fDamageLimit[attacker] > GetConVarFloat(DamageAllowance))
 				{
 					fDamageLimit[attacker] = 0.0;
-
-					if (GetConVarInt(KickType) == 1)
-						KickClient(attacker, sMessage);
-					else if (GetConVarInt(KickType) == 2)
-						FakeClientCommand(attacker, "callvote kick %d", GetClientUserId(attacker));
+					HandleClientKick(attacker);
 				}
-
+				
+				LogMessage("%N 正在尝试黑枪", victim);
 				return Plugin_Handled;
 			}
 		}
@@ -121,7 +120,7 @@ public Action Teleport(Handle timer, any userid)
 			iAttempts[client] = 0;
 			fDamageLimit[client] = 0.0;
 			bFirstSpawn[client] = false;
-			KickClient(client, sMessage);
+			HandleClientKick(client);
 		}
 	}
 }
@@ -133,6 +132,7 @@ public void eEvents(Event event, const char[] name, bool dontBroadcast)
 	iAttempts[client] = 0;
 	fDamageLimit[client] = 0.0;
 	bFirstSpawn[client] = false;
+	bSilenced[client] = false;
 }
 
 stock bool IsValidClient(int client)
@@ -142,5 +142,35 @@ stock bool IsValidClient(int client)
 
 stock bool IsClientAdmin(int client)
 {
-    return CheckCommandAccess(client, "generic_admin", ADMFLAG_GENERIC, false);
+	return CheckCommandAccess(client, "generic_admin", ADMFLAG_GENERIC, false);
+}
+
+stock void HandleClientKick(int client)
+{
+	if(Silence.BoolValue)
+	{
+		bSilenced[client] = true;
+		SetClientListeningFlags(client, VOICE_MUTED);
+		CreateTimer(Silence.FloatValue, Timer_StopSilence, client);
+	}
+	
+	if (GetConVarInt(KickType) == 1)
+		KickClient(client, sMessage);
+	else if (GetConVarInt(KickType) == 2) {
+		PrintToChatAll("\x01玩家 \x05%N \x01搞事次数过多(跳楼/黑枪)，因而发起投票。", client);
+		FakeClientCommand(client, "callvote kick %d", GetClientUserId(client));
+	}
+}
+
+public Action Timer_StopSilence(Handle timer, any client)
+{
+	bSilenced[client] = false;
+}
+
+public Action OnClientSayCommand(int client, const char[] command, const char[] sArgs)
+{
+	if(IsValidClient(client) && bSilenced[client])
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
 }

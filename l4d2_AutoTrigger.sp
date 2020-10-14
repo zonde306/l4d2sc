@@ -34,7 +34,7 @@ new bool:GameOver;
 
 public Plugin:myinfo =
 {
-	name = "机器人自动触发",
+	name = "幸存者机器人触发",
 	author = "Xanaguy",
 	description = "An improved version of ijj's variant of the L4D2 Survivor AI Auto Trigger",
 	version = PLUGIN_VERSION,
@@ -5097,7 +5097,7 @@ bool:CheckforBots(Float:position[3], Float:distancesetting)
 	{
 		if (IsClientInGame(target))
 		{
-			if (GetClientHealth(target)>1 && GetClientTeam(target) == 2 && IsFakeClient(target)) // make sure target is a Survivor Bot
+			if (IsPlayerAlive(target) && GetClientTeam(target) == 2 && IsFakeClient(target)) // make sure target is a Survivor Bot
 			{
 				if (IsPlayerIncapped(target)) // incapped doesnt count
 					return false;

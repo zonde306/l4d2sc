@@ -1754,8 +1754,8 @@
 
 			"g_pServer"
 			{
-				"library"	"server"
-				"linux"		"@g_pServer"
+				"library"	"engine"
+				"linux"		"@sv"
 			}
 
 			/* Used for g_pServer pointer. */

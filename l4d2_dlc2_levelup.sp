@@ -211,6 +211,7 @@ int g_iDamageChance[MAXPLAYERS+1];
 int g_iDamageChanceMin[MAXPLAYERS+1];
 int g_iDamageChanceMax[MAXPLAYERS+1];
 int g_iDamageBase[MAXPLAYERS+1];
+bool g_bIsVerified[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -387,6 +388,8 @@ new String: g_esUpgrade[MAXPLAYERS+1][12][32];		//装备的完美度
 */
 
 new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
+int g_iActiveEffects[MAXPLAYERS+1][sizeof(g_clCurEquip[])];
+
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
@@ -449,7 +452,7 @@ bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS, g_pCvarSaveStatus;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
 Handle g_pfnOnSwingStart, g_pfnOnPummelEnded, g_pfnEndCharge, g_pfnOnCarryEnded, g_pfnIsInvulnerable, g_pfnCreateGift;
-Handle g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
+GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
 	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent, g_fwOnAngrySkill, g_fwOnAngryPoint;
 
 public Plugin:myinfo =
@@ -457,7 +460,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.1.1",
+	version = "1.1.2",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -559,8 +562,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// void LV_TriggerLottery(int client, int mode)
 	CreateNative("LV_TriggerLottery", Native_TriggerLottery);
 	
-	// Action LV_OnUpdateStatus(int client, bool& heal)
-	g_fwOnUpdateStatus = CreateGlobalForward("LV_OnUpdateStatus", ET_Hook, Param_Cell, Param_CellByRef);
+	// Action LV_OnUpdateStatus(int client, bool& heal, int& damage, int& health, int& speed, int& gravity, int& critChance, int& critDamageMin, int& critDamageMax, int[] effects, int num_effects)
+	g_fwOnUpdateStatus = CreateGlobalForward("LV_OnUpdateStatus", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_Array, Param_Cell);
 	
 	// Action LV_OnGiveHealth(int client, int& amount, bool& limited, bool& convertable)
 	g_fwOnGiveHealth = CreateGlobalForward("LV_OnGiveHealth", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
@@ -1594,6 +1597,8 @@ void GenerateRandomStats(int client, bool uncap)
 			g_mEquipData[client].SetArray(key, data, sizeof(data));
 		}
 	}
+	
+	// g_bIsVerified[client] = true;
 }
 
 void Initialization(int client, bool invalid = false)
@@ -1650,6 +1655,7 @@ void Initialization(int client, bool invalid = false)
 	g_iDamageChance[client] = 0;
 	g_iDamageChanceMax[client] = 0;
 	g_iDamageChanceMin[client] = 0;
+	g_bIsVerified[client] = false;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -1835,13 +1841,17 @@ bool ClientSaveToFileLoad(int client, bool remember = false)
 		
 		g_kvSavePlayer[client].GoBack();
 	}
-
+	
+	g_bIsVerified[client] = true;
 	return true;
 }
 
 //存档
 bool ClientSaveToFileSave(int client, bool remember = false)
 {
+	if(client > 0 && client <= MaxClients && !g_bIsVerified[client])
+		return false;
+	
 	char steamId[64];
 	steamId[0] = EOS;
 	
@@ -5425,7 +5435,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	return Plugin_Changed;
 }
 
-public Action:EventRevive(Handle:Timer, any:client)
+public Action:EventRevive(Handle:timer, any:client)
 {
 	if(IsClientInGame(client) && IsPlayerAlive(client))
 	{
@@ -9057,6 +9067,23 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	int chance, minChDmg, maxChDmg, baseDmg;
 	CalcDamageExtra(client, chance, minChDmg, maxChDmg, baseDmg);
 	
+	for(int i = 0; i < sizeof(g_clCurEquip[]); i++)
+	{
+		g_iActiveEffects[client][i] = 0;
+		
+		if(!g_clCurEquip[client][i])
+			continue;
+		
+		static char key[16];
+		IntToString(g_clCurEquip[client][i], key, sizeof(key));
+		
+		static EquipData_t data;
+		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
+			continue;
+		
+		g_iActiveEffects[client][i] = data.effect;
+	}
+	
 	{
 		Call_StartForward(g_fwOnUpdateStatus);
 		Call_PushCell(client);
@@ -9064,12 +9091,49 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		bool refFullHealth = fullHealth;
 		Call_PushCellRef(refFullHealth);
 		
+		int refDamage = baseDmg;
+		Call_PushCellRef(refDamage);
+		
+		int refHealth = health;
+		Call_PushCellRef(refHealth);
+		
+		int refSpeed = speed;
+		Call_PushCellRef(refSpeed);
+		
+		int refGravity = gravity;
+		Call_PushCellRef(refGravity);
+		
+		int refChance = chance;
+		Call_PushCellRef(refChance);
+		
+		int refChanceDamageMin = minChDmg;
+		Call_PushCellRef(refChanceDamageMin);
+		
+		int refChanceDamageMax = maxChDmg;
+		Call_PushCellRef(refChanceDamageMax);
+		
+		int refEffects[sizeof(g_iActiveEffects[])];
+		Call_PushArrayEx(refEffects, sizeof(refEffects), SM_PARAM_COPYBACK);
+		Call_PushCell(sizeof(refEffects));
+		
 		Action refResult = Plugin_Continue;
 		if(Call_Finish(refResult) != SP_ERROR_NONE)
 			refResult = Plugin_Continue;
 		
 		if(refResult == Plugin_Changed)
+		{
 			fullHealth = refFullHealth;
+			baseDmg = refDamage;
+			health = refHealth;
+			speed = refSpeed;
+			gravity = refGravity;
+			chance = refChance;
+			minChDmg = refChanceDamageMin;
+			maxChDmg = refChanceDamageMax;
+			
+			for(int i = 0; i < sizeof(refEffects); i++)
+				g_iActiveEffects[client][i] = refEffects[i];
+		}
 	}
 	
 	int maxHealth = (baseMaxHealth + (baseMaxHealth * health / 100));
@@ -10833,7 +10897,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			g_bCanGunShover[client] = false;
 			new Float:pos[3];
-			GetClientAbsOrigin(client, pos);
+			// GetClientAbsOrigin(client, pos);
+			GetClientEyePosition(client, pos);
 
 			// EmitSoundToAll(SOUND_BCLAW, client);
 			EmitAmbientSound(SOUND_BCLAW, pos, client);
@@ -10844,13 +10909,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				if(!IsValidAliveClient(i) || GetClientTeam(i) != 3)
 					continue;
 
-				decl Float:vec[3];
+				decl Float:vec[3], Float:dir[3];
 				GetClientAbsOrigin(i, vec);
 				if(GetVectorDistance(vec, pos) > radius)
 					continue;
-
+				
+				SubtractVectors(vec, pos, dir);
+				
 				Charge(i, client, 750.0);
-				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_AIRBOAT, 0, NULL_VECTOR, pos);
+				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_AIRBOAT, weapon, dir, pos);
 			}
 			
 			if(IsPlayerHaveEffect(client, 30))
@@ -10865,12 +10932,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					if(!HasEntProp(i, Prop_Send, "m_bIsBurning") || HasEntProp(i, Prop_Send, "m_rage"))
 						continue;
 					
-					decl Float:vec[3];
+					decl Float:vec[3], Float:dir[3];
 					GetEntPropVector(i, Prop_Send, "m_vecOrigin", vec);
 					if(GetVectorDistance(vec, pos) > radius)
 						continue;
 					
-					SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 30)), DMG_AIRBOAT, 0, NULL_VECTOR, pos);
+					SubtractVectors(vec, pos, dir);
+					SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 30)), DMG_AIRBOAT, weapon, dir, pos);
 				}
 			}
 			
@@ -11430,7 +11498,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 {
 	g_iIncapShoveIgnore[0] = client;
 	
-	float vPos[3], vAng[3], vLoc[3];
+	float vPos[3], vAng[3], vLoc[3], vDir[3];
 	GetClientEyePosition(client, vPos);
 	GetClientEyeAngles(client, vAng);
 	
@@ -11484,6 +11552,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 			continue;
 		
 		g_iIncapShoveIgnore[i] = target;
+		SubtractVectors(vLoc, vPos, vDir);
 		
 		if( target <= MaxClients )
 		{
@@ -11494,7 +11563,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 				if( GetVectorDistance(vPos, vLoc) <= range )
 				{
 					L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(client));
-					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, NULL_VECTOR, vLoc);
+					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, vDir, vLoc);
 					
 					// 停止冲锋
 					if(IsChargerCharging(target))
@@ -11526,7 +11595,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 			{
 				// GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", vLoc);
 				if( GetVectorDistance(vPos, vLoc) <= range )
-					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, NULL_VECTOR, vLoc);
+					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, vDir, vLoc);
 				
 				// 声音
 				EmitSoundToClient(client, g_sndShoveInfected[GetRandomInt(0, sizeof(g_sndShoveInfected)-1)], target,
@@ -13976,6 +14045,8 @@ stock int IsPlayerHaveEffect(int client, int effect)
 		return 0;
 	
 	int ExtraAdd = 0;
+	
+	/*
 	for(int i = 0; i < sizeof(g_clCurEquip[]); i++)
 	{
 		if(!g_clCurEquip[client][i])
@@ -13989,6 +14060,16 @@ stock int IsPlayerHaveEffect(int client, int effect)
 			continue;
 		
 		if(data.effect == effect)
+		{
+			ExtraAdd += 1;
+			// break;
+		}
+	}
+	*/
+	
+	for(int i = 0; i < sizeof(g_iActiveEffects[]); ++i)
+	{
+		if(g_iActiveEffects[client][i] == effect)
 		{
 			ExtraAdd += 1;
 			// break;

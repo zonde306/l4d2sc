@@ -10392,31 +10392,34 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 		return false;
 
 	// 弹药上限
+	/*
 	ConVar cv_rifle, cv_autoshotgun, cv_chainsaw, cv_grenadelauncher, cv_huntingrifle, cv_m60,
 		cv_mimigun, cv_pistol, cv_shotgun, cv_smg, cv_sniper, cv_turret, cv_firstaid, cv_molotov,
-		cv_painpills, cv_pipebomb, cv_vomitjar, cv_adrenaline/*, cv_ammopack*/;
-
+		cv_painpills, cv_pipebomb, cv_vomitjar, cv_adrenaline, cv_ammopack;
+	*/
+	ConVar cv_rifle, cv_autoshotgun, cv_grenadelauncher, cv_huntingrifle, cv_m60, cv_shotgun, cv_smg, cv_sniper;
+	
 	if(cv_rifle == null)
 	{
-		cv_adrenaline = FindConVar("ammo_adrenaline_max");
+		// cv_adrenaline = FindConVar("ammo_adrenaline_max");
 		// cv_ammopack = FindConVar("ammo_ammo_pack_max");
 		cv_rifle = FindConVar("ammo_assaultrifle_max");
 		cv_autoshotgun = FindConVar("ammo_autoshotgun_max");
-		cv_chainsaw = FindConVar("ammo_chainsaw_max");
-		cv_firstaid = FindConVar("ammo_firstaid_max");
+		// cv_chainsaw = FindConVar("ammo_chainsaw_max");
+		// cv_firstaid = FindConVar("ammo_firstaid_max");
 		cv_grenadelauncher = FindConVar("ammo_grenadelauncher_max");
 		cv_huntingrifle = FindConVar("ammo_huntingrifle_max");
 		cv_m60 = FindConVar("ammo_m60_max");
-		cv_mimigun = FindConVar("ammo_minigun_max");
-		cv_molotov = FindConVar("ammo_molotov_max");
-		cv_painpills = FindConVar("ammo_painpills_max");
-		cv_pipebomb = FindConVar("ammo_pipebomb_max");
-		cv_pistol = FindConVar("ammo_pistol_max");
+		// cv_mimigun = FindConVar("ammo_minigun_max");
+		// cv_molotov = FindConVar("ammo_molotov_max");
+		// cv_painpills = FindConVar("ammo_painpills_max");
+		// cv_pipebomb = FindConVar("ammo_pipebomb_max");
+		// cv_pistol = FindConVar("ammo_pistol_max");
 		cv_shotgun = FindConVar("ammo_shotgun_max");
 		cv_smg = FindConVar("ammo_smg_max");
 		cv_sniper = FindConVar("ammo_sniperrifle_max");
-		cv_turret = FindConVar("ammo_turret_max");
-		cv_vomitjar = FindConVar("ammo_vomitjar_max");
+		// cv_turret = FindConVar("ammo_turret_max");
+		// cv_vomitjar = FindConVar("ammo_vomitjar_max");
 	}
 	
 	int maxAmmo = -1;
@@ -10429,12 +10432,8 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 		
 		switch(ammoType)
 		{
-			case AMMOTYPE_PISTOL, AMMOTYPE_MAGNUM:
-				maxAmmo = cv_pistol.IntValue;
 			case AMMOTYPE_ASSAULTRIFLE:
 				maxAmmo = cv_rifle.IntValue;
-			case AMMOTYPE_MINIGUN:
-				maxAmmo = cv_mimigun.IntValue;
 			case AMMOTYPE_SMG:
 				maxAmmo = cv_smg.IntValue;
 			case AMMOTYPE_M60:
@@ -10447,6 +10446,14 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 				maxAmmo = cv_huntingrifle.IntValue;
 			case AMMOTYPE_SNIPERRIFLE:
 				maxAmmo = cv_sniper.IntValue;
+			case AMMOTYPE_GRENADELAUNCHER:
+				maxAmmo = cv_grenadelauncher.IntValue;
+			
+			/*
+			case AMMOTYPE_MINIGUN:
+				maxAmmo = cv_mimigun.IntValue;
+			case AMMOTYPE_PISTOL, AMMOTYPE_MAGNUM:
+				maxAmmo = cv_pistol.IntValue;
 			case AMMOTYPE_TURRET:
 				maxAmmo = cv_turret.IntValue;
 			case AMMOTYPE_PIPEBOMB:
@@ -10459,12 +10466,12 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 				maxAmmo = cv_painpills.IntValue;
 			case AMMOTYPE_FIRSTAID:
 				maxAmmo = cv_firstaid.IntValue;
-			case AMMOTYPE_GRENADELAUNCHER:
-				maxAmmo = cv_grenadelauncher.IntValue;
 			case AMMOTYPE_ADRENALINE:
 				maxAmmo = cv_adrenaline.IntValue;
 			case AMMOTYPE_CHAINSAW:
 				maxAmmo = cv_chainsaw.IntValue;
+			*/
+			
 			default:
 				return false;
 		}
@@ -10488,10 +10495,10 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	}
 	
 	int clip = 0, maxClip = 0;
-	int secondry = GetPlayerWeaponSlot(client, 1);
-	int grenade = GetPlayerWeaponSlot(client, 2);
-	int kit = GetPlayerWeaponSlot(client, 3);
-	int drug = GetPlayerWeaponSlot(client, 4);
+	// int secondry = GetPlayerWeaponSlot(client, 1);
+	// int grenade = GetPlayerWeaponSlot(client, 2);
+	// int kit = GetPlayerWeaponSlot(client, 3);
+	// int drug = GetPlayerWeaponSlot(client, 4);
 	if(primary > MaxClients && IsValidEntity(primary) &&
 		GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
 	{
@@ -10504,6 +10511,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 				maxAmmo += maxClip - clip;
 		}
 	}
+	/*
 	else if(secondry > MaxClients && IsValidEntity(secondry) &&
 		GetEntProp(secondry, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
 	{
@@ -10552,6 +10560,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 			// maxAmmo += maxClip - drug;
 		}
 	}
+	*/
 	
 	{
 		Call_StartForward(g_fwOnGiveAmmo);

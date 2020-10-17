@@ -1623,7 +1623,7 @@ void Initialization(int client, bool invalid = false)
 	g_iReloadWeaponOldClip[client] = 0;
 	g_iReloadWeaponKeepClip[client] = 0;
 	g_iReloadWeaponClip[client] = 0;
-	g_iReloadWeaponEntity[client] = 0;
+	g_iReloadWeaponEntity[client] = INVALID_ENT_REFERENCE;
 	g_timerRespawn[client] = null;
 	g_fFreezeTime[client] = 0.0;
 	g_fMaxSpeedModify[client] = 1.0;
@@ -4550,7 +4550,7 @@ public void OnGameFrame()
 		float gameTime = GetGameTime(), endTime;
 		for(int i = 0; i < g_iWeaponSpeedTotal; ++i)
 		{
-			if(!IsValidEntity(g_iWeaponSpeedEntity[i]))
+			if(g_iWeaponSpeedEntity[i] == INVALID_ENT_REFERENCE || !IsValidEntity(g_iWeaponSpeedEntity[i]))
 				continue;
 
 			GetEntityClassname(g_iWeaponSpeedEntity[i], className, 64);
@@ -4567,8 +4567,8 @@ public void OnGameFrame()
 			SetEntPropFloat(g_iWeaponSpeedEntity[i], Prop_Send, "m_flNextPrimaryAttack", endTime + gameTime);
 
 			// 次要攻击(推)
-			endTime = (GetEntPropFloat(g_iWeaponSpeedEntity[i], Prop_Send, "m_flNextSecondaryAttack") - gameTime) / g_fWeaponSpeedUpdate[i];
-			SetEntPropFloat(g_iWeaponSpeedEntity[i], Prop_Send, "m_flNextSecondaryAttack", endTime + gameTime);
+			// endTime = (GetEntPropFloat(g_iWeaponSpeedEntity[i], Prop_Send, "m_flNextSecondaryAttack") - gameTime) / g_fWeaponSpeedUpdate[i];
+			// SetEntPropFloat(g_iWeaponSpeedEntity[i], Prop_Send, "m_flNextSecondaryAttack", endTime + gameTime);
 
 			// 还原动作速度
 			CreateTimer(endTime, Timer_ResetWeaponSpeed, g_iWeaponSpeedEntity[i]);
@@ -4581,7 +4581,7 @@ public void OnGameFrame()
 	{
 		for(int i = 1; i <= MaxClients; ++i)
 		{
-			if(g_iReloadWeaponEntity[i] > MaxClients)
+			if(g_iReloadWeaponEntity[i] != INVALID_ENT_REFERENCE)
 				PlayerHook_OnReloadThink(i);
 		}
 	}
@@ -9858,7 +9858,7 @@ void HookPlayerReload(int client, int clipSize)
 		StrContains(className, "shotgun", false) > -1 || StrContains(className, "sniper", false) > -1 ||
 		StrContains(className, "pistol", false) > -1 || StrEqual(className, "weapon_grenade_launcher", false))
 	{
-		g_iReloadWeaponEntity[client] = weapon;
+		g_iReloadWeaponEntity[client] = EntIndexToEntRef(weapon);
 		g_iReloadWeaponClip[client] = clipSize;
 		// PrintToChat(client, "武器：%d丨玩家：%d丨弹匣：%d丨原有：%d丨现有：%d", weapon, client, clipSize, g_iReloadWeaponOldClip[client], GetEntProp(weapon, Prop_Send, "m_iClip1"));
 
@@ -9879,7 +9879,7 @@ public void PlayerHook_OnReloadStopped(int client, int weapon)
 	SDKUnhook(client, SDKHook_PreThink, PlayerHook_OnReloadThink);
 	SDKUnhook(client, SDKHook_WeaponSwitchPost, PlayerHook_OnReloadStopped);
 	SDKUnhook(client, SDKHook_WeaponDropPost, PlayerHook_OnReloadStopped);
-	g_iReloadWeaponEntity[client] = 0;
+	g_iReloadWeaponEntity[client] = INVALID_ENT_REFERENCE;
 	g_iReloadWeaponClip[client] = 0;
 	g_iReloadWeaponOldClip[client] = 0;
 
@@ -9900,7 +9900,7 @@ public void PlayerHook_OnReloadThink(int client)
 	}
 
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	if(!IsValidEntity(weapon) || !IsValidEdict(weapon) || weapon != g_iReloadWeaponEntity[client])
+	if(!IsValidEntity(weapon) || !IsValidEdict(weapon) || EntIndexToEntRef(weapon) != g_iReloadWeaponEntity[client])
 	{
 		PlayerHook_OnReloadStopped(client, weapon);
 		// PrintToChatAll("无效武器：%d丨玩家：%d", weapon, client);
@@ -12051,7 +12051,7 @@ stock void SetWeaponSpeed(int weapon, float speed)
 	if(g_iWeaponSpeedTotal > MAXPLAYERS)
 		return;
 
-	g_iWeaponSpeedEntity[g_iWeaponSpeedTotal] = weapon;
+	g_iWeaponSpeedEntity[g_iWeaponSpeedTotal] = EntIndexToEntRef(weapon);
 	g_fWeaponSpeedUpdate[g_iWeaponSpeedTotal] = speed;
 	++g_iWeaponSpeedTotal;
 }

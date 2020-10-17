@@ -2939,7 +2939,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」全部枪为连射",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
-	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装保留弹匣/升级包叠加补子弹",(g_clSkill_1[client]&SKL_1_KeepClip)));
+	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」保留弹匣/升级叠加补子弹/填装可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
@@ -11121,6 +11121,16 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			if((g_clSkill_1[client] & SKL_1_ShoveFatigue) && (buttons & IN_ATTACK2))
 			{
 				SetEntProp(client, Prop_Send, "m_iShovePenalty", 0);
+			}
+			
+			if((g_clSkill_1[client] & SKL_1_KeepClip) && isReloading && (buttons & IN_ATTACK) && !(buttons & (IN_ATTACK2|IN_RELOAD)) &&
+				clip > 0 && StrContains(classname, "shotgun", false) == -1)
+			{
+				float time = GetGameTime();
+				SetEntProp(weaponId, Prop_Send, "m_bInReload", 0);
+				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
+				SetEntPropFloat(weaponId, Prop_Send, "m_flNextPrimaryAttack", time);
+				PlayerHook_OnReloadStopped(client, weaponId);
 			}
 		}
 		

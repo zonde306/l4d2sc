@@ -4569,9 +4569,9 @@ public void OnGameFrame()
 			// 次要攻击(推)
 			// endTime = (GetEntPropFloat(g_iWeaponSpeedEntity[i], Prop_Send, "m_flNextSecondaryAttack") - gameTime) / g_fWeaponSpeedUpdate[i];
 			// SetEntPropFloat(g_iWeaponSpeedEntity[i], Prop_Send, "m_flNextSecondaryAttack", endTime + gameTime);
-
+			
 			// 还原动作速度
-			CreateTimer(endTime, Timer_ResetWeaponSpeed, g_iWeaponSpeedEntity[i]);
+			CreateTimer(endTime, Timer_ResetWeaponSpeed, g_iWeaponSpeedEntity[i], TIMER_FLAG_NO_MAPCHANGE);
 		}
 
 		g_iWeaponSpeedTotal = 0;
@@ -5118,10 +5118,27 @@ stock float GetClientEyeDistance(int client, float origin[3] = NULL_VECTOR, int 
 
 public Action Timer_ResetWeaponSpeed(Handle timer, any weapon)
 {
-	if(!IsValidEntity(weapon))
+	if(weapon <= MaxClients || !IsValidEntity(weapon))
 		return Plugin_Continue;
 
 	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", 1.0);
+	// SetEntProp(weapon, Prop_Send, "m_nSequence", 0);
+	// SetEntPropFloat(weapon, Prop_Send, "m_flCycle", 0.0);
+	
+	int client = GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity");
+	if(IsValidAliveClient(client))
+	{
+		int model = GetEntPropEnt(client, Prop_Send, "m_hViewModel");
+		if(model > MaxClients && IsValidEntity(model) && IsValidEdict(model))
+		{
+			// 停止重复抛壳动画
+			// SetEntPropFloat(model, Prop_Send, "m_flPlaybackRate", 1.0);
+			SetEntPropFloat(model, Prop_Send, "m_flLayerStartTime", 0.0);
+			// SetEntProp(model, Prop_Send, "m_nLayerSequence", 0);
+			// SetEntPropFloat(model, Prop_Send, "m_flCycle", 0.0);
+		}
+	}
+	
 	return Plugin_Continue;
 }
 
@@ -9824,8 +9841,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	if(weaponSpeed != 1.0)
 	{
 		// AdjustWeaponSpeed(weapon, weaponSpeed);
-		SetWeaponSpeed(weapon, weaponSpeed);
-		// SetWeaponSpeed2(weapon, weaponSpeed);
+		// SetWeaponSpeed(weapon, weaponSpeed);
+		SetWeaponSpeed2(weapon, weaponSpeed);
 	}
 }
 
@@ -12067,37 +12084,38 @@ stock void SetWeaponSpeed2(int weapon, float speed)
 
 stock void AdjustWeaponSpeed(int weapon, float speed)
 {
-	if(!IsValidEntity(weapon) || !IsValidEdict(weapon) ||
-		!IsValidAliveClient(GetEntProp(weapon, Prop_Send, "m_hOwnerEntity")))
+	if(weapon <= MaxClients || !IsValidEntity(weapon) || !IsValidEdict(weapon)/* ||
+		!IsValidAliveClient(GetEntProp(weapon, Prop_Send, "m_hOwnerEntity"))*/)
 		return;
-
+	
 	char classname[64];
 	GetEdictClassname(weapon, classname, 64);
-	if(StrContains(classname, "weapon_", false) != 0 || GetEntProp(weapon, Prop_Send, "m_bInReload") ||
-		GetEntPropFloat(weapon, Prop_Send, "m_flCycle") != 0.0)
+	if(StrContains(classname, "weapon_", false) != 0 || GetEntProp(weapon, Prop_Send, "m_bInReload")/* ||
+		GetEntPropFloat(weapon, Prop_Send, "m_flCycle") != 0.0*/ || GetEntProp(weapon, Prop_Send, "m_iClip1") <= 0)
 		return;
-
+	
 	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", speed);
-	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack",
-		GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - ((speed - 1.0) / 2));
-	SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack",
-		GetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack") - ((speed - 1.0) / 2));
-
+	
+	float time = GetGameTime();
+	float delay = (GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - time) / speed;
+	if(delay >= 0.0)
+		SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time + delay);
+	
 	/*
-	if (GetPlayerWeaponSlot(client, slot) > 0)
-	{
-		new Float:m_flNextPrimaryAttack = GetEntPropFloat(GetPlayerWeaponSlot(client, slot), Prop_Send, "m_flNextPrimaryAttack");
-		new Float:m_flNextSecondaryAttack = GetEntPropFloat(GetPlayerWeaponSlot(client, slot), Prop_Send, "m_flNextSecondaryAttack");
-		new Float:m_flCycle = GetEntPropFloat(GetPlayerWeaponSlot(client, slot), Prop_Send, "m_flCycle");
-		new m_bInReload = GetEntProp(GetPlayerWeaponSlot(client, slot), Prop_Send, "m_bInReload");
-		if (m_flCycle == 0.000000 && m_bInReload < 1)
-		{
-			SetEntPropFloat(GetPlayerWeaponSlot(client, slot), Prop_Send, "m_flPlaybackRate", Amount);
-			SetEntPropFloat(GetPlayerWeaponSlot(client, slot), Prop_Send, "m_flNextPrimaryAttack", m_flNextPrimaryAttack - ((Amount - 1.0) / 2));
-			SetEntPropFloat(GetPlayerWeaponSlot(client, slot), Prop_Send, "m_flNextSecondaryAttack", m_flNextSecondaryAttack - ((Amount - 1.0) / 2));
-		}
-	}
+	// 这个不需要
+	delay = (GetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack") - time) / speed;
+	if(delay >= 0.0)
+		SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", time + delay);
 	*/
+	
+	/*
+	delay = (GetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle") - time) / speed;
+	if(delay >= 0.0)
+		SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time + delay);
+	*/
+	
+	if(delay >= 0.0)
+		CreateTimer(delay, Timer_ResetWeaponSpeed, weapon, TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public void AttachWeaponSpeed(any data)

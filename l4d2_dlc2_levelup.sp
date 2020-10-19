@@ -5125,6 +5125,7 @@ public Action Timer_ResetWeaponSpeed(Handle timer, any weapon)
 	// SetEntProp(weapon, Prop_Send, "m_nSequence", 0);
 	// SetEntPropFloat(weapon, Prop_Send, "m_flCycle", 0.0);
 	
+	/*
 	int client = GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity");
 	if(IsValidAliveClient(client))
 	{
@@ -5138,6 +5139,7 @@ public Action Timer_ResetWeaponSpeed(Handle timer, any weapon)
 			// SetEntPropFloat(model, Prop_Send, "m_flCycle", 0.0);
 		}
 	}
+	*/
 	
 	return Plugin_Continue;
 }
@@ -7086,12 +7088,15 @@ public Action Timer_GivePistol(Handle timer, any client)
 	if(!IsValidAliveClient(client))
 		return Plugin_Continue;
 	
+	char classname[64];
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-	if(weapon < MaxClients || !IsValidEntity(weapon))
+	if(weapon < MaxClients || !IsValidEntity(weapon) || !GetEdictClassname(weapon, classname, sizeof(classname)) || StrContains(classname, "pistol", false) == -1)
+	{
 		if(g_clSkill_2[client] & SKL_2_Magnum)
 			CheatCommand(client, "give", "pistol_magnum");
 		else
 			CheatCommand(client, "give", "pistol");
+	}
 	
 	return Plugin_Continue;
 }
@@ -8440,14 +8445,20 @@ public void UpdateLaserSign(any data)
 		return;
 	
 	int weapon = GetPlayerWeaponSlot(client, 0);
-	if(weapon < MaxClients || !IsValidEntity(weapon))
-		return;
+	if(weapon > MaxClients && IsValidEntity(weapon))
+		if((g_clSkill_1[client] & SKL_1_NoRecoil) && HasEntProp(weapon, Prop_Send, "m_upgradeBitVec"))
+		{
+			int flags = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
+			SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flags | 4);
+		}
 	
-	if((g_clSkill_1[client] & SKL_1_NoRecoil) && HasEntProp(weapon, Prop_Send, "m_upgradeBitVec"))
-	{
-		int flags = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
-		SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flags | 4);
-	}
+	weapon = GetPlayerWeaponSlot(client, 1);
+	if(weapon > MaxClients && IsValidEntity(weapon))
+		if((g_clSkill_1[client] & SKL_1_NoRecoil) && HasEntProp(weapon, Prop_Send, "m_upgradeBitVec"))
+		{
+			int flags = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
+			SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flags | 4);
+		}
 }
 
 public void Event_AmmoPickup(Event event, const char[] eventName, bool dontBroadcast)
@@ -8520,19 +8531,42 @@ public void Event_PlayerUsed(Event event, const char[] eventName, bool dontBroad
 	if(!GetEntityClassname(item, classname, sizeof(classname)))
 		return;
 	
+	bool isPistol = (StrContains(classname, "pistol", false) != -1);
 	if(StrContains(classname, "smg", false) == -1 && StrContains(classname, "rifle", false) == -1 &&
 		StrContains(classname, "sniper", false) == -1 && StrContains(classname, "shotgun", false) == -1 &&
-		StrContains(classname, "grenade_launcher", false) == -1)
+		StrContains(classname, "grenade_launcher", false) == -1 && !isPistol)
 		return;
 	
-	DataPack data = CreateDataPack();
-	data.WriteCell(client);
-	// data.WriteCell(item);
-	
 	// 捡起地上零散武器只会触发 player_use，而不会触发 item_pickup
-	g_iExtraAmmo[client] = 0;
-	RequestFrame(UpdateLaserSign, data);
+	int maxAmmo = GetDefaultAmmo(item);
+	if(!isPistol && maxAmmo > -1 && HasEntProp(item, Prop_Send, "m_upgradeBitVec"))
+	{
+		g_iExtraAmmo[client] = GetEntProp(item, Prop_Send, "m_iExtraPrimaryAmmo") - maxAmmo;
+		if(g_iExtraAmmo[client] < 0)
+			g_iExtraAmmo[client] = 0;
+		
+		RequestFrame(UpdateAmmo, client);
+	}
+	else if(!isPistol)
+	{
+		g_iExtraAmmo[client] = 0;
+	}
+	
+	if(g_clSkill_1[client] & SKL_1_NoRecoil)
+	{
+		DataPack data = CreateDataPack();
+		data.WriteCell(client);
+		// data.WriteCell(item);
+		RequestFrame(UpdateLaserSign, data);
+	}
+	
 	// PrintToChat(client, "player_use");
+}
+
+public void UpdateAmmo(any client)
+{
+	if(IsValidAliveClient(client))
+		AddAmmo(client, 0);
 }
 
 public void Event_WeaponDropped(Event event, const char[] eventName, bool dontBroadcast)
@@ -8550,6 +8584,30 @@ public void Event_WeaponDropped(Event event, const char[] eventName, bool dontBr
 		int flags = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
 		SetEntProp(weapon, Prop_Send, "m_upgradeBitVec", flags & ~4);
 	}
+	
+	char classname[64];
+	if(g_iExtraAmmo[client] > 0 && GetEdictClassname(weapon, classname, sizeof(classname)) &&
+		(StrContains(classname, "smg", false) != -1 || StrContains(classname, "rifle", false) != -1 ||
+		StrContains(classname, "sniper", false) != -1 || StrContains(classname, "shotgun", false) != -1 ||
+		StrContains(classname, "grenade_launcher", false) != -1))
+	{
+		DataPack data = CreateDataPack();
+		data.WriteCell(weapon);
+		data.WriteCell(g_iExtraAmmo[client]);
+		RequestFrame(PatchExtraPrimaryAmmo, data);
+	}
+}
+
+public void PatchExtraPrimaryAmmo(any pack)
+{
+	DataPack data = view_as<DataPack>(pack);
+	data.Reset();
+	
+	int weapon = data.ReadCell();
+	int ammo = data.ReadCell();
+	
+	if(weapon > MaxClients && IsValidEntity(weapon) && HasEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo"))
+		SetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo", GetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo") + ammo);
 }
 
 public void NotifyWeaponRange(any pack)
@@ -10403,100 +10461,63 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 	return true;
 }
 
+stock int GetDefaultAmmo(int weapon, int ammoType = -1)
+{
+	ConVar cv_rifle, cv_autoshotgun, cv_grenadelauncher, cv_huntingrifle, cv_m60, cv_shotgun, cv_smg, cv_sniper;
+	if(cv_rifle == null)
+	{
+		cv_rifle = FindConVar("ammo_assaultrifle_max");
+		cv_autoshotgun = FindConVar("ammo_autoshotgun_max");
+		cv_grenadelauncher = FindConVar("ammo_grenadelauncher_max");
+		cv_huntingrifle = FindConVar("ammo_huntingrifle_max");
+		cv_m60 = FindConVar("ammo_m60_max");
+		cv_shotgun = FindConVar("ammo_shotgun_max");
+		cv_smg = FindConVar("ammo_smg_max");
+		cv_sniper = FindConVar("ammo_sniperrifle_max");
+	}
+	
+	if(ammoType <= -1 && weapon > MaxClients && IsValidEntity(weapon) && HasEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"))
+		ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+	
+	switch(ammoType)
+	{
+		case AMMOTYPE_ASSAULTRIFLE:
+			return cv_rifle.IntValue;
+		case AMMOTYPE_SMG:
+			return cv_smg.IntValue;
+		case AMMOTYPE_M60:
+			return cv_m60.IntValue;
+		case AMMOTYPE_SHOTGUN:
+			return cv_shotgun.IntValue;
+		case AMMOTYPE_AUTOSHOTGUN:
+			return cv_autoshotgun.IntValue;
+		case AMMOTYPE_HUNTINGRIFLE:
+			return cv_huntingrifle.IntValue;
+		case AMMOTYPE_SNIPERRIFLE:
+			return cv_sniper.IntValue;
+		case AMMOTYPE_GRENADELAUNCHER:
+			return cv_grenadelauncher.IntValue;
+	}
+	
+	return -1;
+}
+
 stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = false, bool limit = true)
 {
 	if(!IsValidAliveClient(client))
 		return false;
-
-	// 弹药上限
-	/*
-	ConVar cv_rifle, cv_autoshotgun, cv_chainsaw, cv_grenadelauncher, cv_huntingrifle, cv_m60,
-		cv_mimigun, cv_pistol, cv_shotgun, cv_smg, cv_sniper, cv_turret, cv_firstaid, cv_molotov,
-		cv_painpills, cv_pipebomb, cv_vomitjar, cv_adrenaline, cv_ammopack;
-	*/
-	ConVar cv_rifle, cv_autoshotgun, cv_grenadelauncher, cv_huntingrifle, cv_m60, cv_shotgun, cv_smg, cv_sniper;
-	
-	if(cv_rifle == null)
-	{
-		// cv_adrenaline = FindConVar("ammo_adrenaline_max");
-		// cv_ammopack = FindConVar("ammo_ammo_pack_max");
-		cv_rifle = FindConVar("ammo_assaultrifle_max");
-		cv_autoshotgun = FindConVar("ammo_autoshotgun_max");
-		// cv_chainsaw = FindConVar("ammo_chainsaw_max");
-		// cv_firstaid = FindConVar("ammo_firstaid_max");
-		cv_grenadelauncher = FindConVar("ammo_grenadelauncher_max");
-		cv_huntingrifle = FindConVar("ammo_huntingrifle_max");
-		cv_m60 = FindConVar("ammo_m60_max");
-		// cv_mimigun = FindConVar("ammo_minigun_max");
-		// cv_molotov = FindConVar("ammo_molotov_max");
-		// cv_painpills = FindConVar("ammo_painpills_max");
-		// cv_pipebomb = FindConVar("ammo_pipebomb_max");
-		// cv_pistol = FindConVar("ammo_pistol_max");
-		cv_shotgun = FindConVar("ammo_shotgun_max");
-		cv_smg = FindConVar("ammo_smg_max");
-		cv_sniper = FindConVar("ammo_sniperrifle_max");
-		// cv_turret = FindConVar("ammo_turret_max");
-		// cv_vomitjar = FindConVar("ammo_vomitjar_max");
-	}
 	
 	int maxAmmo = -1;
 	int primary = GetPlayerWeaponSlot(client, 0);
 	
+	if(ammoType <= -1 && primary > MaxClients && IsValidEntity(primary))
+		ammoType = GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType");
+	
 	if(limit)
 	{
-		if(ammoType <= -1 && primary > MaxClients && IsValidEntity(primary))
-			ammoType = GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType");
-		
-		switch(ammoType)
-		{
-			case AMMOTYPE_ASSAULTRIFLE:
-				maxAmmo = cv_rifle.IntValue;
-			case AMMOTYPE_SMG:
-				maxAmmo = cv_smg.IntValue;
-			case AMMOTYPE_M60:
-				maxAmmo = cv_m60.IntValue;
-			case AMMOTYPE_SHOTGUN:
-				maxAmmo = cv_shotgun.IntValue;
-			case AMMOTYPE_AUTOSHOTGUN:
-				maxAmmo = cv_autoshotgun.IntValue;
-			case AMMOTYPE_HUNTINGRIFLE:
-				maxAmmo = cv_huntingrifle.IntValue;
-			case AMMOTYPE_SNIPERRIFLE:
-				maxAmmo = cv_sniper.IntValue;
-			case AMMOTYPE_GRENADELAUNCHER:
-				maxAmmo = cv_grenadelauncher.IntValue;
-			
-			/*
-			case AMMOTYPE_MINIGUN:
-				maxAmmo = cv_mimigun.IntValue;
-			case AMMOTYPE_PISTOL, AMMOTYPE_MAGNUM:
-				maxAmmo = cv_pistol.IntValue;
-			case AMMOTYPE_TURRET:
-				maxAmmo = cv_turret.IntValue;
-			case AMMOTYPE_PIPEBOMB:
-				maxAmmo = cv_pipebomb.IntValue;
-			case AMMOTYPE_MOLOTOV:
-				maxAmmo = cv_molotov.IntValue;
-			case AMMOTYPE_VOMITJAR:
-				maxAmmo = cv_vomitjar.IntValue;
-			case AMMOTYPE_PAINPILLS:
-				maxAmmo = cv_painpills.IntValue;
-			case AMMOTYPE_FIRSTAID:
-				maxAmmo = cv_firstaid.IntValue;
-			case AMMOTYPE_ADRENALINE:
-				maxAmmo = cv_adrenaline.IntValue;
-			case AMMOTYPE_CHAINSAW:
-				maxAmmo = cv_chainsaw.IntValue;
-			*/
-			
-			default:
-				return false;
-		}
-		
-		/*
+		maxAmmo = GetDefaultAmmo(primary, ammoType);
 		if(maxAmmo < 0)
 			return false;
-		*/
 		
 		float scale = 1.0;
 		scale += IsPlayerHaveEffect(client, 15) * 0.25;
@@ -12095,9 +12116,13 @@ stock void AdjustWeaponSpeed(int weapon, float speed)
 		return;
 	
 	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", speed);
-	
 	float time = GetGameTime();
-	float delay = (GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - time) / speed;
+	
+	float delay = (GetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle") - time) / speed;
+	if(delay >= 0.0)
+		SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time + delay);
+	
+	delay = (GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") - time) / speed;
 	if(delay >= 0.0)
 		SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time + delay);
 	
@@ -12106,12 +12131,6 @@ stock void AdjustWeaponSpeed(int weapon, float speed)
 	delay = (GetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack") - time) / speed;
 	if(delay >= 0.0)
 		SetEntPropFloat(weapon, Prop_Send, "m_flNextSecondaryAttack", time + delay);
-	*/
-	
-	/*
-	delay = (GetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle") - time) / speed;
-	if(delay >= 0.0)
-		SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time + delay);
 	*/
 	
 	if(delay >= 0.0)

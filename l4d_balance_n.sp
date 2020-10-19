@@ -4,6 +4,7 @@
 #pragma newdecls required
 #include <sourcemod>
 #include <sdktools>
+#include <left4dhooks>
 // #include <sdktools_functions>
 
 #define ZOMBIECLASS_SURVIVOR	9
@@ -86,6 +87,20 @@ ConVar l4d_balance_limit_special_add;
 ConVar l4d_balance_limit_common;
 ConVar l4d_balance_limit_common_add;
 
+static Handle hCreateSmoker = null;
+static Handle hCreateBoomer = null;
+static Handle hCreateHunter = null;
+static Handle hCreateSpitter = null;
+static Handle hCreateJockey = null;
+static Handle hCreateCharger = null;
+#define MODEL_SMOKER "models/infected/smoker.mdl"
+#define MODEL_BOOMER "models/infected/boomer.mdl"
+#define MODEL_HUNTER "models/infected/hunter.mdl"
+#define MODEL_SPITTER "models/infected/spitter.mdl"
+#define MODEL_JOCKEY "models/infected/jockey.mdl"
+#define MODEL_CHARGER "models/infected/charger.mdl"
+#define MODEL_TANK "models/infected/hulk.mdl"
+
 public void OnPluginStart()
 {
 	GameCheck(); 	
@@ -135,6 +150,66 @@ public void OnPluginStart()
 	HookEvent("survival_round_start", player_left_start_area, EventHookMode_PostNoCopy);
 	// HookEvent("door_unlocked", door_unlocked);
 	ResetAllState();
+	
+	Handle hGameConf = LoadGameConfigFile("l4dinfectedbots");
+	if( hGameConf != null )
+	{
+		StartPrepSDKCall(SDKCall_Static);
+		if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Smoker>"))
+			SetFailState("Unable to find NextBotCreatePlayerBot<Smoker> signature in gamedata file.");
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		hCreateSmoker = EndPrepSDKCall();
+
+		StartPrepSDKCall(SDKCall_Static);
+		if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Boomer>"))
+			SetFailState("Unable to find NextBotCreatePlayerBot<Boomer> signature in gamedata file.");
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		hCreateBoomer = EndPrepSDKCall();
+
+		StartPrepSDKCall(SDKCall_Static);
+		if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Hunter>"))
+			SetFailState("Unable to find NextBotCreatePlayerBot<Hunter> signature in gamedata file.");
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		hCreateHunter = EndPrepSDKCall();
+		
+		StartPrepSDKCall(SDKCall_Static);
+		if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Spitter>"))
+			SetFailState("Unable to find NextBotCreatePlayerBot<Spitter> signature in gamedata file.");
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		hCreateSpitter = EndPrepSDKCall();
+		
+		if( L4D2Version )
+		{
+			StartPrepSDKCall(SDKCall_Static);
+			if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Jockey>"))
+				SetFailState("Unable to find NextBotCreatePlayerBot<Jockey> signature in gamedata file.");
+			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+			PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+			hCreateJockey = EndPrepSDKCall();
+
+			StartPrepSDKCall(SDKCall_Static);
+			if (!PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, "NextBotCreatePlayerBot<Charger>"))
+				SetFailState("Unable to find NextBotCreatePlayerBot<Charger> signature in gamedata file.");
+			PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+			PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+			hCreateCharger = EndPrepSDKCall();
+		}
+	}
+	
+}
+
+public void OnMapStart()
+{
+	PrecacheModel(MODEL_SMOKER);
+	PrecacheModel(MODEL_BOOMER);
+	PrecacheModel(MODEL_HUNTER);
+	PrecacheModel(MODEL_SPITTER);
+	PrecacheModel(MODEL_JOCKEY);
+	PrecacheModel(MODEL_CHARGER);
 }
 
 public Action sm_balance(int client, int args)
@@ -463,6 +538,170 @@ public Action TimerAjust(Handle timer, any data)
 	return Plugin_Continue;
 }
 
+int BotTypeNeeded()
+{
+	// current count ...
+	int boomers=0;
+	int smokers=0;
+	int hunters=0;
+	int spitters=0;
+	int jockeys=0;
+	int chargers=0;
+	
+	for (int i=1;i<=MaxClients;i++)
+	{
+		// if player is connected and ingame ...
+		if (IsClientInGame(i))
+		{
+			// if player is on infected's team
+			if (GetClientTeam(i) == 3 && IsPlayerAlive(i))
+			{
+				// We count depending on class ...
+				int zClass = GetEntProp(i, Prop_Send, "m_zombieClass");
+				switch(zClass)
+				{
+					case ZOMBIECLASS_BOOMER:
+						boomers++;
+					case ZOMBIECLASS_CHARGER:
+						chargers++;
+					case ZOMBIECLASS_HUNTER:
+						hunters++;
+					case ZOMBIECLASS_JOCKEY:
+						jockeys++;
+					case ZOMBIECLASS_SMOKER:
+						smokers++;
+					case ZOMBIECLASS_SPITTER:
+						spitters++;
+				}
+			}
+		}
+	}
+	
+	static ConVar z_boomer_limit, z_charger_limit, z_hunter_limit, z_jockey_limit, z_smoker_limit, z_spitter_limit;
+	if(z_boomer_limit == null)
+	{
+		z_boomer_limit = FindConVar("z_boomer_limit");
+		z_charger_limit = FindConVar("z_charger_limit");
+		z_hunter_limit = FindConVar("z_hunter_limit");
+		z_jockey_limit = FindConVar("z_jockey_limit");
+		z_smoker_limit = FindConVar("z_smoker_limit");
+		z_spitter_limit = FindConVar("z_spitter_limit");
+	}
+	
+	if  (L4D2Version)
+	{
+		
+		{
+			int random = GetRandomInt(1, 6);
+			int i=0;
+			while(i++<5)
+			{
+				switch(random)
+				{
+					case 1:
+					{
+						if ((smokers < z_smoker_limit.IntValue))
+						{
+							return ZOMBIECLASS_SMOKER;
+						}
+						random++;
+					}
+					case 2:
+					{
+						if ((boomers < z_boomer_limit.IntValue))
+						{
+							return ZOMBIECLASS_BOOMER;
+						}
+						random++;
+					}
+					case 3:
+					{
+						if ((hunters < z_hunter_limit.IntValue))
+						{
+							return ZOMBIECLASS_HUNTER;
+						}
+						random++;
+					}
+					case 4:
+					{
+						if ((spitters < z_spitter_limit.IntValue))
+						{
+							return ZOMBIECLASS_SPITTER;
+						}
+						random++;
+					}
+					case 5:
+					{
+						if ((jockeys < z_jockey_limit.IntValue))
+						{
+							return ZOMBIECLASS_JOCKEY;
+						}
+						random++;
+					}
+					case 6:
+					{
+						if ((chargers < z_charger_limit.IntValue))
+						{
+							return ZOMBIECLASS_CHARGER;
+						}
+						random = 1;
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		
+		{
+			int random = GetRandomInt(1, 4);
+			
+			int i=0;
+			while(i++<10)
+			{
+				switch(random)
+				{
+					case 1:
+					{
+						if ((smokers < z_smoker_limit.IntValue)) // we need a smoker ???? can we spawn a smoker ??? is smoker bot allowed ??
+						{
+							return ZOMBIECLASS_SMOKER;
+						}
+						random++;
+					}
+					case 2:
+					{
+						if ((boomers < z_boomer_limit.IntValue))
+						{
+							return ZOMBIECLASS_BOOMER;
+						}
+						random++;
+					}
+					case 3:
+					{
+						if ((hunters < z_hunter_limit.IntValue))
+						{
+							return ZOMBIECLASS_HUNTER;
+						}
+						random++;
+					}
+					case 4:
+					{
+						if ((hunters < z_spitter_limit.IntValue))
+						{
+							return ZOMBIECLASS_SPITTER;
+						}
+						random=1;
+					}
+				}
+			}
+		}
+	}
+	
+	return 0;
+	
+}
+
 void UpdateSeting()
 { 
 	float inc = GetConVarFloat(l4d_balance_health_increment) / 100.0;	
@@ -570,28 +809,185 @@ public int Menu_InfHUDPanel(Menu menu, MenuAction action, int param1, int param2
 
 void Z_Spawn_Old(int siCount, int ciCount, int mob)
 {
-	int bot = CreateFakeClient("Monster");
+	int bot = CreateFakeClient("怪");
+	int client = L4D_GetHighestFlowSurvivor();
+	float vPos[3];
+	
 	if (bot > 0)
 	{		
 		ChangeClientTeam(bot,3);
+		bool teleport = false;
+		// bool rename = false;
+		
 		for(int i = 0; i < siCount; i++)
 		{ 
+			/*
 			int random = GetRandomInt(1, 6);
 			if(!L4D2Version) random = GetRandomInt(1, 3);
+			*/
+			
+			int random = BotTypeNeeded();
 			switch(random)
 			{
-				case 1:
-					SpawnCommand(bot, "z_spawn_old", "smoker auto");
-				case 2:
-					SpawnCommand(bot, "z_spawn_old", "boomer auto");
-				case 3:
-					SpawnCommand(bot, "z_spawn_old", "hunter auto");
-				case 4:
-					SpawnCommand(bot, "z_spawn_old", "spitter auto");
-				case 5:
-					SpawnCommand(bot, "z_spawn_old", "jockey auto");
-				case 6:
-					SpawnCommand(bot, "z_spawn_old", "charger auto");
+				case ZOMBIECLASS_SMOKER:
+				{
+					if(client > 0 && L4D_GetRandomPZSpawnPosition(client, random, 7, vPos))
+					{
+						if(hCreateSmoker)
+						{
+							client = SDKCall(hCreateSmoker, "舌头");
+							teleport = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetEntityModel(client, MODEL_SMOKER);
+						}
+						else
+						{
+							client = L4D2_SpawnSpecial(random, vPos, view_as<float>({0.0, 0.0, 0.0}));
+							// rename = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetClientInfo(client, "name", "舌头");
+						}
+					}
+					else
+						SpawnCommand(bot, "z_spawn_old", "smoker auto");
+				}
+				case ZOMBIECLASS_BOOMER:
+				{
+					if(client > 0 && L4D_GetRandomPZSpawnPosition(client, random, 7, vPos))
+					{
+						if(hCreateBoomer)
+						{
+							client = SDKCall(hCreateBoomer, "胖子");
+							teleport = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetEntityModel(client, MODEL_BOOMER);
+						}
+						else
+						{
+							client = L4D2_SpawnSpecial(random, vPos, view_as<float>({0.0, 0.0, 0.0}));
+							// rename = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetClientInfo(client, "name", "胖子");
+						}
+					}
+					else
+						SpawnCommand(bot, "z_spawn_old", "boomer auto");
+				}
+				case ZOMBIECLASS_HUNTER:
+				{
+					if(client > 0 && L4D_GetRandomPZSpawnPosition(client, random, 7, vPos))
+					{
+						if(hCreateHunter)
+						{
+							client = SDKCall(hCreateHunter, "猎人");
+							teleport = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetEntityModel(client, MODEL_HUNTER);
+						}
+						else
+						{
+							client = L4D2_SpawnSpecial(random, vPos, view_as<float>({0.0, 0.0, 0.0}));
+							// rename = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetClientInfo(client, "name", "猎人");
+						}
+					}
+					else
+						SpawnCommand(bot, "z_spawn_old", "hunter auto");
+				}
+				case ZOMBIECLASS_SPITTER:
+				{
+					if(client > 0 && L4D_GetRandomPZSpawnPosition(client, random, 7, vPos))
+					{
+						if(hCreateSpitter)
+						{
+							client = SDKCall(hCreateSpitter, "口水");
+							teleport = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetEntityModel(client, MODEL_SPITTER);
+						}
+						else
+						{
+							client = L4D2_SpawnSpecial(random, vPos, view_as<float>({0.0, 0.0, 0.0}));
+							// rename = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetClientInfo(client, "name", "口水");
+						}
+					}
+					else
+						SpawnCommand(bot, "z_spawn_old", "spitter auto");
+				}
+				case ZOMBIECLASS_JOCKEY:
+				{
+					if(client > 0 && L4D_GetRandomPZSpawnPosition(client, random, 7, vPos))
+					{
+						if(hCreateJockey)
+						{
+							client = SDKCall(hCreateJockey, "猴子");
+							teleport = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetEntityModel(client, MODEL_JOCKEY);
+						}
+						else
+						{
+							client = L4D2_SpawnSpecial(random, vPos, view_as<float>({0.0, 0.0, 0.0}));
+							// rename = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetClientInfo(client, "name", "猴子");
+						}
+					}
+					else
+						SpawnCommand(bot, "z_spawn_old", "jockey auto");
+				}
+				case ZOMBIECLASS_CHARGER:
+				{
+					if(client > 0 && L4D_GetRandomPZSpawnPosition(client, random, 7, vPos))
+					{
+						if(hCreateCharger)
+						{
+							client = SDKCall(hCreateCharger, "牛");
+							teleport = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetEntityModel(client, MODEL_CHARGER);
+						}
+						else
+						{
+							client = L4D2_SpawnSpecial(random, vPos, view_as<float>({0.0, 0.0, 0.0}));
+							// rename = true;
+							
+							if(client > 0 && client <= MaxClients && IsClientInGame(client))
+								SetClientInfo(client, "name", "牛");
+						}
+					}
+					else
+						SpawnCommand(bot, "z_spawn_old", "charger auto");
+				}
+			}
+			
+			if(teleport && client > 0 && client <= MaxClients && IsClientInGame(client))
+			{
+				ChangeClientTeam(client, 3);
+				SetEntProp(client, Prop_Send, "m_usSolidFlags", 16);
+				SetEntProp(client, Prop_Send, "movetype", 2);
+				SetEntProp(client, Prop_Send, "deadflag", 0);
+				SetEntProp(client, Prop_Send, "m_lifeState", 0);
+				SetEntProp(client, Prop_Send, "m_iObserverMode", 0);
+				SetEntProp(client, Prop_Send, "m_iPlayerState", 0);
+				SetEntProp(client, Prop_Send, "m_zombieState", 0);
+				DispatchSpawn(client);
+				ActivateEntity(client);
+				TeleportEntity(client, vPos, NULL_VECTOR, NULL_VECTOR);
 			}
 		} 
 		for(int i = 0; i < ciCount; i++)

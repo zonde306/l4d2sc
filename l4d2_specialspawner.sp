@@ -147,7 +147,7 @@ public Action:L4D_OnFirstSurvivorLeftSafeArea(client) {
 	*/
 	
 	int entity = CreateEntityByName("info_gamemode");
-	if(!IsValidEntity(entity))
+	if(entity < MaxClients || !IsValidEntity(entity))
 	{
 		decl String:gameMode[16];
 		GetConVarString(FindConVar("mp_gamemode"), gameMode, sizeof(gameMode));

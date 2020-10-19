@@ -800,7 +800,7 @@ public void OnPluginStart()
 	h_SmokerLimit = CreateConVar("l4d_infectedbots_smoker_limit", "2", "刷 Smoker 限制", FCVAR_NOTIFY, true, 0.0);
 	h_HunterLimit = CreateConVar("l4d_infectedbots_hunter_limit", "2", "刷 Hunter 限制", FCVAR_NOTIFY, true, 0.0);
 	h_TankLimit = CreateConVar("l4d_infectedbots_tank_limit", "1", "刷 Tank 限制", FCVAR_NOTIFY, true, 0.0);
-	h_WitchLimit = CreateConVar("l4d_infectedbots_witch_max_limit", "10", "刷 Witch 限制", FCVAR_NOTIFY, true, 0.0);
+	h_WitchLimit = CreateConVar("l4d_infectedbots_witch_max_limit", "0", "刷 Witch 限制", FCVAR_NOTIFY, true, 0.0);
 	if (L4D2Version)
 	{
 		h_SpitterLimit = CreateConVar("l4d_infectedbots_spitter_limit", "2", "刷 Spitter 限制", FCVAR_NOTIFY, true, 0.0);
@@ -824,10 +824,10 @@ public void OnPluginStart()
 	{
 		h_StatsBoard = CreateConVar("l4d_infectedbots_stats_board", "0", "特感死亡显示面板(一代专用)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	}
-	h_JoinableTeamsAnnounce = CreateConVar("l4d_infectedbots_coop_versus_announce", "1", "战役/生存模式下是否提示有人加入特感", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	h_Coordination = CreateConVar("l4d_infectedbots_coordination", "0", "是否推迟特感复活直到全队准备完毕(禁止单刷特感)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	h_InfHUD = CreateConVar("l4d_infectedbots_infhud_enable", "1", "是否显示特感HUD", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-	h_Announce = CreateConVar("l4d_infectedbots_infhud_announce", "1", "是否在特感HUD显示自己", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	h_JoinableTeamsAnnounce = CreateConVar("l4d_infectedbots_coop_versus_announce", "0", "战役/生存模式下是否提示有人加入特感", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	h_Coordination = CreateConVar("l4d_infectedbots_coordination", "1", "是否推迟特感复活直到全队准备完毕(禁止单刷特感)", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	h_InfHUD = CreateConVar("l4d_infectedbots_infhud_enable", "0", "是否显示特感HUD", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+	h_Announce = CreateConVar("l4d_infectedbots_infhud_announce", "0", "是否在特感HUD显示自己", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	h_Idletime_b4slay = CreateConVar("l4d_infectedbots_lifespan", "30", "特感机器人闲置多久会被清理掉", FCVAR_NOTIFY, true, 1.0);
 	h_InitialSpawn = CreateConVar("l4d_infectedbots_initial_spawn_timer", "10", "开局刷第一波特感延迟(秒)", FCVAR_NOTIFY, true, 0.0);
 	h_HumanCoopLimit = CreateConVar("l4d_infectedbots_coop_versus_human_limit", "2", "战役/生存模式当特感人数上限", FCVAR_NOTIFY, true, 0.0);
@@ -2549,12 +2549,12 @@ public Action ColdDown_Timer(Handle timer)
 			if(g_bCommonLimitAdjust)
 			{
 				SetConVarInt(h_common_limit_cvar, g_iCommonLimit + (h_PlayerAddCommonLimit.IntValue * (addition/h_PlayerAddCommonLimitScale.IntValue)));
-				C_PrintToChatAll("[{olive}TS{default}] %t","Current status1",iAliveSurplayers,g_iMaxPlayerZombies,cvarZombieHP[6].IntValue,h_common_limit_cvar.IntValue);
+				// C_PrintToChatAll("[{olive}TS{default}] %t","Current status1",iAliveSurplayers,g_iMaxPlayerZombies,cvarZombieHP[6].IntValue,h_common_limit_cvar.IntValue);
 			}
 			else
 			{
 				SetConVarInt(h_common_limit_cvar, g_iCommonLimit);
-				C_PrintToChatAll("[{olive}TS{default}] %t","Current status3",iAliveSurplayers,g_iMaxPlayerZombies,cvarZombieHP[6].IntValue);
+				// C_PrintToChatAll("[{olive}TS{default}] %t","Current status3",iAliveSurplayers,g_iMaxPlayerZombies,cvarZombieHP[6].IntValue);
 			}
 		}
 		else
@@ -2562,12 +2562,12 @@ public Action ColdDown_Timer(Handle timer)
 			if(g_bCommonLimitAdjust)
 			{
 				SetConVarInt(h_common_limit_cvar, g_iCommonLimit + h_PlayerAddCommonLimit.IntValue * (addition/h_PlayerAddCommonLimitScale.IntValue));
-				C_PrintToChatAll("[{olive}TS{default}] %t","Current status2",iAliveSurplayers,g_iMaxPlayerZombies,h_common_limit_cvar.IntValue);
+				// C_PrintToChatAll("[{olive}TS{default}] %t","Current status2",iAliveSurplayers,g_iMaxPlayerZombies,h_common_limit_cvar.IntValue);
 			}
 			else
 			{
 				SetConVarInt(h_common_limit_cvar, g_iCommonLimit);
-				C_PrintToChatAll("[{olive}TS{default}] %t","Current status4",iAliveSurplayers,g_iMaxPlayerZombies);	
+				// C_PrintToChatAll("[{olive}TS{default}] %t","Current status4",iAliveSurplayers,g_iMaxPlayerZombies);	
 			}
 		}
 		iPlayersInSurvivorTeam = iAliveSurplayers;

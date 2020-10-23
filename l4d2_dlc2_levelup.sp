@@ -9891,8 +9891,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		if(pipe_bomb_timer_duration == null)
 			pipe_bomb_timer_duration = FindConVar("pipe_bomb_timer_duration");
 		
-		float ov = pipe_bomb_timer_duration.FloatValue;
-		pipe_bomb_timer_duration.FloatValue = ov * pbDuration;
+		int ov = pipe_bomb_timer_duration.IntValue;
+		pipe_bomb_timer_duration.IntValue = ov * pbDuration;
 		RequestFrame(ResetPipeBombDuration, ov);
 	}
 
@@ -9915,7 +9915,7 @@ public void ResetPipeBombDuration(any data)
 	if(pipe_bomb_timer_duration == null)
 		pipe_bomb_timer_duration = FindConVar("pipe_bomb_timer_duration");
 	
-	pipe_bomb_timer_duration.FloatValue = view_as<float>(data);
+	pipe_bomb_timer_duration.IntValue = view_as<int>(data);
 }
 
 void HookPlayerReload(int client, int clipSize)

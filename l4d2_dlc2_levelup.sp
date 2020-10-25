@@ -212,6 +212,7 @@ int g_iDamageChanceMin[MAXPLAYERS+1];
 int g_iDamageChanceMax[MAXPLAYERS+1];
 int g_iDamageBase[MAXPLAYERS+1];
 bool g_bIsVerified[MAXPLAYERS+1];
+// ArrayList g_aDoorHandled;
 
 enum struct TDInfo_t {
 	int dmg;
@@ -449,7 +450,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 // int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
 bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
-ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS, g_pCvarSaveStatus;
+ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS, g_pCvarSaveStatus, g_pCvarBotRP;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
 Handle g_pfnOnSwingStart, g_pfnOnPummelEnded, g_pfnEndCharge, g_pfnOnCarryEnded, g_pfnIsInvulnerable, g_pfnCreateGift;
 GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
@@ -628,6 +629,7 @@ public OnPluginStart()
 	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
 	g_pCvarStartPoints = CreateConVar("lv_starter_points","3", "初始天赋点数量", FCVAR_NONE, true, 0.0, true, 30.0);
 	g_pCvarReimburse = CreateConVar("lv_expired_reimburse","1750", "存档过期战斗力补偿(补偿点数=先前战斗力/补偿数值).0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarBotRP = CreateConVar("lv_bot_rp","15", "机器人开门时触发人品事件的几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
 	
 	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友奖励一点.0=禁用", FCVAR_NONE, true, 0.0);
@@ -697,6 +699,7 @@ public OnPluginStart()
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
 	// g_WeaponClipSize = new StringMap();
 	// g_WeaponDamage = new StringMap();
+	// g_aDoorHandled = CreateArray();
 	
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
 
@@ -705,6 +708,7 @@ public OnPluginStart()
 	RegConsoleCmd("shop", Command_Shop, "", FCVAR_HIDDEN);
 	RegConsoleCmd("buy", Command_Shop, "", FCVAR_HIDDEN);
 	RegConsoleCmd("rp", Command_RandEvent, "", FCVAR_HIDDEN);
+	RegConsoleCmd("ldw", Command_RandEvent, "", FCVAR_HIDDEN);
 	RegConsoleCmd("cd", Command_SavePoint, "", FCVAR_HIDDEN);
 	RegConsoleCmd("dd", Command_LoadPoint, "", FCVAR_HIDDEN);
 	RegConsoleCmd("ld", Command_BackPoint, "", FCVAR_HIDDEN);
@@ -756,8 +760,9 @@ public OnPluginStart()
 	HookEvent("player_jump", Event_PlayerJump);
 	HookEvent("player_jump_apex", Event_PlayerJumpApex);
 	// HookEvent("door_unlocked", Event_DoorUnlocked);
-	// HookEvent("door_open", Event_DoorOpen);
-	// HookEvent("door_close", Event_DoorClose);
+	HookEvent("door_open", Event_DoorEvent);
+	HookEvent("door_close", Event_DoorEvent);
+	// HookEvent("door_moving", Event_DoorMoving);
 	// HookEvent("rescue_door_open", Event_RescueDoorOpen);
 	// HookEvent("success_checkpoint_button_used", Event_ButtonPressed);
 	// HookEvent("witch_killed", Event_WitchKilled);
@@ -1332,6 +1337,7 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 	g_fNextRoundEvent = 0.0;
 	// g_bRoundFirstStarting = false;
 	g_bIsGamePlaying = false;
+	// g_aDoorHandled.Clear();
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
@@ -2351,7 +2357,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 			return Plugin_Handled;
 		}
 
-		if(StrEqual(sayText, "rp", false))
+		if(StrEqual(sayText, "rp", false) || StrEqual(sayText, "ldw", false))
 		{
 			StatusSelectMenuFuncRP(client);
 			return Plugin_Handled;
@@ -2467,7 +2473,7 @@ void StatusChooseMenuFunc(int client, int pg = -1)
 	menu.AddItem("3", "三级天赋(3点)");
 	menu.AddItem("4", "四级天赋(4点)");
 	menu.AddItem("5", "五级天赋(5点)");
-	menu.AddItem("6", "激活随机人品事件(!rp)");
+	menu.AddItem("6", "激活随机人品(抽奖)事件(!rp)");
 	menu.AddItem("7", "商店菜单(!buy)");
 	menu.AddItem("8", "怒气系统");
 	menu.AddItem("9", "天启装备系统");
@@ -4483,25 +4489,25 @@ void StatusSelectMenuFuncRP(int clientId, bool withMenu = false)
 			CreateTimer(90.0, Client_RP, clientId, TIMER_FLAG_NO_MAPCHANGE);
 
 			if(g_pCvarAllow.BoolValue)
-				PrintToChatAll("\x03[\x05提示\x03]%N\x04激活了人品事件,怒气值\x05+2\x04,等待\x03[\x0540\x03]\x04秒后人品事件发生!", clientId);
+				PrintToChatAll("\x03[\x05提示\x03]%N\x04激活了人品(抽奖)事件,怒气值\x05+2\x04,等待\x03[\x0540\x03]\x04秒后人品(抽奖)事件发生!", clientId);
 			else
-				PrintToChat(clientId, "\x03[提示]\x01 你启动了人品事件，等待 \x0540\x01 秒后发生一些事情。");
+				PrintToChat(clientId, "\x03[提示]\x01 你启动了人品(抽奖)事件，等待 \x0540\x01 秒后发生一些事情。");
 		}
 		else if(g_bHasRPActive)
 		{
 			// if(g_pCvarAllow.BoolValue)
-			PrintToChat(clientId, "\x03[\x05提示\x03]\x04人品事件已经激活,等待\x03[\x0540\x03]\x04秒后才能重新激活!");
+			PrintToChat(clientId, "\x03[\x05提示\x03]\x04人品(抽奖)事件已经激活,等待\x03[\x0540\x03]\x04秒后才能重新激活!");
 		}
 		else
 		{
 			// if(g_pCvarAllow.BoolValue)
-			PrintToChat(clientId, "\x03[\x05提示\x03]\x04你丫的当刷人品是吃饭啊,刷过了就要等\x03[\x0590\x03]\x04秒后才能再刷!");
+			PrintToChat(clientId, "\x03[\x05提示\x03]\x04你丫的当刷人品(抽奖)是吃饭啊,刷过了就要等\x03[\x0590\x03]\x04秒后才能再刷!");
 		}
 	}
 	else
 	{
 		// if(g_pCvarAllow.BoolValue)
-		PrintToChat(clientId, "\x03[\x05提示\x03]\x04你不是活着的生还者,无法激活人品事件!");
+		PrintToChat(clientId, "\x03[\x05提示\x03]\x04你不是活着的生还者,无法激活人品(抽奖)事件!");
 	}
 }
 
@@ -8295,6 +8301,47 @@ public void ApplyJumpVelocity(any client)
 	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 }
 
+/*
+public void Event_DoorMoving(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int chance = g_pCvarBotRP.IntValue;
+	if(chance <= 0)
+		return;
+	
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	int door = event.GetInt("entindex");
+	if(door <= MaxClients || !IsValidAliveClient(client) || !IsValidEdict(door))
+		return;
+	
+	int hammerId = GetEntProp(door, Prop_Data, "m_iHammerID");
+	PrintToChatAll("Client %N, Door %d, HammerID %d", client, door, hammerId);
+	
+	if(hammerId == 0)
+		return;
+	
+	if(g_aDoorHandled.FindValue(hammerId) > -1)
+		return;
+	
+	g_aDoorHandled.Push(hammerId);
+	if(GetRandomInt(1, 100) <= chance)
+		StatusSelectMenuFuncRP(client, false);
+}
+*/
+
+public void Event_DoorEvent(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int chance = g_pCvarBotRP.IntValue;
+	if(chance <= 0)
+		return;
+	
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(client) || !IsFakeClient(client) || GetClientTeam(client) != 2)
+		return;
+	
+	if(GetRandomInt(1, 100) <= chance)
+		StatusSelectMenuFuncRP(client, false);
+}
+
 public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(!g_bIsGamePlaying)
@@ -8414,7 +8461,7 @@ public void UpdateWeaponAmmo(any data)
 	if(weapon < MaxClients || !IsValidEntity(weapon) || !StrEqual(className, classname, false))
 		return;
 	
-	if(fullClip)
+	if(fullClip && !GetEntProp(weapon, Prop_Send, "m_bInReload"))
 	{
 		SetEntProp(weapon, Prop_Send, "m_iClip1", CalcPlayerClip(client, weapon));
 		
@@ -10655,7 +10702,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	}
 	
 	SetEntProp(client, Prop_Send, "m_iAmmo", newAmmo, _, ammoType);
-	if(!noSound && newAmmo > oldAmmo)
+	if(!noSound && amount != 0 && newAmmo > oldAmmo)
 	{
 		// 在弹药增加的情况下才是需要播放声音
 		ClientCommand(client, "play \"items/itempickup.wav\"");

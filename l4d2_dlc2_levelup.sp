@@ -3025,7 +3025,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	menu.SetTitle(tr("四级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("「坚韧」被坦克击中随机恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
-	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+10",(g_clSkill_4[client]&SKL_4_DmgExtra)));
+	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+20",(g_clSkill_4[client]&SKL_4_DmgExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("「霸气」蹲下右键可以弹开周围的特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
 	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」射速增加",(g_clSkill_4[client]&SKL_4_FastFired)));
 	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("「神狙」AWP射速加快无限备弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
@@ -3747,7 +3747,7 @@ public int MenuHandler_OpenEquipment(Menu menu, MenuAction action, int client, i
 		
 		static EquipData_t data;
 		if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
-			PrintToChat(client, "\x03[提示]\x01 你获得了：%s", FormatEquip(client, data));
+			PrintToChat(client, "\x03[提示]\x01 你获得了：\x05%s\x01", FormatEquip(client, data));
 	}
 
 	if(selected != 10)
@@ -5260,12 +5260,27 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if(entity <= MaxClients || entity > 2048)
 		return;
-
+	
+	// 敌人
 	if(StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false) || StrEqual(classname, "tank_rock", false))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
+	// 自带的易碎物品
+	else if(StrEqual(classname, "func_door_rotating", false) || StrEqual(classname, "prop_wall_breakable", false) ||
+		StrEqual(classname, "func_breakable", false) || StrEqual(classname, "func_breakable_surf", false) ||
+		// 插件兼容，例如某特殊实体的带血量的路障
+		StrEqual(classname, "prop_physics", false) || StrEqual(classname, "prop_physics_override", false) ||
+		StrEqual(classname, "prop_dynamic", false) || StrEqual(classname, "prop_dynamic_override", false))
+		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
+	
+	// 可伤害实体
+	else if(HasEntProp(entity, Prop_Data, "m_takedamage") && GetEntProp(entity, Prop_Data, "m_takedamage") == 2)
+		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
+	
+	/*
 	if(StrContains(classname, "_projectile", false) > 0)
 		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnProjectileSpawned);
+	*/
 }
 
 public void OnEntityDestroyed(int entity)
@@ -5294,6 +5309,7 @@ public void ZombieHook_OnSpawned(int entity)
 	// SDKHook(entity, SDKHook_OnTakeDamagePost, ZombieHook_OnTakeDamagePost);
 }
 
+/*
 public void EntityHook_OnProjectileSpawned(int entity)
 {
 	SDKUnhook(entity, SDKHook_SpawnPost, EntityHook_OnProjectileSpawned);
@@ -5314,6 +5330,7 @@ public void EntityHook_OnProjectileSpawned(int entity)
 		}
 	}
 }
+*/
 
 /*
 public void ZombieHook_OnTraceAttackPost(int victim, int attacker, int inflictor, float damage, int damagetype,
@@ -5342,7 +5359,7 @@ void CalcDamageExtra(int attacker, int& chance, int& minChDmg, int& maxChDmg, in
 	if(g_clSkill_1[attacker] & SKL_1_DmgExtra)
 		chance += 5;
 	if(g_clSkill_4[attacker] & SKL_4_DmgExtra)
-		chance += 10;
+		chance += 20;
 	
 	for(int i = 0; i < 4; ++i)
 	{
@@ -5393,15 +5410,21 @@ void CalcDamageExtra(int attacker, int& chance, int& minChDmg, int& maxChDmg, in
 public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
-	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 || GetClientTeam(attacker) != 2 || (damagetype & DMG_FALL))
+	if(!IsValidEdict(victim) || !IsValidClient(attacker) || damage <= 0.0/* || GetClientTeam(attacker) != 2*/ || (damagetype & DMG_FALL))
 		return Plugin_Continue;
 	
+	// 子弹、钢珠弹(霰弹)、砍击、钝击
+	if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
+		return Plugin_Continue;
+	
+	/*
 	// 忽略非主武器的攻击
 	if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
 		return Plugin_Continue;
+	*/
 	
 	// 狙击枪伤害增加
-	if(ammotype == 10 && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
+	if(ammotype == AMMOTYPE_SNIPERRIFLE && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
 	{
 		static char className[64];
 		if(IsValidEntity(inflictor) && IsValidEdict(inflictor))
@@ -5422,9 +5445,10 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	if(victim > MaxClients)
 	{
+		// 可能不需要马格南，因为这个已经是可以秒普感了
 		if((g_clSkill_5[attacker] & SKL_5_Overkill) &&
 			(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
-			ammotype > 2 && ammotype < 12 && !GetRandomInt(0, 3))
+			ammotype > AMMOTYPE_PISTOL && ammotype < AMMOTYPE_TURRET && !GetRandomInt(0, 3))
 			chance += 250;
 	}
 	
@@ -5783,14 +5807,15 @@ public void PlayerHook_OnTraceAttackPost(int victim, int attacker, int inflictor
 public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
-	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || damage <= 0.0 || hitbox <= 0 || (damagetype & DMG_FALL))
+	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || (damagetype & DMG_FALL))
 		return Plugin_Continue;
 	
+	// 榴弹炸自己
 	if(attacker == victim && (g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
 	{
 		static char classname[32];
-		GetEdictClassname(inflictor, classname, sizeof(classname));
-		if(StrEqual(classname, "grenade_launcher_projectile", false))
+		if(GetEdictClassname(inflictor, classname, sizeof(classname)) &&
+			StrEqual(classname, "grenade_launcher_projectile", false))
 		{
 			float vPos[3], vDir[3], vVel[3], nVel[3], nDir[3];
 			GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
@@ -5828,6 +5853,9 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			return Plugin_Changed;
 		}
 	}
+	
+	if(damage <= 0.0 || hitbox <= 0)
+		return Plugin_Continue;
 	
 	int attackerTeam = GetClientTeam(attacker);
 	int victimTeam = GetClientTeam(victim);
@@ -5867,12 +5895,18 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		}
 		*/
 		
+		// 子弹、钢珠弹(霰弹)、砍击、钝击
+		if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
+			return Plugin_Continue;
+		
+		/*
 		// 忽略非主武器的射击
 		if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
 			return Plugin_Continue;
+		*/
 		
 		// 狙击枪伤害增加
-		if(ammotype == 10 && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
+		if(ammotype == AMMOTYPE_SNIPERRIFLE && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
 		{
 			static char className[64];
 			if(inflictor > MaxClients)
@@ -5942,6 +5976,10 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	// 特感攻击生还者
 	else if(attackerTeam == TEAM_INFECTED && victimTeam == TEAM_SURVIVORS)
 	{
+		// 子弹、钢珠弹(霰弹)、燃烧、野火、电击
+		if(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_BURN|DMG_SLOWBURN|DMG_SHOCK))
+			return Plugin_Continue;
+		
 		if(GetRandomInt(1, 1000) <= chance)
 		{
 			if(!IsFakeClient(victim))
@@ -6978,7 +7016,7 @@ void RewardPicker(int client, int reward = -1)
 					static EquipData_t data;
 					if(g_pCvarAllow.BoolValue && g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
 					{
-						PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, data));
+						PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01，输入 !lv 查看。", FormatEquip(client, data));
 					}
 				}
 			}
@@ -7035,12 +7073,13 @@ void RewardPicker(int client, int reward = -1)
 			CheatCommand(client, "give", "weapon_sniper_awp");
 			CheatCommand(client, "give", "pain_pills");
 			CheatCommand(client, "give", "first_aid_kit");
+			CheatCommand(client, "give", "pistol_magnum");
 			EmitSoundToClient( client, REWARD_SOUND );
 
 			if(g_pCvarAllow.BoolValue)
-				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03发现了大量物品\x04.",client);
+				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03发现了一背包的物品\x04.",client);
 			else
-				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04发现了大量物品\x01。");
+				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04发现了一背包的物品\x01。");
 		}
 		case 8:
 		{
@@ -7328,7 +7367,7 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 						IntToString(j, key, sizeof(key));
 						static EquipData_t ed;
 						if(g_pCvarAllow.BoolValue && !IsFakeClient(i) && g_mEquipData[i].GetArray(key, ed, sizeof(ed)) && ed.valid)
-							PrintToChat(i, "\x03[提示]\x01 获得装备：%s", FormatEquip(i, ed));
+							PrintToChat(i, "\x03[提示]\x01 获得装备：\x05%s\x01 输入 !lv 查看", FormatEquip(i, ed));
 					}
 				}
 			}
@@ -8855,6 +8894,14 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 	if(!IsValidClient(client))
 		return;
 	
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	if(weapon <= MaxClients || !IsValidEdict(weapon))
+		return;
+	
+	static char classname[64];
+	if(!GetEdictClassname(weapon, classname, 64))
+		return;
+	
 	float vEnd[3];
 	vEnd[0] = event.GetFloat("x");
 	vEnd[1] = event.GetFloat("y");
@@ -8862,98 +8909,99 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 	
 	if(g_clSkill_3[client] & SKL_3_Ricochet)
 	{
-		int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-		if(weapon > MaxClients && IsValidEntity(weapon))
+		if(StrContains(classname, "smg", false) > -1 || StrContains(classname, "rifle", false) > -1 ||
+			StrContains(classname, "sniper", false) > -1 || StrContains(classname, "magnum", false) > -1)
 		{
-			static char classname[64];
-			if(GetEdictClassname(weapon, classname, 64) && 
-				(StrContains(classname, "smg", false) > -1 || StrContains(classname, "rifle", false) > -1 ||
-				StrContains(classname, "sniper", false) > -1 || StrContains(classname, "magnum", false) > -1))
+			float fEyeAngles[3], fBeamOneStart[3], fBeamOneEnd[3], fBeamEndNormals[3], fBeamTwoDirection[3], fBeamForwards[3], fBeamTwoStart[3], fBeamTwoEnd[3];
+			GetClientEyeAngles(client, fEyeAngles);
+			GetClientEyePosition(client, fBeamOneStart);
+			float damage = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage) * 0.5;
+			
+			// 反弹降低伤害
+			/*
+			if(g_WeaponDamage.GetValue(classname, damage) && damage > 0.0)
 			{
-				float fEyeAngles[3], fBeamOneStart[3], fBeamOneEnd[3], fBeamEndNormals[3], fBeamTwoDirection[3], fBeamForwards[3], fBeamTwoStart[3], fBeamTwoEnd[3];
-				GetClientEyeAngles(client, fEyeAngles);
-				GetClientEyePosition(client, fBeamOneStart);
-				float damage = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage) * 0.5;
+				// PrintCenterText(client, "dmg %.0f", damage);
+				damage /= 2;
+			}
+			else
+			{
+				PrintCenterText(client, "no dmg");
+			}
+			*/
+			
+			Handle trace = TR_TraceRayFilterEx(fBeamOneStart, fEyeAngles, MASK_SHOT, RayType_Infinite, TraceRayDontHitSelf, client);
+			if(TR_DidHit(trace))
+			{
+				fBeamOneEnd = vEnd;
+				// TR_GetEndPosition(fBeamOneEnd, trace);
+				TR_GetPlaneNormal(trace, fBeamEndNormals);
+				delete trace;
 				
-				// 反弹降低伤害
-				/*
-				if(g_WeaponDamage.GetValue(classname, damage) && damage > 0.0)
-				{
-					// PrintCenterText(client, "dmg %.0f", damage);
-					damage /= 2;
-				}
-				else
-				{
-					PrintCenterText(client, "no dmg");
-				}
-				*/
+				for(int i = 0;i < 3; i++)
+					fBeamTwoDirection[i] = fBeamOneEnd[i] - fBeamOneStart[i];
 				
-				Handle trace = TR_TraceRayFilterEx(fBeamOneStart, fEyeAngles, MASK_SHOT, RayType_Infinite, TraceRayDontHitSelf, client);
+				GetVectorAngles(fBeamTwoDirection, fBeamTwoDirection);
+				GetAngleVectors(fBeamTwoDirection, fBeamForwards, NULL_VECTOR, NULL_VECTOR);
+				
+				for(int i = 0;i < 3; i++)
+					fBeamTwoEnd[i] = fBeamOneEnd[i] + fBeamForwards[i] * 8192.0;
+				
+				float dotProduct = GetVectorDotProduct(fBeamEndNormals, fBeamForwards);
+				ScaleVector(fBeamEndNormals, dotProduct);
+				ScaleVector(fBeamEndNormals, 2.0);
+				
+				float vBounceVec[3];
+				SubtractVectors(fBeamForwards, fBeamEndNormals, vBounceVec);
+				
+				float fBeamTwoFinalDirection[3];
+				GetVectorAngles(vBounceVec, fBeamTwoFinalDirection);
+				
+				fBeamTwoStart = fBeamOneEnd;
+				
+				trace = TR_TraceRayFilterEx(fBeamTwoStart, fBeamTwoFinalDirection, MASK_SHOT, RayType_Infinite, TraceRayDontHitTeam, 2);
 				if(TR_DidHit(trace))
 				{
-					fBeamOneEnd = vEnd;
-					// TR_GetEndPosition(fBeamOneEnd, trace);
-					TR_GetPlaneNormal(trace, fBeamEndNormals);
+					TR_GetEndPosition(fBeamTwoEnd, trace);
+					int iTarget = TR_GetEntityIndex(trace);
 					delete trace;
 					
-					for(int i = 0;i < 3; i++)
-						fBeamTwoDirection[i] = fBeamOneEnd[i] - fBeamOneStart[i];
-					
-					GetVectorAngles(fBeamTwoDirection, fBeamTwoDirection);
-					GetAngleVectors(fBeamTwoDirection, fBeamForwards, NULL_VECTOR, NULL_VECTOR);
-					
-					for(int i = 0;i < 3; i++)
-						fBeamTwoEnd[i] = fBeamOneEnd[i] + fBeamForwards[i] * 8192.0;
-					
-					float dotProduct = GetVectorDotProduct(fBeamEndNormals, fBeamForwards);
-					ScaleVector(fBeamEndNormals, dotProduct);
-					ScaleVector(fBeamEndNormals, 2.0);
-					
-					float vBounceVec[3];
-					SubtractVectors(fBeamForwards, fBeamEndNormals, vBounceVec);
-					
-					float fBeamTwoFinalDirection[3];
-					GetVectorAngles(vBounceVec, fBeamTwoFinalDirection);
-					
-					fBeamTwoStart = fBeamOneEnd;
-					
-					trace = TR_TraceRayFilterEx(fBeamTwoStart, fBeamTwoFinalDirection, MASK_SHOT, RayType_Infinite, TraceRayDontHitTeam, 2);
-					if(TR_DidHit(trace))
+					// TODO: 计算暴击和额外伤害
+					if(iTarget > 0 && damage > 0.0 && GetVectorDistance(fBeamTwoStart, fBeamTwoEnd) <= L4D2_GetFloatWeaponAttribute(classname, L4D2FWA_Range))
 					{
-						TR_GetEndPosition(fBeamTwoEnd, trace);
-						int iTarget = TR_GetEntityIndex(trace);
-						delete trace;
-						
-						// TODO: 计算暴击和额外伤害
-						if(iTarget > 0 && damage > 0.0 && GetVectorDistance(fBeamTwoStart, fBeamTwoEnd) <= L4D2_GetFloatWeaponAttribute(classname, L4D2FWA_Range))
-						{
-							// EmitSoundToAll(SOUND_IMPACT1, iTarget,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
-							EmitAmbientSound(SOUND_IMPACT1, fBeamTwoEnd, iTarget, SNDLEVEL_TRAFFIC);
-							SDKHooks_TakeDamage(iTarget, weapon, client, damage, DMG_BULLET, weapon, NULL_VECTOR, fBeamTwoEnd);
-							ShowParticle(fBeamTwoEnd, PARTICLE_BLOOD, 0.5);
-						}
-						else
-						{
-							// EmitSoundToAll(SOUND_IMPACT2, 0,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
-							EmitAmbientSound(SOUND_IMPACT2, fBeamTwoEnd, 0, SNDLEVEL_TRAFFIC);
-						}
-						
-						// 子弹效果
-						TE_SetupBeamPoints(fBeamTwoStart, fBeamTwoEnd, g_BeamSprite, 0, 0, 0, 0.06, 0.01, 0.08, 1, 0.0, {200, 200, 200, 230}, 0);
-						TE_SendToAll();
+						// EmitSoundToAll(SOUND_IMPACT1, iTarget,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
+						EmitAmbientSound(SOUND_IMPACT1, fBeamTwoEnd, iTarget, SNDLEVEL_TRAFFIC);
+						SDKHooks_TakeDamage(iTarget, weapon, client, damage, DMG_BULLET, weapon, NULL_VECTOR, fBeamTwoEnd);
+						ShowParticle(fBeamTwoEnd, PARTICLE_BLOOD, 0.5);
 					}
 					else
 					{
-						delete trace;
+						// EmitSoundToAll(SOUND_IMPACT2, 0,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
+						EmitAmbientSound(SOUND_IMPACT2, fBeamTwoEnd, 0, SNDLEVEL_TRAFFIC);
 					}
+					
+					// 子弹效果
+					TE_SetupBeamPoints(fBeamTwoStart, fBeamTwoEnd, g_BeamSprite, 0, 0, 0, 0.06, 0.01, 0.08, 1, 0.0, {200, 200, 200, 230}, 0);
+					TE_SendToAll();
 				}
 				else
 				{
-					// PrintCenterText(client, "no hit");
 					delete trace;
 				}
 			}
+			else
+			{
+				// PrintCenterText(client, "no hit");
+				delete trace;
+			}
 		}
+		
+	}
+	
+	if(g_clSkill_4[client] & SKL_4_FastFired)
+	{
+		if(StrContains(classname, "rifle_desert", false) > 0)
+			SetWeaponSpeed2(weapon, 1.25);
 	}
 }
 
@@ -9942,7 +9990,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		pipe_bomb_timer_duration.IntValue = ov * pbDuration;
 		RequestFrame(ResetPipeBombDuration, ov);
 	}
-
+	
+	// 只对单发有效，三连发无效
 	if(weaponSpeed != 1.0)
 	{
 		// AdjustWeaponSpeed(weapon, weaponSpeed);
@@ -12839,7 +12888,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 						IntToString(j, key, sizeof(key));
 						static EquipData_t data;
 						if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
-							PrintToChat(client, "\x03[提示]\x01 装备获得：%s", FormatEquip(client, data));
+							PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01 输入 !lv 查看", FormatEquip(client, data));
 					}
 				}
 			}
@@ -13822,6 +13871,7 @@ stock void CreateHideMotd(int client, const char[] url = "about:blank", const ch
 }
 
 // 创建一个跟踪导弹
+/*
 stock int CreateMissiles(int client, int entity)
 {
 	if(!IsValidAliveClient(client))
@@ -13830,6 +13880,7 @@ stock int CreateMissiles(int client, int entity)
 	CheatCommand(client, "make_missile", "%d", entity);
 	return entity;
 }
+*/
 
 public bool TraceFilter_DontHitOwnerOrEntity(int entity, int contentsMask, any self)
 {

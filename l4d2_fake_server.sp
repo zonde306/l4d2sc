@@ -233,7 +233,7 @@ void PrintStatusInfo(int client)
 	
 	PrintToConsole(client, "#end");
 	
-	PrintToServer("client %N query status");
+	PrintToServer("client %N query status", client);
 }
 
 public void OnEntityCreated(int entity, const char[] classname)

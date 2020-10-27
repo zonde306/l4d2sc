@@ -205,7 +205,6 @@ bool g_bDeadlineHint[MAXPLAYERS+1];
 int g_iExtraAmmo[MAXPLAYERS+1];
 int g_iExtraArmor[MAXPLAYERS+1];
 bool g_bAccurateShot[MAXPLAYERS+1];
-bool g_bSurvivalStarter[MAXPLAYERS+1];
 bool g_bOnRocketDude[MAXPLAYERS+1];
 int g_iDamageChance[MAXPLAYERS+1];
 int g_iDamageChanceMin[MAXPLAYERS+1];
@@ -1425,33 +1424,43 @@ public Action:Event_MissionLost(Handle:event, String:event_name[], bool:dontBroa
 
 public void Event_SurvivalAt10Min(Event event, const char[] event_name, bool dontBroadcast)
 {
+	int num_humans = 0;
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
+			num_humans += 1;
+	
+	if(num_humans <= 0)
+		return;
+	
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		if(!g_bSurvivalStarter[i])
-			continue;
-		
 		if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
 			continue;
 		
-		GiveSkillPoint(i, 1);
+		GiveSkillPoint(i, num_humans);
 		if(g_pCvarAllow.BoolValue)
-			PrintToChat(i, "\x03[提示]\x01 你因为生存了 10 分钟而获得 1 天赋点。");
+			PrintToChat(i, "\x03[提示]\x01 你因为生存了 10 分钟而获得 %d 天赋点。", num_humans);
 	}
 }
 
 public void Event_SurvivalAt30Min(Event event, const char[] event_name, bool dontBroadcast)
 {
+	int num_humans = 0;
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
+			num_humans += 1;
+	
+	if(num_humans <= 0)
+		return;
+	
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		if(!g_bSurvivalStarter[i])
-			continue;
-		
 		if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
 			continue;
 		
-		GiveSkillPoint(i, 3);
+		GiveSkillPoint(i, num_humans * 3);
 		if(g_pCvarAllow.BoolValue)
-			PrintToChat(i, "\x03[提示]\x01 你因为生存了 30 分钟而获得 3 天赋点。");
+			PrintToChat(i, "\x03[提示]\x01 你因为生存了 30 分钟而获得 %d 天赋点。", num_humans * 3);
 	}
 }
 
@@ -1466,12 +1475,8 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 	
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		g_bSurvivalStarter[i] = false;
-		
 		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
 		{
-			g_bSurvivalStarter[i] = true;
-			
 			if(g_pCvarSurvivorBot.BoolValue && IsFakeClient(i))
 			{
 				GenerateRandomStats(i, g_pCvarSurvivorBot.IntValue > 1);
@@ -1655,7 +1660,6 @@ void Initialization(int client, bool invalid = false)
 	g_fForgiveOfFF[client] = 0.0;
 	g_iForgiveTKTarget[client] = 0;
 	g_iForgiveFFTarget[client] = 0;
-	g_bSurvivalStarter[client] = false;
 	g_bOnRocketDude[client] = false;
 	g_iDamageBase[client] = 0;
 	g_iDamageChance[client] = 0;
@@ -5274,7 +5278,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
 	// 可伤害实体
-	else if(HasEntProp(entity, Prop_Data, "m_takedamage") && GetEntProp(entity, Prop_Data, "m_takedamage") == 2)
+	else if(HasEntProp(entity, Prop_Data, "m_takedamage") && HasEntProp(entity, Prop_Data, "m_iHealth") &&
+		GetEntProp(entity, Prop_Data, "m_takedamage") == 2 && GetEntProp(entity, Prop_Data, "m_iHealth") > 0)
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
 	/*
@@ -6297,7 +6302,7 @@ public void FillExtraArmor(any client)
 		g_iExtraArmor[client] = 0;
 	}
 	
-	PrintCenterText(client, "护甲剩余 %d", count);
+	PrintCenterText(client, "护甲剩余 %d|血量剩余 %d", count, GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client));
 }
 
 void GiveAngryPoint(int victim, int amount)
@@ -7882,10 +7887,7 @@ public int OnSkeet(int survivor, int hunter)
 	if(!IsValidClient(survivor))
 		return 0;
 	
-	GiveSkillPoint(survivor, 1);
-	
-	if(g_pCvarAllow.BoolValue && !IsFakeClient(survivor))
-		PrintToChat(survivor, "\x03[提示]\x01 你因为空爆 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	g_ttSpecialKilled[survivor] += 1;
 	return 0;
 }
 
@@ -7894,10 +7896,7 @@ public int OnSkeetMelee(int survivor, int hunter)
 	if(!IsValidClient(survivor))
 		return 0;
 	
-	GiveSkillPoint(survivor, 1);
-	
-	if(g_pCvarAllow.BoolValue && !IsFakeClient(survivor))
-		PrintToChat(survivor, "\x03[提示]\x01 你因为近战秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	g_ttSpecialKilled[survivor] += 2;
 	return 0;
 }
 
@@ -7906,10 +7905,7 @@ public int OnSkeetGL(int survivor, int hunter)
 	if(!IsValidClient(survivor) || IsFakeClient(survivor))
 		return 0;
 	
-	GiveSkillPoint(survivor, 1);
-	
-	if(g_pCvarAllow.BoolValue && !IsFakeClient(survivor))
-		PrintToChat(survivor, "\x03[提示]\x01 你因为榴弹秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	g_ttSpecialKilled[survivor] += 1;
 	return 0;
 }
 
@@ -7918,10 +7914,7 @@ public int OnSkeetSniper(int survivor, int hunter)
 	if(!IsValidClient(survivor) || IsFakeClient(survivor))
 		return 0;
 	
-	GiveSkillPoint(survivor, 1);
-	
-	if(g_pCvarAllow.BoolValue && !IsFakeClient(survivor))
-		PrintToChat(survivor, "\x03[提示]\x01 你因为狙击秒 \x04Hunter\x01 而获得 \x051\x01 天赋点。");
+	g_ttSpecialKilled[survivor] += 1;
 	return 0;
 }
 
@@ -7932,8 +7925,7 @@ public int OnChargerLevel(int survivor, int charger)
 	
 	GiveSkillPoint(survivor, 1);
 	
-	if(g_pCvarAllow.BoolValue && !IsFakeClient(survivor))
-		PrintToChat(survivor, "\x03[提示]\x01 你因为近战秒 \x04Charger\x01 而获得 \x051\x01 天赋点。");
+	g_ttSpecialKilled[survivor] += 5;
 	return 0;
 }
 
@@ -7942,10 +7934,7 @@ public int OnWitchCrown(int survivor, int damage)
 	if(!IsValidClient(survivor))
 		return 0;
 	
-	GiveSkillPoint(survivor, 1);
-	
-	if(g_pCvarAllow.BoolValue && !IsFakeClient(survivor))
-		PrintToChat(survivor, "\x03[提示]\x01 你因为秒 \x04Witch\x01 而获得 \x051\x01 天赋点。");
+	g_ttCommonKilled[survivor] += 20;
 	return 0;
 }
 
@@ -7954,10 +7943,7 @@ public int OnWitchCrownHurt(int survivor, int damage, int chipDamage)
 	if(!IsValidClient(survivor))
 		return 0;
 	
-	GiveSkillPoint(survivor, 1);
-	
-	if(g_pCvarAllow.BoolValue && !IsFakeClient(survivor))
-		PrintToChat(survivor, "\x03[提示]\x01 你因为引秒 \x04Witch\x01 而获得 \x051\x01 天赋点。");
+	g_ttCommonKilled[survivor] += 10;
 	return 0;
 }
 
@@ -7966,13 +7952,7 @@ public int OnBunnyHopStreak(int survivor, int streak, float maxVelocity)
 	if(!IsValidClient(survivor))
 		return 0;
 	
-	if(streak < 10 || maxVelocity <= 220)
-		return 0;
-	
-	GiveSkillPoint(survivor, streak / 5);
-	
-	if(g_pCvarAllow.BoolValue && !IsFakeClient(survivor))
-		PrintToChat(survivor, "\x03[提示]\x01 你因为连跳 \x04%d\x01 次而获得 \x05%d\x01 天赋点。", streak, streak / 10);
+	g_ttProtected[survivor] += streak;
 	return 0;
 }
 
@@ -7981,7 +7961,7 @@ public int OnHunterHighPounce(int hunter, int survivor, int actualDamage, float 
 	if(!IsValidClient(hunter))
 		return 0;
 	
-	if(actualDamage < 15 || height < 300)
+	if(actualDamage < 20 || height < 300)
 		return 0;
 	
 	GiveSkillPoint(hunter, 1);

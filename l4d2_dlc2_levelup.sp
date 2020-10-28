@@ -212,6 +212,7 @@ int g_iDamageChanceMax[MAXPLAYERS+1];
 int g_iDamageBase[MAXPLAYERS+1];
 bool g_bIsVerified[MAXPLAYERS+1];
 // ArrayList g_aDoorHandled;
+Handle g_hTimerSurvival = null;
 
 enum struct TDInfo_t {
 	int dmg;
@@ -1320,6 +1321,7 @@ public OnMapEnd()
 	g_ttTankKilled = 0;
 	g_iRoundEvent = 0;
 	g_bIsGamePlaying = false;
+	g_hTimerSurvival = null;
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
@@ -1358,6 +1360,12 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 		g_iZombieSpawner = -1;
 	}
 	*/
+	
+	if(g_hTimerSurvival != null)
+	{
+		KillTimer(g_hTimerSurvival);
+		g_hTimerSurvival = null;
+	}
 }
 
 public Action:Event_FinaleWin(Handle:event, String:event_name[], bool:dontBroadcast)
@@ -1467,6 +1475,74 @@ public void Event_SurvivalAt30Min(Event event, const char[] event_name, bool don
 public void Event_PlayerLeftStartArea(Event event, const char[] event_name, bool dontBroadcast)
 {
 	L4D_OnFirstSurvivorLeftSafeArea(-1);
+	
+	if(StrEqual(event_name, "survival_round_start", false))
+	{
+		g_hTimerSurvival = CreateTimer(4.0 * 60.0, Timer_SurvivalTimer, GetGameTime(), TIMER_FLAG_NO_MAPCHANGE);
+		PrintToServer("生还者模式计时开始");
+	}
+}
+
+public Action Timer_SurvivalTimer(Handle timer, any startTime)
+{
+	g_hTimerSurvival = null;
+	int num_humans = 0;
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
+			num_humans += 1;
+	
+	// 已经没有人了
+	if(num_humans <= 0)
+		return Plugin_Continue;
+	
+	int points = 0;
+	int timeleft = RoundToNearest((GetGameTime() - view_as<float>(startTime)) / 60);
+	switch(timeleft)
+	{
+		// 铜牌
+		case 3, 4, 5:
+		{
+			points = 1;
+			timeleft = 4;
+			g_hTimerSurvival = CreateTimer(3.0 * 60.0, Timer_SurvivalTimer, startTime, TIMER_FLAG_NO_MAPCHANGE);
+		}
+		// 银牌
+		case 6, 7, 8:
+		{
+			points = 2;
+			timeleft = 7;
+			g_hTimerSurvival = CreateTimer(3.0 * 60.0, Timer_SurvivalTimer, startTime, TIMER_FLAG_NO_MAPCHANGE);
+		}
+		// 金牌
+		case 9, 10, 11:
+		{
+			points = 3;
+			timeleft = 10;
+			g_hTimerSurvival = CreateTimer(600.0, Timer_SurvivalTimer, startTime, TIMER_FLAG_NO_MAPCHANGE);
+		}
+		default:
+		{
+			// 每10分钟一次
+			if(timeleft > 10)
+			{
+				points = 3 + timeleft / 10;
+				g_hTimerSurvival = CreateTimer(600.0, Timer_SurvivalTimer, startTime, TIMER_FLAG_NO_MAPCHANGE);
+			}
+		}
+	}
+	
+	if(points > 0)
+		for(int i = 1; i <= MaxClients; ++i)
+		{
+			if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
+				continue;
+			
+			GiveSkillPoint(i, points);
+			if(g_pCvarAllow.BoolValue)
+				PrintToChat(i, "\x03[提示]\x01 你因为生存了 \x05%d\x01 分钟而获得 \x05%d\x01 天赋点。", timeleft, points);
+		}
+	
+	return Plugin_Continue;
 }
 
 public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
@@ -7295,8 +7371,10 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 
 	if(g_ttTankKilled >= 4)
 	{
+		/*
 		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]\x04由于本关卡坦克死亡数已超过3只,将不再补血,生还者也将无法获得任何奖励!");
+		*/
 		return Plugin_Continue;
 	}
 
@@ -8211,7 +8289,7 @@ public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool do
 	int zClass = GetEntProp(client, Prop_Send, "m_zombieClass");
 	if(zClass != ZC_SURVIVOR && zClass != ZC_WITCH)
 	{
-		int power;
+		int power, health;
 		float vPos[3], vLoc[3], distance;
 		GetClientAbsOrigin(client, vPos);
 		
@@ -8222,44 +8300,45 @@ public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool do
 			
 			GetClientAbsOrigin(i, vLoc);
 			distance = GetVectorDistance(vPos, vLoc);
-			power = CalcPlayerPower(i);
+			power = CalcPlayerPower(client);
+			health = GetClientHealth(client);
 			
 			switch(zClass)
 			{
 				case ZC_SMOKER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSmoker");
-					PrintToChat(i, "\x04有一只 \x03Smoker\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
+					PrintToChat(i, "\x04有一只 \x03Smoker\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01，血量 \x05%d\x01。", distance, power, health);
 				}
 				case ZC_BOOMER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnBoomer");
-					PrintToChat(i, "\x04有一只 \x03Boomer\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
+					PrintToChat(i, "\x04有一只 \x03Boomer\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01，血量 \x05%d\x01。", distance, power, health);
 				}
 				case ZC_HUNTER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnHunter");
-					PrintToChat(i, "\x04有一只 \x03Hunter\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
+					PrintToChat(i, "\x04有一只 \x03Hunter\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01，血量 \x05%d\x01。", distance, power, health);
 				}
 				case ZC_SPITTER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnSpitter");
-					PrintToChat(i, "\x04有一只 \x03Spitter\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
+					PrintToChat(i, "\x04有一只 \x03Spitter\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01，血量 \x05%d\x01。", distance, power, health);
 				}
 				case ZC_JOCKEY:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnJockey");
-					PrintToChat(i, "\x04有一只 \x03Jockey\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
+					PrintToChat(i, "\x04有一只 \x03Jockey\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01，血量 \x05%d\x01。", distance, power, health);
 				}
 				case ZC_CHARGER:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnCharger");
-					PrintToChat(i, "\x04有一只 \x03Charger\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
+					PrintToChat(i, "\x04有一只 \x03Charger\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01，血量 \x05%d\x01。", distance, power, health);
 				}
 				case ZC_TANK:
 				{
 					// FakeClientCommandEx(i, "vocalize PlayerAlsoWarnTank");
-					PrintToChat(i, "\x04有一只 \x03Tank\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01。", distance, power);
+					PrintToChat(i, "\x04有一只 \x03Tank\x04 出现了，距离 \x05%.0f\x01，战斗力 \x05%d\x01，血量 \x05%d\x01。", distance, power, health);
 				}
 			}
 		}

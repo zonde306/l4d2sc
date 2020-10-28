@@ -5498,6 +5498,9 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
 		return Plugin_Continue;
 	
+	if(HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") == 0)
+		return Plugin_Continue;
+	
 	/*
 	// 忽略非主武器的攻击
 	if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
@@ -11446,6 +11449,18 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			// 禁止自带的倒地爬行
 			buttons &= ~IN_FORWARD;
+		}
+	}
+	else if(g_bIsHitByVomit[client])
+	{
+		// 强制特感攻击
+		int zClass = GetEntProp(client, Prop_Send, "m_zombieClass");
+		if(zClass >= ZC_SMOKER && zClass <= ZC_TANK)
+		{
+			if(zClass == ZC_TANK)
+				buttons |= IN_ATTACK;
+			else
+				buttons |= IN_ATTACK2;
 		}
 	}
 

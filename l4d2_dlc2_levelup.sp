@@ -5168,19 +5168,19 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		return Plugin_Continue;
 	}
 	
+	if(IsValidClient(attacker) && GetClientTeam(attacker) == GetClientTeam(victim) &&
+		((g_clSkill_1[attacker] & SKL_1_Firendly) || (g_clSkill_1[victim] & SKL_1_Firendly)))
+	{
+		// 免疫队友和自己的伤害
+		return Plugin_Handled;
+	}
+	
 	float time = GetEngineTime();
 	if((g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -time) || (g_fFreezeTime[victim] > time && IsPlayerHaveEffect(victim, 29)))
 	{
 		// 无敌模式伤害免疫
 		if(!IsNullVector(damagePosition))
-			EmitAmbientSound(SOUND_STEEL, damagePosition, victim, SNDLEVEL_DISHWASHER);
-		return Plugin_Handled;
-	}
-	
-	if(IsValidClient(attacker) && GetClientTeam(attacker) == GetClientTeam(victim) &&
-		((g_clSkill_1[attacker] & SKL_1_Firendly) || (g_clSkill_1[victim] & SKL_1_Firendly)))
-	{
-		// 免疫队友和自己的伤害
+			EmitAmbientSound(SOUND_STEEL, damagePosition, victim, SNDLEVEL_HOME);
 		return Plugin_Handled;
 	}
 	
@@ -10112,7 +10112,11 @@ public void PlayerHook_OnReloadThink(int client)
 				// PrintHintText(client, "原有子弹：%d", g_iReloadWeaponOldClip[client]);
 				g_iReloadWeaponOldClip[client] = 0;
 			}
-
+			
+			// BUG 修复
+			if(g_iReloadWeaponClip[client] < 1)
+				g_iReloadWeaponClip[client] = GetEntProp(weapon, Prop_Send, "m_reloadNumShells");
+			
 			// 设置霰弹枪需要填装多少子弹
 			// 霰弹枪最终弹匣为 现有子弹+需要填装的子弹
 			SetEntProp(weapon, Prop_Send, "m_reloadNumShells", g_iReloadWeaponClip[client]);

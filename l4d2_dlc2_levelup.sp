@@ -8831,25 +8831,29 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 		return;
 	
 	int zClass = GetEntProp(victim, Prop_Send, "m_zombieClass");
-	if((g_clSkill_4[attacker] & SKL_4_Shove) && zClass == ZC_CHARGER && !g_hCvarChargerShove.BoolValue)
+	if((g_clSkill_4[attacker] & SKL_4_Shove) && zClass == ZC_CHARGER)
 	{
-		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(victim), GetClientUserId(attacker));
-		
-		// 放开受害者
-		int survivor = GetEntPropEnt(victim, Prop_Send, "m_pummelVictim");
-		if(IsValidAliveClient(survivor))
-			ForceDropVictim(victim, survivor);
-		survivor = GetEntPropEnt(victim, Prop_Send, "m_carryVictim");
-		if(IsValidAliveClient(survivor))
-			ForceDropVictim(victim, survivor);
-		
-		// 停止冲锋
-		if(IsChargerCharging(victim))
+		// 游戏自带的 z_charger_allow_shove 对锤地板时的牛无效，仍然需要自行解控
+		if(!g_hCvarChargerShove.BoolValue || GetEntPropEnt(victim, Prop_Send, "m_pummelVictim") > 0)
 		{
-			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
+			L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(victim), GetClientUserId(attacker));
 			
-			if(g_pfnEndCharge != null)
-				SDKCall(g_pfnEndCharge, GetEntPropEnt(victim, Prop_Send, "m_customAbility"));
+			// 放开受害者
+			int survivor = GetEntPropEnt(victim, Prop_Send, "m_pummelVictim");
+			if(IsValidAliveClient(survivor))
+				ForceDropVictim(victim, survivor);
+			survivor = GetEntPropEnt(victim, Prop_Send, "m_carryVictim");
+			if(IsValidAliveClient(survivor))
+				ForceDropVictim(victim, survivor);
+			
+			// 停止冲锋
+			if(IsChargerCharging(victim))
+			{
+				TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
+				
+				if(g_pfnEndCharge != null)
+					SDKCall(g_pfnEndCharge, GetEntPropEnt(victim, Prop_Send, "m_customAbility"));
+			}
 		}
 	}
 	
@@ -11008,19 +11012,21 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		return Plugin_Handled;
 	
 	// 用于检查玩家状态
-	int flags = GetEntityFlags(client);
 	int useTarget = -1;
+	int flags = GetEntityFlags(client);
+	bool isGrabbed = IsSurvivorHeld(client);
 	
 	if(GetClientTeam(client) == 2 && !IsSurvivorHeld(client))
 	{
-		if(buttons & IN_USE)
+		if((buttons & IN_USE) && !isGrabbed)
 		{
 			useTarget = GetClientAimTarget(client, false);
 			if(useTarget <= MaxClients || !IsValidEntity(useTarget) || !IsValidEdict(useTarget))
 				useTarget = FindUseEntity(client);
 		}
 		
-		if ((g_clSkill_4[client] & SKL_4_DuckShover) && g_bCanGunShover[client] && (flags & FL_DUCKING) && (buttons & IN_ATTACK2) && (buttons & IN_DUCK))
+		if ((g_clSkill_4[client] & SKL_4_DuckShover) && g_bCanGunShover[client] && !isGrabbed &&
+			(flags & FL_DUCKING) && (buttons & IN_ATTACK2) && (buttons & IN_DUCK))
 		{
 			g_bCanGunShover[client] = false;
 			new Float:pos[3];
@@ -11385,7 +11391,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 	}
 
-	if((g_clSkill_2[client] & SKL_2_DoubleJump) && (g_iJumpFlags[client] & JF_CanDoubleJump) && (buttons & IN_JUMP))
+	if((g_clSkill_2[client] & SKL_2_DoubleJump) && !isGrabbed && (g_iJumpFlags[client] & JF_CanDoubleJump) && (buttons & IN_JUMP))
 	{
 		g_iJumpFlags[client] &= ~JF_CanDoubleJump;
 		g_iJumpFlags[client] |= JF_CanBunnyHop;
@@ -11413,8 +11419,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		// PrintCenterText(client, "双重跳 %d", !!(g_iJumpFlags[client] & JF_CanBunnyHop));
 	}
 
-	if((g_clSkill_3[client] & SKL_3_BunnyHop) && (g_iJumpFlags[client] & JF_CanBunnyHop) && (buttons & IN_JUMP) &&
-		!(g_iJumpFlags[client] & JF_HasFirstJump))
+	if((g_clSkill_3[client] & SKL_3_BunnyHop) && !isGrabbed && (g_iJumpFlags[client] & JF_CanBunnyHop) &&
+		(buttons & IN_JUMP) && !(g_iJumpFlags[client] & JF_HasFirstJump))
 	{
 		// 连跳，空中取消按键
 		/*

@@ -9711,6 +9711,10 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 		
 		if(clip == 0)
 		{
+			int clipSize = CalcPlayerClip(iCid, weapon);
+			if(g_iReloadWeaponKeepClip[iCid] > clipSize)
+				g_iReloadWeaponKeepClip[iCid] = clipSize;
+			
 			SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponKeepClip[iCid]);
 			SetEntProp(iCid, Prop_Send, "m_iAmmo", GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType) - g_iReloadWeaponKeepClip[iCid], _, ammoType);
 			g_iReloadWeaponKeepClip[iCid] = 0;
@@ -10104,15 +10108,21 @@ public void PlayerHook_OnReloadThink(int client)
 		{
 			if(g_iReloadWeaponOldClip[client] > 0)
 			{
+				int clipSize = CalcPlayerClip(client, weapon);
+				if(g_iReloadWeaponOldClip[client] > clipSize)
+					g_iReloadWeaponOldClip[client] = clipSize;
+				
 				// PrintToChat(client, "当前：%d丨原来：%d", GetEntProp(weapon, Prop_Send, "m_iClip1"), g_iReloadWeaponOldClip[client]);
-
+				
 				// 将霰弹枪的弹匣还原，并且取消已经填装的子弹，以开始新的填装
 				SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponOldClip[client]);
 				// SetEntProp(weapon, Prop_Send, "m_shellsInserted", 0);
 				g_iReloadWeaponClip[client] -= g_iReloadWeaponOldClip[client];
 				if(g_iReloadWeaponClip[client] > ammo)
 					g_iReloadWeaponClip[client] = ammo;
-
+				if(g_iReloadWeaponClip[client] > clipSize)
+					g_iReloadWeaponClip[client] = clipSize - g_iReloadWeaponOldClip[client];
+				
 				// PrintHintText(client, "原有子弹：%d", g_iReloadWeaponOldClip[client]);
 				g_iReloadWeaponOldClip[client] = 0;
 			}

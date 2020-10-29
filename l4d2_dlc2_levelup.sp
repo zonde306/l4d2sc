@@ -157,7 +157,7 @@ enum()
 	SKL_5_Sneak = 512,
 	SKL_5_MeleeRange = 1024,
 	SKL_5_ShoveRange = 2048,
-	SKL_3_TempRegen = 4096,
+	SKL_5_TempRegen = 4096,
 };
 
 new g_ttTankKilled		= 0;
@@ -3022,7 +3022,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」避免队友伤害",(g_clSkill_1[client]&SKL_1_Firendly)));
-	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」全部枪为连射",(g_clSkill_1[client]&SKL_1_RapidFire)));
+	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」手枪自动连发",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」保留弹匣/升级叠加补子弹/填装可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
@@ -3045,9 +3045,9 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.SetTitle(tr("二级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("「狂锯」无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
-	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」杀死特感1/4几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
+	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」杀死特感1/5几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
 	menu.AddItem(tr("2_%d",SKL_2_PainPills), mps("「嗜药」每120秒获得一个药丸",(g_clSkill_2[client]&SKL_2_PainPills)));
-	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」每200秒恢复全血",(g_clSkill_2[client]&SKL_2_FullHealth)));
+	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」每300秒恢复全血",(g_clSkill_2[client]&SKL_2_FullHealth)));
 	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("「电疗」每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
 	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("「擅医」打包治疗量+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
 	menu.AddItem(tr("2_%d",SKL_2_PipeBomb), mps("「爆破」每100秒获得一个土制",(g_clSkill_2[client]&SKL_2_PipeBomb)));
@@ -3075,14 +3075,14 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("三级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡时1/3几率与全图感染者同归于尽",(g_clSkill_3[client]&SKL_3_Sacrifice)));
+	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡时1/3几率带走全图感染者",(g_clSkill_3[client]&SKL_3_Sacrifice)));
 	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("「永生」死亡时复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
-	menu.AddItem(tr("3_%d",SKL_3_IncapFire), mps("「纵火」倒地时点燃攻击者和周围的普感",(g_clSkill_3[client]&SKL_3_IncapFire)));
-	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("「妙手」帮助队友时随机获得物品或天赋点",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
-	menu.AddItem(tr("3_%d",SKL_3_Freeze), mps("「释冰」倒地时冻结攻击者和周围特感12秒",(g_clSkill_3[client]&SKL_3_Freeze)));
-	menu.AddItem(tr("3_%d",SKL_3_Kickback), mps("「轰炸」暴击时1/2几率附加击退效果",(g_clSkill_3[client]&SKL_3_Kickback)));
+	menu.AddItem(tr("3_%d",SKL_3_IncapFire), mps("「纵火」倒地点燃攻击者和周围普感",(g_clSkill_3[client]&SKL_3_IncapFire)));
+	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("「妙手」帮助队友随机获得奖励",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
+	menu.AddItem(tr("3_%d",SKL_3_Freeze), mps("「释冰」倒地冻结攻击者和周围特感",(g_clSkill_3[client]&SKL_3_Freeze)));
+	menu.AddItem(tr("3_%d",SKL_3_Kickback), mps("「轰炸」暴击时1/3几率附加击退效果",(g_clSkill_3[client]&SKL_3_Kickback)));
 	menu.AddItem(tr("3_%d",SKL_3_GodMode), mps("「无敌」每80秒获得9秒无敌时间",(g_clSkill_3[client]&SKL_3_GodMode)));
-	menu.AddItem(tr("3_%d",SKL_3_SelfHeal), mps("「暴疗」每150秒恢复80HP(可转换)",(g_clSkill_3[client]&SKL_3_SelfHeal)));
+	menu.AddItem(tr("3_%d",SKL_3_SelfHeal), mps("「暴疗」每200秒恢复80HP(可转换)",(g_clSkill_3[client]&SKL_3_SelfHeal)));
 	menu.AddItem(tr("3_%d",SKL_3_BunnyHop), mps("「灵活」自动连跳",(g_clSkill_3[client]&SKL_3_BunnyHop)));
 	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("「降落」按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
 	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("「储备」更多携带弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
@@ -3104,13 +3104,13 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("四级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("「坚韧」被坦克击中随机恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
+	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("「坚韧」被坦克击中恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
 	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+20",(g_clSkill_4[client]&SKL_4_DmgExtra)));
-	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("「霸气」蹲下右键可以弹开周围的特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
+	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("「霸气」蹲下推弹开周围特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
 	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」射速增加",(g_clSkill_4[client]&SKL_4_FastFired)));
 	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("「神狙」AWP射速加快无限备弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
-	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("「嗜弹」武器上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
-	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("「扫射」M60无限弹匣子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
+	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("「嗜弹」上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
+	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("「扫射」M60无限子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
 	menu.AddItem(tr("4_%d",SKL_4_MoreDmgExtra), mps("「残忍」暴击伤害上限+200",(g_clSkill_4[client]&SKL_4_MoreDmgExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_Defensive), mps("「御策」被普感锤伤害减半或反伤",(g_clSkill_4[client]&SKL_4_Defensive)));
 	menu.AddItem(tr("4_%d",SKL_4_ClipSize), mps("「弹匣」弹匣容量增加",(g_clSkill_4[client]&SKL_4_ClipSize)));
@@ -3137,13 +3137,13 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("五级天赋\n你现在有 %d 天赋点", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("「烈火」主武器1/3几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("「碎骨」主武器1/3几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("「烈火」主武器1/4几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
+	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("「碎骨」主武器1/4几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("「冰封」主武器/近战击中特感有几率减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_DmgExtra), mps("「狂暴」牺牲暴击伤害大大增加暴击率",(g_clSkill_5[client]&SKL_5_DmgExtra)));
 	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("「嗜血」近战击中特感时有几率吸血",(g_clSkill_5[client]&SKL_5_Vampire)));
-	menu.AddItem(tr("5_%d",SKL_5_InfAmmo), mps("「节省」主武器开枪有1/3几率回收子弹",(g_clSkill_5[client]&SKL_5_InfAmmo)));
-	menu.AddItem(tr("5_%d",SKL_5_Overkill), mps("「精准」主武器对普感1/4几率暴击",(g_clSkill_5[client]&SKL_5_Overkill)));
+	menu.AddItem(tr("5_%d",SKL_5_InfAmmo), mps("「节省」开枪有1/3几率回收子弹",(g_clSkill_5[client]&SKL_5_InfAmmo)));
+	menu.AddItem(tr("5_%d",SKL_5_Overkill), mps("「精准」对普感1/4几率暴击",(g_clSkill_5[client]&SKL_5_Overkill)));
 	menu.AddItem(tr("5_%d",SKL_5_RocketDude), mps("「火箭」允许榴弹跳",(g_clSkill_5[client]&SKL_5_RocketDude)));
 	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("「持久」冲锋枪25连射后改为消耗备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
 	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("「潜行」降低被特感发现的几率",(g_clSkill_5[client]&SKL_5_Sneak)));
@@ -3154,7 +3154,7 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 	if(g_tShoveRange != null && g_hDetourTestSwingCollision != null)
 		menu.AddItem(tr("5_%d",SKL_5_ShoveRange), mps("「枪托」增加推的攻击范围",(g_clSkill_5[client]&SKL_5_ShoveRange)));
 	
-	menu.AddItem(tr("5_%d",SKL_3_TempRegen), mps("「抗性」受伤消耗实血时有1/2几率恢复等量虚血",(g_clSkill_5[client]&SKL_3_TempRegen)));
+	menu.AddItem(tr("5_%d",SKL_5_TempRegen), mps("「抗性」受伤消耗实血时有1/3几率恢复等量虚血",(g_clSkill_5[client]&SKL_5_TempRegen)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -3242,7 +3242,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 			if(g_clSkillPoint[client] < 1)
 			{
-				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
+				PrintToChat(client, "\x03[提示]\x01 天赋点不够(需要1点)。");
 				StatusSelectMenuFuncA(client, menu.Selection);
 				return 0;
 			}
@@ -3273,7 +3273,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 			if(g_clSkillPoint[client] < 2)
 			{
-				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
+				PrintToChat(client, "\x03[提示]\x01 天赋点不够(需要2点)。");
 				StatusSelectMenuFuncB(client, menu.Selection);
 				return 0;
 			}
@@ -3304,7 +3304,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 			if(g_clSkillPoint[client] < 3)
 			{
-				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
+				PrintToChat(client, "\x03[提示]\x01 天赋点不够(需要3点)。");
 				StatusSelectMenuFuncC(client, menu.Selection);
 				return 0;
 			}
@@ -3335,7 +3335,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 			if(g_clSkillPoint[client] < 4)
 			{
-				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
+				PrintToChat(client, "\x03[提示]\x01 天赋点不够(需要4点)。");
 				StatusSelectMenuFuncD(client, menu.Selection);
 				return 0;
 			}
@@ -3366,7 +3366,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 			if(g_clSkillPoint[client] < 5)
 			{
-				PrintToChat(client, "\x03[提示]\x01 天赋点不够。");
+				PrintToChat(client, "\x03[提示]\x01 天赋点不够(需要5点)。");
 				StatusSelectMenuFuncE(client, menu.Selection);
 				return 0;
 			}
@@ -4018,7 +4018,7 @@ void StatusEqmMenu(int client, char[] key, EquipData_t data)
 	menu.AddItem(key, "卸下");
 	menu.AddItem(key, "改类型");
 	menu.AddItem(key, "改属性");
-	menu.AddItem(key, "出售");
+	menu.AddItem(key, "回收(出售)");
 	menu.AddItem(key, "查看附加");
 	
 	menu.ExitButton = true;
@@ -4142,8 +4142,8 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 
 void StatusEqmSell(int client, char[] key)
 {
-	CreateConfirmMenu("========= 出售装备 =========", MenuHandler_SellEquip, key,
-		"确定出售该装备？\n现有 %d 点，出售获得 1 点",
+	CreateConfirmMenu("========= 回收(出售)装备 =========", MenuHandler_SellEquip, key,
+		"确定回收(出售)该装备？\n现有 %d 点，回收(出售)获得 1 点",
 		g_clSkillPoint[client]).Display(client, MENU_TIME_FOREVER);
 }
 
@@ -4793,7 +4793,7 @@ public void OnGameFrame()
 
 			if((g_clSkill_2[i] & SKL_2_FullHealth) && g_ctFullHealth[i] > 0.0 && g_ctFullHealth[i] <= curTime)
 			{
-				g_ctFullHealth[i] = curTime + 200.0;
+				g_ctFullHealth[i] = curTime + 300.0;
 				int maxHealth = GetEntProp(i, Prop_Data, "m_iMaxHealth");
 				int health = GetEntProp(i, Prop_Data, "m_iHealth");
 
@@ -4819,7 +4819,7 @@ public void OnGameFrame()
 
 			if((g_clSkill_3[i] & SKL_3_SelfHeal) && g_ctSelfHeal[i] > 0.0 && g_ctSelfHeal[i] <= curTime)
 			{
-				g_ctSelfHeal[i] = curTime + 150.0;
+				g_ctSelfHeal[i] = curTime + 200.0;
 				
 				if(team == 2 && !GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
 				{
@@ -6028,24 +6028,20 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			damagetype |= DMG_CRIT;
 			// g_bAccurateShot[attacker] = false;
 			
-			if(g_clSkill_3[attacker] & SKL_3_Kickback)
+			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !GetRandomInt(0, 2))
 			{
-				new RanChance = 2;
-				if(GetRandomInt(1,4) > RanChance)
-				{
-					// Charge(victim, attacker, 250.0, 250.0);
-					/*
-					float vPos[3];
-					GetClientAbsOrigin(attacker, vPos);
-					L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(%.0f,%.0f,%.0f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
-					*/
-					
-					float vAng[3], vDir[3];
-					GetClientEyeAngles(attacker, vAng);
-					GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
-					ScaleVector(vDir, 300.0 * (1 + IsPlayerHaveEffect(attacker, 23)));
-					TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
-				}
+				// Charge(victim, attacker, 250.0, 250.0);
+				/*
+				float vPos[3];
+				GetClientAbsOrigin(attacker, vPos);
+				L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(%.0f,%.0f,%.0f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
+				*/
+				
+				float vAng[3], vDir[3];
+				GetClientEyeAngles(attacker, vAng);
+				GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
+				ScaleVector(vDir, 300.0 * (1 + IsPlayerHaveEffect(attacker, 23)));
+				TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
 			}
 			
 			/*
@@ -6287,9 +6283,10 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			// 推开控制者
 			// Charge(attacker, victim);
 			
-			float vPos[3];
-			GetClientAbsOrigin(victim, vPos);
-			L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(%.0f,%.0f,%.0f))", GetClientUserId(attacker), vPos[0], vPos[1], vPos[2]);
+			// float vPos[3];
+			// GetClientAbsOrigin(victim, vPos);
+			// L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(attacker), GetClientUserId(victim));
+			L4D_StaggerPlayer(attacker, victim, NULL_VECTOR);
 		}
 	}
 	
@@ -6343,7 +6340,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 					}
 				}
 				
-				if((g_clSkill_5[victim] & SKL_3_TempRegen) && dmg > 0 && !GetRandomInt(0, 1))
+				if((g_clSkill_5[victim] & SKL_5_TempRegen) && dmg > 0 && !GetRandomInt(0, 2))
 				{
 					if(health + tempHealth + dmg <= maxHealth)
 					{
@@ -6875,7 +6872,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 	{
 		if(IsValidClient(victim) && GetClientTeam(victim) == TEAM_INFECTED && GetClientTeam(attacker) == TEAM_SURVIVORS)
 		{
-			if((g_clSkill_2[attacker] & SKL_2_Excited) && !GetRandomInt(0, 3))
+			if((g_clSkill_2[attacker] & SKL_2_Excited) && !GetRandomInt(0, 4))
 			{
 				// SDKCall(sdkAdrenaline, attacker, 14.0);
 				// CheatCommand(attacker, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(attacker), 14);
@@ -8918,7 +8915,8 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 		// 游戏自带的 z_charger_allow_shove 对锤地板时的牛无效，仍然需要自行解控
 		if(!g_hCvarChargerShove.BoolValue || GetEntPropEnt(victim, Prop_Send, "m_pummelVictim") > 0)
 		{
-			L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(victim), GetClientUserId(attacker));
+			// L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(victim), GetClientUserId(attacker));
+			L4D_StaggerPlayer(victim, attacker, NULL_VECTOR);
 			
 			// 放开受害者
 			int survivor = GetEntPropEnt(victim, Prop_Send, "m_pummelVictim");
@@ -9385,8 +9383,8 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	g_ctPainPills[client] = (g_clSkill_2[client] & SKL_2_PainPills ? curTime + 120.0 : 0.0);
 	g_ctPipeBomb[client] = (g_clSkill_2[client] & SKL_2_PipeBomb ? curTime + 100.0 : 0.0);
 	g_ctDefibrillator[client] = (g_clSkill_2[client] & SKL_2_Defibrillator ? curTime + 200.0 : 0.0);
-	g_ctFullHealth[client] = (g_clSkill_2[client] & SKL_2_FullHealth ? curTime + 200.0 : 0.0);
-	g_ctSelfHeal[client] = (g_clSkill_3[client] & SKL_3_SelfHeal ? curTime + 150.0 : 0.0);
+	g_ctFullHealth[client] = (g_clSkill_2[client] & SKL_2_FullHealth ? curTime + 300.0 : 0.0);
+	g_ctSelfHeal[client] = (g_clSkill_3[client] & SKL_3_SelfHeal ? curTime + 200.0 : 0.0);
 	g_ctGodMode[client] = (g_clSkill_3[client] & SKL_3_GodMode ? curTime + 80.0 : 0.0);
 	g_ctConvTemp[client] = (g_clSkill_4[client] & SKL_4_TempRespite ? curTime + 2.0 : 0.0);
 	g_csHasGodMode[client] = false;
@@ -9939,7 +9937,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			}
 			else
 			{
-				int rn = GetRandomInt(0, 2);
+				int rn = GetRandomInt(0, 3);
 				int flag = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec", 1) & ~3;
 				switch(rn)
 				{
@@ -11641,12 +11639,14 @@ stock void ForceDropVictim(int client, int target, int stagger = 3)
 	
 	if( stagger & (1<<0) )
 	{
-		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(client), GetClientUserId(target));
+		// L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(client), GetClientUserId(target));
+		L4D_StaggerPlayer(client, target, NULL_VECTOR);
 	}
 	
 	if( stagger & (1<<1) )
 	{
-		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(client));
+		// L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(client));
+		L4D_StaggerPlayer(target, client, NULL_VECTOR);
 	}
 }
 
@@ -11795,7 +11795,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 			if( g_iIncapShoveIgnore[x] == target )
 				target = 0;
 		
-		if( target == 0 )
+		if( target <= 0 )
 			continue;
 		
 		g_iIncapShoveIgnore[i] = target;
@@ -11809,8 +11809,9 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 				// GetClientEyePosition(target, vLoc);
 				if( GetVectorDistance(vPos, vLoc) <= range )
 				{
-					L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(client));
+					// L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(client));
 					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, vDir, vLoc);
+					L4D_StaggerPlayer(target, client, vPos);
 					
 					// 停止冲锋
 					if(IsChargerCharging(target))
@@ -12919,7 +12920,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 			{
 				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_3[client] |= SKL_3_Kickback;
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03轰炸-暴击时1/2几率附加震飞效果\x04.", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03轰炸-暴击时1/3几率附加击退效果\x04.", client);
 			}
 			case 46:
 			{

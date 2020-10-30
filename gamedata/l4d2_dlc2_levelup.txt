@@ -155,6 +155,49 @@
 				"windows"	"\x53\x8B\x2A\x83\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x8B\x2A\x2A\x8B\x2A\x2A\x8B\x2A\x2A\x83\x2A\x2A\x56\x57"
 				/* 53 8B ? 83 ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 8B ? ? 8B ? ? 8B ? ? 83 ? ? 56 57 */
 			}
+			
+			"NextBotCreatePlayerBot<Smoker>"
+			{
+				"library"	"server"
+				"linux"		"@_Z22NextBotCreatePlayerBotI6SmokerEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x50\x4F"
+			}
+			"NextBotCreatePlayerBot<Boomer>"
+			{
+				"library"	"server"
+				"linux"		"@_Z22NextBotCreatePlayerBotI6BoomerEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x60"
+			}
+			"NextBotCreatePlayerBot<Hunter>"
+			{
+				"library"	"server"
+				"linux"		"@_Z22NextBotCreatePlayerBotI6HunterEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x00"
+			}
+			"NextBotCreatePlayerBot<Spitter>"
+			{
+				"library"	"server"
+				"linux"		"@_Z22NextBotCreatePlayerBotI7SpitterEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x30"
+			}
+			"NextBotCreatePlayerBot<Jockey>"
+			{
+				"library"	"server"
+				"linux"		"@_Z22NextBotCreatePlayerBotI6JockeyEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\xA0"
+			}
+			"NextBotCreatePlayerBot<Charger>"
+			{
+				"library"	"server"
+				"linux"		"@_Z22NextBotCreatePlayerBotI7ChargerEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x70\x24"
+			}
+			"NextBotCreatePlayerBot<Tank>"
+			{
+				"library"	"server"
+				"linux"		"@_Z22NextBotCreatePlayerBotI4TankEPT_PKc"
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x57\x8B\x2A\x2A\x68\x10"
+			}
 		}
 	}
 }

@@ -853,15 +853,15 @@ public OnPluginStart()
 				g_tMeleeRange.SetValue("cricket_bat",		130);
 				g_tMeleeRange.SetValue("crowbar",			100);
 				g_tMeleeRange.SetValue("electric_guitar",	150);
-				g_tMeleeRange.SetValue("fireaxe",			150);
-				g_tMeleeRange.SetValue("frying_pan",		90);
+				g_tMeleeRange.SetValue("fireaxe",			140);
+				g_tMeleeRange.SetValue("frying_pan",		100);
 				g_tMeleeRange.SetValue("golfclub",			130);
-				g_tMeleeRange.SetValue("katana",			150);
-				g_tMeleeRange.SetValue("knife",				90);
+				g_tMeleeRange.SetValue("katana",			140);
+				g_tMeleeRange.SetValue("knife",				120);
 				g_tMeleeRange.SetValue("machete",			120);
 				g_tMeleeRange.SetValue("tonfa",				100);
 				g_tMeleeRange.SetValue("riotshield",		100);
-				g_tMeleeRange.SetValue("shovel",			130);
+				g_tMeleeRange.SetValue("shovel",			175);
 				g_tMeleeRange.SetValue("pitchfork",			200);
 				
 				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Hooked.");
@@ -880,16 +880,16 @@ public OnPluginStart()
 				g_tShoveRange.SetValue("cricket_bat",				130);
 				g_tShoveRange.SetValue("crowbar",					100);
 				g_tShoveRange.SetValue("electric_guitar",			150);
-				g_tShoveRange.SetValue("fireaxe",					150);
-				g_tShoveRange.SetValue("frying_pan",				90);
+				g_tShoveRange.SetValue("fireaxe",					140);
+				g_tShoveRange.SetValue("frying_pan",				100);
 				g_tShoveRange.SetValue("golfclub",					130);
-				g_tShoveRange.SetValue("katana",					150);
-				g_tShoveRange.SetValue("knife",						90);
+				g_tShoveRange.SetValue("katana",					140);
+				g_tShoveRange.SetValue("knife",						120);
 				g_tShoveRange.SetValue("machete",					120);
 				g_tShoveRange.SetValue("tonfa",						100);
 				g_tShoveRange.SetValue("riotshield",				100);
-				g_tShoveRange.SetValue("weapon_chainsaw",			90);
-				g_tShoveRange.SetValue("shovel",					130);
+				g_tShoveRange.SetValue("weapon_chainsaw",			100);
+				g_tShoveRange.SetValue("shovel",					175);
 				g_tShoveRange.SetValue("pitchfork",					200);
 				
 				g_tShoveRange.SetValue("weapon_pistol",				90);

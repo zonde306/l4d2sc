@@ -213,6 +213,8 @@ int g_iDamageBase[MAXPLAYERS+1];
 bool g_bIsVerified[MAXPLAYERS+1];
 // ArrayList g_aDoorHandled;
 Handle g_hTimerSurvival = null;
+int g_iGlowModel[MAXPLAYERS+1];
+int g_iExtraPrimaryAmmo[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -1835,6 +1837,8 @@ void Initialization(int client, bool invalid = false)
 	g_iDamageChanceMax[client] = 0;
 	g_iDamageChanceMin[client] = 0;
 	g_bIsVerified[client] = false;
+	g_iGlowModel[client] = INVALID_ENT_REFERENCE;
+	g_iExtraPrimaryAmmo[client] = 0;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -1860,6 +1864,7 @@ void Initialization(int client, bool invalid = false)
 	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
+	SDKUnhook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 	
 	if(toDelete1 != null)
 		delete toDelete1;
@@ -3120,7 +3125,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」保留弹匣/升级叠加补子弹/填装可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
-	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示/光圈效果",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
 	menu.ExitButton = true;
@@ -5619,6 +5624,8 @@ public void OnEntityDestroyed(int entity)
 	SDKUnhook(entity, SDKHook_PreThink, PlayerHook_OnReloadThink);
 	SDKUnhook(entity, SDKHook_WeaponSwitchPost, PlayerHook_OnReloadStopped);
 	SDKUnhook(entity, SDKHook_WeaponDropPost, PlayerHook_OnReloadStopped);
+	SDKUnhook(entity, SDKHook_SetTransmit, GlowHook_SetTransmit);
+	SDKUnhook(entity, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 }
 
 public void ZombieHook_OnSpawned(int entity)
@@ -7109,6 +7116,12 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 		g_fFreezeTime[victim] = 0.0;
 		// Initialization(victim);
 		ClientSaveToFileSave(victim, g_pCvarSaveStatus.BoolValue);
+		
+		if(g_iGlowModel[victim] != INVALID_ENT_REFERENCE && IsValidEntity(g_iGlowModel[victim]))
+		{
+			RemoveEntity(g_iGlowModel[victim]);
+			g_iGlowModel[victim] = INVALID_ENT_REFERENCE;
+		}
 	}
 
 	if(g_bIsGamePlaying && IsValidClient(attacker))
@@ -8927,9 +8940,9 @@ public void Event_PlayerUsed(Event event, const char[] eventName, bool dontBroad
 	
 	// 捡起地上零散武器只会触发 player_use，而不会触发 item_pickup
 	int maxAmmo = GetDefaultAmmo(item);
-	if(!isPistol && maxAmmo > -1 && HasEntProp(item, Prop_Send, "m_upgradeBitVec"))
+	if(!isPistol && maxAmmo > -1 && HasEntProp(item, Prop_Send, "m_upgradeBitVec") && g_iExtraPrimaryAmmo[client] > 0)
 	{
-		g_iExtraAmmo[client] = GetEntProp(item, Prop_Send, "m_iExtraPrimaryAmmo") - maxAmmo;
+		g_iExtraAmmo[client] = g_iExtraPrimaryAmmo[client] - maxAmmo;
 		if(g_iExtraAmmo[client] < 0)
 			g_iExtraAmmo[client] = 0;
 		
@@ -8996,6 +9009,60 @@ public void PatchExtraPrimaryAmmo(any pack)
 	
 	if(weapon > MaxClients && IsValidEntity(weapon) && HasEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo"))
 		SetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo", GetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo") + ammo);
+}
+
+public Action PlayerHook_OnWeaponCanUse(int client, int weapon)
+{
+	if(!IsValidAliveClient(client))
+		return Plugin_Continue;
+	
+	static char classname[64], weaponName[64];
+	
+	int primary = GetPlayerWeaponSlot(client, 0);
+	if(primary <= MaxClients || !IsValidEdict(primary) || !GetEdictClassname(primary, weaponName, sizeof(weaponName)))
+		return Plugin_Continue;
+	
+	if(!GetEdictClassname(weapon, classname, sizeof(classname)) || StrContains(classname, "weapon_", false) != 0)
+		return Plugin_Continue;
+	
+	int isSpawnner = (StrContains(classname, "_spawn", false) > 0);
+	if(isSpawnner)
+		ReplaceString(classname, sizeof(classname), "_spawn", "", false);
+	
+	if(!StrEqual(weaponName, classname, false))
+		return Plugin_Continue;
+	
+	int ammoType = GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType");
+	int currentAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
+	
+	if(isSpawnner)
+	{
+		int defaultAmmo = GetDefaultAmmo(primary, ammoType);
+		// PrintToChat(client, "当前：%d丨默认：%d", currentAmmo, defaultAmmo);
+		if(currentAmmo >= defaultAmmo)
+		{
+			// 修复无法补充弹药的问题
+			AddAmmo(client, 999);
+			return Plugin_Handled;
+		}
+	}
+	else
+	{
+		int extraAmmo = GetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo");
+		// PrintToChat(client, "当前：%d丨目标：%d", currentAmmo + g_iExtraAmmo[client], extraAmmo);
+		if(currentAmmo + g_iExtraAmmo[client] >= extraAmmo)
+		{
+			// 防止捡起弹药比现在少的武器
+			return Plugin_Handled;
+		}
+		else
+		{
+			// 修复在 player_use 无法获取到正确 m_iExtraPrimaryAmmo 的问题
+			g_iExtraPrimaryAmmo[client] = extraAmmo;
+		}
+	}
+	
+	return Plugin_Continue;
 }
 
 public void NotifyWeaponRange(any pack)
@@ -9651,6 +9718,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
+	SDKUnhook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 	SDKHook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
 	// SDKHook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
 	SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
@@ -9658,6 +9726,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKHook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKHook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
+	SDKHook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 	
 	if(GetClientTeam(client) == 2)
 	{
@@ -11611,7 +11680,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			if(GetVectorDistance(origin, position, false) <= cv_usedst.FloatValue)
 			{
 				bool isAmmo = (StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false));	// 弹药堆
-				bool isSpawnner = (StrContains(className, weaponName, false) == 0 && className[strlen(weaponName)] == '_');	// weapon_*_spawn
+				bool isSpawnner = (StrContains(className, weaponName, false) == 0 && StrContains(className, "_spawn", false) > 0);	// weapon_*_spawn
 				
 				if(isAmmo || isSpawnner)
 				{
@@ -12673,6 +12742,47 @@ public bool:_TraceFilter(entity, contentsMask)
 		return false;
 	}
 	return true;
+}
+
+stock int CreateGlowModel(int client, int color)
+{
+	int entity = CreateEntityByName("prop_dynamic_ornament");
+	if(entity <= MaxClients)
+		return -1;
+	
+	static char model[64];
+	GetClientModel(client, model, sizeof(model));
+	// GetEntPropString(client, Prop_Data, "m_ModelName", model, sizeof(model));
+	
+	SetEntityModel(entity, model);
+	SetEntProp(entity, Prop_Send, "m_CollisionGroup", 0);
+	SetEntProp(entity, Prop_Send, "m_nSolidType", 0);
+	SetEntProp(entity, Prop_Send, "m_nGlowRange", 4500);
+	SetEntProp(entity, Prop_Send, "m_iGlowType", 3);
+	SetEntProp(entity, Prop_Send, "m_hOwnerEntity", client);
+	
+	SetEntProp(entity, Prop_Send, "m_glowColorOverride", color);
+	AcceptEntityInput(entity, "StartGlowing");
+	
+	SetEntityRenderMode(entity, RENDER_TRANSCOLOR);
+	SetEntityRenderColor(entity, 0, 0, 0, 0);
+	
+	SetVariantString("!activator");
+	AcceptEntityInput(entity, "SetAttached", client);
+	AcceptEntityInput(entity, "TurnOn");
+	
+	SDKHook(entity, SDKHook_SetTransmit, GlowHook_SetTransmit);
+	
+	if(g_iGlowModel[client] != INVALID_ENT_REFERENCE && IsValidEntity(g_iGlowModel[client]))
+		RemoveEntity(g_iGlowModel[client]);
+	
+	g_iGlowModel[client] = EntIndexToEntRef(entity);
+}
+
+public Action GlowHook_SetTransmit(int entity)
+{
+	// int client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	return Plugin_Handled;
 }
 
 public Action:Event_RP(Handle:timer, any:client)

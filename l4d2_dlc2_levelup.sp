@@ -1689,39 +1689,74 @@ public Action:Event_RoundStart(Handle:event, String:event_name[], bool:dontBroad
 
 public void Event_PlayerGrabbed(Event event, const char[] event_name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(event.GetInt("victim"));
-	if(!IsValidAliveClient(client))
-		return;
+	int attacker = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidAliveClient(attacker))
+	{
+		if(g_bIsHitByVomit[attacker])
+		{
+			// 胆汁效果紫色
+			CreateGlowModel(attacker, 0xFF80FF);
+		}
+		else
+		{
+			// 控制状态红色
+			CreateGlowModel(attacker, 0x8080FF);
+		}
+	}
 	
-	// 被控状态橙色
-	CreateGlowModel(client, 0xFF8040);
+	int victim = GetClientOfUserId(event.GetInt("victim"));
+	if(IsValidAliveClient(victim))
+	{
+		// 被控状态橙色
+		CreateGlowModel(victim, 0x4080FF);
+	}
 }
 
 public void Event_PlayerReleased(Event event, const char[] event_name, bool dontBroadcast)
 {
-	int client = GetClientOfUserId(event.GetInt("victim"));
-	if(!IsValidClient(client))
-		return;
+	int attacker = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidClient(attacker))
+	{
+		if(!IsPlayerAlive(attacker))
+		{
+			// 已经不再需要光圈了
+			RemoveGlowModel(attacker);
+		}
+		else if(g_bIsHitByVomit[attacker])
+		{
+			// 胆汁效果紫色
+			CreateGlowModel(attacker, 0xFF80FF);
+		}
+		else
+		{
+			// 没什么情况，不需要光圈
+			RemoveGlowModel(attacker);
+		}
+	}
 	
-	if(!IsPlayerAlive(client))
+	int victim = GetClientOfUserId(event.GetInt("victim"));
+	if(IsValidClient(victim))
 	{
-		// 已经不再需要光圈了
-		RemoveGlowModel(client);
-	}
-	else if(GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
-	{
-		// 倒地/挂边 黄色
-		CreateGlowModel(client, 0xFFFF80);
-	}
-	else if(GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1))
-	{
-		// 黑白状态 白色
-		CreateGlowModel(client, 0xFFFFFF);
-	}
-	else
-	{
-		// 没什么情况，不需要光圈
-		RemoveGlowModel(client);
+		if(!IsPlayerAlive(victim))
+		{
+			// 已经不再需要光圈了
+			RemoveGlowModel(victim);
+		}
+		else if(GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1) || GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
+		{
+			// 倒地/挂边 黄色
+			CreateGlowModel(victim, 0x80FFFF);
+		}
+		else if(GetEntProp(victim, Prop_Send, "m_bIsOnThirdStrike", 1))
+		{
+			// 黑白状态 白色
+			CreateGlowModel(victim, 0xFFFFFF);
+		}
+		else
+		{
+			// 没什么情况，不需要光圈
+			RemoveGlowModel(victim);
+		}
 	}
 }
 
@@ -1732,7 +1767,7 @@ public void Event_PlayerLedgeGrabbed(Event event, const char[] event_name, bool 
 		return;
 	
 	// 倒地/挂边 黄色
-	CreateGlowModel(client, 0xFFFF80);
+	CreateGlowModel(client, 0x80FFFF);
 }
 
 public void Event_PlayerReviveBegging(Event event, const char[] event_name, bool dontBroadcast)
@@ -1754,7 +1789,7 @@ public void Event_PlayerReviveEnded(Event event, const char[] event_name, bool d
 	if(GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
 	{
 		// 没能救起来
-		CreateGlowModel(client, 0xFFFF80);
+		CreateGlowModel(client, 0x80FFFF);
 	}
 	else
 	{
@@ -6204,12 +6239,12 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 	if(GetCurrentAttacker(client) > 0)
 	{
 		// 被控 橙色
-		CreateGlowModel(client, 0xFF8040);
+		CreateGlowModel(client, 0x4080FF);
 	}
 	else
 	{
 		// 倒地 黄色
-		CreateGlowModel(client, 0xFFFF80);
+		CreateGlowModel(client, 0x80FFFF);
 	}
 	
 	if(g_iRoundEvent == 14)
@@ -9332,7 +9367,7 @@ public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool d
 		if(GetCurrentVictim(client) > 0)
 		{
 			// 控制状态红色
-			CreateGlowModel(client, 0xFF8080);
+			CreateGlowModel(client, 0x8080FF);
 		}
 		else
 		{
@@ -12923,6 +12958,9 @@ public Action GlowHook_SetTransmit(int entity, int client)
 {
 	int owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
 	if(client == owner)
+		return Plugin_Handled;
+	
+	if(IsValidAliveClient(owner) && (GetCurrentAttacker(owner) == client || GetCurrentVictim(owner) == client))
 		return Plugin_Handled;
 	
 	if(g_clSkill_4[client] & SKL_4_Terror)

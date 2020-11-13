@@ -817,10 +817,19 @@ public OnPluginStart()
 	HookEvent("versus_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("survival_at_30min", Event_SurvivalAt30Min, EventHookMode_PostNoCopy);
 	HookEvent("survival_at_10min", Event_SurvivalAt10Min, EventHookMode_PostNoCopy);
-	// HookEvent("charger_carry_end", Event_PlayerReleased);
-	// HookEvent("charger_pummel_end", Event_PlayerReleased);
-	// HookEvent("pounce_stopped", Event_PlayerReleased);
-	// HookEvent("charger_impact", Event_PlayerReleased);
+	HookEvent("tongue_grab", Event_PlayerGrabbed);
+	HookEvent("lunge_pounce", Event_PlayerGrabbed);
+	HookEvent("jockey_ride", Event_PlayerGrabbed);
+	HookEvent("charger_pummel_start", Event_PlayerGrabbed);
+	HookEvent("charger_carry_start", Event_PlayerGrabbed);
+	HookEvent("jockey_ride_end", Event_PlayerReleased);
+	HookEvent("charger_pummel_end", Event_PlayerReleased);
+	HookEvent("charger_carry_end", Event_PlayerReleased);
+	HookEvent("tongue_release", Event_PlayerReleased);
+	HookEvent("pounce_stopped", Event_PlayerReleased);
+	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabbed);
+	HookEvent("revive_begin", Event_PlayerReviveBegging);
+	HookEvent("revive_end", Event_PlayerReviveEnded);
 	
 	// 检查第一回合用
 	// HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -1442,6 +1451,12 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 		g_bHasFirstJoin[i] = false;
 		// g_bHasJumping[i] = false;
 		OnEntityDestroyed(i);
+		
+		if(IsValidClient(i))
+		{
+			PerformGlow(i, 0, 0, 0);
+			RemoveGlowModel(i);
+		}
 	}
 	
 	RestoreConVar();
@@ -1670,6 +1685,82 @@ public Action:Event_RoundStart(Handle:event, String:event_name[], bool:dontBroad
 	g_fNextRoundEvent = 0.0;
 
 	CreateTimer(1.0, Timer_RoundStartPost);
+}
+
+public void Event_PlayerGrabbed(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("victim"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	// 被控状态橙色
+	CreateGlowModel(client, 0xFF8040);
+}
+
+public void Event_PlayerReleased(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("victim"));
+	if(!IsValidClient(client))
+		return;
+	
+	if(!IsPlayerAlive(client))
+	{
+		// 已经不再需要光圈了
+		RemoveGlowModel(client);
+	}
+	else if(GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
+	{
+		// 倒地/挂边 黄色
+		CreateGlowModel(client, 0xFFFF80);
+	}
+	else if(GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1))
+	{
+		// 黑白状态 白色
+		CreateGlowModel(client, 0xFFFFFF);
+	}
+	else
+	{
+		// 没什么情况，不需要光圈
+		RemoveGlowModel(client);
+	}
+}
+
+public void Event_PlayerLedgeGrabbed(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	// 倒地/挂边 黄色
+	CreateGlowModel(client, 0xFFFF80);
+}
+
+public void Event_PlayerReviveBegging(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("subject"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	// 正在被救援
+	RemoveGlowModel(client);
+}
+
+public void Event_PlayerReviveEnded(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("subject"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	if(GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
+	{
+		// 没能救起来
+		CreateGlowModel(client, 0xFFFF80);
+	}
+	else
+	{
+		// 救起来了
+		RemoveGlowModel(client);
+	}
 }
 
 public Action Timer_RoundStartPost(Handle timer, any data)
@@ -3125,7 +3216,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」保留弹匣/升级叠加补子弹/填装可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
-	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示/光圈效果",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
 	menu.ExitButton = true;
@@ -3219,7 +3310,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("「力大」可以推牛",(g_clSkill_4[client]&SKL_4_Shove)));
 	
 	menu.AddItem(tr("4_%d",SKL_4_TempRespite), mps("「喘息」虚血会慢慢恢复为实血",(g_clSkill_4[client]&SKL_4_TempRespite)));
-	menu.AddItem(tr("4_%d",SKL_4_Terror), mps("「支配」对特感扔胆汁会让它攻击特感",(g_clSkill_4[client]&SKL_4_Terror)));
+	menu.AddItem(tr("4_%d",SKL_4_Terror), mps("「支配」写实显示光圈/胆汁会让特感叛变",(g_clSkill_4[client]&SKL_4_Terror)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -5913,6 +6004,8 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 		AddArmor(subject, 50 * mulEffect);
 	}
 	
+	RemoveGlowModel(subject);
+	
 	if(g_iRoundEvent == 19)
 	{
 		ApplyHealthSwap(subject);
@@ -5973,6 +6066,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		if(g_fFreezeTime[client] > time)
 			g_fFreezeTime[client] = time;
 		
+		RemoveGlowModel(client);
 		return;
 	}
 	
@@ -6106,7 +6200,18 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		// 取消冰冻效果
 		g_fFreezeTime[client] = time;
 	}
-
+	
+	if(GetCurrentAttacker(client) > 0)
+	{
+		// 被控 橙色
+		CreateGlowModel(client, 0xFF8040);
+	}
+	else
+	{
+		// 倒地 黄色
+		CreateGlowModel(client, 0xFFFF80);
+	}
+	
 	if(g_iRoundEvent == 14)
 	{
 		SetEntProp(client, Prop_Data, "m_iHealth", 1);
@@ -7117,11 +7222,9 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 		// Initialization(victim);
 		ClientSaveToFileSave(victim, g_pCvarSaveStatus.BoolValue);
 		
-		if(g_iGlowModel[victim] != INVALID_ENT_REFERENCE && IsValidEntity(g_iGlowModel[victim]))
-		{
-			RemoveEntity(g_iGlowModel[victim]);
-			g_iGlowModel[victim] = INVALID_ENT_REFERENCE;
-		}
+		// 去除光圈
+		PerformGlow(victim, 0, 0, 0);
+		RemoveGlowModel(victim);
 	}
 
 	if(g_bIsGamePlaying && IsValidClient(attacker))
@@ -7958,6 +8061,17 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	{
 		SetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 0);
 		SetEntProp(subject, Prop_Send, "m_isGoingToDie", 0);
+	}
+	
+	if(GetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 1))
+	{
+		// 黑白状态
+		CreateGlowModel(subject, 0xFFFFFF);
+	}
+	else
+	{
+		// 正常
+		RemoveGlowModel(subject);
 	}
 }
 
@@ -9199,6 +9313,9 @@ public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool don
 	if(IsValidAliveClient(attacker) && (g_clSkill_4[attacker] & SKL_4_Terror) && GetClientTeam(attacker) == 2 && GetClientTeam(client) == 3)
 	{
 		g_bIsHitByVomit[client] = true;
+		
+		// 胆汁效果紫色
+		CreateGlowModel(client, 0xFF80FF);
 	}
 }
 
@@ -9209,6 +9326,20 @@ public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool d
 		return;
 	
 	g_bIsHitByVomit[client] = false;
+	
+	if(GetClientTeam(client) == 3)
+	{
+		if(GetCurrentVictim(client) > 0)
+		{
+			// 控制状态红色
+			CreateGlowModel(client, 0xFF8080);
+		}
+		else
+		{
+			// 常规状态无光圈
+			RemoveGlowModel(client);
+		}
+	}
 }
 
 public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBroadcast)
@@ -12777,11 +12908,26 @@ stock int CreateGlowModel(int client, int color)
 		RemoveEntity(g_iGlowModel[client]);
 	
 	g_iGlowModel[client] = EntIndexToEntRef(entity);
+	return entity;
 }
 
-public Action GlowHook_SetTransmit(int entity)
+void RemoveGlowModel(int client)
 {
-	// int client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	if(g_iGlowModel[client] != INVALID_ENT_REFERENCE && IsValidEntity(g_iGlowModel[client]))
+		RemoveEntity(g_iGlowModel[client]);
+	
+	g_iGlowModel[client] = INVALID_ENT_REFERENCE;
+}
+
+public Action GlowHook_SetTransmit(int entity, int client)
+{
+	int owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	if(client == owner)
+		return Plugin_Handled;
+	
+	if(g_clSkill_4[client] & SKL_4_Terror)
+		return Plugin_Continue;
+	
 	return Plugin_Handled;
 }
 
@@ -13030,7 +13176,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 				
 				float position[3];
 				GetClientAbsOrigin(client, position);
-				CreateExplosion(client, 1000.0, position, 255.0);
+				CreateExplosion(client, 1000.0, position, 512.0);
 				ForcePlayerSuicide(client);
 				
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04昨晚初恋表白被拒绝,觉得生无可恋,决定引爆自身的炸弹.", client);

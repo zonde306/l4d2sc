@@ -214,6 +214,7 @@ bool g_bIsVerified[MAXPLAYERS+1];
 // ArrayList g_aDoorHandled;
 Handle g_hTimerSurvival = null;
 int g_iGlowModel[MAXPLAYERS+1];
+int g_iGlowOwner[4096];
 int g_iExtraPrimaryAmmo[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
@@ -1965,6 +1966,7 @@ void Initialization(int client, bool invalid = false)
 	g_bIsVerified[client] = false;
 	g_iGlowModel[client] = INVALID_ENT_REFERENCE;
 	g_iExtraPrimaryAmmo[client] = 0;
+	g_iGlowOwner[client] = 0;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -12515,6 +12517,86 @@ public Action L4D2_OnStagger(int target, int source)
 	if(IsPlayerHaveEffect(target, 22))
 		return Plugin_Handled;
 	
+	int team = GetClientTeam(target);
+	// 生还者失衡
+	if(team == 2)
+	{
+		if(g_bIsHitByVomit[target])
+		{
+			// 胆汁效果紫色
+			CreateGlowModel(target, 0xFF80FF);
+		}
+		else if(GetEntProp(target, Prop_Send, "m_isHangingFromLedge", 1) || GetEntProp(target, Prop_Send, "m_isHangingFromLedge", 1))
+		{
+			// 倒地/挂边 黄色
+			CreateGlowModel(target, 0x80FFFF);
+		}
+		else if(GetEntProp(target, Prop_Send, "m_bIsOnThirdStrike", 1))
+		{
+			// 黑白状态 白色
+			CreateGlowModel(target, 0xFFFFFF);
+		}
+		else
+		{
+			// 没有情况
+			RemoveGlowModel(target);
+		}
+		
+		int attacker = GetCurrentAttacker(target);
+		if(IsValidAliveClient(attacker))
+		{
+			if(g_bIsHitByVomit[attacker])
+			{
+				// 胆汁效果紫色
+				CreateGlowModel(attacker, 0xFF80FF);
+			}
+			else
+			{
+				// 没有情况
+				RemoveGlowModel(attacker);
+			}
+		}
+	}
+	// 感染者失衡
+	else if(team == 3)
+	{
+		if(g_bIsHitByVomit[target])
+		{
+			// 胆汁效果紫色
+			CreateGlowModel(target, 0xFF80FF);
+		}
+		else
+		{
+			// 没有情况
+			RemoveGlowModel(target);
+		}
+		
+		int victim = GetCurrentVictim(target);
+		if(IsValidAliveClient(victim))
+		{
+			if(g_bIsHitByVomit[victim])
+			{
+				// 胆汁效果紫色
+				CreateGlowModel(victim, 0xFF80FF);
+			}
+			else if(GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1) || GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
+			{
+				// 倒地/挂边 黄色
+				CreateGlowModel(victim, 0x80FFFF);
+			}
+			else if(GetEntProp(victim, Prop_Send, "m_bIsOnThirdStrike", 1))
+			{
+				// 黑白状态 白色
+				CreateGlowModel(victim, 0xFFFFFF);
+			}
+			else
+			{
+				// 没有情况
+				RemoveGlowModel(victim);
+			}
+		}
+	}
+	
 	return Plugin_Continue;
 }
 
@@ -12943,6 +13025,7 @@ stock int CreateGlowModel(int client, int color)
 		RemoveEntity(g_iGlowModel[client]);
 	
 	g_iGlowModel[client] = EntIndexToEntRef(entity);
+	g_iGlowOwner[entity] = client;
 	return entity;
 }
 
@@ -12956,12 +13039,14 @@ void RemoveGlowModel(int client)
 
 public Action GlowHook_SetTransmit(int entity, int client)
 {
-	int owner = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
+	int owner = g_iGlowOwner[entity];
 	if(client == owner)
 		return Plugin_Handled;
 	
+	/*
 	if(IsValidAliveClient(owner) && (GetCurrentAttacker(owner) == client || GetCurrentVictim(owner) == client))
 		return Plugin_Handled;
+	*/
 	
 	if(g_clSkill_4[client] & SKL_4_Terror)
 		return Plugin_Continue;
@@ -13065,7 +13150,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 				SpawnCommand(client, ZC_WITCH);
 				SpawnCommand(client, ZC_WITCH);
 				SpawnCommand(client, ZC_WITCH);
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04招了一群美女出来准备围观爆菊花.", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04招了一群美女出来准备围观GHS.", client);
 			}
 			case 4:
 			{

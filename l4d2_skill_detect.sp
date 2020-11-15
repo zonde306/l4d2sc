@@ -347,7 +347,7 @@ new		Handle:			g_hCvarWitchHealth									= INVALID_HANDLE;	// z_witch_health
 new		Handle:			g_hCvarMaxPounceDistance							= INVALID_HANDLE;	// z_pounce_damage_range_max
 new		Handle:			g_hCvarMinPounceDistance							= INVALID_HANDLE;	// z_pounce_damage_range_min
 new		Handle:			g_hCvarMaxPounceDamage								= INVALID_HANDLE;	// z_hunter_max_pounce_bonus_damage;
-
+new		bool:			g_bDeathChargeIgnore[MAXPLAYERS+1][MAXPLAYERS+1];
 
 /*
 	Reports:
@@ -1556,6 +1556,9 @@ public Action: Event_AbilityUse( Handle:event, const String:name[], bool:dontBro
 	GetEventString( event, "ability", abilityName, sizeof(abilityName) );
 	
 	if ( !IS_VALID_INGAME(client) ) { return Plugin_Continue; }
+	
+	for(new i = 1; i <= MaxClients; ++i)
+		g_bDeathChargeIgnore[client][i] = false;
 	
 	new strAbility: ability;
 	if ( !GetTrieValue(g_hTrieAbility, abilityName, ability) ) { return Plugin_Continue; }
@@ -3152,11 +3155,12 @@ stock HandleDeathCharge( attacker, victim, Float:height, Float:distance, bool:bC
 	// report?
 	if (	GetConVarBool(g_hCvarReport) &&
 			(GetConVarInt(g_hCvarReportFlags) & REP_DEATHCHARGE) &&
-			height >= GetConVarFloat(g_hCvarDeathChargeHeight)
+			height >= GetConVarFloat(g_hCvarDeathChargeHeight) &&
+			!g_bDeathChargeIgnore[attacker][victim]
 	) {
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(attacker) )
 		{
-			PrintToChatAll( "\x03★ \x04%N\x01 冲锋秒杀了 \x05%N\x01 %s(高度 \x05%i\x01).",
+			PrintToChatAll( "\x03★ \x04%N\x01 冲锋带走了 \x05%N\x01 %s(高度 \x05%i\x01).",
 					attacker,
 					victim,
 					(bCarried) ? "(携带) " : "(撞飞) ",
@@ -3165,12 +3169,14 @@ stock HandleDeathCharge( attacker, victim, Float:height, Float:distance, bool:bC
 		}
 		else if ( IS_VALID_INGAME(victim) )
 		{
-			PrintToChatAll( "\x03★ \x01一个 \x04Charger\x01 冲锋秒杀了 \x05%N\x01 %s(高度 \x05%i\x01).",
+			PrintToChatAll( "\x03★ \x01某个 \x04Charger\x01 冲锋带走了 \x05%N\x01 %s(高度 \x05%i\x01).",
 					victim,
 					(bCarried) ? "(携带) " : "(撞飞) ",
 					RoundFloat(height) 
 				);
 		}
+		
+		g_bDeathChargeIgnore[attacker][victim] = true;
 	}
 	
 	// PrintToConsoleAll("%d deathcharge %d", attacker, victim);

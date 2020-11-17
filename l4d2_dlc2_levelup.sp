@@ -3,7 +3,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <geoip>
-#include <l4d2_skill_detect>
+// #include <l4d2_skill_detect>
 #include <left4dhooks>
 // #include <l4d_info_editor>
 #include <dhooks>
@@ -3271,7 +3271,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.SetTitle(tr("二级天赋\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("「狂锯」无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
-	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」杀死特感1/5几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
+	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」爆头杀死特感1/3几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
 	menu.AddItem(tr("2_%d",SKL_2_PainPills), mps("「嗜药」每120秒获得一个药丸",(g_clSkill_2[client]&SKL_2_PainPills)));
 	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」每300秒恢复全血",(g_clSkill_2[client]&SKL_2_FullHealth)));
 	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("「电疗」每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
@@ -7268,7 +7268,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 	{
 		if(IsValidClient(victim) && GetClientTeam(victim) == TEAM_INFECTED && GetClientTeam(attacker) == TEAM_SURVIVORS)
 		{
-			if((g_clSkill_2[attacker] & SKL_2_Excited) && !GetRandomInt(0, 4))
+			if((g_clSkill_2[attacker] & SKL_2_Excited) && event.GetBool("headshot") && !GetRandomInt(0, 2))
 			{
 				// SDKCall(sdkAdrenaline, attacker, 14.0);
 				// CheatCommand(attacker, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(attacker), 14);
@@ -13548,7 +13548,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 			{
 				EmitSoundToAll(g_soundLevel,client);
 				g_clSkill_2[client] |= SKL_2_Excited;
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03热血-杀死特感有几率兴奋\x04.", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04修炼成果,获得天赋\x03热血-爆头杀死特感有几率兴奋\x04.", client);
 			}
 			case 47:
 			{

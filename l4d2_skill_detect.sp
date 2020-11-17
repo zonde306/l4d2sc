@@ -2753,8 +2753,13 @@ stock HandleSkeetAssist(attacker, victim)
 			Format(assistMsg, 255, "%s\x04%N\x01 (射击 \x05%d\x01 次, 伤害 \x05%d\x01)",
 				assistMsg, i, g_iHunterShotCount[victim][i], g_iHunterShotDamage[victim][i]);
 			
+			// 不知道够不够
 			if(strlen(assistMsg) >= 200)
-				break;
+			{
+				// break;
+				PrintToChatAll(assistMsg);
+				strcopy(assistMsg, 255, "，");
+			}
 		}
 		
 		if(assistMsg[0] != EOS)

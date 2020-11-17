@@ -26,7 +26,7 @@ static g_iAlarmCarClient;
 public Plugin:myinfo = 
 {
 	name = "技能检测精简版",
-	author = "Griffin, Philogl, Sir",
+	author = "Griffin, Philogl, Sir, zonde306",
 	description = "Display Skeets/Etc to Chat to clients",
 	version = "1.0",
 	url = "<- URL ->"
@@ -341,23 +341,9 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			{
 				// Sort by damage, descending
 				SortCustom2D(assisters, assister_count, ClientValue2DSortDesc);
-				decl String:assister_string[128];
-				decl String:buf[MAX_NAME_LENGTH + 8];
+				// decl String:assister_string[128];
+				// decl String:buf[MAX_NAME_LENGTH + 8];
 				new assist_shots = g_iShotsDealt[victim][assisters[0][0]];
-				// Construct assisters string
-				Format(assister_string, sizeof(assister_string), "{olive}%N{default} (射击 {blue}%d{default} 次, 伤害 {blue}%d{default})",
-				assisters[0][0],
-				g_iShotsDealt[victim][assisters[0][0]],
-				assisters[0][1]);
-				for (i = 1; i < assister_count; i++)
-				{
-					assist_shots = g_iShotsDealt[victim][assisters[i][0]];
-					Format(buf, sizeof(buf), ", {olive}%N{default} (射击 {blue}%d{default} 次, 伤害 {blue}%d{default})",
-					assisters[i][0],
-					assist_shots,
-					assisters[i][1]);
-					StrCat(assister_string, sizeof(assister_string), buf);
-				}
 				
 				// Print to assisters
 				/*
@@ -369,21 +355,51 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 				*/
 				
 				// Print to victim
-				CPrintToChat(victim, "{blue}☆ {default}你在飞扑时被 {olive}%N {default}射死了 {default}(射击 {blue}%d{default} 次, 伤害 {blue}%d{default}). 助攻: %s",
-					attacker, shots, damage, assister_string);
+				CPrintToChat(victim, "{blue}☆ {default}你在飞扑时被 {olive}%N {default}射死了 {default}(射击 {blue}%d{default} 次, 伤害 {blue}%d{default}). 助攻:",
+					attacker, shots, damage/*, assister_string*/);
 				
 				// print to attacker
-				CPrintToChat(attacker, "{blue}☆ {default}你射死了飞扑的 {olive}%N {default}(射击 {blue}%d{default} 次, 伤害 {blue}%d{default}). 助攻: %s",
-					victim, shots, damage, assister_string);
+				CPrintToChat(attacker, "{blue}☆ {default}你射死了飞扑的 {olive}%N {default}(射击 {blue}%d{default} 次, 伤害 {blue}%d{default}). 助攻:",
+					victim, shots, damage/*, assister_string*/);
 				
 				//Print to Specs!
 				for (new b = 1; b <= MaxClients; b++)
 				{
 					if (b != attacker && b != victim && IsClientInGame(b))
 					{
-						CPrintToChat(b, "{blue}☆ {olive}%N {default}射死了飞扑的 {olive}%N {default}(射击 {blue}%d{default} 次, 伤害 {blue}%d{default}). 助攻: %s",
-							attacker, victim, shots, damage, assister_string);
+						CPrintToChat(b, "{blue}☆ {olive}%N {default}射死了飞扑的 {olive}%N {default}(射击 {blue}%d{default} 次, 伤害 {blue}%d{default}). 助攻:",
+							attacker, victim, shots, damage/*, assister_string*/);
 					}
+				}
+				
+				CPrintToChatAll("{olive}%N{default} (射击 {blue}%d{default} 次, 伤害 {blue}%d{default})",
+					assisters[0][0],
+					g_iShotsDealt[victim][assisters[0][0]],
+					assisters[0][1]
+				);
+				
+				// Construct assisters string
+				/*
+				Format(assister_string, sizeof(assister_string), "{olive}%N{default} (射击 {blue}%d{default} 次, 伤害 {blue}%d{default})",
+				assisters[0][0],
+				g_iShotsDealt[victim][assisters[0][0]],
+				assisters[0][1]);
+				*/
+				for (i = 1; i < assister_count; i++)
+				{
+					assist_shots = g_iShotsDealt[victim][assisters[i][0]];
+					/*
+					Format(buf, sizeof(buf), ", {olive}%N{default} (射击 {blue}%d{default} 次, 伤害 {blue}%d{default})",
+					assisters[i][0],
+					assist_shots,
+					assisters[i][1]);
+					StrCat(assister_string, sizeof(assister_string), buf);
+					*/
+					CPrintToChatAll(", {olive}%N{default} (射击 {blue}%d{default} 次, 伤害 {blue}%d{default})",
+						assisters[i][0],
+						assist_shots,
+						assisters[i][1]
+					);
 				}
 			}
 			else

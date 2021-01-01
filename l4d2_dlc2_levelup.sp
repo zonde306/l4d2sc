@@ -272,7 +272,7 @@ StringMap g_tMeleeRange, g_tShoveRange, g_tWeaponSkin;
 const int g_iUnknownMeleeRange = 90;
 const int g_iUnknownShoveRange = 90;
 
-new Float:cung_cdSaveCount[MAXPLAYERS+1][100][3];
+// new Float:cung_cdSaveCount[MAXPLAYERS+1][100][3];
 new g_cdSaveCount[MAXPLAYERS+1];
 new Float:g_fOldMovement[MAXPLAYERS+1];
 new g_clAngryMode[MAXPLAYERS+1];
@@ -723,13 +723,16 @@ public OnPluginStart()
 
 	RegConsoleCmd("lv", Command_Levelup, "", FCVAR_HIDDEN);
 	RegConsoleCmd("rpg", Command_Levelup, "", FCVAR_HIDDEN);
+	RegConsoleCmd("perks", Command_Levelup, "", FCVAR_HIDDEN);
+	RegConsoleCmd("skills", Command_Levelup, "", FCVAR_HIDDEN);
 	RegConsoleCmd("shop", Command_Shop, "", FCVAR_HIDDEN);
 	RegConsoleCmd("buy", Command_Shop, "", FCVAR_HIDDEN);
+	RegConsoleCmd("b", Command_Shop, "", FCVAR_HIDDEN);
 	RegConsoleCmd("rp", Command_RandEvent, "", FCVAR_HIDDEN);
 	RegConsoleCmd("ldw", Command_RandEvent, "", FCVAR_HIDDEN);
-	RegConsoleCmd("cd", Command_SavePoint, "", FCVAR_HIDDEN);
-	RegConsoleCmd("dd", Command_LoadPoint, "", FCVAR_HIDDEN);
-	RegConsoleCmd("ld", Command_BackPoint, "", FCVAR_HIDDEN);
+	// RegConsoleCmd("cd", Command_SavePoint, "", FCVAR_HIDDEN);
+	// RegConsoleCmd("dd", Command_LoadPoint, "", FCVAR_HIDDEN);
+	// RegConsoleCmd("ld", Command_BackPoint, "", FCVAR_HIDDEN);
 	AddCommandListener(Command_Say, "say");
 	AddCommandListener(Command_Say, "say_team");
 	AddCommandListener(Command_Give, "give");
@@ -1028,81 +1031,11 @@ public OnPluginStart()
 			else
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Not Found.");
 			
-			StartPrepSDKCall(SDKCall_Static);
-			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CHolidayGift::Create"))
-			{
-				PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
-				PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
-				PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
-				PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
-				PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-				g_pfnCreateGift = EndPrepSDKCall();
-			}
-			
-			if(g_pfnCreateGift != null)
-				LogMessage("l4d2_dlc2_levelup: CHolidayGift::Create Found.");
-			else
-				LogMessage("l4d2_dlc2_levelup: CHolidayGift::Create Not Found.");
-			
-			StartPrepSDKCall(SDKCall_Static);
-			if (PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NextBotCreatePlayerBot<Smoker>"))
-			{
-				PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-				PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-				g_pfnCreateSmoker = EndPrepSDKCall();
-			}
-
-			StartPrepSDKCall(SDKCall_Static);
-			if (PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NextBotCreatePlayerBot<Boomer>"))
-			{
-				PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-				PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-				g_pfnCreateBoomer = EndPrepSDKCall();
-			}
-
-			StartPrepSDKCall(SDKCall_Static);
-			if (PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NextBotCreatePlayerBot<Hunter>"))
-			{
-				PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-				PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-				g_pfnCreateHunter = EndPrepSDKCall();
-			}
-			
-			StartPrepSDKCall(SDKCall_Static);
-			if (PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NextBotCreatePlayerBot<Spitter>"))
-			{
-				PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-				PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-				g_pfnCreateSpitter = EndPrepSDKCall();
-			}
-			
-			StartPrepSDKCall(SDKCall_Static);
-			if (PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NextBotCreatePlayerBot<Jockey>"))
-			{
-				PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-				PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-				g_pfnCreateJockey = EndPrepSDKCall();
-			}
-
-			StartPrepSDKCall(SDKCall_Static);
-			if (PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NextBotCreatePlayerBot<Charger>"))
-			{
-				PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-				PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-				g_pfnCreateCharger = EndPrepSDKCall();
-			}
-			
-			StartPrepSDKCall(SDKCall_Static);
-			if (PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NextBotCreatePlayerBot<Tank>"))
-			{
-				PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-				PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-				g_pfnCreateTank = EndPrepSDKCall();
-			}
-			
 			delete hGameData;
 		}
 	}
+	
+	PrepSDKCall_CreateSpecials();
 	
 	// 缓存以及读取
 	if(g_bLateLoad)
@@ -2280,6 +2213,7 @@ bool ClientSaveToFileSave(int client, bool remember = false)
 	return true;
 }
 
+/*
 public Action:Command_SavePoint(client, args)
 {
 	StatusSelectMenuFuncCD(client);
@@ -2391,6 +2325,7 @@ public Action:StatusSelectMenuFuncSC(client)
 	CreateTimer(30.0, Event_Dudian, client, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Handled;
 }
+*/
 
 void StatusSelectMenuFuncCS(int client)
 {
@@ -2668,7 +2603,8 @@ public Action Command_Say(int client, const char[] command, int argc)
 			StatusSelectMenuFuncRP(client);
 			return Plugin_Handled;
 		}
-
+		
+		/*
 		if(StrEqual(sayText, "cd", false))
 		{
 			StatusSelectMenuFuncCD(client);
@@ -2680,6 +2616,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 			StatusSelectMenuFuncDD(client);
 			return Plugin_Handled;
 		}
+		*/
 	}
 
 	/*
@@ -3031,7 +2968,7 @@ void StatusSelectMenuFuncBuy(int client, bool back = true)
 	menu.AddItem("grenade_launcher cricket_bat vomitjar", "榴弹 + 板球棒 + 胆汁");
 	menu.AddItem("first_aid_kit adrenaline ammo", "医疗包 + 针筒 + 补充弹药");
 	menu.AddItem("defibrillator pain_pills ammo", "电击器 + 药丸 + 补充弹药");
-	// menu.AddItem("health", "回血");
+	// menu.AddItem("health", "回血/自救");
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = back;
@@ -3239,7 +3176,7 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 void StatusSelectMenuFuncA(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("一级天赋\n你现在有 %d 硬币", g_clSkillPoint[client]));
+	menu.SetTitle(tr("一级天赋(1硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("「强身」血量上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+10%",(g_clSkill_1[client]&SKL_1_Movement)));
@@ -3268,7 +3205,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 void StatusSelectMenuFuncB(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("二级天赋\n你现在有 %d 硬币", g_clSkillPoint[client]));
+	menu.SetTitle(tr("二级天赋(2硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("「狂锯」无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
 	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」爆头杀死特感1/3几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
@@ -3299,7 +3236,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 void StatusSelectMenuFuncC(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("三级天赋\n你现在有 %d 硬币", g_clSkillPoint[client]));
+	menu.SetTitle(tr("三级天赋(3硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡时1/3几率带走全图感染者",(g_clSkill_3[client]&SKL_3_Sacrifice)));
 	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("「永生」死亡时复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
@@ -3328,7 +3265,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 void StatusSelectMenuFuncD(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("四级天赋\n你现在有 %d 硬币", g_clSkillPoint[client]));
+	menu.SetTitle(tr("四级天赋(4硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("「坚韧」被坦克击中恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
 	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+20",(g_clSkill_4[client]&SKL_4_DmgExtra)));
@@ -3361,7 +3298,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 void StatusSelectMenuFuncE(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("五级天赋\n你现在有 %d 硬币", g_clSkillPoint[client]));
+	menu.SetTitle(tr("五级天赋(5硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("「烈火」主武器1/4几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("「碎骨」主武器1/4几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
@@ -5361,8 +5298,12 @@ stock int SpawnCommand(int spawnner, int zClass)
 	if(!IsValidClient(spawnner))
 		spawnner = L4D_GetHighestFlowSurvivor();
 	
+	static ConVar z_spawn_range;
+	if(z_spawn_range == null)
+		z_spawn_range = FindConVar("z_spawn_range");
+	
 	float vPos[3];
-	if(!L4D_GetRandomPZSpawnPosition(spawnner, zClass, 800, vPos))
+	if(!L4D_GetRandomPZSpawnPosition(spawnner, zClass, z_spawn_range.IntValue, vPos))
 		return 0;
 	
 	int bot = -1;
@@ -5382,6 +5323,8 @@ stock int SpawnCommand(int spawnner, int zClass)
 			}
 			if(bot <= 0)
 				bot = L4D2_SpawnSpecial(zClass, vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "smoker auto");
 		}
 		case ZC_BOOMER:
 		{
@@ -7602,7 +7545,6 @@ void RewardPicker(int client, int reward = -1)
 				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04被里面的玩具拳击倒了\x01。");
 		}
 	}
-	
 }
 
 public Action Timer_GivePistol(Handle timer, any client)
@@ -15244,4 +15186,159 @@ char tr(const char[] text, any ...)
 	char line[1024];
 	VFormat(line, 1024, text, 2);
 	return line;
+}
+
+void PrepSDKCall_CreateSpecials()
+{
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4dinfectedbots");
+	if(FileExists(sPath))
+	{
+		Handle hGameConf = LoadGameConfigFile("l4dinfectedbots");
+		if(hGameConf)
+		{
+			//find create bot signature
+			Address replaceWithBot = GameConfGetAddress(hGameConf, "NextBotCreatePlayerBot.jumptable");
+			if (replaceWithBot != Address_Null && LoadFromAddress(replaceWithBot, NumberType_Int8) == 0x68) {
+				// We're on L4D2 and linux
+				PrepWindowsCreateBotCalls(replaceWithBot);
+			}
+			else
+			{
+				PrepL4D1CreateBotCalls(hGameConf);
+				PrepL4D2CreateBotCalls(hGameConf);
+			}
+			
+			delete hGameConf;
+		}
+	}
+}
+
+#define NAME_CreateSmoker "NextBotCreatePlayerBot<Smoker>"
+#define NAME_CreateBoomer "NextBotCreatePlayerBot<Boomer>"
+#define NAME_CreateHunter "NextBotCreatePlayerBot<Hunter>"
+#define NAME_CreateSpitter "NextBotCreatePlayerBot<Spitter>"
+#define NAME_CreateJockey "NextBotCreatePlayerBot<Jockey>"
+#define NAME_CreateCharger "NextBotCreatePlayerBot<Charger>"
+#define NAME_CreateTank "NextBotCreatePlayerBot<Tank>"
+
+Handle PrepCreateBotCallFromAddress(Handle hSiFuncTrie, const char[] siName) {
+	Address addr;
+	StartPrepSDKCall(SDKCall_Static);
+	if (!GetTrieValue(hSiFuncTrie, siName, addr) || !PrepSDKCall_SetAddress(addr))
+	{
+		SetFailState("Unable to find NextBotCreatePlayer<%s> address in memory.", siName);
+		return null;
+	}
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+	PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+	return EndPrepSDKCall();	
+}
+
+void LoadStringFromAdddress(Address addr, char[] buffer, int maxlength) {
+	int i = 0;
+	while(i < maxlength) {
+		char val = LoadFromAddress(addr + view_as<Address>(i), NumberType_Int8);
+		if(val == 0) {
+			buffer[i] = 0;
+			break;
+		}
+		buffer[i] = val;
+		i++;
+	}
+	buffer[maxlength - 1] = 0;
+}
+
+void PrepWindowsCreateBotCalls(Address jumpTableAddr) {
+	Handle hInfectedFuncs = CreateTrie();
+	// We have the address of the jump table, starting at the first PUSH instruction of the
+	// PUSH mem32 (5 bytes)
+	// CALL rel32 (5 bytes)
+	// JUMP rel8 (2 bytes)
+	// repeated pattern.
+	
+	// Each push is pushing the address of a string onto the stack. Let's grab these strings to identify each case.
+	// "Hunter" / "Smoker" / etc.
+	for(int i = 0; i < 7; i++) {
+		// 12 bytes in PUSH32, CALL32, JMP8.
+		Address caseBase = jumpTableAddr + view_as<Address>(i * 12);
+		Address siStringAddr = view_as<Address>(LoadFromAddress(caseBase + view_as<Address>(1), NumberType_Int32));
+		static char siName[32];
+		LoadStringFromAdddress(siStringAddr, siName, sizeof(siName));
+
+		Address funcRefAddr = caseBase + view_as<Address>(6); // 2nd byte of call, 5+1 byte offset.
+		int funcRelOffset = LoadFromAddress(funcRefAddr, NumberType_Int32);
+		Address callOffsetBase = caseBase + view_as<Address>(10); // first byte of next instruction after the CALL instruction
+		Address nextBotCreatePlayerBotTAddr = callOffsetBase + view_as<Address>(funcRelOffset);
+		//PrintToServer("Found NextBotCreatePlayerBot<%s>() @ %08x", siName, nextBotCreatePlayerBotTAddr);
+		SetTrieValue(hInfectedFuncs, siName, nextBotCreatePlayerBotTAddr);
+	}
+
+	g_pfnCreateSmoker = PrepCreateBotCallFromAddress(hInfectedFuncs, "Smoker");
+	g_pfnCreateBoomer = PrepCreateBotCallFromAddress(hInfectedFuncs, "Boomer");
+	g_pfnCreateHunter = PrepCreateBotCallFromAddress(hInfectedFuncs, "Hunter");
+	g_pfnCreateTank = PrepCreateBotCallFromAddress(hInfectedFuncs, "Tank");
+	g_pfnCreateSpitter = PrepCreateBotCallFromAddress(hInfectedFuncs, "Spitter");
+	g_pfnCreateJockey = PrepCreateBotCallFromAddress(hInfectedFuncs, "Jockey");
+	g_pfnCreateCharger = PrepCreateBotCallFromAddress(hInfectedFuncs, "Charger");
+}
+
+void PrepL4D2CreateBotCalls(Handle hGameConf) {
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateSpitter))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateSpitter = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateJockey))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateJockey = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateCharger))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateCharger = EndPrepSDKCall();
+	}
+}
+
+void PrepL4D1CreateBotCalls(Handle hGameConf) {
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateSmoker))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateSmoker = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateBoomer))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateBoomer = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateHunter))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateHunter = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateTank))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateTank = EndPrepSDKCall();
+	}
 }

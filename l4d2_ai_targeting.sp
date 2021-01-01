@@ -160,12 +160,15 @@ AttackTarget(client) {
 		if (IsMobile(target)) {
 			new targetID = GetClientUserId(target);		
 			// Check bot is still alive, and not a dummy client 
+			/*
 			new String:clientName[MAX_NAME_LENGTH];
 			if (IsBotInfected(client) && GetClientName(client, clientName, sizeof(clientName)) ) {
 				if (StrContains(clientName, "dummy", false) == -1) { // naming convention used in 'special_infected_wave_spawner.smx'
 					ScriptCommand2(client, "CommandABot({cmd=%i,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", CMD_ATTACK, botID, targetID); // attack
 				}
 			}				
+			*/
+			L4D2_RunScript("CommandABot({cmd=%i,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", CMD_ATTACK, botID, targetID); // attack
 		}			
 	}
 }
@@ -175,6 +178,25 @@ AttackTarget(client) {
 																				UTILITY
 
 ***********************************************************************************************************************************************************************************/
+
+stock void L4D2_RunScript(char[] sCode, any ...)
+{
+	static int iScriptLogic = INVALID_ENT_REFERENCE;
+	if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+	{
+		iScriptLogic = EntIndexToEntRef(CreateEntityByName("logic_script"));
+		if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+			SetFailState("Could not create 'logic_script'");
+		
+		DispatchSpawn(iScriptLogic);
+	}
+	
+	static char sBuffer[8192];
+	VFormat(sBuffer, sizeof(sBuffer), sCode, 2);
+	
+	SetVariantString(sBuffer);
+	AcceptEntityInput(iScriptLogic, "RunScriptCode");
+}
 
 stock bool CheatCommand2(int client = 0, const char[] command, const char[] arguments = "", any ...)
 {

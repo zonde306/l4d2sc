@@ -285,7 +285,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			}
 		}
 		else */
-		if (zombieclass == ZC_HUNTER && IsPouncing(victim))
+		if ((zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY) && IsPouncing(victim))
 		{ // Skeet!
 			decl assisters[g_iSurvivorLimit][2];
 			new assister_count, i;

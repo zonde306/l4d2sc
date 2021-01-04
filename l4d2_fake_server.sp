@@ -293,7 +293,7 @@ public void EntityHook_ThinkPost(int entity)
 			SetEntProp(entity, Prop_Send, "m_isGhost", 0, 1, i);
 			SetEntProp(entity, Prop_Send, "m_isIncapacitated", 0, 1, i);
 			SetEntProp(entity, Prop_Send, "m_wantsToPlay", 0, 1, i);
-			SetEntProp(entity, Prop_Send, "m_zombieClass", Z_SURVIVOR, 1, i);
+			SetEntProp(entity, Prop_Send, "m_zombieClass", Z_COMMON, 1, i);
 		}
 		
 		SetEntProp(entity, Prop_Send, "m_listenServerHost", 0, 1, i);

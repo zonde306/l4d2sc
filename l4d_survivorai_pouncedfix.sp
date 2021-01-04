@@ -54,7 +54,7 @@ public Action Event_PlayerHurt(Handle event, const char[] name, bool dontBroadca
 	int dominater = FindDominator(victim);
 	if (dominater == attacker)
 		CallBots();
-	else if(dominater == -1)
+	else if(dominater == -1 && IsFakeClient(victim))
 		L4D2_RunScript("CommandABot({cmd=0,bot=GetPlayerFromUserID(%i),target=GetPlayerFromUserID(%i)})", GetClientUserId(victim), GetClientUserId(attacker));
 }
 

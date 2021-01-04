@@ -135,7 +135,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 			else if(melee || shove)
 			{
 				// 距离太远，换一个吧
-				L4D2_RunScript("CommandABot(cmd=3, bot=GetPlayerFromUserID(%d))", GetClientUserId(client));
+				L4D2_RunScript("CommandABot({cmd=3, bot=GetPlayerFromUserID(%d)})", GetClientUserId(client));
 			}
 		}
 	}

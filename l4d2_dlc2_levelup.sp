@@ -1377,7 +1377,8 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 	// g_bRoundFirstStarting = false;
 	g_bIsGamePlaying = false;
 	// g_aDoorHandled.Clear();
-
+	
+	float time = GetEngineTime();
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
@@ -1391,6 +1392,9 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 			PerformGlow(i, 0, 0, 0);
 			RemoveGlowModel(i);
 		}
+		
+		if(g_fFreezeTime[i] > time)
+			g_fFreezeTime[i] = time;
 	}
 	
 	RestoreConVar();
@@ -7228,7 +7232,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				g_ttSpecialKilled[attacker] -= g_pCvarSpecialKilled.IntValue;
 				
 				if(g_pCvarAllow.BoolValue && !IsFakeClient(attacker))
-					PrintToChat(attacker, "\x03[\x05提示\x03]\x04你多次杀死特感获得额外的硬币一枚!输入\x03!lv\x04查看!");
+					PrintToChat(attacker, "\x03[\x05提示\x03]\x04你多次杀死特感获得额外的硬币一枚!输入\x03!buy\x04查看!");
 			}
 		}
 	}
@@ -7896,7 +7900,16 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	}
 	*/
 	
-	RegPlayerHook(subject, (g_Cvarhppack.BoolValue || IsPlayerHaveEffect(subject, 35)));
+	bool full = (g_Cvarhppack.BoolValue || IsPlayerHaveEffect(subject, 35));
+	RegPlayerHook(subject, full);
+	
+	if(!full)
+	{
+		static ConVar cv_respawnhealth;
+		if(cv_respawnhealth == null)
+			cv_respawnhealth = FindConVar("z_survivor_respawn_health");
+		SetEntProp(subject, Prop_Data, "m_iHealth", RoundToZero(GetEntProp(subject, Prop_Data, "m_iMaxHealth") * cv_respawnhealth.FloatValue * 0.01));
+	}
 	
 	// 修复电击复活后的武器
 	if((g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
@@ -8618,11 +8631,25 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	
 	bool si = (GetClientTeam(client) == 3 && StrEqual(eventName, "player_first_spawn", false));
 	bool sur = (StrEqual(eventName, "player_first_spawn", false) && IsPlayerHaveEffect(client, 35));
-	RegPlayerHook(client, (si || sur || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying)));
+	bool full = (si || sur || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying));
+	RegPlayerHook(client, full);
 	
 	if(g_clSkill_1[client] & SKL_1_Armor)
 	{
 		AddArmor(client, 100 + (100 * IsPlayerHaveEffect(client, 33)));
+	}
+	
+	if(!full && !g_bIsGamePlaying && GetClientTeam(client) == 2)
+	{
+		static ConVar cv_respawnhealth;
+		if(cv_respawnhealth == null)
+			cv_respawnhealth = FindConVar("z_survivor_respawn_health");
+		
+		int health = GetEntProp(client, Prop_Data, "m_iHealth");
+		if(health == cv_respawnhealth.IntValue)	// 上一局挂了
+			SetEntProp(client, Prop_Data, "m_iHealth", RoundToZero(GetEntProp(client, Prop_Data, "m_iMaxHealth") * cv_respawnhealth.FloatValue * 0.01));
+		else if(health == 100)					// 上一局挂了/战役开局
+			SetEntProp(client, Prop_Data, "m_iHealth", GetEntProp(client, Prop_Data, "m_iMaxHealth"));
 	}
 }
 
@@ -8866,20 +8893,19 @@ public void Event_SurvivorRescued(Event event, const char[] eventName, bool dont
 		AddArmor(subject, 100 + (100 * IsPlayerHaveEffect(subject, 33)));
 	}
 	
-	RegPlayerHook(subject, (g_Cvarhppack.BoolValue || IsPlayerHaveEffect(subject, 35)));
+	bool full = (g_Cvarhppack.BoolValue || IsPlayerHaveEffect(subject, 35));
+	RegPlayerHook(subject, full);
 	
-	if(g_iRoundEvent == 19)
+	if(!full)
 	{
-		/*
 		static ConVar cv_respawnhealth;
 		if(cv_respawnhealth == null)
 			cv_respawnhealth = FindConVar("z_survivor_respawn_health");
-		
-		SetEntProp(client, Prop_Data, "m_iHealth", 1);
-		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", cv_respawnhealth.FloatValue - 1.0);
-		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
-		*/
-		
+		SetEntProp(subject, Prop_Data, "m_iHealth", RoundToZero(GetEntProp(subject, Prop_Data, "m_iMaxHealth") * cv_respawnhealth.FloatValue * 0.01));
+	}
+	
+	if(g_iRoundEvent == 19)
+	{
 		ApplyHealthSwap(subject);
 	}
 }
@@ -13290,7 +13316,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 						EmitSoundToClient(i,SOUND_GOOD,client);
 					}
 				}
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,所有玩家获得硬币一枚!输入\x03!lv\x04查看!", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,所有玩家获得硬币一枚!输入\x03!buy\x04查看!", client);
 			}
 			case 25:
 			{

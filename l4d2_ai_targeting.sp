@@ -251,7 +251,7 @@ bool:IsIncap(client) {
 }
 
 bool:IsBotCapper(client) {
-	if (IsBotInfected(client)) {
+	if (IsBotInfected(client) && IsFakeClient(client)) {
 		new zombieClass = GetEntProp(client, Prop_Send, "m_zombieClass");
 		if ( L4D2_Infected:zombieClass != L4D2Infected_Boomer && L4D2_Infected:zombieClass != L4D2Infected_Spitter && L4D2_Infected:zombieClass != L4D2Infected_Tank ) {
 			return true;

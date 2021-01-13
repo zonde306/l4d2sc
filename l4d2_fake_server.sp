@@ -18,7 +18,7 @@ public Plugin myinfo =
 bool g_bLateLoad;
 ConVar g_hCvarHostName, g_hCvarLan, g_hCvarMaxPlayers;
 ConVar g_pCvarMinPing, g_pCvarMaxPing, g_pCvarOffsetPing, g_pCvarMaxHealth, g_pCvarStatus, g_pCvarServer,
-	g_pCvarMinPlayTime, g_pCvarMaxPlayTime, g_pCvarVersion;
+	g_pCvarMinPlayTime, g_pCvarMaxPlayTime, g_pCvarVersion, g_pCvarFakeCoop;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
@@ -39,6 +39,7 @@ public void OnPluginStart()
 	g_pCvarMinPlayTime = CreateConVar("l4d2_fs_min_playtime", "", "伪装 status 中的在线时间最小值", CVAR_FLAGS, true, 0.0, true, 2147483647.0);
 	g_pCvarMaxPlayTime = CreateConVar("l4d2_fs_max_playtime", "", "伪装 status 中的在线时间最小值", CVAR_FLAGS, true, 0.0, true, 2147483647.0);
 	g_pCvarVersion = CreateConVar("l4d2_fs_fake_version", "", "伪装 status 中的游戏版本", CVAR_FLAGS);
+	g_pCvarFakeCoop = CreateConVar("l4d2_fs_fake_coop", "1", "合作模式伪装特感", CVAR_FLAGS, true, 0.0, true, 1.0);
 	
 	AutoExecConfig(true, "l4d2_fake_server");
 	
@@ -61,6 +62,7 @@ public void OnPluginStart()
 	HookEvent("defibrillator_begin", Event_DefibrillatorBegin);
 	HookEvent("heal_success", Event_HealSuccess, EventHookMode_Pre);
 	HookEvent("heal_begin", Event_HealBegin);
+	HookEvent("survivor_rescued", Event_SurvivorRescued, EventHookMode_Pre);
 	
 	CvarHook_OnChanged(null, "", "");
 	g_pCvarMinPing.AddChangeHook(CvarHook_OnChanged);
@@ -71,6 +73,7 @@ public void OnPluginStart()
 	g_pCvarServer.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarMinPlayTime.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarMaxPlayTime.AddChangeHook(CvarHook_OnChanged);
+	g_pCvarFakeCoop.AddChangeHook(CvarHook_OnChanged);
 	
 	if(g_bLateLoad)
 	{
@@ -83,8 +86,8 @@ public void OnPluginStart()
 	}
 }
 
-bool g_bReplaceStatus, g_bScaleHealth;
 char g_sStatusServer[64], g_sStatusVersion[64];
+bool g_bReplaceStatus, g_bScaleHealth, g_bFakeCoop;
 int g_iMinPing, g_iMaxPing, g_iOffsetPing, g_iMinPlayTime, g_iMaxPlayTime;
 
 public void CvarHook_OnChanged(ConVar cvar, const char[] oldValue, const char[] newValue)
@@ -98,6 +101,7 @@ public void CvarHook_OnChanged(ConVar cvar, const char[] oldValue, const char[] 
 	g_iMinPlayTime = g_pCvarMinPlayTime.IntValue;
 	g_iMaxPlayTime = g_pCvarMaxPlayTime.IntValue;
 	g_pCvarVersion.GetString(g_sStatusVersion, sizeof(g_sStatusVersion));
+	g_bFakeCoop = g_pCvarFakeCoop.BoolValue;
 }
 
 bool g_bFakeClient[MAXPLAYERS+1][MAXPLAYERS+1];
@@ -519,6 +523,19 @@ public void Event_HealBegin(Event event, const char[] eventName, bool dontBroadc
 	}
 }
 
+public Action Event_SurvivorRescued(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int helper = GetClientOfUserId(event.GetInt("rescuer"));
+	if(IsValidClient(helper) && IsClientInvis(helper))
+		return Plugin_Handled;
+	
+	int helpee = GetClientOfUserId(event.GetInt("victim"));
+	if(IsValidClient(helpee) && IsClientInvis(helpee))
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
 stock void FormatShortTime(int time, char[] outTime, int size)
 {
 	int s = time % 60;
@@ -568,7 +585,10 @@ stock int GetMaxClients2()
 
 stock bool IsClientInvis(int client)
 {
-	if(!IsClientInGame(client))
+	if(!g_bFakeCoop)
+		return false;
+	
+	if(!IsClientInGame(client) || IsFakeClient(client))
 		return false;
 	
 	if(g_iGameModeFlags == GMF_COOP || g_iGameModeFlags == GMF_SURVIVAL)

@@ -1378,7 +1378,6 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 	g_bIsGamePlaying = false;
 	// g_aDoorHandled.Clear();
 	
-	float time = GetEngineTime();
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
@@ -1391,10 +1390,20 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 		{
 			PerformGlow(i, 0, 0, 0);
 			RemoveGlowModel(i);
+			
+			if(g_fFreezeTime[i] > 0.0)
+			{
+				// 取消冻结玩家
+				SetEntPropFloat(i, Prop_Send, "m_TimeForceExternalView", 0.0);
+				SetEntityRenderColor(i);
+				// SetEntityMoveType(i, MOVETYPE_WALK);
+				SetEntProp(i, Prop_Data, "m_afButtonDisabled", 0);
+				SetEntityFlags(i, GetEntityFlags(i) & ~(FL_FROZEN|FL_FREEZING));
+			}
 		}
 		
-		if(g_fFreezeTime[i] > time)
-			g_fFreezeTime[i] = time;
+		if(g_fFreezeTime[i] > 0.0)
+			g_fFreezeTime[i] = 0.0;
 	}
 	
 	RestoreConVar();
@@ -7202,7 +7211,17 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 			}
 		}
 		
-		g_fFreezeTime[victim] = 0.0;
+		if(g_fFreezeTime[victim] > 0.0)
+		{
+			g_fFreezeTime[victim] = 0.0;
+			// 取消冻结玩家
+			SetEntPropFloat(victim, Prop_Send, "m_TimeForceExternalView", 0.0);
+			SetEntityRenderColor(victim);
+			// SetEntityMoveType(victim, MOVETYPE_WALK);
+			SetEntProp(victim, Prop_Data, "m_afButtonDisabled", 0);
+			SetEntityFlags(victim, GetEntityFlags(victim) & ~(FL_FROZEN|FL_FREEZING));
+		}
+		
 		// Initialization(victim);
 		ClientSaveToFileSave(victim, g_pCvarSaveStatus.BoolValue);
 		
@@ -8639,6 +8658,7 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 		AddArmor(client, 100 + (100 * IsPlayerHaveEffect(client, 33)));
 	}
 	
+	/*
 	if(!full && !g_bIsGamePlaying && GetClientTeam(client) == 2)
 	{
 		static ConVar cv_respawnhealth;
@@ -8651,6 +8671,7 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 		else if(health == 100)					// 上一局挂了/战役开局
 			SetEntProp(client, Prop_Data, "m_iHealth", GetEntProp(client, Prop_Data, "m_iMaxHealth"));
 	}
+	*/
 }
 
 public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool dontBroadcast)
@@ -9816,6 +9837,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		}
 	}
 	
+	int basicHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
 	int maxHealth = (baseMaxHealth + (baseMaxHealth * health / 100));
 	SetEntProp(client, Prop_Data, "m_iMaxHealth", maxHealth);
 	g_fMaxSpeedModify[client] = 1.0 + (speed / 100.0);
@@ -9845,6 +9867,12 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		// 脱离黑白状态
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
+	}
+	else if(basicHealth == baseMaxHealth && !g_bIsGamePlaying)
+	{
+		float fac = GetEntProp(client, Prop_Data, "m_iHealth") / float(basicHealth);
+		if(fac > 0.0)
+			SetEntProp(client, Prop_Data, "m_iHealth", RoundToZero(maxHealth * fac));
 	}
 	
 	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);

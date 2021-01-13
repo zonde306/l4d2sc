@@ -139,7 +139,7 @@ public void OnPluginStart()
 		g_hCvarGlowCol = CreateConVar(	"l4d_cabinet_glow_color",		"255 0 0",		"0=Default glow color. Three values between 0-255 separated by spaces. RGB Color255 - Red Green Blue.", CVAR_FLAGS );
 	}
 	g_hCvarMax = CreateConVar(			"l4d_cabinet_max",				"4",			"Maximum number of items.", CVAR_FLAGS, true, 0.0, true, 4.0);
-	g_hCvarMin = CreateConVar(			"l4d_cabinet_min",				"0",			"Minimum number of items.", CVAR_FLAGS, true, 0.0, true, 4.0);
+	g_hCvarMin = CreateConVar(			"l4d_cabinet_min",				"1",			"Minimum number of items.", CVAR_FLAGS, true, 0.0, true, 4.0);
 	g_hCvarRandom =	CreateConVar(		"l4d_cabinet_random",			"2",			"-1=All, 0=Off, other value randomly spawns that many Cabinets from the config.", CVAR_FLAGS);
 	g_hCvarSpawn3 =	CreateConVar(		"l4d_cabinet_spawn_adren",		"80",			"Chance out of 100 to spawn adrenaline.", CVAR_FLAGS, true, 0.0, true, 100.0);
 	g_hCvarSpawn4 =	CreateConVar(		"l4d_cabinet_spawn_defib",		"10",			"Chance out of 100 to spawn defibrillators.", CVAR_FLAGS, true, 0.0, true, 100.0);
@@ -661,7 +661,8 @@ int SpawnCabinet(float vAng[3], float vPos[3], int type1, int type2, int type3, 
 		SetEntProp(entity, Prop_Send, "m_nGlowRangeMin", 1);
 	}
 
-	HookSingleEntityOutput(entity, "OnAnimationDone", OnAnimationDone, true);
+	// HookSingleEntityOutput(entity, "OnAnimationDone", OnAnimationDone, true);
+	SpawnItems(entity);	// 修复机器人不会开箱 bug
 
 	return index;
 }
@@ -697,7 +698,7 @@ void SpawnItems(int entity)
 
 	if( index == -1 ) return;
 
-	UnhookSingleEntityOutput(entity, "OnAnimationDone", OnAnimationDone);
+	// UnhookSingleEntityOutput(entity, "OnAnimationDone", OnAnimationDone);
 
 	if( g_iSpawned[index] == 1 ) return;
 	g_iSpawned[index] = 1;

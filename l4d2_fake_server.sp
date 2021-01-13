@@ -48,6 +48,11 @@ public void OnPluginStart()
 	AddCommandListener(Command_Status, "status");
 	RegAdminCmd("sm_status", Command_Status2, ADMFLAG_ROOT);
 	
+	HookEvent("player_death", Event_PlayerDeath, EventHookMode_Pre);
+	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Pre);
+	HookEvent("player_hurt_concise", Event_PlayerHurtConcise, EventHookMode_Pre);
+	HookEvent("zombie_death", Event_ZombieDeath, EventHookMode_Pre);
+	
 	CvarHook_OnChanged(null, "", "");
 	g_pCvarMinPing.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarMaxPing.AddChangeHook(CvarHook_OnChanged);
@@ -249,9 +254,10 @@ public void OnEntityDestroyed(int entity)
 
 public void EntityHook_ThinkPost(int entity)
 {
+	// 数组上限就是这么大
 	for(int i = 1; i <= 32; ++i)
 	{
-		if(!IsClientInGame(i) || IsFakeClient(i))
+		if(!IsClientInGame(i))
 			continue;
 		
 		int team = GetClientTeam(i);
@@ -285,7 +291,7 @@ public void EntityHook_ThinkPost(int entity)
 		}
 		
 		// HIDDEN
-		if(IsClientInvis(i))
+		if(!IsFakeClient(i) && IsClientInvis(i))
 		{
 			SetEntProp(entity, Prop_Send, "m_bConnected", 0, 1, i);
 			SetEntProp(entity, Prop_Send, "m_iTeam", 0, 1, i);
@@ -296,8 +302,73 @@ public void EntityHook_ThinkPost(int entity)
 			SetEntProp(entity, Prop_Send, "m_zombieClass", Z_COMMON, 1, i);
 		}
 		
+		// 设置1可以防止被起票？
 		SetEntProp(entity, Prop_Send, "m_listenServerHost", 0, 1, i);
 	}
+}
+
+public Action Event_PlayerDeath(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidClient(victim) && IsClientInvis(victim))
+		return Plugin_Handled;
+	
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	if(IsValidClient(attacker) && IsClientInvis(attacker))
+	{
+		event.SetInt("attacker", 0);
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action Event_PlayerHurt(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidClient(victim) && IsClientInvis(victim))
+		return Plugin_Handled;
+	
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	if(IsValidClient(attacker) && IsClientInvis(attacker))
+	{
+		event.SetInt("attacker", 0);
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action Event_PlayerHurtConcise(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidClient(victim) && IsClientInvis(victim))
+		return Plugin_Handled;
+	
+	int attacker = event.GetInt("attackerentid");
+	if(IsValidClient(attacker) && IsClientInvis(attacker))
+	{
+		event.SetInt("attackerentid", 0);
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action Event_ZombieDeath(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(event.GetInt("victim"));
+	if(IsValidClient(victim) && IsClientInvis(victim))
+		return Plugin_Handled;
+	
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	if(IsValidClient(attacker) && IsClientInvis(attacker))
+	{
+		event.SetInt("attacker", 0);
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
 }
 
 stock void FormatShortTime(int time, char[] outTime, int size)
@@ -366,43 +437,3 @@ stock bool IsClientAdmin(int client)
 	
 	return false;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

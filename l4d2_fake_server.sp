@@ -52,6 +52,15 @@ public void OnPluginStart()
 	HookEvent("player_hurt", Event_PlayerHurt, EventHookMode_Pre);
 	HookEvent("player_hurt_concise", Event_PlayerHurtConcise, EventHookMode_Pre);
 	HookEvent("zombie_death", Event_ZombieDeath, EventHookMode_Pre);
+	HookEvent("player_incapacitated", Event_PlayerIncapacitated, EventHookMode_Pre);
+	HookEvent("player_incapacitated_start", Event_PlayerIncapacitatedStart, EventHookMode_Pre);
+	HookEvent("revive_success", Event_ReviveSuccess, EventHookMode_Pre);
+	HookEvent("revive_begin", Event_ReviveBegin);
+	HookEvent("award_earned", Event_AwardEarned, EventHookMode_Pre);
+	HookEvent("defibrillator_used", Event_DefibrillatorUsed, EventHookMode_Pre);
+	HookEvent("defibrillator_begin", Event_DefibrillatorBegin);
+	HookEvent("heal_success", Event_HealSuccess, EventHookMode_Pre);
+	HookEvent("heal_begin", Event_HealBegin);
 	
 	CvarHook_OnChanged(null, "", "");
 	g_pCvarMinPing.AddChangeHook(CvarHook_OnChanged);
@@ -264,14 +273,6 @@ public void EntityHook_ThinkPost(int entity)
 		if(team != 2 && team != 3)
 			continue;
 		
-		// FAKE PING
-		if(g_iClientPing[i] > 0)
-		{
-			SetRandomSeed(GetSysTickCount() + i);
-			g_iCurrentPing[i] = g_iClientPing[i] + GetRandomInt(-g_iOffsetPing, g_iOffsetPing);
-			SetEntProp(entity, Prop_Send, "m_iPing", g_iCurrentPing[i], 2, i);
-		}
-		
 		// FAKE HEALTH
 		if(g_bScaleHealth && team == 2)
 		{
@@ -290,16 +291,27 @@ public void EntityHook_ThinkPost(int entity)
 			}
 		}
 		
-		// HIDDEN
-		if(!IsFakeClient(i) && IsClientInvis(i))
+		if(!IsFakeClient(i))
 		{
-			SetEntProp(entity, Prop_Send, "m_bConnected", 0, 1, i);
-			SetEntProp(entity, Prop_Send, "m_iTeam", 0, 1, i);
-			SetEntProp(entity, Prop_Send, "m_bAlive", 0, 1, i);
-			SetEntProp(entity, Prop_Send, "m_isGhost", 0, 1, i);
-			SetEntProp(entity, Prop_Send, "m_isIncapacitated", 0, 1, i);
-			SetEntProp(entity, Prop_Send, "m_wantsToPlay", 0, 1, i);
-			SetEntProp(entity, Prop_Send, "m_zombieClass", Z_COMMON, 1, i);
+			// FAKE PING
+			if(g_iClientPing[i] > 0)
+			{
+				SetRandomSeed(GetSysTickCount() + i);
+				g_iCurrentPing[i] = g_iClientPing[i] + GetRandomInt(-g_iOffsetPing, g_iOffsetPing);
+				SetEntProp(entity, Prop_Send, "m_iPing", g_iCurrentPing[i], 2, i);
+			}
+			
+			// HIDDEN
+			if(IsClientInvis(i))
+			{
+				SetEntProp(entity, Prop_Send, "m_bConnected", 0, 1, i);
+				SetEntProp(entity, Prop_Send, "m_iTeam", 0, 1, i);
+				SetEntProp(entity, Prop_Send, "m_bAlive", 0, 1, i);
+				SetEntProp(entity, Prop_Send, "m_isGhost", 0, 1, i);
+				SetEntProp(entity, Prop_Send, "m_isIncapacitated", 0, 1, i);
+				SetEntProp(entity, Prop_Send, "m_wantsToPlay", 0, 1, i);
+				SetEntProp(entity, Prop_Send, "m_zombieClass", Z_COMMON, 1, i);
+			}
 		}
 		
 		// 设置1可以防止被起票？
@@ -369,6 +381,142 @@ public Action Event_ZombieDeath(Event event, const char[] eventName, bool dontBr
 	}
 	
 	return Plugin_Continue;
+}
+
+public Action Event_PlayerIncapacitated(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(event.GetInt("victim"));
+	if(IsValidClient(victim) && IsClientInvis(victim))
+		return Plugin_Handled;
+	
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	if(IsValidClient(attacker) && IsClientInvis(attacker))
+	{
+		event.SetInt("attacker", 0);
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action Event_PlayerIncapacitatedStart(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(event.GetInt("victim"));
+	if(IsValidClient(victim) && IsClientInvis(victim))
+		return Plugin_Handled;
+	
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	if(IsValidClient(attacker) && IsClientInvis(attacker))
+	{
+		event.SetInt("attacker", 0);
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action Event_ReviveSuccess(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int revivee = GetClientOfUserId(event.GetInt("subject"));
+	if(IsValidClient(revivee) && IsClientInvis(revivee))
+		return Plugin_Handled;
+	
+	int reviver = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidClient(reviver) && IsClientInvis(reviver))
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
+public void Event_ReviveBegin(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int helpee = GetClientOfUserId(event.GetInt("subject"));
+	int helper = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(helpee) || !IsValidClient(helper) || helpee == helper)
+		return;
+	
+	if(IsClientInvis(helpee))
+	{
+		SetEntProp(helper, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+		SetEntProp(helper, Prop_Send, "m_flProgressBarDuration", 0.0);
+	}
+	if(IsClientInvis(helper))
+	{
+		SetEntProp(helpee, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+		SetEntProp(helpee, Prop_Send, "m_flProgressBarDuration", 0.0);
+	}
+}
+
+public Action Event_AwardEarned(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidClient(client) && IsClientInvis(client))
+		return Plugin_Handled;
+	
+	int subject = event.GetInt("subjectentid");
+	if(IsValidClient(subject) && IsClientInvis(subject))
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
+public Action Event_DefibrillatorUsed(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int helper = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidClient(helper) && IsClientInvis(helper))
+		return Plugin_Handled;
+	
+	int helpee = GetClientOfUserId(event.GetInt("subject"));
+	if(IsValidClient(helpee) && IsClientInvis(helpee))
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
+public void Event_DefibrillatorBegin(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int helpee = GetClientOfUserId(event.GetInt("subject"));
+	int helper = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(helpee) || !IsValidClient(helper) || helpee == helper)
+		return;
+	
+	if(IsClientInvis(helpee))
+	{
+		SetEntProp(helper, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+		SetEntProp(helper, Prop_Send, "m_flProgressBarDuration", 0.0);
+	}
+}
+
+public Action Event_HealSuccess(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int helper = GetClientOfUserId(event.GetInt("userid"));
+	if(IsValidClient(helper) && IsClientInvis(helper))
+		return Plugin_Handled;
+	
+	int helpee = GetClientOfUserId(event.GetInt("subject"));
+	if(IsValidClient(helpee) && IsClientInvis(helpee))
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
+public void Event_HealBegin(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int helpee = GetClientOfUserId(event.GetInt("subject"));
+	int helper = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(helpee) || !IsValidClient(helper) || helpee == helper)
+		return;
+	
+	if(IsClientInvis(helpee))
+	{
+		SetEntProp(helper, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+		SetEntProp(helper, Prop_Send, "m_flProgressBarDuration", 0.0);
+	}
+	if(IsClientInvis(helper))
+	{
+		SetEntProp(helpee, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+		SetEntProp(helpee, Prop_Send, "m_flProgressBarDuration", 0.0);
+	}
 }
 
 stock void FormatShortTime(int time, char[] outTime, int size)

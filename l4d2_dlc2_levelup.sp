@@ -4544,7 +4544,7 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 			{
 				data.damage += GetRandomInt(-2, 3);
 				data.health += GetRandomInt(-15, 30);
-				data.speed += GetRandomInt(-3, 5);
+				data.speed += GetRandomInt(-1, 2);
 				data.gravity += GetRandomInt(-3, 5);
 			}
 			case EquipPart_Hand:
@@ -4557,7 +4557,7 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 			{
 				data.damage += GetRandomInt(-1, 3);
 				data.health += GetRandomInt(-1, 5);
-				data.speed += GetRandomInt(-5, 10);
+				data.speed += GetRandomInt(-3, 4);
 				data.gravity += GetRandomInt(-5, 10);
 			}
 		}
@@ -4567,13 +4567,13 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 		switch(data.prefix)
 		{
 			case EquipPrefix_Fire:
-				data.damage += GetRandomInt(1, 10);
+				data.damage += GetRandomInt(1, 5);
 			case EquipPrefix_Water:
 				data.health += GetRandomInt(1, 10);
 			case EquipPrefix_Sky:
-				data.gravity += GetRandomInt(1, 5);
+				data.gravity += GetRandomInt(1, 3);
 			case EquipPrefix_Wind:
-				data.speed += GetRandomInt(1, 5);
+				data.speed += GetRandomInt(1, 2);
 			case EquipPrefix_Lucky:
 				data.crit += GetRandomInt(1, 5);
 		}
@@ -14755,11 +14755,11 @@ stock int GiveEquipment(int client, int parts = -1)
 			data.health = GetRandomInt(10, 20);
 			data.crit = 0;
 			data.gravity = GetRandomInt(0, 3);
-			data.speed = GetRandomInt(0, 5);
+			data.speed = GetRandomInt(0, 2);
 		}
 		case EquipPart_Hand:
 		{
-			data.damage = GetRandomInt(10, 20);
+			data.damage = GetRandomInt(5, 10);
 			data.health = GetRandomInt(1, 5);
 			data.crit = GetRandomInt(5, 15);
 			data.gravity = 0;
@@ -14771,7 +14771,7 @@ stock int GiveEquipment(int client, int parts = -1)
 			data.health = GetRandomInt(1, 7);
 			data.crit = 0;
 			data.gravity = GetRandomInt(4, 10);
-			data.speed = GetRandomInt(5, 15);
+			data.speed = GetRandomInt(1, 5);
 		}
 	}
 	
@@ -14780,15 +14780,15 @@ stock int GiveEquipment(int client, int parts = -1)
 	switch(data.prefix)
 	{
 		case EquipPrefix_Fire:
-			data.damage += GetRandomInt(5, 20);
+			data.damage += GetRandomInt(2, 10);
 		case EquipPrefix_Water:
 			data.health += GetRandomInt(5, 20);
 		case EquipPrefix_Sky:
 			data.gravity += GetRandomInt(5, 20);
 		case EquipPrefix_Wind:
-			data.speed += GetRandomInt(5, 20);
+			data.speed += GetRandomInt(1, 3);
 		case EquipPrefix_Lucky:
-			data.crit += GetRandomInt(5, 20);
+			data.crit += GetRandomInt(1, 5);
 	}
 	
 	static char key[16];

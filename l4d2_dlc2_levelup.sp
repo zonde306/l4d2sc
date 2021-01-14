@@ -7413,7 +7413,7 @@ void RewardPicker(int client, int reward = -1)
 			else if(GetRandomInt(0, 1))
 			{
 				if(g_pCvarAllow.BoolValue)
-					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 尝试打开天启幸运箱,箱子蠢蠢欲动,可惜还是没打开...",client);
+					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 尝试打开幸运箱,箱子蠢蠢欲动,可惜还是没打开...",client);
 				else
 					PrintToChat(client, "\x03[提示]\x01 你尝试打开箱子，但是失败了。");
 			}
@@ -7431,37 +7431,48 @@ void RewardPicker(int client, int reward = -1)
 		case 2:
 		{
 			EmitSoundToClient( client, REWARD_SOUND );
-
-			if(g_pCvarAllow.BoolValue)
-				PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03随机获得一件装备\x04.",client);
-			else
-				PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，捡到了一个\x04奇怪的东西\x01。");
-
-			if(g_clSkillPoint[client] < 0)
+			
+			if(CalcPlayerPower(client) > 3000)
 			{
-				GiveSkillPoint(client, 2);
-
 				if(g_pCvarAllow.BoolValue)
-					PrintToChat(client, "\x03[提示]\x01 由于你的硬币是负数，获得装备改成了获得硬币。");
-			}
-			else
-			{
-				new j = GiveEquipment(client);
-				if(!j)
+					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03随机获得一件装备\x04.",client);
+				else
+					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，捡到了一个\x04奇怪的东西\x01。");
+
+				if(g_clSkillPoint[client] < 0)
 				{
+					GiveSkillPoint(client, 2);
+
 					if(g_pCvarAllow.BoolValue)
-						PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
+						PrintToChat(client, "\x03[提示]\x01 由于你的硬币是负数，获得装备改成了获得硬币。");
 				}
 				else
 				{
-					static char key[16];
-					IntToString(j, key, sizeof(key));
-					static EquipData_t data;
-					if(g_pCvarAllow.BoolValue && g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
+					new j = GiveEquipment(client);
+					if(!j)
 					{
-						PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01，输入 !lv 查看。", FormatEquip(client, data));
+						if(g_pCvarAllow.BoolValue)
+							PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
+					}
+					else
+					{
+						static char key[16];
+						IntToString(j, key, sizeof(key));
+						static EquipData_t data;
+						if(g_pCvarAllow.BoolValue && g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
+						{
+							PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01，输入 !lv 查看。", FormatEquip(client, data));
+						}
 					}
 				}
+			}
+			else
+			{
+				GiveSkillPoint(client, 1);
+				if(g_pCvarAllow.BoolValue)
+					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03获得硬币1枚\x04.",client);
+				else
+					PrintToChat(client, "\x03[提示]\x01 你打开了幸运箱，\x04获得硬币1枚\x01。");
 			}
 		}
 		case 3:
@@ -7769,7 +7780,7 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 			CreateTimer(1.0, AutoMenuOpen, i);
 			EmitSoundToClient(i,g_soundLevel);
 			new chance = GetRandomInt(1, 7);
-			if(chance < 6)
+			if(chance < 6 || CalcPlayerPower(i) <= 3000)
 			{
 				GiveSkillPoint(i, 1);
 
@@ -13582,27 +13593,36 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 					if(!IsClientInGame(i)) continue;
 					EmitSoundToClient(i,SOUND_GOOD);
 				}
-				SetEntityRenderColor(client, 255, 255, 255, 0);
-				PerformGlow(client, 3, 4713783, GetRandomInt(-32767,32767) * 128);
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04变成了幽灵战士,随机获得一件装备.", client);
-				if(g_clSkillPoint[client] < 0)
+				
+				if(CalcPlayerPower(client) > 3000)
 				{
-					GiveSkillPoint(client, 2);
-					PrintToChat(client, "\x03[提示]\x01 由于你的硬币是负数，获得装备改成了获得硬币。");
+					SetEntityRenderColor(client, 255, 255, 255, 0);
+					PerformGlow(client, 3, 4713783, GetRandomInt(-32767,32767) * 128);
+					PrintToChatAll("\x03[\x05RP\x03]%N\x04变成了幽灵战士,随机获得一件装备.", client);
+					if(g_clSkillPoint[client] < 0)
+					{
+						GiveSkillPoint(client, 2);
+						PrintToChat(client, "\x03[提示]\x01 由于你的硬币是负数，获得装备改成了获得硬币。");
+					}
+					else
+					{
+						new j = GiveEquipment(client);
+						if(!j)
+							PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
+						else
+						{
+							static char key[16];
+							IntToString(j, key, sizeof(key));
+							static EquipData_t data;
+							if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
+								PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01 输入 !lv 查看", FormatEquip(client, data));
+						}
+					}
 				}
 				else
 				{
-					new j = GiveEquipment(client);
-					if(!j)
-						PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
-					else
-					{
-						static char key[16];
-						IntToString(j, key, sizeof(key));
-						static EquipData_t data;
-						if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
-							PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01 输入 !lv 查看", FormatEquip(client, data));
-					}
+					GiveSkillPoint(client, 1);
+					PrintToChatAll("\x03[\x05RP\x03]%N\x04人品极佳,获得硬币\x031\x04枚!", client);
 				}
 			}
 			case 49:

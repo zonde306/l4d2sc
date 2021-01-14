@@ -151,17 +151,24 @@ public void Event_RoundStart(Event event, const char[] event_name, bool dontBroa
 
 public void Event_RoundEnd(Event event, const char[] event_name, bool dontBroadcast)
 {
+	Handle deleteme1 = null, deleteme2 = null;
+	
 	if(g_hTimerSpawnQueue != null)
 	{
-		KillTimer(g_hTimerSpawnQueue);
+		deleteme1 = g_hTimerSpawnQueue;
 		g_hTimerSpawnQueue = null;
 	}
 	
 	if(g_hTimerQueuedSpawnner != null)
 	{
-		KillTimer(g_hTimerQueuedSpawnner);
+		deleteme2 = g_hTimerQueuedSpawnner;
 		g_hTimerQueuedSpawnner = null;
 	}
+	
+	if(deleteme1)
+		KillTimer(deleteme1);
+	if(deleteme2)
+		KillTimer(deleteme2);
 }
 
 public Action L4D_OnFirstSurvivorLeftSafeArea(int client)

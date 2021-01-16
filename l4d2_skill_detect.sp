@@ -746,7 +746,7 @@ public Action: Event_PlayerHurt( Handle:event, const String:name[], bool:dontBro
 									if ( GetConVarBool(g_hCvarAllowSniper) ) {
 										HandleSkeet( attacker, victim, false, true, _,
 											g_iHunterShotCount[victim][attacker],
-											zClass == ZC_HUNTER );
+											_, zClass == ZC_HUNTER );
 									}
 									ResetHunter(victim);
 								}
@@ -781,7 +781,7 @@ public Action: Event_PlayerHurt( Handle:event, const String:name[], bool:dontBro
 						{
 							g_iHunterShotDmgTeam[victim] = 0;
 							if ( GetConVarBool(g_hCvarAllowMelee) && health == 0 ) {
-								HandleSkeet( attacker, victim, true, _, _, 1, zClass == ZC_HUNTER );
+								HandleSkeet( attacker, victim, true, _, _, 1, _, zClass == ZC_HUNTER );
 							}
 							ResetHunter(victim);
 							//g_bHunterKilledPouncing[victim] = true;
@@ -2805,7 +2805,7 @@ stock HandleSkeet( attacker, victim, bool:bMelee = false, bool:bSniper = false, 
 			else if(bGL)
 				PrintToChatAll("\x03★ \x04%N\x01 榴弹击中了飞扑的 \x05%N\x01.", attacker, victim);
 			else if(shots > 1)
-				PrintToChatAll("\x03★ \x04%N\x01 打死了飞扑的 \x05%N\x01 (射击 \x03%d\x01 次).", attacker, victim, shots);
+				PrintToChatAll("\x03★ \x04%N\x01 射死了飞扑的 \x05%N\x01 (射击 \x03%d\x01 次).", attacker, victim, shots);
 			else
 				PrintToChatAll("\x03★ \x04%N\x01 打死了飞扑的 \x05%N\x01.", attacker, victim);
 			
@@ -2833,7 +2833,7 @@ stock HandleSkeet( attacker, victim, bool:bMelee = false, bool:bSniper = false, 
 			else if(bGL)
 				PrintToChatAll("\x03★ \x04%N\x01 榴弹击中了飞扑的 \x05%s\x01.", attacker, (isHunter ? "Hunter" : "Jockey"));
 			else if(shots > 1)
-				PrintToChatAll("\x03★ \x04%N\x01 打死了飞扑的 \x05%s\x01 (射击 \x03%d\x01 次).", attacker, (isHunter ? "Hunter" : "Jockey"), shots);
+				PrintToChatAll("\x03★ \x04%N\x01 射死了飞扑的 \x05%s\x01 (射击 \x03%d\x01 次).", attacker, (isHunter ? "Hunter" : "Jockey"), shots);
 			else
 				PrintToChatAll("\x03★ \x04%N\x01 打死了飞扑的 \x05%s\x01.", attacker, (isHunter ? "Hunter" : "Jockey"));
 		}
@@ -2901,7 +2901,7 @@ stock HandleNonSkeet( attacker, victim, damage, bool:bOverKill = false, bool:bMe
 				}
 				else
 				{
-					PrintToChatAll("\x03%s \x05%N\x01 射死了正在飞扑的 \x04%N\x01 (伤害 \x03%d\x01)",
+					PrintToChatAll("\x03%s \x05%N\x01 打死了正在飞扑的 \x04%N\x01 (伤害 \x03%d\x01)",
 						(bOverKill ? "★" : "☆"), attacker, victim, damage);
 				}
 			}
@@ -2916,7 +2916,7 @@ stock HandleNonSkeet( attacker, victim, damage, bool:bOverKill = false, bool:bMe
 				}
 				else if(shots > 0)
 				{
-					PrintToChatAll("\x03%s \x05%N\x01 打死了正在飞扑的 \x04%s\x01 (射击 \x03%d\x01 次, 伤害 \x03%d\x01)",
+					PrintToChatAll("\x03%s \x05%N\x01 射死了正在飞扑的 \x04%s\x01 (射击 \x03%d\x01 次, 伤害 \x03%d\x01)",
 						(bOverKill ? "★" : "☆"), attacker, (isHunter ? "Hunter" : "Jockey"), shots, damage);
 				}
 				else

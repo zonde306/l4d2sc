@@ -448,7 +448,7 @@ bool g_bIsPluginCrawling = false;
 
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
 	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath, g_pCvarReimburse,
-	g_pCvarSurvivorBot, g_pCvarInfectedBot, g_pCvarEquipment;
+	g_pCvarSurvivorBot, g_pCvarInfectedBot, g_pCvarEquipment, g_pCvarGiveEquipment;
 
 ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hCvarBurnExpert, g_hCvarReviveHealth,
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
@@ -648,6 +648,7 @@ public OnPluginStart()
 	g_pCvarStartPoints = CreateConVar("lv_starter_points","3", "初始硬币数量", FCVAR_NONE, true, 0.0, true, 30.0);
 	g_pCvarReimburse = CreateConVar("lv_expired_reimburse","1750", "存档过期战斗力补偿(补偿硬币=先前战斗力/补偿数值).0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarBotRP = CreateConVar("lv_bot_rp","15", "机器人开门时触发人品事件的几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
+	g_pCvarGiveEquipment = CreateConVar("lv_give_eq", "3000", "获得装备所需最小战斗力", FCVAR_NONE, true, 0.0);
 	
 	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
@@ -1030,6 +1031,22 @@ public OnPluginStart()
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Found.");
 			else
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Not Found.");
+			
+			StartPrepSDKCall(SDKCall_Static);
+			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CHolidayGift::Create"))
+			{
+				PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+				PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+				PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+				PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+				PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+				g_pfnCreateGift = EndPrepSDKCall();
+			}
+			
+			if(g_pfnCreateGift != null)
+				LogMessage("l4d2_dlc2_levelup: CHolidayGift::Create Found.");
+			else
+				LogMessage("l4d2_dlc2_levelup: CHolidayGift::Create Not Found.");
 			
 			delete hGameData;
 		}
@@ -2729,7 +2746,7 @@ void StatusChooseMenuFunc(int client, int pg = -1)
 	menu.AddItem("3", "三级天赋(3币)");
 	menu.AddItem("4", "四级天赋(4币)");
 	menu.AddItem("5", "五级天赋(5币)");
-	menu.AddItem("6", "激活随机人品(抽奖)事件(!rp)");
+	menu.AddItem("6", "激活随机人品(抽奖)事件(!ldw)");
 	menu.AddItem("7", "商店菜单(!buy)");
 	menu.AddItem("8", "怒气系统");
 	menu.AddItem("9", "天启装备系统");
@@ -7265,6 +7282,7 @@ void DropItem( int client, const char[] Model )
 	
 	if(g_pfnCreateGift != null)
 	{
+		// CHolidayGift::Create(Vector origin, QAngle width, QAngle angles, Vector velocity, CBaseCombatCharacter *)
 		SDKCall(g_pfnCreateGift, vecPos, view_as<float>({0.0, 0.0, 0.0}), view_as<float>({0.0, 0.0, 0.0}), view_as<float>({0.0, 0.0, 0.0}), 0);
 		return;
 	}
@@ -7432,7 +7450,7 @@ void RewardPicker(int client, int reward = -1)
 		{
 			EmitSoundToClient( client, REWARD_SOUND );
 			
-			if(CalcPlayerPower(client) > 3000)
+			if(CalcPlayerPower(client) > g_pCvarGiveEquipment.IntValue)
 			{
 				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03随机获得一件装备\x04.",client);
@@ -7780,7 +7798,7 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 			CreateTimer(1.0, AutoMenuOpen, i);
 			EmitSoundToClient(i,g_soundLevel);
 			new chance = GetRandomInt(1, 7);
-			if(chance < 6 || CalcPlayerPower(i) <= 3000)
+			if(chance < 6 || CalcPlayerPower(i) < g_pCvarGiveEquipment.IntValue)
 			{
 				GiveSkillPoint(i, 1);
 
@@ -13334,7 +13352,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 			{
 				EmitSoundToAll(SOUND_GOOD,client);
 				GiveSkillPoint(client, 3);
-				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,额外获得硬币\x033\x04枚!", client);
+				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品大爆发,获得硬币\x033\x04枚!", client);
 			}
 			case 23:
 			{

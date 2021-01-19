@@ -8406,14 +8406,50 @@ public int OnSkeetSniper(int survivor, int hunter)
 	return 0;
 }
 
+public int OnSkeetHurt(int survivor, int hunter, damage, bool isOverkill)
+{
+	if(!isOverkill || !IsValidClient(survivor))
+		return 0;
+	
+	g_ttSpecialKilled[survivor] += 1;
+	return 0;
+}
+
+public int OnSkeetMeleeHurt(int survivor, int hunter, int damage, bool isOverkill)
+{
+	if(!isOverkill || !IsValidClient(survivor))
+		return 0;
+	
+	g_ttSpecialKilled[survivor] += 2;
+	return 0;
+}
+
+public int OnSkeetSniperHurt(int survivor, int hunter, int damage, bool isOverkill)
+{
+	if(!isOverkill || !IsValidClient(survivor))
+		return 0;
+	
+	g_ttSpecialKilled[survivor] += 1;
+	return 0;
+}
+
 public int OnChargerLevel(int survivor, int charger)
 {
 	if(!IsValidClient(survivor))
 		return 0;
 	
 	GiveSkillPoint(survivor, 1);
-	
 	g_ttSpecialKilled[survivor] += 5;
+	return 0;
+}
+
+public int OnChargerLevelHurt(int survivor, int charger, int damage)
+{
+	if(!IsValidClient(survivor))
+		return 0;
+	
+	// GiveSkillPoint(survivor, 1);
+	g_ttSpecialKilled[survivor] += 2;
 	return 0;
 }
 
@@ -10003,7 +10039,7 @@ int GetMaxHealth(int client)
 		return 100;
 
 	static ConVar cv_common, cv_witch, cv_smoker, cv_boomer, cv_hunter, cv_spitter,
-		cv_jockey, cv_charger, cv_tank;
+		cv_jockey, cv_charger, cv_tank, cv_gamemode;
 	if(cv_common == null)
 	{
 		cv_common = FindConVar("z_health");
@@ -10015,6 +10051,7 @@ int GetMaxHealth(int client)
 		cv_jockey = FindConVar("z_jockey_health");
 		cv_charger = FindConVar("z_charger_health");
 		cv_tank = FindConVar("z_tank_health");
+		cv_gamemode = FindConVar("mp_gamemode");
 	}
 
 	int zombieType = GetEntProp(client, Prop_Send, "m_zombieClass");
@@ -10039,7 +10076,14 @@ int GetMaxHealth(int client)
 		case ZC_TANK:
 			return cv_tank.IntValue;
 		case ZC_SURVIVOR:
+		{
+			static char gamemode[32];
+			cv_gamemode.GetString(gamemode, sizeof(gamemode));
+			if(StrEqual(gamemode, "rocketdude", false))
+				return 200;
+			
 			return 100;
+		}
 		case 10:
 			return 0;
 	}

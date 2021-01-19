@@ -285,7 +285,7 @@ void QueueSpawnner()
 
 public Action Timer_SpawnQueue(Handle timer, any unused)
 {
-	if(g_iQueuedToSpawn <= 0)
+	if(g_iQueuedToSpawn <= 0 || !IsPluginAllow())
 	{
 		g_hTimerQueuedSpawnner = null;
 		return Plugin_Stop;

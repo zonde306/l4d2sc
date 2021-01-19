@@ -63,6 +63,8 @@ public void OnPluginStart()
 	HookEvent("heal_success", Event_HealSuccess, EventHookMode_Pre);
 	HookEvent("heal_begin", Event_HealBegin);
 	HookEvent("survivor_rescued", Event_SurvivorRescued, EventHookMode_Pre);
+	HookUserMessage(GetUserMessageId("TextMsg"), OnUserMsg_TextMsg, true);
+	HookUserMessage(GetUserMessageId("HintText"), OnUserMsg_HintText, true);
 	
 	CvarHook_OnChanged(null, "", "");
 	g_pCvarMinPing.AddChangeHook(CvarHook_OnChanged);
@@ -532,6 +534,41 @@ public Action Event_SurvivorRescued(Event event, const char[] eventName, bool do
 	int helpee = GetClientOfUserId(event.GetInt("victim"));
 	if(IsValidClient(helpee) && IsClientInvis(helpee))
 		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
+public Action OnUserMsg_TextMsg(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
+{
+	static char message[256], name[MAX_NAME_LENGTH];
+	msg.ReadString(message, sizeof(message), false);
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(!IsClientConnected(i) || !IsClientInvis(i))
+			continue;
+		
+		GetClientName(i, name, sizeof(name));
+		if(StrContains(message, name, true) != -1)
+			return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action OnUserMsg_HintText(UserMsg msg_id, BfRead msg, const int[] players, int playersNum, bool reliable, bool init)
+{
+	static char message[256], name[MAX_NAME_LENGTH];
+	msg.ReadByte();
+	msg.ReadString(message, sizeof(message), false);
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(!IsClientConnected(i) || !IsClientInvis(i))
+			continue;
+		
+		GetClientName(i, name, sizeof(name));
+		if(StrContains(message, name, true) != -1)
+			return Plugin_Handled;
+	}
 	
 	return Plugin_Continue;
 }

@@ -7,6 +7,7 @@
 #include <left4dhooks>
 // #include <l4d_info_editor>
 #include <dhooks>
+#include <adminmenu>
 
 #define SOUND_Bomb					"weapons/grenade_launcher/grenadefire/grenade_launcher_explode_1.wav"
 #define SOUND_BCLAW					"animation/bombing_run_01.wav"
@@ -216,6 +217,9 @@ Handle g_hTimerSurvival = null;
 int g_iGlowModel[MAXPLAYERS+1];
 int g_iGlowOwner[4096];
 int g_iExtraPrimaryAmmo[MAXPLAYERS+1];
+float g_fPressedTime[MAXPLAYERS+1];
+float g_fLotteryStartTime = 0.0;
+float g_fNextAccurateShot[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -1065,6 +1069,11 @@ public OnPluginStart()
 	{
 		CreateTimer(1.0, Timer_RestoreDefault);
 	}
+	
+	// sm_admin 菜单
+	TopMenu tm = GetAdminTopMenu();
+	if(LibraryExists("adminmenu") && tm != null)
+		OnAdminMenuReady(tm);
 }
 
 public void OnConfigsExecuted()
@@ -1167,6 +1176,7 @@ public OnMapStart()
 	g_szRoundEvent = "无";
 	g_bHasTeleportActived = false;
 	g_bIsGamePlaying = false;
+	g_fLotteryStartTime = 0.0;
 	
 	/*
 	PrecacheModel("models/survivors/survivor_teenangst.mdl", true);
@@ -1377,6 +1387,7 @@ public OnMapEnd()
 	g_iRoundEvent = 0;
 	g_bIsGamePlaying = false;
 	g_hTimerSurvival = null;
+	g_fLotteryStartTime = 0.0;
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
@@ -1870,6 +1881,16 @@ void GenerateRandomStats(int client, bool uncap)
 		}
 	}
 	
+	if(uncap)
+	{
+		g_clSkill_1[client] |= 0x7FFFFFFF;
+		g_clSkill_2[client] |= 0x7FFFFFFF;
+		g_clSkill_3[client] |= 0x7FFFFFFF;
+		g_clSkill_4[client] |= 0x7FFFFFFF;
+		g_clSkill_5[client] |= 0x7FFFFFFF;
+		g_clAngryMode[client] = GetRandomInt(1, 7);
+	}
+	
 	// g_bIsVerified[client] = true;
 }
 
@@ -1915,6 +1936,7 @@ void Initialization(int client, bool invalid = false)
 	g_iExtraAmmo[client] = 0;
 	g_iExtraArmor[client] = 0;
 	g_bAccurateShot[client] = false;
+	g_fNextAccurateShot[client] = 0.0;
 	g_iReloadWeaponUpgrade[client] = 0;
 	g_iReloadWeaponUpgradeClip[client] = 0;
 	g_fForgiveOfTK[client] = 0.0;
@@ -1930,6 +1952,7 @@ void Initialization(int client, bool invalid = false)
 	g_iGlowModel[client] = INVALID_ENT_REFERENCE;
 	g_iExtraPrimaryAmmo[client] = 0;
 	g_iGlowOwner[client] = 0;
+	g_fPressedTime[client] = 0.0;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -3281,7 +3304,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("「储备」更多携带弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
 	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("「守备」受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
 	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("「跳弹」子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
-	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪一定会暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
+	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪会暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4775,6 +4798,7 @@ void StatusSelectMenuFuncRP(int clientId, bool withMenu = false)
 			g_bIsRPActived[clientId] = true;
 			CreateTimer(40.0, Event_RP, clientId, TIMER_FLAG_NO_MAPCHANGE);
 			CreateTimer(90.0, Client_RP, clientId, TIMER_FLAG_NO_MAPCHANGE);
+			g_fLotteryStartTime = GetEngineTime() + 40.0;
 
 			if(g_pCvarAllow.BoolValue)
 				PrintToChatAll("\x03[\x05提示\x03]%N\x04激活了人品(抽奖)事件,怒气值\x05+2\x04,等待\x03[\x0540\x03]\x04秒后人品(抽奖)事件发生!", clientId);
@@ -6743,7 +6767,7 @@ public void FillExtraArmor(any client)
 		g_iExtraArmor[client] = 0;
 	}
 	
-	PrintCenterText(client, "护甲剩余 %d|血量剩余 %d", count, GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client));
+	// PrintCenterText(client, "护甲剩余 %d|血量剩余 %d", count, GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client));
 }
 
 void GiveAngryPoint(int victim, int amount)
@@ -10396,6 +10420,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	}
 	
 	float weaponSpeed = 1.0;
+	float time = GetEngineTime();
 	int maxClip = CalcPlayerClip(client, weapon);
 	int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
 	bool isShotgun = (StrContains(classname, "shotgun", false) != -1);
@@ -10432,8 +10457,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			AddAmmo(client, 1, ammoType, true);
 			hasGetAmmo = true;
 		}
-		else if(((g_clSkill_3[client] & SKL_3_Accurate) && clip == maxClip) ||							// 第一枪一定会暴击
-			((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= GetEngineTime()))		// 潜行攻击
+		else if(((g_clSkill_3[client] & SKL_3_Accurate) && clip == maxClip && g_fNextAccurateShot[client] <= time) ||		// 第一枪一定会暴击
+			((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time))										// 潜行攻击
 		{
 			// 只有非无限子弹才生效
 			g_bAccurateShot[client] = true;
@@ -10441,11 +10466,13 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			
 			// 好像不是很必要
 			RequestFrame(EndAccurateShot, client);
+			g_fNextAccurateShot[client] = time + 5.0;
 		}
 		else
 		{
 			// 取消效果
 			g_bAccurateShot[client] = false;
+			g_fNextAccurateShot[client] = time + 5.0;
 		}
 		
 		if((g_clSkill_4[client] & SKL_4_SniperExtra) &&
@@ -10532,9 +10559,9 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		
 		// 消音冲锋枪和其他武器
 		if(StrContains(classname, "smg_silenced", false))
-			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
+			g_fNextCalmTime[client] = GetEngineTime() + 2.0;
 		else
-			g_fNextCalmTime[client] = GetEngineTime() + 5.0;
+			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
 	}
 	else if(StrContains(classname, "pistol", false) > -1)
 	{
@@ -10566,9 +10593,9 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		
 		// 小手枪和马格南
 		if(classname[13] == EOS)
-			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
+			g_fNextCalmTime[client] = GetEngineTime() + 2.0;
 		else
-			g_fNextCalmTime[client] = GetEngineTime() + 5.0;
+			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
 	}
 	else if(StrEqual(classname, "weapon_chainsaw", false))
 	{
@@ -10578,7 +10605,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			SetEntProp(weapon, Prop_Send, "m_iClip1", 31);
 		}
 		
-		g_fNextCalmTime[client] = GetEngineTime() + 6.0;
+		g_fNextCalmTime[client] = GetEngineTime() + 3.0;
 	}
 	else if((g_clSkill_5[client] & SKL_5_RocketDude) && !(GetEntityFlags(client) & FL_ONGROUND) && StrContains(classname, "grenade_launcher", false) != -1)
 	{
@@ -11139,9 +11166,12 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 		}
 	}
 	
+	int oldHealth = health;
 	if(team == 2 && !GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
 	{
 		float buffer = GetPlayerTempHealth(client) * 1.0;
+		float oldBuffer = buffer;
+		
 		buffer += amount;
 		
 		if(limit)
@@ -11166,9 +11196,13 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 			if(buffer < 0.0)
 				buffer = 0.0;
 		}
-
-		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", buffer);
-		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		
+		// 确定是否真的有效增加或有效减少
+		if((amount > 0 && (health > oldHealth || buffer > oldBuffer)) || (amount < 0 && (oldHealth > health || oldBuffer > buffer)))
+		{
+			SetEntPropFloat(client, Prop_Send, "m_healthBuffer", buffer);
+			SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		}
 	}
 	else if(team == 3)
 	{
@@ -11179,8 +11213,11 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 				health = maxHealth;
 		}
 	}
-
-	SetEntProp(client, Prop_Data, "m_iHealth", health);
+	
+	// 确定是否真的有效增加或有效减少
+	if((amount > 0 && health > oldHealth) || (amount < 0 && oldHealth > health))
+		SetEntProp(client, Prop_Data, "m_iHealth", health);
+	
 	return true;
 }
 
@@ -11646,8 +11683,29 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	if(!IsValidAliveClient(client))
 		return Plugin_Continue;
 	
+	float time = GetEngineTime();
+	if(!IsFakeClient(client))
+	{
+		if(buttons & IN_RELOAD)
+		{
+			if(g_fPressedTime[client] <= 0.0)
+			{
+				g_fPressedTime[client] = time + 0.5;
+			}
+			else if(g_fPressedTime[client] <= time)
+			{
+				g_fPressedTime[client] = time + 0.25;
+				ShowStatusPanel(client);
+			}
+		}
+		else if(g_fPressedTime[client] > 0.0)
+		{
+			g_fPressedTime[client] = 0.0;
+		}
+	}
+	
 	// 冻结时禁止任何操作
-	if(g_fFreezeTime[client] > GetEngineTime())
+	if(g_fFreezeTime[client] > time)
 		return Plugin_Handled;
 	
 	// 用于检查玩家状态
@@ -11889,10 +11947,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			if((g_clSkill_1[client] & SKL_1_KeepClip) && isReloading && (buttons & IN_ATTACK) && !(buttons & (IN_ATTACK2|IN_RELOAD)) &&
 				clip > 0 && StrContains(classname, "shotgun", false) == -1)
 			{
-				float time = GetGameTime();
+				float gt = GetGameTime();
 				SetEntProp(weaponId, Prop_Send, "m_bInReload", 0);
-				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
-				SetEntPropFloat(weaponId, Prop_Send, "m_flNextPrimaryAttack", time);
+				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", gt);
+				SetEntPropFloat(weaponId, Prop_Send, "m_flNextPrimaryAttack", gt);
 				PlayerHook_OnReloadStopped(client, weaponId);
 			}
 		}
@@ -12128,10 +12186,103 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		g_bOnRocketDude[client] = false;
 	}
 	
-	if(GetVectorLength(vel) > 9.0 && !(buttons & IN_SPEED))
-		g_fNextCalmTime[client] += GetEngineTime() + 1.0;
+	if(GetVectorLength(vel) > 9.0 && !(buttons & (IN_SPEED|IN_DUCK)))
+		g_fNextCalmTime[client] += time + 1.0;
 	
 	return Plugin_Changed;
+}
+
+void ShowStatusPanel(int client)
+{
+	Panel menu = CreatePanel();
+	// menu.SetTitle("状态信息");
+	float time = GetEngineTime();
+	
+	// 惩罚
+	if(g_csSlapCount[client] > 0)
+		menu.DrawText(tr("拍打 %d", g_csSlapCount[client]));
+	if(g_fFreezeTime[client] > time)
+		menu.DrawText(tr("冻结 %.1fs", g_fFreezeTime[client] - time));
+	if(g_fLotteryStartTime > 0.0)
+		menu.DrawText(tr("人品 %.1fs", g_fLotteryStartTime - time));
+	menu.DrawText("\n");
+	
+	// 统计
+	int health = GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client);
+	int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
+	menu.DrawText(tr("血量%d/%d", health, maxHealth));
+	
+	int armor = GetEntProp(client, Prop_Send, "m_ArmorValue") + g_iExtraArmor[client];
+	int maxArmor = ((g_clSkill_1[client] & SKL_1_Armor) ? 100 : 0) + (100 * IsPlayerHaveEffect(client, 33));
+	menu.DrawText(tr("护甲%d/%d", armor, maxArmor));
+	
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon > MaxClients)
+	{
+		int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType")) + g_iExtraAmmo[client];
+		int maxAmmo = GetDefaultAmmo(weapon);
+		float scale = 1.0;
+		scale += IsPlayerHaveEffect(client, 15) * 0.25;
+		if(g_clSkill_3[client] & SKL_3_MoreAmmo)
+			scale += 1.0;
+		maxAmmo = RoundToZero(maxAmmo * scale);
+		menu.DrawText(tr("弹药%d/%d", ammo, maxAmmo));
+	}
+	float chance = g_iDamageChance[client] * 0.1;
+	int minDamage = g_iDamageChanceMin[client];
+	int maxDamage = g_iDamageChanceMax[client];
+	int base = g_iDamageBase[client];
+	
+	if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time)
+		menu.DrawText(tr("攻击+%d 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
+	else if((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time)
+		menu.DrawText(tr("攻击+%d 暴击100%%(%d~%d) 潜行中", base, minDamage, maxDamage));
+	else
+		menu.DrawText(tr("攻击+%d 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage));
+	menu.DrawText("\n");
+	
+	// 计时技能
+	if((g_clSkill_2[client] & SKL_2_PainPills) && g_ctPainPills[client] > 0.0)
+		menu.DrawText(tr("嗜药%.1fs", g_ctPainPills[client] - time));
+	if((g_clSkill_2[client] & SKL_2_Defibrillator) && g_ctDefibrillator[client] > 0.0)
+		menu.DrawText(tr("电疗%.1fs", g_ctDefibrillator[client] - time));
+	if((g_clSkill_2[client] & SKL_2_PipeBomb) && g_ctPipeBomb[client] > 0.0)
+		menu.DrawText(tr("爆破%.1fs", g_ctPipeBomb[client] - time));
+	if((g_clSkill_2[client] & SKL_2_FullHealth) && g_ctFullHealth[client] > 0.0)
+		menu.DrawText(tr("永康%.1fs", g_ctFullHealth[client] - time));
+	if((g_clSkill_3[client] & SKL_3_SelfHeal) && g_ctSelfHeal[client] > 0.0)
+		menu.DrawText(tr("暴疗%.1fs", g_ctSelfHeal[client] - time));
+	if((g_clSkill_3[client] & SKL_3_GodMode) && g_ctGodMode[client] != 0.0)
+		menu.DrawText(tr("无敌%.1fs", (g_ctGodMode[client] > 0.0 ? g_ctGodMode[client] - time : time - g_ctGodMode[client])));
+	menu.DrawText("\n");
+	
+	// 奖励进度
+	if(g_ttCommonKilled[client] > 0 && g_pCvarCommonKilled.IntValue > 0)
+		menu.DrawText(tr("普感%d/%d", g_ttCommonKilled[client], g_pCvarCommonKilled.IntValue));
+	if(g_ttSpecialKilled[client] > 0 && g_pCvarSpecialKilled.IntValue > 0)
+		menu.DrawText(tr("特感%d/%d", g_ttSpecialKilled[client], g_pCvarSpecialKilled.IntValue));
+	if(g_ttOtherRevived[client] > 0 && g_pCvarOtherRevived.IntValue > 0)
+		menu.DrawText(tr("拉起%d/%d", g_ttOtherRevived[client], g_pCvarOtherRevived.IntValue));
+	if(g_ttProtected[client] > 0 && g_pCvarProtected.IntValue > 0)
+		menu.DrawText(tr("保护%d/%d", g_ttProtected[client], g_pCvarProtected.IntValue));
+	if(g_ttGivePills[client] > 0 && g_pCvarGivePills.IntValue > 0)
+		menu.DrawText(tr("递药%d/%d", g_ttGivePills[client], g_pCvarGivePills.IntValue));
+	if(g_ttDefibUsed[client] > 0 && g_pCvarDefibUsed.IntValue > 0)
+		menu.DrawText(tr("治愈%d/%d", g_ttDefibUsed[client], g_pCvarDefibUsed.IntValue));
+	if(g_ttPaincEvent[client] > 0 && g_pCvarPaincEvent.IntValue > 0)
+		menu.DrawText(tr("尸潮%d/%d", g_ttPaincEvent[client], g_pCvarPaincEvent.IntValue));
+	if(g_ttRescued[client] > 0 && g_pCvarRescued.IntValue > 0)
+		menu.DrawText(tr("开门%d/%d", g_ttRescued[client], g_pCvarRescued.IntValue));
+	if(g_ttCleared[client] > 0 && g_pCvarCleared.IntValue > 0)
+		menu.DrawText(tr("清尸%d/%d", g_ttCleared[client], g_pCvarCleared.IntValue));
+	menu.DrawText("\n");
+	
+	menu.Send(client, MenuHandler_Null, 1);
+}
+
+public int MenuHandler_Null(Menu menu, MenuAction action, int client, int selected)
+{
+	return 0;
 }
 
 bool:IsMoving(client)
@@ -13135,6 +13286,8 @@ public Action:Event_RP(Handle:timer, any:client)
 		PrintToChatAll("\x03[\x05RP\x03]%N\x04人品十分有问题,没有事情发生.", client);
 		ClientCommand(client, "play \"ambient/animal/crow_2.wav\"");
 	}
+	
+	g_fLotteryStartTime = 0.0;
 }
 
 void TriggerRP(int client, int RandomRP = -1, bool force = false)
@@ -14149,497 +14302,6 @@ public Action:Timer_RestoreDefault(Handle:timer, any:client)
 	return Plugin_Continue;
 }
 
-public int Native_AddHealth(Handle plugin, int argc)
-{
-	if(argc < 4)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int amount = GetNativeCell(2);
-	bool limit = GetNativeCell(3);
-	bool convertable = GetNativeCell(4);
-	
-	return AddHealth(client, amount, limit, convertable);
-}
-
-public int Native_AddAmmo(Handle plugin, int argc)
-{
-	if(argc < 3)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int amount = GetNativeCell(2);
-	bool limit = GetNativeCell(3);
-	
-	return AddAmmo(client, amount, _, _, limit);
-}
-
-public int Native_AddArmor(Handle plugin, int argc)
-{
-	if(argc < 3)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int amount = GetNativeCell(2);
-	bool helmet = GetNativeCell(3);
-	
-	return AddArmor(client, amount, helmet);
-}
-
-public int Native_GiveSkillPoints(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int amount = GetNativeCell(2);
-	
-	return GiveSkillPoint(client, amount);
-}
-
-public int Native_GetSkillPoints(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return g_clSkillPoint[client];
-}
-
-public int Native_GiveEquipment(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int parts = GetNativeCell(2);
-	
-	return GiveEquipment(client, parts);
-}
-
-public int Native_GenerateRandomStatus(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	GenerateRandomStats(client, !!GetNativeCell(2));
-	return 0;
-}
-
-public int Native_SaveToFile(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	bool checkpoint = GetNativeCell(2);
-	
-	return ClientSaveToFileSave(client, checkpoint);
-}
-
-public int Native_LoadFromFile(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	bool checkpoint = GetNativeCell(2);
-	
-	return ClientSaveToFileLoad(client, checkpoint);
-}
-
-public int Native_GetSkill(Handle plugin, int argc)
-{
-	if(argc < 3)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int level = GetNativeCell(2);
-	int skill = GetNativeCell(3);
-	
-	switch(level)
-	{
-		case 1:
-			return (g_clSkill_1[client] & skill);
-		case 2:
-			return (g_clSkill_2[client] & skill);
-		case 3:
-			return (g_clSkill_3[client] & skill);
-		case 4:
-			return (g_clSkill_4[client] & skill);
-		case 5:
-			return (g_clSkill_5[client] & skill);
-	}
-	
-	return 0;
-}
-
-public int Native_GiveSkill(Handle plugin, int argc)
-{
-	if(argc < 3)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int level = GetNativeCell(2);
-	int skill = GetNativeCell(3);
-	
-	switch(level)
-	{
-		case 1:
-			return (g_clSkill_1[client] |= skill);
-		case 2:
-			return (g_clSkill_2[client] |= skill);
-		case 3:
-			return (g_clSkill_3[client] |= skill);
-		case 4:
-			return (g_clSkill_4[client] |= skill);
-		case 5:
-			return (g_clSkill_5[client] |= skill);
-	}
-	
-	return 0;
-}
-
-public int Native_RemoveSkill(Handle plugin, int argc)
-{
-	if(argc < 3)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int level = GetNativeCell(2);
-	int skill = GetNativeCell(3);
-	
-	switch(level)
-	{
-		case 1:
-			return (g_clSkill_1[client] &= ~skill);
-		case 2:
-			return (g_clSkill_2[client] &= ~skill);
-		case 3:
-			return (g_clSkill_3[client] &= ~skill);
-		case 4:
-			return (g_clSkill_4[client] &= ~skill);
-		case 5:
-			return (g_clSkill_5[client] &= ~skill);
-	}
-	
-	return 0;
-}
-
-public int Native_GetEffects(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int effect = GetNativeCell(2);
-	
-	return IsPlayerHaveEffect(client, effect);
-}
-
-public int Native_GetPower(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return CalcPlayerPower(client);
-}
-
-public int Native_GetAttrs(Handle plugin, int argc)
-{
-	if(argc < 6)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	bool withSkill = GetNativeCell(7);
-	
-	int damage, health, speed, gravity, crit;
-	CalcPlayerAttr(client, damage, health, speed, gravity, crit, withSkill);
-	
-	SetNativeCellRef(2, damage);
-	SetNativeCellRef(3, health);
-	SetNativeCellRef(4, speed);
-	SetNativeCellRef(5, gravity);
-	SetNativeCellRef(6, crit);
-	
-	return 0;
-}
-
-public int Native_GetAngrySkill(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return g_clAngryMode[client];
-}
-
-public int Native_SetAngrySkill(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int skill = GetNativeCell(2);
-	
-	return g_clAngryMode[client] = skill;
-}
-
-public int Native_GetAngryPoints(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return g_clAngryPoint[client];
-}
-
-public int Native_GiveAngryPoints(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int amount = GetNativeCell(2);
-	
-	GiveAngryPoint(client, amount);
-	return 0;
-}
-
-public int Native_GetRoundEvent(Handle plugin, int argc)
-{
-	return g_iRoundEvent;
-}
-
-public int Native_SetRoundEvent(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	StartRoundEvent(GetNativeCell(1));
-	return 0;
-}
-
-public int Native_FreezePlayer(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	float duration = GetNativeCell(2);
-	
-	FreezePlayer(client, duration);
-	return 0;
-}
-
-public int Native_GetTempHealth(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return GetPlayerTempHealth(client);
-}
-
-public int Native_GetCurrentAttacker(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return GetCurrentAttacker(client);
-}
-
-public int Native_GetCurrentVictim(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return GetCurrentVictim(client);
-}
-
-public int Native_GetArmor(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return GetEntProp(client, Prop_Send, "m_ArmorValue") + g_iExtraArmor[client];
-}
-
-public int Native_GetAmmo(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int weapon = GetPlayerWeaponSlot(client, 0);
-	if(weapon < MaxClients || !IsValidEntity(weapon))
-		ThrowNativeError(SP_ERROR_PARAM, "no primary weapon");
-	
-	int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
-	return GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) + g_iExtraAmmo[client];
-}
-
-public int Native_GetEquipment(Handle plugin, int argc)
-{
-	if(argc < 3)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	int size = GetNativeCell(3);
-	if(size > sizeof(g_clCurEquip[]))
-		size = sizeof(g_clCurEquip[]);
-	
-	SetNativeArray(2, g_clCurEquip[client], size);
-	return 0;
-}
-
-public int Native_TriggerAngry(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	TriggerAngrySkill(client, GetNativeCell(2));
-	return 0;
-}
-
-public int Native_TriggerGift(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	RewardPicker(client, GetNativeCell(2));
-	return 0;
-}
-
-public int Native_TriggerLottery(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	TriggerRP(client, GetNativeCell(2), true);
-	return 0;
-}
-
-public any Native_GetFreezeTimer(Handle plugin, int argc)
-{
-	if(argc < 1)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	return g_fFreezeTime[client];
-}
-
-public int Native_SetFreezeTimer(Handle plugin, int argc)
-{
-	if(argc < 2)
-		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
-	
-	int client = GetNativeCell(1);
-	if(!IsValidAliveClient(client))
-		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
-	
-	g_fFreezeTime[client] = view_as<float>(GetNativeCell(2));
-	return 0;
-}
-
 // 以隐藏的方式打开一个 MOTD 浏览器（也可以用于关闭）
 // 这个浏览器将会在客户端后台运行
 // 也就是如果这个网页播放的声音客户端听得到，但是看不到网页
@@ -15306,9 +14968,12 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "弹力鞋");
 			strcopy(buffer, sizeof(buffer), "连跳可以跳得更高更快");
 		}
-
 		default:
-			buffer[0] = EOS;
+		{
+			g_iRoundEvent = 0;
+			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "(无)");
+			strcopy(buffer, sizeof(buffer), "");
+		}
 	}
 
 	if(len > strlen(buffer))
@@ -15323,6 +14988,1361 @@ char tr(const char[] text, any ...)
 	VFormat(line, 1024, text, 2);
 	return line;
 }
+
+/*
+*****************************************************
+*					导出函数
+*****************************************************
+*/
+
+public int Native_AddHealth(Handle plugin, int argc)
+{
+	if(argc < 4)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	bool limit = GetNativeCell(3);
+	bool convertable = GetNativeCell(4);
+	
+	return AddHealth(client, amount, limit, convertable);
+}
+
+public int Native_AddAmmo(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	bool limit = GetNativeCell(3);
+	
+	return AddAmmo(client, amount, _, _, limit);
+}
+
+public int Native_AddArmor(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	bool helmet = GetNativeCell(3);
+	
+	return AddArmor(client, amount, helmet);
+}
+
+public int Native_GiveSkillPoints(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	
+	return GiveSkillPoint(client, amount);
+}
+
+public int Native_GetSkillPoints(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_clSkillPoint[client];
+}
+
+public int Native_GiveEquipment(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int parts = GetNativeCell(2);
+	
+	return GiveEquipment(client, parts);
+}
+
+public int Native_GenerateRandomStatus(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	GenerateRandomStats(client, !!GetNativeCell(2));
+	return 0;
+}
+
+public int Native_SaveToFile(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	bool checkpoint = GetNativeCell(2);
+	
+	return ClientSaveToFileSave(client, checkpoint);
+}
+
+public int Native_LoadFromFile(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	bool checkpoint = GetNativeCell(2);
+	
+	return ClientSaveToFileLoad(client, checkpoint);
+}
+
+public int Native_GetSkill(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int level = GetNativeCell(2);
+	int skill = GetNativeCell(3);
+	
+	switch(level)
+	{
+		case 1:
+			return (g_clSkill_1[client] & skill);
+		case 2:
+			return (g_clSkill_2[client] & skill);
+		case 3:
+			return (g_clSkill_3[client] & skill);
+		case 4:
+			return (g_clSkill_4[client] & skill);
+		case 5:
+			return (g_clSkill_5[client] & skill);
+	}
+	
+	return 0;
+}
+
+public int Native_GiveSkill(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int level = GetNativeCell(2);
+	int skill = GetNativeCell(3);
+	
+	switch(level)
+	{
+		case 1:
+			return (g_clSkill_1[client] |= skill);
+		case 2:
+			return (g_clSkill_2[client] |= skill);
+		case 3:
+			return (g_clSkill_3[client] |= skill);
+		case 4:
+			return (g_clSkill_4[client] |= skill);
+		case 5:
+			return (g_clSkill_5[client] |= skill);
+	}
+	
+	return 0;
+}
+
+public int Native_RemoveSkill(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int level = GetNativeCell(2);
+	int skill = GetNativeCell(3);
+	
+	switch(level)
+	{
+		case 1:
+			return (g_clSkill_1[client] &= ~skill);
+		case 2:
+			return (g_clSkill_2[client] &= ~skill);
+		case 3:
+			return (g_clSkill_3[client] &= ~skill);
+		case 4:
+			return (g_clSkill_4[client] &= ~skill);
+		case 5:
+			return (g_clSkill_5[client] &= ~skill);
+	}
+	
+	return 0;
+}
+
+public int Native_GetEffects(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int effect = GetNativeCell(2);
+	
+	return IsPlayerHaveEffect(client, effect);
+}
+
+public int Native_GetPower(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return CalcPlayerPower(client);
+}
+
+public int Native_GetAttrs(Handle plugin, int argc)
+{
+	if(argc < 6)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	bool withSkill = GetNativeCell(7);
+	
+	int damage, health, speed, gravity, crit;
+	CalcPlayerAttr(client, damage, health, speed, gravity, crit, withSkill);
+	
+	SetNativeCellRef(2, damage);
+	SetNativeCellRef(3, health);
+	SetNativeCellRef(4, speed);
+	SetNativeCellRef(5, gravity);
+	SetNativeCellRef(6, crit);
+	
+	return 0;
+}
+
+public int Native_GetAngrySkill(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_clAngryMode[client];
+}
+
+public int Native_SetAngrySkill(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int skill = GetNativeCell(2);
+	
+	return g_clAngryMode[client] = skill;
+}
+
+public int Native_GetAngryPoints(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_clAngryPoint[client];
+}
+
+public int Native_GiveAngryPoints(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int amount = GetNativeCell(2);
+	
+	GiveAngryPoint(client, amount);
+	return 0;
+}
+
+public int Native_GetRoundEvent(Handle plugin, int argc)
+{
+	return g_iRoundEvent;
+}
+
+public int Native_SetRoundEvent(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	StartRoundEvent(GetNativeCell(1));
+	return 0;
+}
+
+public int Native_FreezePlayer(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	float duration = GetNativeCell(2);
+	
+	FreezePlayer(client, duration);
+	return 0;
+}
+
+public int Native_GetTempHealth(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return GetPlayerTempHealth(client);
+}
+
+public int Native_GetCurrentAttacker(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return GetCurrentAttacker(client);
+}
+
+public int Native_GetCurrentVictim(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return GetCurrentVictim(client);
+}
+
+public int Native_GetArmor(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return GetEntProp(client, Prop_Send, "m_ArmorValue") + g_iExtraArmor[client];
+}
+
+public int Native_GetAmmo(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon < MaxClients || !IsValidEntity(weapon))
+		ThrowNativeError(SP_ERROR_PARAM, "no primary weapon");
+	
+	int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+	return GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) + g_iExtraAmmo[client];
+}
+
+public int Native_GetEquipment(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	int size = GetNativeCell(3);
+	if(size > sizeof(g_clCurEquip[]))
+		size = sizeof(g_clCurEquip[]);
+	
+	SetNativeArray(2, g_clCurEquip[client], size);
+	return 0;
+}
+
+public int Native_TriggerAngry(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	TriggerAngrySkill(client, GetNativeCell(2));
+	return 0;
+}
+
+public int Native_TriggerGift(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	RewardPicker(client, GetNativeCell(2));
+	return 0;
+}
+
+public int Native_TriggerLottery(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	TriggerRP(client, GetNativeCell(2), true);
+	return 0;
+}
+
+public any Native_GetFreezeTimer(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_fFreezeTime[client];
+}
+
+public int Native_SetFreezeTimer(Handle plugin, int argc)
+{
+	if(argc < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	g_fFreezeTime[client] = view_as<float>(GetNativeCell(2));
+	return 0;
+}
+
+/*
+*****************************************************
+*					管理员菜单
+*****************************************************
+*/
+
+public void OnAdminMenuReady(Handle tm)
+{
+	if(tm == null)
+		return;
+	
+	TopMenuObject tmo = AddToTopMenu(tm, "l4d2lv_adminmenu", TopMenuObject_Category, TopMenuCategory_MainMenu,
+		INVALID_TOPMENUOBJECT, "l4d2lv_adminmenu", ADMFLAG_GENERIC);
+	if(tmo == INVALID_TOPMENUOBJECT)
+		return;
+	
+	AddToTopMenu(tm, "l4d2lv_givepoints", TopMenuObject_Item, TopMenuItem_GivePoints, tmo, "l4d2lv_givepoints", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_giveequipment", TopMenuObject_Item, TopMenuItem_GiveEquipment, tmo, "l4d2lv_giveequipment", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_giveangry", TopMenuObject_Item, TopMenuItem_GiveAngry, tmo, "l4d2lv_giveangry", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_setfreeze", TopMenuObject_Item, TopMenuItem_SetFreezeTimer, tmo, "l4d2lv_setfreeze", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_givearomr", TopMenuObject_Item, TopMenuItem_GiveArmor, tmo, "l4d2lv_givearomr", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_giveammo", TopMenuObject_Item, TopMenuItem_GiveAmmo, tmo, "l4d2lv_giveammo", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_givehealth", TopMenuObject_Item, TopMenuItem_GiveHealth, tmo, "l4d2lv_giveammo", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_setroundevent", TopMenuObject_Item, TopMenuItem_SetRoundEvent, tmo, "l4d2lv_setroundevent", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_triggerangry", TopMenuObject_Item, TopMenuItem_TriggerAngry, tmo, "l4d2lv_triggerangry", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_triggerlottery", TopMenuObject_Item, TopMenuItem_TriggerLottery, tmo, "l4d2lv_triggerlottery", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_triggergift", TopMenuObject_Item, TopMenuItem_TriggerGift, tmo, "l4d2lv_triggergift", ADMFLAG_CHEATS);
+	AddToTopMenu(tm, "l4d2lv_randomattr", TopMenuObject_Item, TopMenuItem_RandomAttr, tmo, "l4d2lv_randomattr", ADMFLAG_CHEATS);
+}
+
+public void TopMenuCategory_MainMenu(TopMenu topmenu, TopMenuAction action,
+	TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption || action == TopMenuAction_DisplayTitle)
+		FormatEx(buffer, maxlength, "娱乐插件功能");
+}
+
+public void TopMenuItem_GivePoints(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "给玩家硬币");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_GivePoints);
+	menu.SetTitle("给玩家硬币 - 选择数量");
+	menu.AddItem("1", "1");
+	menu.AddItem("2", "2");
+	menu.AddItem("5", "5");
+	menu.AddItem("10", "10");
+	menu.AddItem("20", "20");
+	menu.AddItem("50", "50");
+	menu.AddItem("100", "100");
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_GivePoints(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			GetAdminTopMenu().Display(client, TopMenuPosition_LastCategory);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char display[16];
+	menu.GetItem(selected, "", 0, _, display, 16);
+	Menu menu2 = CreateMenu(MenuHandler_AdminMenu2nd_GivePoints);
+	menu2.SetTitle("给玩家硬币 - x%s", display);
+	AddTargetsToMenu2(menu2, client, COMMAND_FILTER_CONNECTED|COMMAND_FILTER_NO_BOTS);
+	menu2.ExitButton = true;
+	menu2.ExitBackButton = true;
+	menu2.Display(client, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public int MenuHandler_AdminMenu2nd_GivePoints(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_GivePoints(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8], display[64];
+	menu.GetTitle(display, 64);
+	menu.GetItem(selected, info, 8);
+	ReplaceString(display, 64, "给玩家硬币 - x", "", false);
+	int target = GetClientOfUserId(StringToInt(info));
+	int amount = StringToInt(display);
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_GivePoints(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	GiveSkillPoint(target, amount);
+	PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 \x05%d\x01 枚硬币。", target, amount);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_GiveEquipment(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "给玩家装备");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_GiveEquipment);
+	menu.SetTitle("给玩家装备 - 选择部位");
+	menu.AddItem(tr("%d", EquipPart_Body), "身");
+	menu.AddItem(tr("%d", EquipPart_Foot), "鞋");
+	menu.AddItem(tr("%d", EquipPart_Hand), "手");
+	menu.AddItem(tr("%d", EquipPart_Head), "头");
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_GiveEquipment(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			GetAdminTopMenu().Display(client, TopMenuPosition_LastCategory);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char display[16];
+	menu.GetItem(selected, "", 0, _, display, 16);
+	Menu menu2 = CreateMenu(MenuHandler_AdminMenu2nd_GiveEquipment);
+	menu2.SetTitle("给玩家装备 - p%s", display);
+	AddTargetsToMenu2(menu2, client, COMMAND_FILTER_CONNECTED|COMMAND_FILTER_NO_BOTS);
+	menu2.ExitButton = true;
+	menu2.ExitBackButton = true;
+	menu2.Display(client, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public int MenuHandler_AdminMenu2nd_GiveEquipment(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_GiveEquipment(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8], display[64];
+	menu.GetTitle(display, 64);
+	menu.GetItem(selected, info, 8);
+	ReplaceString(display, 64, "给玩家装备 - p", "", false);
+	int target = GetClientOfUserId(StringToInt(info));
+	int part = StringToInt(display);
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_GiveEquipment(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	int eq = GiveEquipment(target, part);
+	if(!eq)
+	{
+		PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 装备失败。", target);
+		TopMenuItem_GiveEquipment(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	static char key[16];
+	IntToString(eq, key, sizeof(key));
+	static EquipData_t data;
+	if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
+		PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 装备 \x05%s\x01。", target, FormatEquip(target, data));
+	else
+		PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 装备成功。", target);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_GiveAngry(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "给玩家怒气");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_GiveAngry);
+	menu.SetTitle("给玩家怒气 - 选择数量");
+	menu.AddItem("1", "1");
+	menu.AddItem("2", "2");
+	menu.AddItem("5", "5");
+	menu.AddItem("10", "10");
+	menu.AddItem("20", "20");
+	menu.AddItem("50", "50");
+	menu.AddItem("100", "100");
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_GiveAngry(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			GetAdminTopMenu().Display(client, TopMenuPosition_LastCategory);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char display[16];
+	menu.GetItem(selected, "", 0, _, display, 16);
+	Menu menu2 = CreateMenu(MenuHandler_AdminMenu2nd_GiveAngry);
+	menu2.SetTitle("给玩家怒气 - x%s", display);
+	AddTargetsToMenu2(menu2, client, COMMAND_FILTER_CONNECTED|COMMAND_FILTER_NO_BOTS);
+	menu2.ExitButton = true;
+	menu2.ExitBackButton = true;
+	menu2.Display(client, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public int MenuHandler_AdminMenu2nd_GiveAngry(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_GiveAngry(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8], display[64];
+	menu.GetTitle(display, 64);
+	menu.GetItem(selected, info, 8);
+	ReplaceString(display, 64, "给玩家怒气 - x", "", false);
+	int target = GetClientOfUserId(StringToInt(info));
+	int amount = StringToInt(display);
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_GiveAngry(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	GiveAngryPoint(target, amount);
+	PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 \x05%d\x01 怒气值。", target, amount);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_SetFreezeTimer(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "设置玩家冻结");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_SetFreezeTimer);
+	menu.SetTitle("设置玩家冻结 - 选择时间(秒)");
+	menu.AddItem("0", "0");
+	menu.AddItem("1", "1");
+	menu.AddItem("2", "2");
+	menu.AddItem("5", "5");
+	menu.AddItem("10", "10");
+	menu.AddItem("20", "20");
+	menu.AddItem("50", "50");
+	menu.AddItem("100", "100");
+	menu.AddItem("200", "200");
+	menu.AddItem("500", "500");
+	menu.AddItem("1000", "1000");
+	menu.AddItem("2000", "2000");
+	menu.AddItem("5000", "5000");
+	menu.AddItem("10000", "10000");
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_SetFreezeTimer(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			GetAdminTopMenu().Display(client, TopMenuPosition_LastCategory);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char display[16];
+	menu.GetItem(selected, "", 0, _, display, 16);
+	Menu menu2 = CreateMenu(MenuHandler_AdminMenu2nd_SetFreezeTimer);
+	menu2.SetTitle("设置玩家冻结 - s%s", display);
+	AddTargetsToMenu2(menu2, client, COMMAND_FILTER_CONNECTED|COMMAND_FILTER_NO_BOTS);
+	menu2.ExitButton = true;
+	menu2.ExitBackButton = true;
+	menu2.Display(client, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public int MenuHandler_AdminMenu2nd_SetFreezeTimer(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_SetFreezeTimer(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8], display[64];
+	menu.GetTitle(display, 64);
+	menu.GetItem(selected, info, 8);
+	ReplaceString(display, 64, "设置玩家冻结 - s", "", false);
+	int target = GetClientOfUserId(StringToInt(info));
+	int amount = StringToInt(display);
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_SetFreezeTimer(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	FreezePlayer(target, float(amount));
+	PrintToChat(client, "\x03[提示]\x01 冻结玩家 \x04%N\x01 \x05%d\x01 秒。", target, amount);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_GiveArmor(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "给玩家护甲");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_GiveArmor);
+	menu.SetTitle("给玩家护甲 - 选择数量");
+	menu.AddItem("10", "10");
+	menu.AddItem("20", "20");
+	menu.AddItem("50", "50");
+	menu.AddItem("100", "100");
+	menu.AddItem("200", "200");
+	menu.AddItem("500", "500");
+	menu.AddItem("1000", "1000");
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_GiveArmor(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			GetAdminTopMenu().Display(client, TopMenuPosition_LastCategory);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char display[16];
+	menu.GetItem(selected, "", 0, _, display, 16);
+	Menu menu2 = CreateMenu(MenuHandler_AdminMenu2nd_GiveArmor);
+	menu2.SetTitle("给玩家护甲 - x%s", display);
+	AddTargetsToMenu2(menu2, client, COMMAND_FILTER_CONNECTED|COMMAND_FILTER_NO_BOTS);
+	menu2.ExitButton = true;
+	menu2.ExitBackButton = true;
+	menu2.Display(client, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public int MenuHandler_AdminMenu2nd_GiveArmor(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_GiveArmor(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8], display[64];
+	menu.GetTitle(display, 64);
+	menu.GetItem(selected, info, 8);
+	ReplaceString(display, 64, "给玩家护甲 - x", "", false);
+	int target = GetClientOfUserId(StringToInt(info));
+	int amount = StringToInt(display);
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_GiveArmor(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	g_iExtraArmor[target] += amount;
+	PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 \x05%d\x01 点护甲。", target, amount);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_GiveAmmo(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "给玩家弹药");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_GiveAmmo);
+	menu.SetTitle("给玩家弹药 - 选择数量");
+	menu.AddItem("1", "10");
+	menu.AddItem("2", "20");
+	menu.AddItem("5", "50");
+	menu.AddItem("10", "100");
+	menu.AddItem("20", "200");
+	menu.AddItem("50", "500");
+	menu.AddItem("100", "1000");
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_GiveAmmo(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			GetAdminTopMenu().Display(client, TopMenuPosition_LastCategory);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char display[16];
+	menu.GetItem(selected, "", 0, _, display, 16);
+	Menu menu2 = CreateMenu(MenuHandler_AdminMenu2nd_GiveAmmo);
+	menu2.SetTitle("给玩家弹药 - x%s", display);
+	AddTargetsToMenu2(menu2, client, COMMAND_FILTER_CONNECTED|COMMAND_FILTER_NO_BOTS);
+	menu2.ExitButton = true;
+	menu2.ExitBackButton = true;
+	menu2.Display(client, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public int MenuHandler_AdminMenu2nd_GiveAmmo(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_GiveAmmo(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8], display[64];
+	menu.GetTitle(display, 64);
+	menu.GetItem(selected, info, 8);
+	ReplaceString(display, 64, "给玩家弹药 - x", "", false);
+	int target = GetClientOfUserId(StringToInt(info));
+	int amount = StringToInt(display);
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_GiveAmmo(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	AddAmmo(client, amount, _, _, false);
+	PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 \x05%d\x01 发弹药。", target, amount);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_GiveHealth(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "给玩家血量");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_GiveHealth);
+	menu.SetTitle("给玩家血量 - 选择数量");
+	menu.AddItem("10", "10");
+	menu.AddItem("20", "20");
+	menu.AddItem("50", "50");
+	menu.AddItem("100", "100");
+	menu.AddItem("200", "200");
+	menu.AddItem("500", "500");
+	menu.AddItem("1000", "1000");
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_GiveHealth(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			GetAdminTopMenu().Display(client, TopMenuPosition_LastCategory);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char display[16];
+	menu.GetItem(selected, "", 0, _, display, 16);
+	Menu menu2 = CreateMenu(MenuHandler_AdminMenu2nd_GiveHealth);
+	menu2.SetTitle("给玩家血量 - x%s", display);
+	AddTargetsToMenu2(menu2, client, COMMAND_FILTER_CONNECTED|COMMAND_FILTER_NO_BOTS);
+	menu2.ExitButton = true;
+	menu2.ExitBackButton = true;
+	menu2.Display(client, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public int MenuHandler_AdminMenu2nd_GiveHealth(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_GiveHealth(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8], display[64];
+	menu.GetTitle(display, 64);
+	menu.GetItem(selected, info, 8);
+	ReplaceString(display, 64, "给玩家血量 - x", "", false);
+	int target = GetClientOfUserId(StringToInt(info));
+	int amount = StringToInt(display);
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_GiveHealth(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	AddHealth(client, amount, _, true);
+	PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 \x05%d\x01 点血量。", target, amount);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_SetRoundEvent(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "设置天启事件");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_SetRoundEvent);
+	menu.SetTitle("设置天启事件 - 选择事件");
+	menu.AddItem("-2", "(无)");
+	menu.AddItem("0", "无限尸潮");
+	menu.AddItem("1", "无限子弹");
+	menu.AddItem("2", "剑气+神托");
+	menu.AddItem("3", "蹲坑神速");
+	menu.AddItem("4", "疾速救援+疾速医疗");
+	menu.AddItem("5", "极度兴奋");
+	menu.AddItem("6", "丧尸强化");
+	menu.AddItem("7", "意志坚定");
+	menu.AddItem("8", "防火服");
+	menu.AddItem("9", "怒火街头");
+	menu.AddItem("10", "女巫季节");
+	menu.AddItem("11", "天赐神技");
+	menu.AddItem("12", "绝境求生");
+	menu.AddItem("13", "死亡之门");
+	menu.AddItem("14", "感染季节");
+	menu.AddItem("15", "狩猎盛宴");
+	menu.AddItem("16", "运输大队");
+	menu.AddItem("17", "乘骑派对");
+	menu.AddItem("18", "血流不止");
+	menu.AddItem("19", "弹力鞋");
+	
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_SetRoundEvent(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_SetRoundEvent(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8];
+	menu.GetItem(selected, info, 8);
+	int event = StringToInt(info);
+	
+	char text[64];
+	StartRoundEvent(event, text, sizeof(text));
+	PrintToChat(client, "\x03[提示]\x01 本回合天启设置为：\x04%s\x01。", text);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_TriggerAngry(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "触发怒气技");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_TriggerAngry);
+	menu.SetTitle("触发怒气技 - 选择目标");
+	AddTargetsToMenu2(menu, client, COMMAND_FILTER_CONNECTED);
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_TriggerAngry(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_TriggerAngry(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8];
+	menu.GetItem(selected, info, 8);
+	int target = GetClientOfUserId(StringToInt(info));
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_TriggerAngry(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	TriggerAngrySkill(target, g_clAngryMode[target]);
+	PrintToChat(client, "\x03[提示]\x01 给 \x04%N\x01 触发了怒气技 \x05%d\x01。", target, g_clAngryMode[target]);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_TriggerLottery(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "触发人品事件");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_TriggerLottery);
+	menu.SetTitle("触发人品事件 - 选择目标");
+	AddTargetsToMenu2(menu, client, COMMAND_FILTER_CONNECTED);
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_TriggerLottery(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_TriggerLottery(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8];
+	menu.GetItem(selected, info, 8);
+	int target = GetClientOfUserId(StringToInt(info));
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_TriggerLottery(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	TriggerRP(target, _, true);
+	PrintToChat(client, "\x03[提示]\x01 给 \x04%N\x01 触发了人品事件。", target);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_TriggerGift(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "触发幸运箱");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_TriggerGift);
+	menu.SetTitle("触发幸运箱 - 选择目标");
+	AddTargetsToMenu2(menu, client, COMMAND_FILTER_CONNECTED);
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_TriggerGift(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_TriggerGift(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8];
+	menu.GetItem(selected, info, 8);
+	int target = GetClientOfUserId(StringToInt(info));
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_TriggerGift(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	RewardPicker(target);
+	PrintToChat(client, "\x03[提示]\x01 给 \x04%N\x01 触发了幸运箱。", target);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+public void TopMenuItem_RandomAttr(TopMenu topmenu, TopMenuAction action, TopMenuObject topobj_id, int client, char[] buffer, int maxlength)
+{
+	if(action == TopMenuAction_DisplayOption)
+		FormatEx(buffer, maxlength, "生成随机数据");
+	if(action != TopMenuAction_SelectOption)
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_AdminMenu_RandomAttr);
+	menu.SetTitle("生成随机数据 - 选择目标");
+	AddTargetsToMenu2(menu, client, COMMAND_FILTER_CONNECTED);
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_AdminMenu_RandomAttr(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack && GetAdminTopMenu() != null)
+			TopMenuItem_RandomAttr(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8];
+	menu.GetItem(selected, info, 8);
+	int target = GetClientOfUserId(StringToInt(info));
+	
+	if(!IsValidClient(target))
+	{
+		PrintToChat(client, "\x03[提示]\x01 玩家已失效，请重新选择。");
+		TopMenuItem_RandomAttr(null, TopMenuAction_SelectOption, INVALID_TOPMENUOBJECT, client, "", 0);
+		return 0;
+	}
+	
+	GenerateRandomStats(target, false);
+	PrintToChat(client, "\x03[提示]\x01 给 \x04%N\x01 生成了随机数据。", target);
+	
+	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
+	return 0;
+}
+
+/*
+*****************************************************
+*					刷特感
+*****************************************************
+*/
 
 void PrepSDKCall_CreateSpecials()
 {

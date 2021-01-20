@@ -194,6 +194,7 @@ new bool:g_cdCanTeleport[MAXPLAYERS+1] = false;
 new bool:g_bHasVampire[MAXPLAYERS+1] = false;
 new bool:g_bHasRetarding[MAXPLAYERS+1] = false;
 new bool:g_bCanGunShover[MAXPLAYERS+1] = false;
+float g_fNextGunShover[MAXPLAYERS+1];
 // new bool:g_bCanDoubleJump[MAXPLAYERS+1] = false;
 // new bool:g_bHanFirstRelease[MAXPLAYERS+1] = false;
 float g_fMaxSpeedModify[MAXPLAYERS+1] = { 1.0, ... };
@@ -1904,8 +1905,9 @@ void Initialization(int client, bool invalid = false)
 		g_clSkillPoint[client] = g_clAngryPoint[client] = g_clAngryMode[client] = g_clSkill_1[client] =
 			g_clSkill_2[client] = g_clSkill_3[client] = g_clSkill_4[client] = g_clSkill_5[client] = 0;
 	}
-
+	
 	g_bCanGunShover[client] = false;
+	g_fNextGunShover[client] = 0.0;
 	g_iJumpFlags[client] = JF_None;
 	g_csHasGodMode[client] = false;
 	g_bHasVampire[client] = false;
@@ -9763,6 +9765,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	// Initialization(client);
 	g_iJumpFlags[client] = JF_None;
 	g_bCanGunShover[client] = true;
+	g_fNextGunShover[client] = 0.0;
 }
 
 public Action Timer_RegPlayerHook(Handle timer, any client)
@@ -11773,6 +11776,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 			
 			CreateTimer(15.0, Timer_GunShovedReset, client, TIMER_FLAG_NO_MAPCHANGE);
+			g_fNextGunShover[client] = time + 15.0;
 			
 			if(g_pCvarAllow.BoolValue)
 			{
@@ -12200,61 +12204,80 @@ void ShowStatusPanel(int client)
 	
 	// 惩罚
 	if(g_csSlapCount[client] > 0)
-		menu.DrawText(tr("拍打 %d", g_csSlapCount[client]));
+		menu.DrawText(tr("拍打%d", g_csSlapCount[client]));
 	if(g_fFreezeTime[client] > time)
-		menu.DrawText(tr("冻结 %.1fs", g_fFreezeTime[client] - time));
+		menu.DrawText(tr("冻结%.0fs", g_fFreezeTime[client] - time));
 	if(g_fLotteryStartTime > 0.0)
-		menu.DrawText(tr("人品 %.1fs", g_fLotteryStartTime - time));
-	menu.DrawText("\n");
+		menu.DrawText(tr("人品%.0fs", g_fLotteryStartTime - time));
+	if(g_fForgiveOfTK[client] > time)
+		menu.DrawText(tr("电击%.0fs", g_fForgiveOfTK[client] - time));
+	if(g_fForgiveOfFF[client] > time)
+		menu.DrawText(tr("打包%.0fs", g_fForgiveOfFF[client] - time));
+	menu.DrawText(" ");
 	
 	// 统计
 	int health = GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client);
 	int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
-	menu.DrawText(tr("血量%d/%d", health, maxHealth));
+	if(maxHealth > GetMaxHealth(client) || health > GetMaxHealth(client))
+		menu.DrawText(tr("血量%d/%d", health, maxHealth));
 	
 	int armor = GetEntProp(client, Prop_Send, "m_ArmorValue") + g_iExtraArmor[client];
 	int maxArmor = ((g_clSkill_1[client] & SKL_1_Armor) ? 100 : 0) + (100 * IsPlayerHaveEffect(client, 33));
-	menu.DrawText(tr("护甲%d/%d", armor, maxArmor));
+	if(armor > 0 || g_iExtraArmor[client] > 0)
+		menu.DrawText(tr("护甲%d/%d", armor, maxArmor));
+	
+	if(g_clAngryPoint[client] > 0 && !g_bIsAngryActive && g_clAngryMode[client] > 0 && g_pCvarAS.BoolValue)
+		menu.DrawText(tr("怒气%d/100", g_clAngryPoint[client]));
 	
 	int weapon = GetPlayerWeaponSlot(client, 0);
-	if(weapon > MaxClients)
+	if(g_iExtraAmmo[client] > 0)
 	{
-		int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType")) + g_iExtraAmmo[client];
-		int maxAmmo = GetDefaultAmmo(weapon);
-		float scale = 1.0;
-		scale += IsPlayerHaveEffect(client, 15) * 0.25;
-		if(g_clSkill_3[client] & SKL_3_MoreAmmo)
-			scale += 1.0;
-		maxAmmo = RoundToZero(maxAmmo * scale);
-		menu.DrawText(tr("弹药%d/%d", ammo, maxAmmo));
+		if(weapon > MaxClients)
+		{
+			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType")) + g_iExtraAmmo[client];
+			int maxAmmo = GetDefaultAmmo(weapon);
+			float scale = 1.0;
+			scale += IsPlayerHaveEffect(client, 15) * 0.25;
+			if(g_clSkill_3[client] & SKL_3_MoreAmmo)
+				scale += 1.0;
+			maxAmmo = RoundToZero(maxAmmo * scale);
+			menu.DrawText(tr("弹药%d/%d", ammo, maxAmmo));
+		}
 	}
-	float chance = g_iDamageChance[client] * 0.1;
-	int minDamage = g_iDamageChanceMin[client];
-	int maxDamage = g_iDamageChanceMax[client];
-	int base = g_iDamageBase[client];
 	
-	if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time)
-		menu.DrawText(tr("攻击+%d 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
-	else if((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time)
-		menu.DrawText(tr("攻击+%d 暴击100%%(%d~%d) 潜行中", base, minDamage, maxDamage));
-	else
-		menu.DrawText(tr("攻击+%d 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage));
-	menu.DrawText("\n");
+	if(g_iDamageChance[client] > 0 || g_iDamageBase[client] > 0 ||
+		((g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time) ||
+		((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time))
+	{
+		float chance = g_iDamageChance[client] * 0.1;
+		int minDamage = g_iDamageChanceMin[client];
+		int maxDamage = g_iDamageChanceMax[client];
+		int base = g_iDamageBase[client];
+		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time)
+			menu.DrawText(tr("攻击+%d 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
+		else if((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time)
+			menu.DrawText(tr("攻击+%d 暴击100%%(%d~%d) 潜行中", base, minDamage, maxDamage));
+		else
+			menu.DrawText(tr("攻击+%d 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage));
+	}
+	menu.DrawText(" ");
 	
 	// 计时技能
 	if((g_clSkill_2[client] & SKL_2_PainPills) && g_ctPainPills[client] > 0.0)
-		menu.DrawText(tr("嗜药%.1fs", g_ctPainPills[client] - time));
+		menu.DrawText(tr("嗜药%.0fs", g_ctPainPills[client] - time));
 	if((g_clSkill_2[client] & SKL_2_Defibrillator) && g_ctDefibrillator[client] > 0.0)
-		menu.DrawText(tr("电疗%.1fs", g_ctDefibrillator[client] - time));
+		menu.DrawText(tr("电疗%.0fs", g_ctDefibrillator[client] - time));
 	if((g_clSkill_2[client] & SKL_2_PipeBomb) && g_ctPipeBomb[client] > 0.0)
-		menu.DrawText(tr("爆破%.1fs", g_ctPipeBomb[client] - time));
+		menu.DrawText(tr("爆破%.0fs", g_ctPipeBomb[client] - time));
 	if((g_clSkill_2[client] & SKL_2_FullHealth) && g_ctFullHealth[client] > 0.0)
-		menu.DrawText(tr("永康%.1fs", g_ctFullHealth[client] - time));
+		menu.DrawText(tr("永康%.0fs", g_ctFullHealth[client] - time));
 	if((g_clSkill_3[client] & SKL_3_SelfHeal) && g_ctSelfHeal[client] > 0.0)
-		menu.DrawText(tr("暴疗%.1fs", g_ctSelfHeal[client] - time));
+		menu.DrawText(tr("暴疗%.0fs", g_ctSelfHeal[client] - time));
 	if((g_clSkill_3[client] & SKL_3_GodMode) && g_ctGodMode[client] != 0.0)
-		menu.DrawText(tr("无敌%.1fs", (g_ctGodMode[client] > 0.0 ? g_ctGodMode[client] - time : time - g_ctGodMode[client])));
-	menu.DrawText("\n");
+		menu.DrawText(tr("无敌%.0fs", (g_ctGodMode[client] > 0.0 ? g_ctGodMode[client] - time : time - g_ctGodMode[client])));
+	if((g_clSkill_4[client] & SKL_4_DuckShover) && g_fNextGunShover[client] > 0.0)
+		menu.DrawText(tr("霸气%.0fs", g_fNextGunShover[client] - time));
+	menu.DrawText(" ");
 	
 	// 奖励进度
 	if(g_ttCommonKilled[client] > 0 && g_pCvarCommonKilled.IntValue > 0)
@@ -12275,7 +12298,7 @@ void ShowStatusPanel(int client)
 		menu.DrawText(tr("开门%d/%d", g_ttRescued[client], g_pCvarRescued.IntValue));
 	if(g_ttCleared[client] > 0 && g_pCvarCleared.IntValue > 0)
 		menu.DrawText(tr("清尸%d/%d", g_ttCleared[client], g_pCvarCleared.IntValue));
-	menu.DrawText("\n");
+	menu.DrawText(" ");
 	
 	menu.Send(client, MenuHandler_Null, 1);
 }
@@ -12295,8 +12318,11 @@ bool:IsMoving(client)
 public Action Timer_GunShovedReset(Handle timer, any client)
 {
 	if(1 <= client <= MaxClients)
+	{
 		g_bCanGunShover[client] = true;
-
+		g_fNextGunShover[client] = 0.0;
+	}
+	
 	return Plugin_Continue;
 }
 

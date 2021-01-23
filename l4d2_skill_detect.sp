@@ -1284,7 +1284,11 @@ public Action:L4D_OnShovedBySurvivor(attacker, victim, const Float:vector[3])
 
 bool: IsJockeyLeaping( jockey )
 {
-	if(GetEntProp(jockey, Prop_Send, "m_zombieClass") != ZC_JOCKEY)
+	if(GetEntProp(jockey, Prop_Send, "m_zombieClass") != ZC_JOCKEY ||
+		GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") > -1 ||
+		GetEntityMoveType(jockey) != MOVETYPE_WALK ||
+		GetEntProp(jockey, Prop_Send, "m_nWaterLevel") >= 3 ||	// 0: no water, 1: a little, 2: half body, 3: full body under water
+		GetEntPropEnt(jockey, Prop_Send, "m_jockeyVictim") > -1)
 		return false;
 	
 	new abilityEnt = GetEntPropEnt( jockey, Prop_Send, "m_customAbility" );
@@ -1304,7 +1308,7 @@ bool: IsJockeyLeaping( jockey )
 	GetEntPropVector(jockey, Prop_Data, "m_vecVelocity", vel ); 
 	vel[2] = 0.0;
 	
-	if(GetVectorLength(vel) >= 100.0 && GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") == -1)
+	if(GetVectorLength(vel) >= 15.0 && GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") == -1)
 		return true;
 	
 	return false;

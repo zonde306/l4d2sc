@@ -16,9 +16,9 @@ public Plugin myinfo =
 };
 
 bool g_bLateLoad;
-ConVar g_hCvarHostName, g_hCvarLan, g_hCvarMaxPlayers;
-ConVar g_pCvarMinPing, g_pCvarMaxPing, g_pCvarOffsetPing, g_pCvarMaxHealth, g_pCvarStatus, g_pCvarServer,
-	g_pCvarMinPlayTime, g_pCvarMaxPlayTime, g_pCvarVersion, g_pCvarFakeCoop;
+ConVar g_hCvarHostName, g_hCvarLan, g_hCvarMaxPlayers, g_hCvarIncapHealth;
+ConVar g_pCvarMinPing, g_pCvarMaxPing, g_pCvarOffsetPing, g_pCvarServer, g_pCvarFakeHealth,
+	g_pCvarMinPlayTime, g_pCvarMaxPlayTime, g_pCvarVersion, g_pCvarFakeCoop, g_pCvarFakePing, g_pCvarFakeStatus;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
@@ -33,19 +33,21 @@ public void OnPluginStart()
 	g_pCvarMinPing = CreateConVar("l4d2_fs_min_ping", "35", "最小 ping 值", CVAR_FLAGS, true, 0.0, true, 999.0);
 	g_pCvarMaxPing = CreateConVar("l4d2_fs_max_ping", "65", "最大 ping 值", CVAR_FLAGS, true, 0.0, true, 999.0);
 	g_pCvarOffsetPing = CreateConVar("l4d2_fs_offset_ping", "15", "ping 差异", CVAR_FLAGS, true, 0.0, true, 999.0);
-	g_pCvarMaxHealth = CreateConVar("l4d2_fs_fake_health", "1", "是否缩放血量上限到 100", CVAR_FLAGS, true, 0.0, true, 1.0);
-	g_pCvarStatus = CreateConVar("l4d2_fs_fake_status", "1", "是否伪装 status 命令", CVAR_FLAGS, true, 0.0, true, 1.0);
 	g_pCvarServer = CreateConVar("l4d2_fs_fake_server", "Linux Listen", "伪装 status 中的服务器内容", CVAR_FLAGS);
 	g_pCvarMinPlayTime = CreateConVar("l4d2_fs_min_playtime", "", "伪装 status 中的在线时间最小值", CVAR_FLAGS, true, 0.0, true, 2147483647.0);
 	g_pCvarMaxPlayTime = CreateConVar("l4d2_fs_max_playtime", "", "伪装 status 中的在线时间最小值", CVAR_FLAGS, true, 0.0, true, 2147483647.0);
 	g_pCvarVersion = CreateConVar("l4d2_fs_fake_version", "", "伪装 status 中的游戏版本", CVAR_FLAGS);
-	g_pCvarFakeCoop = CreateConVar("l4d2_fs_fake_coop", "1", "合作模式伪装特感", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarFakeCoop = CreateConVar("l4d2_fs_fake_coop", "1", "合作模式伪装特感.0=关闭.1=仅对管理员生效.2=对所有玩家生效", CVAR_FLAGS, true, 0.0, true, 2.0);
+	g_pCvarFakePing = CreateConVar("l4d2_fs_fake_ping", "1", "是否开启伪装延迟.0=关闭.1=仅对管理员生效.2=对所有玩家生效", CVAR_FLAGS, true, 0.0, true, 2.0);
+	g_pCvarFakeStatus = CreateConVar("l4d2_fs_fake_status", "1", "是否开启伪装status命令.0=关闭.1=仅对非管理员生效.2=对所有玩家生效", CVAR_FLAGS, true, 0.0, true, 2.0);
+	g_pCvarFakeHealth = CreateConVar("l4d2_fs_fake_health", "1", "是否开启血量.0=关闭.1=仅对管理员生效.2=对所有玩家生效", CVAR_FLAGS, true, 0.0, true, 2.0);
 	
 	AutoExecConfig(true, "l4d2_fake_server");
 	
 	g_hCvarHostName = FindConVar("hostname");
 	g_hCvarLan = FindConVar("sv_lan");
 	g_hCvarMaxPlayers = FindConVar("sv_visiblemaxplayers");
+	g_hCvarIncapHealth = FindConVar("survivor_incap_health");
 	AddCommandListener(Command_Status, "status");
 	RegAdminCmd("sm_status", Command_Status2, ADMFLAG_ROOT);
 	
@@ -70,12 +72,15 @@ public void OnPluginStart()
 	g_pCvarMinPing.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarMaxPing.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarOffsetPing.AddChangeHook(CvarHook_OnChanged);
-	g_pCvarMaxHealth.AddChangeHook(CvarHook_OnChanged);
-	g_pCvarStatus.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarServer.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarMinPlayTime.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarMaxPlayTime.AddChangeHook(CvarHook_OnChanged);
 	g_pCvarFakeCoop.AddChangeHook(CvarHook_OnChanged);
+	g_pCvarFakePing.AddChangeHook(CvarHook_OnChanged);
+	g_pCvarFakeStatus.AddChangeHook(CvarHook_OnChanged);
+	g_pCvarFakeHealth.AddChangeHook(CvarHook_OnChanged);
+	g_pCvarVersion.AddChangeHook(CvarHook_OnChanged);
+	g_hCvarIncapHealth.AddChangeHook(CvarHook_OnChanged);
 	
 	if(g_bLateLoad)
 	{
@@ -85,25 +90,30 @@ public void OnPluginStart()
 		entity = FindEntityByClassname(MaxClients + 1, "player_manager");
 		if(entity > MaxClients)
 			SDKHook(entity, SDKHook_ThinkPost, EntityHook_ThinkPost);
+		
+		for(int i = 1; i <= MaxClients; ++i)
+			if(IsClientConnected(i))
+				OnClientConnected(i);
 	}
 }
 
 char g_sStatusServer[64], g_sStatusVersion[64];
-bool g_bReplaceStatus, g_bScaleHealth, g_bFakeCoop;
-int g_iMinPing, g_iMaxPing, g_iOffsetPing, g_iMinPlayTime, g_iMaxPlayTime;
+int g_iMinPing, g_iMaxPing, g_iOffsetPing, g_iMinPlayTime, g_iMaxPlayTime, g_iFakeCoop, g_iFakePing, g_iFakeStatus, g_iFakeHealth, g_iIncapHealth;
 
 public void CvarHook_OnChanged(ConVar cvar, const char[] oldValue, const char[] newValue)
 {
 	g_iMinPing = g_pCvarMinPing.IntValue;
 	g_iMaxPing = g_pCvarMaxPing.IntValue;
 	g_iOffsetPing = g_pCvarOffsetPing.IntValue;
-	g_bScaleHealth = g_pCvarMaxHealth.BoolValue;
-	g_bReplaceStatus = g_pCvarStatus.BoolValue;
 	g_pCvarServer.GetString(g_sStatusServer, sizeof(g_sStatusServer));
 	g_iMinPlayTime = g_pCvarMinPlayTime.IntValue;
 	g_iMaxPlayTime = g_pCvarMaxPlayTime.IntValue;
 	g_pCvarVersion.GetString(g_sStatusVersion, sizeof(g_sStatusVersion));
-	g_bFakeCoop = g_pCvarFakeCoop.BoolValue;
+	g_iFakeCoop = g_pCvarFakeCoop.IntValue;
+	g_iFakePing = g_pCvarFakePing.IntValue;
+	g_iFakeStatus = g_pCvarFakeStatus.IntValue;
+	g_iFakeHealth = g_pCvarFakeHealth.IntValue;
+	g_iIncapHealth = g_hCvarIncapHealth.IntValue;
 }
 
 bool g_bFakeClient[MAXPLAYERS+1][MAXPLAYERS+1];
@@ -131,10 +141,10 @@ public Action Command_Status2(int client, int argc)
 
 public Action Command_Status(int client, const char[] command, int argc)
 {
-	if(!g_bReplaceStatus)
+	if(client <= 0 || client >= MaxClients || !IsClientInGame(client) || IsFakeClient(client))
 		return Plugin_Continue;
 	
-	if(client <= 0 || client >= MaxClients || !IsClientInGame(client) || IsFakeClient(client))
+	if(g_iFakeStatus == 0 || (g_iFakeStatus == 1 && IsClientAdmin(client)))
 		return Plugin_Continue;
 	
 	PrintStatusInfo(client);
@@ -280,12 +290,16 @@ public void EntityHook_ThinkPost(int entity)
 			continue;
 		
 		// FAKE HEALTH
-		if(g_bScaleHealth && team == 2)
+		if(team == 2 && g_iFakeHealth == 2 || (g_iFakeHealth == 1 && IsClientAdmin(i)))
 		{
 			int maxHealth = GetEntProp(i, Prop_Data, "m_iMaxHealth");
 			int health = GetEntProp(i, Prop_Data, "m_iHealth");
 			
-			if(maxHealth > 100)
+			int rawMaxHealth = 100;
+			if(GetEntProp(i, Prop_Send, "m_isIncapacitated") || GetEntProp(i, Prop_Send, "m_isHangingFromLedge"))
+				rawMaxHealth = g_iIncapHealth;
+			
+			if(maxHealth > rawMaxHealth)
 			{
 				float scale = maxHealth / 100.0;
 				SetEntProp(entity, Prop_Send, "m_maxHealth", RoundToZero(maxHealth / scale), 2, i);
@@ -293,14 +307,14 @@ public void EntityHook_ThinkPost(int entity)
 			}
 			else if(health > maxHealth)
 			{
-				SetEntProp(entity, Prop_Send, "m_iHealth", 100, 2, i);
+				SetEntProp(entity, Prop_Send, "m_iHealth", rawMaxHealth, 2, i);
 			}
 		}
 		
 		if(!IsFakeClient(i))
 		{
 			// FAKE PING
-			if(g_iClientPing[i] > 0)
+			if(g_iClientPing[i] > 0 && g_iFakePing == 2 || (g_iFakePing == 1 && IsClientAdmin(i)))
 			{
 				SetRandomSeed(GetSysTickCount() + i);
 				g_iCurrentPing[i] = g_iClientPing[i] + GetRandomInt(-g_iOffsetPing, g_iOffsetPing);
@@ -622,7 +636,7 @@ stock int GetMaxClients2()
 
 stock bool IsClientInvis(int client)
 {
-	if(!g_bFakeCoop)
+	if(g_iFakeCoop == 0 || (g_iFakeCoop == 1 && !IsClientAdmin(client)))
 		return false;
 	
 	if(!IsClientInGame(client) || IsFakeClient(client))

@@ -1633,8 +1633,6 @@ public Action Timer_SurvivalTimer(Handle timer, any startTime)
 
 public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 {
-	g_bIsGamePlaying = true;
-	
 	for(int i = 1; i <= MaxClients; ++i)
 	{
 		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
@@ -1649,6 +1647,7 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 		}
 	}
 	
+	g_bIsGamePlaying = true;
 	PrintToServer("游戏开始");
 	return Plugin_Continue;
 }

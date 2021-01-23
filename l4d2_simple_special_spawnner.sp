@@ -238,7 +238,7 @@ public void OnGamemodeSurvival(const char[] output, int caller, int activator, f
 
 public void OnGamemodeVersus(const char[] output, int caller, int activator, float delay)
 {
-	SetFailState("Plugin does not support PvP modes");
+	// SetFailState("Plugin does not support PvP modes");
 }
 
 public Action Timer_ActiveSpawnner(Handle timer, any first)

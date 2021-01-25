@@ -203,8 +203,8 @@ public Action Event_PlayerConnectClientPre(Event event, const char[] eventName, 
 	newEvent.SetString("networkid", networkID);
 	newEvent.SetInt("index", event.GetInt("index"));
 	newEvent.SetInt("userid", event.GetInt("userid"));
+	newEvent.SetInt("bot", event.GetInt("bot"));
 	newEvent.Fire(true);
-	delete newEvent;
 	
 	return Plugin_Handled;
 }
@@ -228,8 +228,8 @@ public Action Event_PlayerConnectPre(Event event, const char[] eventName, bool d
 	newEvent.SetString("address", address);
 	newEvent.SetInt("index", event.GetInt("index"));
 	newEvent.SetInt("userid", event.GetInt("userid"));
+	newEvent.SetInt("bot", event.GetInt("bot"));
 	newEvent.Fire(true);
-	delete newEvent;
 	
 	return Plugin_Handled;
 }
@@ -240,7 +240,7 @@ public void Event_PlayerConnect(Event event, const char[] eventName, bool dontBr
 		return;
 	
 	int mode = g_pCvarConnect.IntValue;
-	if(event.GetInt("bot") || mode <= 0)
+	if(event.GetInt("bot") || mode <= 0 || dontBroadcast)
 		return;
 	
 	char steamId[64];
@@ -313,8 +313,8 @@ public Action Event_PlayerDisconnectPre(Event event, const char[] eventName, boo
 	newEvent.SetString("networkid", networkID);
 	newEvent.SetString("reason", reason);
 	newEvent.SetInt("userid", event.GetInt("userid"));
+	newEvent.SetInt("bot", event.GetInt("bot"));
 	newEvent.Fire(true);
-	delete newEvent;
 	
 	return Plugin_Handled;
 }
@@ -325,7 +325,7 @@ public void Event_PlayerDisconnect(Event event, const char[] eventName, bool don
 		return;
 	
 	int mode = g_pCvarDisconnect.IntValue;
-	if(event.GetInt("bot") || mode <= 0)
+	if(event.GetInt("bot") || mode <= 0 || dontBroadcast)
 		return;
 	
 	char steamId[64];

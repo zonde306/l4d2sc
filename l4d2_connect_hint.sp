@@ -65,7 +65,7 @@ StringMap g_hGameModeList;
 ArrayList g_hHostNameList;
 char g_szOriginalHostName[255] = {EOS, ...};
 ConVar g_hCvarGameMode, g_hCvarDifficulty, g_hCvarHostName;
-ConVar g_pCvarConnect, g_pCvarDisconnect, g_pCvarHostName, g_pCvarChangeTeam, g_pCvarNonSteamIdKick;
+ConVar g_pCvarConnect, g_pCvarDisconnect, g_pCvarHostName, g_pCvarChangeTeam, g_pCvarNonSteamIdKick, g_pCvarPreventConnectMsg, g_pCvarPreventDisconnectMsg;
 int g_iOldTeam[MAXPLAYERS+1], g_iNewTeam[MAXPLAYERS+1], g_iPrevTeam[MAXPLAYERS+1];
 
 public void OnPluginStart()
@@ -76,6 +76,8 @@ public void OnPluginStart()
 	g_pCvarDisconnect = CreateConVar("l4d2_ch_disconnect", "63", "玩家离开提示.0=关闭.1=显示名字(必须).2=显示SteamID.4=显示IP地址.8=显示所在国家.16=显示所在城市.32=显示原因", CVAR_FLAGS, true, 0.0, true, 63.0);
 	g_pCvarHostName = CreateConVar("l4d2_ch_hostname", "7", "服务器名字设置.0=关闭.1=普通模式(必须).2=显示游戏模式.4=显示游戏难度(如果可以)", CVAR_FLAGS, true, 0.0, true, 7.0);
 	g_pCvarChangeTeam = CreateConVar("l4d2_ch_changeteam", "2", "切换队伍提示.0=关闭.1=普通模式.2=延迟模式", CVAR_FLAGS, true, 0.0, true, 2.0);
+	g_pCvarPreventConnectMsg = CreateConVar("l4d2_ch_prevent_connect", "1", "屏蔽自带的连接提示.0=关闭.1=开启", CVAR_FLAGS, true, 0.0, true, 1.0);
+	g_pCvarPreventDisconnectMsg = CreateConVar("l4d2_ch_prevent_disconnect", "1", "屏蔽自带的离开提示.0=关闭.1=开启", CVAR_FLAGS, true, 0.0, true, 1.0);
 	AutoExecConfig(true, "l4d2_connect_hint");
 	
 	g_hGameModeList = CreateTrie();
@@ -89,6 +91,10 @@ public void OnPluginStart()
 	HookEvent("player_connect", Event_PlayerConnect);
 	HookEvent("player_disconnect", Event_PlayerDisconnect);
 	HookEvent("round_start", Event_RoundStart);
+	
+	HookEvent("player_connect", Event_PlayerConnectPre, EventHookMode_Pre);
+	HookEventEx("player_connect_client", Event_PlayerConnectClientPre, EventHookMode_Pre);
+	HookEvent("player_disconnect", Event_PlayerDisconnectPre, EventHookMode_Pre);
 	
 	// 测试
 	RegConsoleCmd("sm_testconn", Cmd_TestConnect);
@@ -180,6 +186,54 @@ public void OnMapStart()
 	LoadHostName();
 }
 
+public Action Event_PlayerConnectClientPre(Event event, const char[] eventName, bool dontBroadcast)
+{
+	if(!IsPluginAllow())
+		return Plugin_Continue;
+	
+	if(dontBroadcast || !g_pCvarPreventConnectMsg.BoolValue)
+		return Plugin_Continue;
+	
+	char clientName[33], networkID[22];
+	event.GetString("name", clientName, sizeof(clientName));
+	event.GetString("networkid", networkID, sizeof(networkID));
+	
+	Event newEvent = CreateEvent("player_connect_client", true);
+	newEvent.SetString("name", clientName);
+	newEvent.SetString("networkid", networkID);
+	newEvent.SetInt("index", event.GetInt("index"));
+	newEvent.SetInt("userid", event.GetInt("userid"));
+	newEvent.Fire(true);
+	delete newEvent;
+	
+	return Plugin_Handled;
+}
+
+public Action Event_PlayerConnectPre(Event event, const char[] eventName, bool dontBroadcast)
+{
+	if(!IsPluginAllow())
+		return Plugin_Continue;
+	
+	if(dontBroadcast || !g_pCvarPreventConnectMsg.BoolValue)
+		return Plugin_Continue;
+	
+	char clientName[33], networkID[22], address[32];
+	event.GetString("name", clientName, sizeof(clientName));
+	event.GetString("networkid", networkID, sizeof(networkID));
+	event.GetString("address", address, sizeof(address));
+	
+	Event newEvent = CreateEvent("player_connect", true);
+	newEvent.SetString("name", clientName);
+	newEvent.SetString("networkid", networkID);
+	newEvent.SetString("address", address);
+	newEvent.SetInt("index", event.GetInt("index"));
+	newEvent.SetInt("userid", event.GetInt("userid"));
+	newEvent.Fire(true);
+	delete newEvent;
+	
+	return Plugin_Handled;
+}
+
 public void Event_PlayerConnect(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(!IsPluginAllow())
@@ -239,6 +293,30 @@ public void Event_PlayerConnect(Event event, const char[] eventName, bool dontBr
 	
 	if(buffer[0] != EOS)
 		PrintToChatAll(buffer);
+}
+
+public Action Event_PlayerDisconnectPre(Event event, const char[] eventName, bool dontBroadcast)
+{
+	if(!IsPluginAllow())
+		return Plugin_Continue;
+	
+	if(dontBroadcast || !g_pCvarPreventDisconnectMsg.BoolValue)
+		return Plugin_Continue;
+	
+	char clientName[33], networkID[22], reason[65];
+	event.GetString("name", clientName, sizeof(clientName));
+	event.GetString("networkid", networkID, sizeof(networkID));
+	event.GetString("reason", reason, sizeof(reason));
+	
+	Event newEvent = CreateEvent("player_disconnect", true);
+	newEvent.SetString("name", clientName);
+	newEvent.SetString("networkid", networkID);
+	newEvent.SetString("reason", reason);
+	newEvent.SetInt("userid", event.GetInt("userid"));
+	newEvent.Fire(true);
+	delete newEvent;
+	
+	return Plugin_Handled;
 }
 
 public void Event_PlayerDisconnect(Event event, const char[] eventName, bool dontBroadcast)

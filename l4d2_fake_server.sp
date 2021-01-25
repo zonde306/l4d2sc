@@ -305,7 +305,7 @@ public void EntityHook_ThinkPost(int entity)
 				SetEntProp(entity, Prop_Send, "m_maxHealth", RoundToZero(maxHealth / scale), 2, i);
 				SetEntProp(entity, Prop_Send, "m_iHealth", RoundToZero(health / scale), 2, i);
 			}
-			else if(health > maxHealth)
+			else if(health > rawMaxHealth)
 			{
 				SetEntProp(entity, Prop_Send, "m_iHealth", rawMaxHealth, 2, i);
 			}

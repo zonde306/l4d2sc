@@ -3243,7 +3243,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」保留弹匣/升级叠加补子弹/填装可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
-	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
+	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断/水中不减速",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
@@ -12187,6 +12187,16 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		// 已经成功落地
 		g_bOnRocketDude[client] = false;
+	}
+	
+	if((flags & FL_INWATER) && (g_clSkill_1[client] & SKL_1_ReviveBlock) &&
+		!GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) &&
+		!GetEntProp(client, Prop_Send, "m_isHangingFromLedge"))
+	{
+		int health = GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client);
+		int limpHealth = RoundToFloor(g_hCvarLimpHealth.FloatValue * GetEntProp(client, Prop_Data, "m_iMaxHealth") / 100.0);
+		if(health > limpHealth)
+			SetEntPropFloat(client, Prop_Send, "m_flVelocityModifier", 1.0);
 	}
 	
 	if(GetVectorLength(vel) > 9.0 && !(buttons & (IN_SPEED|IN_DUCK)))

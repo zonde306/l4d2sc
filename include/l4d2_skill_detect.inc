@@ -280,6 +280,8 @@ enum CarAlarmTriggerReason
  */
 forward OnCarAlarmTriggered( survivor, infected, CarAlarmTriggerReason:reason );
 
+forward OnBoomerPopStop( survivor, boomer, hits, timeVomit );
+
 public SharedPlugin:__pl_skilldetect =
 {
 	name = "skill_detect",

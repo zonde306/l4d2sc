@@ -752,7 +752,7 @@ public Action timer_query(Handle timer)
 		return Plugin_Continue;
 
 	for (int i = 1; i <= MaxClients; i++) {
-		if (!is_player_valid(i) || IsFakeClient(i) || (GetUserFlagBits(i) & ADMFLAG_ROOT))
+		if (!is_player_valid(i) || IsFakeClient(i))
 			continue;
 
 		// Player recently joined, wait before querying.
@@ -864,7 +864,7 @@ public Action timer_check_lerp(Handle timer)
 		min = 0.0;
 
 	for (int i = 1; i <= MaxClients; i++) {
-		if (!is_player_valid(i) || IsFakeClient(i) || (GetUserFlagBits(i) & ADMFLAG_ROOT))
+		if (!is_player_valid(i) || IsFakeClient(i))
 			continue;
 
 		float lerp = GetEntPropFloat(i, Prop_Data, "m_fLerpTime");
@@ -932,7 +932,7 @@ public Action timer_check_ping(Handle timer)
 		return Plugin_Continue;
 
 	for (int i = 1; i <= MaxClients; i++) {
-		if (!is_player_valid(i) || IsFakeClient(i) || (GetUserFlagBits(i) & ADMFLAG_ROOT))
+		if (!is_player_valid(i) || IsFakeClient(i))
 			continue;
 
 		// Player recently joined, don't check ping yet.
@@ -999,7 +999,7 @@ public Action timer_check_aimlock(Handle timer)
 		if (players_processed >= 5 && icvar[CVAR_AIMLOCK_LIGHT] == 1)
 			return Plugin_Continue;
 
-		if (!is_player_valid(i) || IsFakeClient(i) || (GetUserFlagBits(i) & ADMFLAG_ROOT))
+		if (!is_player_valid(i) || IsFakeClient(i))
 			continue;
 
 		// Player must be alive and on a valid team.
@@ -1274,7 +1274,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse,
 {
 	static int lbuttons[MAXPLAYERS + 1];
 
-	if (!is_player_valid(client) || IsFakeClient(client) || (GetUserFlagBits(client) & ADMFLAG_ROOT))
+	if (!is_player_valid(client) || IsFakeClient(client))
 		return Plugin_Continue;
 
 	// Increment the index.
@@ -1854,20 +1854,20 @@ void lilac_ban_client(int client, int cheat)
 
 	switch (cheat) {
 	case CHEAT_ANGLES: { Format(reason, sizeof(reason),
-		"[Little Anti-Cheat %s] %T", VERSION, "ban_angle", client); }
+		"[LAC %s] %T", VERSION, "ban_angle", client); }
 	case CHEAT_CHATCLEAR: { Format(reason, sizeof(reason),
-		"[Little Anti-Cheat %s] %T", VERSION, "ban_chat_clear", client); }
+		"[LAC %s] %T", VERSION, "ban_chat_clear", client); }
 	case CHEAT_CONVAR: { Format(reason, sizeof(reason),
-		"[Little Anti-Cheat %s] %T", VERSION, "ban_convar", client); }
+		"[LAC %s] %T", VERSION, "ban_convar", client); }
 	// It saying "convar violation" for nolerp is intentional.
 	case CHEAT_NOLERP: { Format(reason, sizeof(reason),
-		"[Little Anti-Cheat %s] %T", VERSION, "ban_convar", client); }
+		"[LAC %s] %T", VERSION, "ban_convar", client); }
 	case CHEAT_BHOP: { Format(reason, sizeof(reason),
-		"[Little Anti-Cheat %s] %T", VERSION, "ban_bhop", client); }
+		"[LAC %s] %T", VERSION, "ban_bhop", client); }
 	case CHEAT_AIMBOT: { Format(reason, sizeof(reason),
-		"[Little Anti-Cheat %s] %T", VERSION, "ban_aimbot", client); }
+		"[LAC %s] %T", VERSION, "ban_aimbot", client); }
 	case CHEAT_AIMLOCK: { Format(reason, sizeof(reason),
-		"[Little Anti-Cheat %s] %T", VERSION, "ban_aimlock", client); }
+		"[LAC %s] %T", VERSION, "ban_aimlock", client); }
 	default: return;
 	}
 

@@ -1002,7 +1002,7 @@ public void EntityHook_OnGrenadeThrown(int entity)
 
 public Action OnPlayerRunCmd(int client, int &iButtons, int &iImpulse, float fVelocity[3], float fAngles[3], int &iWeapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
-	if(IsValidClient(client) && !IsFakeClient(client) && IsPlayerAlive(client) && !(GetUserFlagBits(client) & ADMFLAG_ROOT))
+	if(IsValidClient(client) && !IsFakeClient(client) && IsPlayerAlive(client))
 	{
 		float vOrigin[3], AnglesVec[3], EndPoint[3];
 

@@ -285,7 +285,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			}
 		}
 		else */
-		if ((zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY) && IsPouncing(victim))
+		if ((zombieclass == ZC_HUNTER && IsPouncing(victim)) || (zombieclass == ZC_JOCKEY && IsJockeyLeaping(victim)))
 		{ // Skeet!
 			decl assisters[g_iSurvivorLimit][2];
 			new assister_count, i;
@@ -603,11 +603,33 @@ public ClientValue2DSortDesc(x[], y[], const array[][], Handle:data)
 	else return 0;
 }
 
-stock bool:IsLeaping(jockey)
+stock bool:IsJockeyLeaping( jockey )
 {
+	if(GetEntProp(jockey, Prop_Send, "m_zombieClass") != ZC_JOCKEY ||
+		GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") > -1 ||
+		GetEntityMoveType(jockey) != MOVETYPE_WALK ||
+		GetEntProp(jockey, Prop_Send, "m_nWaterLevel") >= 3 ||	// 0: no water, 1: a little, 2: half body, 3: full body under water
+		GetEntPropEnt(jockey, Prop_Send, "m_jockeyVictim") > -1)
+		return false;
+	
 	new abilityEnt = GetEntPropEnt( jockey, Prop_Send, "m_customAbility" );
 	if ( IsValidEntity(abilityEnt) && HasEntProp(abilityEnt, Prop_Send, "m_isLeaping") &&
 		GetEntProp(abilityEnt, Prop_Send, "m_isLeaping") )
+		return true;
+	
+	/*
+	new Float:time = GetGameTime();
+	if ( IsValidEntity(abilityEnt) && HasEntProp(abilityEnt, Prop_Send, "m_timestamp") &&
+		GetEntPropFloat(abilityEnt, Prop_Send, "m_timestamp") <= time &&
+		GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") == -1 )
+		return true;
+	*/
+	
+	float vel[3];
+	GetEntPropVector(jockey, Prop_Data, "m_vecVelocity", vel ); 
+	vel[2] = 0.0;
+	
+	if(GetVectorLength(vel) >= 15.0 && GetEntPropEnt(jockey, Prop_Send, "m_hGroundEntity") == -1)
 		return true;
 	
 	return false;

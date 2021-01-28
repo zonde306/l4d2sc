@@ -6605,20 +6605,30 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			}
 			
 			// 【嗜血如命】激活时允许主武器触发，否则只能由近战武器触发
-			if ((g_bIsAngryBloodthirstyActive || isMeleeHack) && (g_bIsAngryBloodthirstyActive || (g_clSkill_5[attacker] & SKL_5_Vampire)) && !GetRandomInt(0, 2))
+			if ((g_bIsAngryBloodthirstyActive || isMeleeHack) && (g_bIsAngryBloodthirstyActive || (g_clSkill_5[attacker] & SKL_5_Vampire)))
 			{
 				// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+1);
+				int chance = GetRandomInt(0, 2);
+				if(GetEntProp(attacker, Prop_Data, "m_iHealth") + GetPlayerTempHealth(attacker) < GetEntProp(attacker, Prop_Data, "m_iMaxHealth") / 2)
+					chance += 1;
+				if(!(GetEntityFlags(victim) & FL_ONGROUND))
+					chance += 1;
+				if(IsChargerCharging(victim))
+					chance += 1;
 				
-				int health = dmg / 30;
-				AddHealth(attacker, (health > 1 ? health : 1));
-				// ClientCommand(attacker, "play \"ui/littlereward.wav\"");
-				
-				if (!g_bHasVampire[attacker])
+				if(chance >= 2)
 				{
-					g_bHasVampire[attacker] = true;
-					g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue");
-					SetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[attacker] * 1.15);
-					CreateTimer(1.0, Timer_StopVampire, attacker);
+					int health = dmg / 30;
+					AddHealth(attacker, (health > 1 ? health : 1));
+					// ClientCommand(attacker, "play \"ui/littlereward.wav\"");
+					
+					if (!g_bHasVampire[attacker])
+					{
+						g_bHasVampire[attacker] = true;
+						g_fOldMovement[attacker] = GetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue");
+						SetEntPropFloat(attacker, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[attacker] * 1.15);
+						CreateTimer(1.0, Timer_StopVampire, attacker);
+					}
 				}
 			}
 		}
@@ -8458,13 +8468,31 @@ public int OnSkeetSniperHurt(int survivor, int hunter, int damage, bool isOverki
 	return 0;
 }
 
+public int OnHunterDeadstop(int survivor, int hunter)
+{
+	if(!IsValidClient(survivor))
+		return 0;
+	
+	g_ttCommonKilled[survivor] += 5;
+	return 0;
+}
+
+public int OnBoomerPopStop(int survivor, int boomer, int shoveCount, float timeAlive)
+{
+	if(!IsValidClient(survivor))
+		return 0;
+	
+	g_ttCommonKilled[survivor] += 10;
+	return 0;
+}
+
 public int OnChargerLevel(int survivor, int charger)
 {
 	if(!IsValidClient(survivor))
 		return 0;
 	
 	GiveSkillPoint(survivor, 1);
-	g_ttSpecialKilled[survivor] += 5;
+	// g_ttSpecialKilled[survivor] += 5;
 	return 0;
 }
 
@@ -8492,7 +8520,37 @@ public int OnWitchCrownHurt(int survivor, int damage, int chipDamage)
 	if(!IsValidClient(survivor))
 		return 0;
 	
+	g_ttCommonKilled[survivor] += 30;
+	return 0;
+}
+
+public int OnTongueCut(int survivor, int smoker)
+{
+	if(!IsValidClient(survivor))
+		return 0;
+	
+	g_ttCommonKilled[survivor] += 30;
+	return 0;
+}
+
+public int OnSmokerSelfClear(int survivor, int smoker, bool withShove)
+{
+	if(!IsValidClient(survivor))
+		return 0;
+	
 	g_ttCommonKilled[survivor] += 10;
+	if(withShove)
+		g_ttCommonKilled[survivor] += 10;
+	
+	return 0;
+}
+
+public int OnTankRockSkeeted(int survivor, int tank)
+{
+	if(!IsValidClient(survivor))
+		return 0;
+	
+	g_ttCommonKilled[survivor] += 5;
 	return 0;
 }
 
@@ -8544,6 +8602,15 @@ public int OnDeathCharge(int charger, int survivor, float height, float distance
 	
 	if(g_pCvarAllow.BoolValue && !IsFakeClient(charger))
 		PrintToChat(charger, "\x03[提示]\x01 你因为冲锋秒人 \x04%d\x01 高度而获得 \x051\x01 硬币。", height);
+	return 0;
+}
+
+public int OnSpecialClear(int clearer, int pinner, int pinvictim, int zombieClass, float timeA, float timeB, bool withShove)
+{
+	if(!IsValidClient(clearer))
+		return 0;
+	
+	g_ttProtected[clearer] += 1;
 	return 0;
 }
 

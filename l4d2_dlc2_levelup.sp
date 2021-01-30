@@ -3,7 +3,7 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <geoip>
-// #include <l4d2_skill_detect>
+#include <l4d2_skill_detect>
 #include <left4dhooks>
 // #include <l4d_info_editor>
 #include <dhooks>

@@ -280,7 +280,7 @@ enum CarAlarmTriggerReason
  */
 forward OnCarAlarmTriggered( survivor, infected, CarAlarmTriggerReason:reason );
 
-forward OnBoomerPopStop( survivor, boomer, hits, timeVomit );
+forward OnBoomerPopStop( survivor, boomer, hits, Float:timeVomit );
 
 public SharedPlugin:__pl_skilldetect =
 {

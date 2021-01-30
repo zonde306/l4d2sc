@@ -77,6 +77,11 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 			mode = 0;
 		}
 	}
+	else if(CanReloadGun(weapon, client))
+	{
+		mode = IN_RELOAD;
+		range = 65535.0;
+	}
 	if(range <= 0.0)
 	{
 		if(CanSecondryAttack(weapon))
@@ -226,6 +231,23 @@ bool CanSecondryAttack(int entity)
 		return false;
 	
 	return true;
+}
+
+bool CanReloadGun(int entity, int owner)
+{
+	if(GetEntProp(entity, Prop_Send, "m_bInReload", 1))
+		return false;
+	
+	int clip = GetEntProp(entity, Prop_Send, "m_iPrimaryAmmoType");
+	if(clip > 0)
+		return false;
+	
+	int ammoType = GetEntProp(entity, Prop_Send, "m_iPrimaryAmmoType");
+	int ammo = GetEntProp(owner, Prop_Send, "m_iAmmo", _, ammoType);
+	if(ammo > 0)
+		return true;
+	
+	return false;
 }
 
 public bool TraceRayFilter_HitShotable(int entity, int mask, any myself)

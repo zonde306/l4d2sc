@@ -126,6 +126,7 @@ public void CvarHook_OnChanged(ConVar cvar, const char[] oldValue, const char[] 
 #define MODEL_SPITTER				"models/infected/spitter.mdl"
 #define MODEL_JOCKEY				"models/infected/jockey.mdl"
 #define MODEL_CHARGER				"models/infected/charger.mdl"
+#define MODEL_TANK					"models/infected/hulk.mdl"
 
 bool g_bIsSurvivalMode = false;
 Handle g_hTimerSpawnQueue = null;
@@ -139,6 +140,7 @@ public void OnMapStart()
 	PrecacheModel(MODEL_SPITTER);
 	PrecacheModel(MODEL_JOCKEY);
 	PrecacheModel(MODEL_CHARGER);
+	PrecacheModel(MODEL_TANK);
 }
 
 public void Event_RoundStart(Event event, const char[] event_name, bool dontBroadcast)
@@ -327,7 +329,7 @@ stock int SpawnCommand(int zClass, int spawnner = -1)
 		{
 			if(g_pfnCreateSmoker != null)
 			{
-				bot = SDKCall(g_pfnCreateSmoker, "舌");
+				bot = SDKCall(g_pfnCreateSmoker, "舌头");
 				if(bot > 0)
 				{
 					SetEntityModel(bot, MODEL_SMOKER);
@@ -343,7 +345,7 @@ stock int SpawnCommand(int zClass, int spawnner = -1)
 		{
 			if(g_pfnCreateBoomer != null)
 			{
-				bot = SDKCall(g_pfnCreateBoomer, "肥");
+				bot = SDKCall(g_pfnCreateBoomer, "肥宅");
 				if(bot > 0)
 				{
 					SetEntityModel(bot, MODEL_BOOMER);
@@ -359,7 +361,7 @@ stock int SpawnCommand(int zClass, int spawnner = -1)
 		{
 			if(g_pfnCreateHunter != null)
 			{
-				bot = SDKCall(g_pfnCreateHunter, "猎");
+				bot = SDKCall(g_pfnCreateHunter, "猎人");
 				if(bot > 0)
 				{
 					SetEntityModel(bot, MODEL_HUNTER);
@@ -375,7 +377,7 @@ stock int SpawnCommand(int zClass, int spawnner = -1)
 		{
 			if(g_pfnCreateSpitter != null)
 			{
-				bot = SDKCall(g_pfnCreateSpitter, "水");
+				bot = SDKCall(g_pfnCreateSpitter, "口水");
 				if(bot > 0)
 				{
 					SetEntityModel(bot, MODEL_SPITTER);
@@ -418,6 +420,22 @@ stock int SpawnCommand(int zClass, int spawnner = -1)
 				bot = L4D2_SpawnSpecial(Z_CHARGER, vPos, Float:{0.0, 0.0, 0.0});
 			if(bot <= 0)
 				CheatCommand(spawnner, "z_spawn_old", "charger auto");
+		}
+		case Z_TANK:
+		{
+			if(g_pfnCreateTank != null)
+			{
+				bot = SDKCall(g_pfnCreateTank, "克");
+				if(bot > 0)
+				{
+					SetEntityModel(bot, MODEL_TANK);
+					postspawn = true;
+				}
+			}
+			if(bot <= 0)
+				bot = L4D2_SpawnTank(vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "tank auto");
 		}
 	}
 	

@@ -273,9 +273,69 @@ new Handle:cv_particle = INVALID_HANDLE;
 // new Handle:g_hGameConf = INVALID_HANDLE;
 // new Handle: sdkAdrenaline = INVALID_HANDLE;
 int g_iOldMeleeSwingRange = 0, g_iOldShoveSwingRange = 0, g_iOldShoveCharger = -1;
-StringMap g_tMeleeRange, g_tShoveRange, g_tWeaponSkin;
+StringMap g_tMeleeRange, g_tShoveRange, g_tWeaponSkin, g_tWeaponID;
 const int g_iUnknownMeleeRange = 90;
 const int g_iUnknownShoveRange = 90;
+
+static char L4D2WeaponName[56][64] =
+{
+    "weapon_none",                      // 0
+    "weapon_pistol",                    // 1
+    "weapon_smg",                       // 2
+    "weapon_pumpshotgun",               // 3
+    "weapon_autoshotgun",               // 4
+    "weapon_rifle",                     // 5
+    "weapon_hunting_rifle",             // 6
+    "weapon_smg_silenced",              // 7
+    "weapon_shotgun_chrome",            // 8
+    "weapon_rifle_desert",              // 9
+    "weapon_sniper_military",           // 10
+    "weapon_shotgun_spas",              // 11
+    "weapon_first_aid_kit",             // 12
+    "weapon_molotov",                   // 13
+    "weapon_pipe_bomb",                 // 14
+    "weapon_pain_pills",                // 15
+    "weapon_gascan",                    // 16
+    "weapon_propanetank",               // 17
+    "weapon_oxygentank",                // 18
+    "weapon_melee",                     // 19
+    "weapon_chainsaw",                  // 20
+    "weapon_grenade_launcher",          // 21
+    "weapon_ammo_pack",                 // 22
+    "weapon_adrenaline",                // 23
+    "weapon_defibrillator",             // 24
+    "weapon_vomitjar",                  // 25
+    "weapon_rifle_ak47",                // 26
+    "weapon_gnome",                     // 27
+    "weapon_cola_bottles",              // 28
+    "weapon_fireworkcrate",             // 29
+    "weapon_upgradepack_incendiary",    // 30
+    "weapon_upgradepack_explosive",     // 31
+    "weapon_pistol_magnum",             // 32
+    "weapon_smg_mp5",                   // 33
+    "weapon_rifle_sg552",               // 34
+    "weapon_sniper_awp",                // 35
+    "weapon_sniper_scout",              // 36
+    "weapon_rifle_m60",                 // 37
+    "weapon_tank_claw",                 // 38
+    "weapon_hunter_claw",               // 39
+    "weapon_charger_claw",              // 40
+    "weapon_boomer_claw",               // 41
+    "weapon_smoker_claw",               // 42
+    "weapon_spitter_claw",              // 43
+    "weapon_jockey_claw",               // 44
+    "weapon_machinegun",                // 45
+    "vomit",                            // 46
+    "splat",                            // 47
+    "pounce",                           // 48
+    "lounge",                           // 49
+    "pull",                             // 50
+    "choke",                            // 51
+    "rock",                             // 52
+    "physics",                          // 53
+    "weapon_ammo",                      // 54
+    "upgrade_item"                      // 55
+};
 
 // new Float:cung_cdSaveCount[MAXPLAYERS+1][100][3];
 new g_cdSaveCount[MAXPLAYERS+1];
@@ -465,7 +525,8 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 // int g_iZombieSpawner = -1;
 int g_iCommonHealth = 50;
 bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
-ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS, g_pCvarSaveStatus, g_pCvarBotRP;
+ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS,
+	g_pCvarSaveStatus, g_pCvarBotRP, g_pCvarBotBuy;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
 Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null,
 	g_pfnCreateSmoker = null, g_pfnCreateBoomer = null, g_pfnCreateHunter = null, g_pfnCreateSpitter = null, g_pfnCreateJockey = null, g_pfnCreateCharger = null,
@@ -653,6 +714,7 @@ public OnPluginStart()
 	g_pCvarStartPoints = CreateConVar("lv_starter_points","3", "初始硬币数量", FCVAR_NONE, true, 0.0, true, 30.0);
 	g_pCvarReimburse = CreateConVar("lv_expired_reimburse","1750", "存档过期战斗力补偿(补偿硬币=先前战斗力/补偿数值).0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarBotRP = CreateConVar("lv_bot_rp","15", "机器人开门时触发人品事件的几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
+	g_pCvarBotBuy = CreateConVar("lv_bot_buy","30", "机器人开门时触发购物的几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
 	g_pCvarGiveEquipment = CreateConVar("lv_give_eq", "3000", "获得装备所需最小战斗力", FCVAR_NONE, true, 0.0);
 	
 	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
@@ -789,6 +851,7 @@ public OnPluginStart()
 	// HookEvent("door_unlocked", Event_DoorUnlocked);
 	HookEvent("door_open", Event_DoorEvent);
 	HookEvent("door_close", Event_DoorEvent);
+	HookEvent("all_weapons_out_of_ammo", Event_DoorEvent);
 	// HookEvent("door_moving", Event_DoorMoving);
 	// HookEvent("rescue_door_open", Event_RescueDoorOpen);
 	// HookEvent("success_checkpoint_button_used", Event_ButtonPressed);
@@ -837,9 +900,13 @@ public OnPluginStart()
 	HookEvent("charger_carry_end", Event_PlayerReleased);
 	HookEvent("tongue_release", Event_PlayerReleased);
 	HookEvent("pounce_stopped", Event_PlayerReleased);
+	HookEvent("pounce_end", Event_PlayerReleased);
 	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabbed);
 	HookEvent("revive_begin", Event_PlayerReviveBegging);
 	HookEvent("revive_end", Event_PlayerReviveEnded);
+	HookEvent("achievement_earned", Event_AchievementEarend);
+	HookEvent("stashwhacker_game_won", Event_StashwhackerWon);
+	HookEvent("strongman_bell_knocked_off", Event_StrongmanBell);
 	
 	// 检查第一回合用
 	// HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -1056,6 +1123,10 @@ public OnPluginStart()
 			delete hGameData;
 		}
 	}
+	
+	g_tWeaponID = CreateTrie();
+	for(int i = 0; i < sizeof(L4D2WeaponName); ++i)
+		g_tWeaponID.SetValue(L4D2WeaponName[i], i);
 	
 	PrepSDKCall_CreateSpecials();
 	
@@ -1702,6 +1773,10 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 			// 胆汁效果紫色
 			CreateGlowModel(attacker, 0xFF80FF);
 		}
+		else if(StrEqual(event_name, "charger_carry_end", false))
+		{
+			CreateTimer(3.0, Timer_CheckPummelState, attacker);
+		}
 		else
 		{
 			// 没什么情况，不需要光圈
@@ -1727,12 +1802,30 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 			// 黑白状态 白色
 			CreateGlowModel(victim, 0xFFFFFF);
 		}
+		else if(StrEqual(event_name, "charger_carry_end", false))
+		{
+			CreateTimer(3.0, Timer_CheckPummelState, victim);
+		}
 		else
 		{
 			// 没什么情况，不需要光圈
 			RemoveGlowModel(victim);
 		}
 	}
+}
+
+public Action Timer_CheckPummelState(Handle timer, any client)
+{
+	if(!IsValidClient(client))
+		return Plugin_Stop;
+	
+	if(!IsPlayerAlive(client) || (GetCurrentAttacker(client) == -1 && GetCurrentVictim(client) == -1))
+	{
+		// 已经不再需要光圈了
+		RemoveGlowModel(client);
+	}
+	
+	return Plugin_Continue;
 }
 
 public void Event_PlayerLedgeGrabbed(Event event, const char[] event_name, bool dontBroadcast)
@@ -1771,6 +1864,36 @@ public void Event_PlayerReviveEnded(Event event, const char[] event_name, bool d
 		// 救起来了
 		RemoveGlowModel(client);
 	}
+}
+
+public void Event_AchievementEarend(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = event.GetInt("player");
+	if(!IsValidClient(client))
+		return;
+	
+	GiveSkillPoint(client, 1);
+	PrintToChat(client, "\x03[提示]\x01 你因为解锁成就而获得 \x051\x01 枚硬币。");
+}
+
+public void Event_StashwhackerWon(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	GiveSkillPoint(client, 1);
+	PrintToChat(client, "\x03[提示]\x01 你因为触发奖励而获得 \x051\x01 枚硬币。");
+}
+
+public void Event_StrongmanBell(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	GiveSkillPoint(client, 1);
+	PrintToChat(client, "\x03[提示]\x01 你因为触发奖励而获得 \x051\x01 枚硬币。");
 }
 
 public Action Timer_RoundStartPost(Handle timer, any data)
@@ -3075,6 +3198,101 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 	PrintToChat(client, "\x03[提示]\x01 完成。");
 	StatusSelectMenuFuncBuy(client, menu.ExitBackButton);
 	return 0;
+}
+
+void HandleBotBuy(int client)
+{
+	if(g_clSkillPoint[client] < 2)
+		return;
+	
+	// 医疗包 + 针筒 + 补充弹药
+	{
+		int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
+		int health = GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client);
+		if(maxHealth / float(health) < 0.3 &&
+			GetPlayerWeaponSlot(client, 3) == -1 &&	// 包/电
+			GetPlayerWeaponSlot(client, 4) == -1)	// 药
+		{
+			g_clSkillPoint[client] -= 2;
+			DataPack data = CreateDataPack();
+			CreateTimer(3.0, Timer_HandleGiveItem, data);
+			data.WriteCell(client);
+			data.WriteCell(3);
+			data.WriteString("first_aid_kit");
+			data.WriteString("adrenaline");
+			data.WriteString("ammo");
+			return;
+		}
+	}
+	
+	// 电击器 + 药丸 + 补充弹药
+	{
+		int actor = -1;
+		float origin[3], location[3];
+		GetClientAbsOrigin(client, origin);
+		while((actor = FindEntityByClassname(-1, "survivor_death_model")) > -1)
+		{
+			GetEntPropVector(actor, Prop_Send, "m_vecOrigin", location);
+			if(GetVectorDistance(origin, location) < 500.0)
+			{
+				g_clSkillPoint[client] -= 2;
+				DataPack data = CreateDataPack();
+				CreateTimer(3.0, Timer_HandleGiveItem, data);
+				data.WriteCell(client);
+				data.WriteCell(3);
+				data.WriteString("defibrillator");
+				data.WriteString("pain_pills");
+				data.WriteString("ammo");
+				return;
+			}
+		}
+	}
+	
+	// 武器
+	{
+		int ammo = 0, maxAmmo = 0;
+		int weapon = GetPlayerWeaponSlot(client, 0);
+		if(weapon > MaxClients)
+		{
+			ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+			maxAmmo = GetDefaultAmmo(weapon);
+		}
+		if(weapon < MaxClients || ammo / float(maxAmmo) < 0.25)
+		{
+			g_clSkillPoint[client] -= 2;
+			DataPack data = CreateDataPack();
+			CreateTimer(3.0, Timer_HandleGiveItem, data);
+			data.WriteCell(client);
+			data.WriteCell(3);
+			data.WriteString("sniper_awp");
+			data.WriteString("knife");
+			data.WriteString("gascan");
+			return;
+		}
+	}
+}
+
+public Action Timer_HandleGiveItem(Handle timer, any pack)
+{
+	DataPack data = view_as<DataPack>(pack);
+	data.Reset();
+	
+	int client = data.ReadCell();
+	if(!IsValidAliveClient(client))
+		return Plugin_Stop;
+	
+	char item[32];
+	int argc = data.ReadCell();
+	for(int i = 0; i < argc; ++i)
+	{
+		data.ReadString(item, sizeof(item));
+		if(StrEqual(item, "ammo", false))
+			AddAmmo(client, 999);
+		else
+			CheatCommand(client, "give", item);
+	}
+	
+	return Plugin_Stop;
 }
 
 void StatusSelectMenuFuncNCJ(int client)
@@ -8982,16 +9200,20 @@ public void Event_DoorMoving(Event event, const char[] eventName, bool dontBroad
 
 public void Event_DoorEvent(Event event, const char[] eventName, bool dontBroadcast)
 {
-	int chance = g_pCvarBotRP.IntValue;
-	if(chance <= 0)
-		return;
-	
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidAliveClient(client) || !IsFakeClient(client) || GetClientTeam(client) != 2)
 		return;
 	
-	if(GetRandomInt(1, 100) <= chance)
+	if(GetRandomInt(1, 100) <= g_pCvarBotRP.IntValue)
+	{
+		FakeClientCommandEx(client, "say !ldw");
 		StatusSelectMenuFuncRP(client, false);
+	}
+	if(GetRandomInt(1, 100) <= g_pCvarBotBuy.IntValue)
+	{
+		FakeClientCommandEx(client, "say !buy");
+		HandleBotBuy(client);
+	}
 }
 
 public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroadcast)
@@ -9654,7 +9876,7 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 					int iTarget = TR_GetEntityIndex(trace);
 					delete trace;
 					
-					// TODO: 计算暴击和额外伤害
+					// TODO: 计算暴击和额外伤害（此处绕过了 TraceAttack）
 					if(iTarget > 0 && damage > 0.0 && GetVectorDistance(fBeamTwoStart, fBeamTwoEnd) <= L4D2_GetFloatWeaponAttribute(classname, L4D2FWA_Range))
 					{
 						// EmitSoundToAll(SOUND_IMPACT1, iTarget,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
@@ -12048,6 +12270,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			{
 				bool isAmmo = (StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false));	// 弹药堆
 				bool isSpawnner = (StrContains(className, weaponName, false) == 0 && StrContains(className, "_spawn", false) > 0);	// weapon_*_spawn
+				if(StrEqual(className, "weapon_spawn", false) && L4D2_GetWeaponId(weaponName) == GetEntProp(useTarget, Prop_Send, "m_weaponID"))
+					isSpawnner = true;
 				
 				if(isAmmo || isSpawnner)
 				{
@@ -12056,7 +12280,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					data.WriteString(weaponName);
 					data.WriteCell(isSpawnner);
 					
-					// FIXME: 处理基于 weaponId 的 weapon_spawn 实体
 					// AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
 					RequestFrame(UpdateWeaponAmmo, data);
 				}
@@ -12262,6 +12485,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		g_fNextCalmTime[client] += time + 1.0;
 	
 	return Plugin_Changed;
+}
+
+stock int L4D2_GetWeaponId(const char[] weaponName)
+{
+	int value = -1;
+	g_tWeaponID.GetValue(weaponName, value);
+	return value;
 }
 
 void ShowStatusPanel(int client)

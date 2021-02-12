@@ -34,7 +34,7 @@
 //#include <sdkhooks>
 #include <adminmenu>
 
-#define PLUGIN_NAME "[L4D2] Custom admin commands"
+#define PLUGIN_NAME "自定义管理命令"
 #define PLUGIN_AUTHOR "honorcode23, Shadowysn (improvements)"
 #define PLUGIN_DESC "Allow admins to use new administrative or fun commands"
 #define PLUGIN_VERSION "1.3.7"
@@ -197,13 +197,13 @@ public void OnPluginStart()
 	LogDebug("Creating necessary ConVars...");
 	//Cvars
 	CreateConVar("l4d2_custom_commands_version", PLUGIN_VERSION, "Version of Custom Admin Commands Plugin", FCVAR_SPONLY|FCVAR_NOTIFY|FCVAR_DONTRECORD);
-	g_cvarRadius = CreateConVar("l4d2_custom_commands_explosion_radius", "350", "Radius for the Create Explosion's command explosion");
-	g_cvarPower = CreateConVar("l4d2_custom_commands_explosion_power", "350", "Power of the Create Explosion's command explosion");
-	g_cvarDuration = CreateConVar("l4d2_custom_commands_explosion_duration", "15", "Duration of the Create Explosion's command explosion fire trace");
-	g_cvarRainDur = CreateConVar("l4d2_custom_commands_rain_duration", "10", "Time out for the gnome's rain or l4d1 survivors rain");
-	g_cvarRainRadius = CreateConVar("l4d2_custom_commands_rain_radius", "300", "Maximum radius of the gnome rain or l4d1 rain. Will also affect the air strike radius");
-	g_cvarLog = CreateConVar("l4d2_custom_commands_log", "1", "Log admin actions when they use a command? [1: Yes 0: No]");
-	g_cvarAddType = CreateConVar("l4d2_custom_commands_menutype", "1", "How should the commands be added to the menu? 0: Create new category 1: Add to default categories");
+	g_cvarRadius = CreateConVar("l4d2_custom_commands_explosion_radius", "350", "创建爆炸命令的爆炸范围");
+	g_cvarPower = CreateConVar("l4d2_custom_commands_explosion_power", "350", "创建爆炸命令的爆炸推力");
+	g_cvarDuration = CreateConVar("l4d2_custom_commands_explosion_duration", "15", "创建爆炸命令的火焰持续时间");
+	g_cvarRainDur = CreateConVar("l4d2_custom_commands_rain_duration", "10", "侏儒雨命令的持续时间");
+	g_cvarRainRadius = CreateConVar("l4d2_custom_commands_rain_radius", "300", "侏儒雨/下雨命令的范围");
+	g_cvarLog = CreateConVar("l4d2_custom_commands_log", "1", "是否记录命令使用情况");
+	g_cvarAddType = CreateConVar("l4d2_custom_commands_menutype", "0", "命令菜单放在哪里.0=创建新的分组.1=附加到默认分组");
 	
 	LogDebug("Registering all admin and console commands...");
 	//Commands
@@ -1782,11 +1782,11 @@ void Category_Handler(Handle topmenu, TopMenuAction action, TopMenuObject object
 {
 	if (action == TopMenuAction_DisplayTitle)
 	{
-		Format(buffer, maxlength, "Custom Commands");
+		Format(buffer, maxlength, "自定义命令");
 	}
 	else if (action == TopMenuAction_DisplayOption)
 	{
-		Format(buffer, maxlength, "Custom Commands");
+		Format(buffer, maxlength, "自定义命令");
 	}
 }
 
@@ -1794,7 +1794,7 @@ void AdminMenu_Player(Handle topmenu, TopMenuAction action, TopMenuObject object
 {
 	if (action == TopMenuAction_DisplayOption)
 	{
-		Format(buffer, maxlength, "Player Commands");
+		Format(buffer, maxlength, "玩家命令");
 	}
 	else if (action == TopMenuAction_SelectOption)
 	{
@@ -1806,7 +1806,7 @@ void AdminMenu_General(Handle topmenu, TopMenuAction action, TopMenuObject objec
 {
 	if (action == TopMenuAction_DisplayOption)
 	{
-		Format(buffer, maxlength, "General Commands");
+		Format(buffer, maxlength, "通常命令");
 	}
 	else if (action == TopMenuAction_SelectOption)
 	{
@@ -1818,7 +1818,7 @@ void AdminMenu_Server(Handle topmenu, TopMenuAction action, TopMenuObject object
 {
 	if (action == TopMenuAction_DisplayOption)
 	{
-		Format(buffer, maxlength, "Server Commands");
+		Format(buffer, maxlength, "服务器命令");
 	}
 	else if (action == TopMenuAction_SelectOption)
 	{
@@ -1829,42 +1829,42 @@ void AdminMenu_Server(Handle topmenu, TopMenuAction action, TopMenuObject object
 void BuildPlayerMenu(int client)
 {
 	Menu menu = CreateMenu(MenuHandler_PlayerMenu);
-	SetMenuTitle(menu, "Player Commands");
+	SetMenuTitle(menu, "玩家命令");
 	SetMenuExitBackButton(menu, true);
-	AddMenuItem(menu, "l4d2chargeplayer", "Charge Player");
-	AddMenuItem(menu, "l4d2incapplayer", "Incap Player");
-	AddMenuItem(menu, "l4d2smackillplayer", "Smackill Player");
-	AddMenuItem(menu, "l4d2speedplayer", "Set Player Speed");
-	AddMenuItem(menu, "l4d2sethpplayer", "Set Player Health");
-	AddMenuItem(menu, "l4d2colorplayer", "Set Player Color");
-	AddMenuItem(menu, "l4d2sizeplayer", "Set Player Scale");
-	AddMenuItem(menu, "l4d2shakeplayer", "Shake Player");
-	AddMenuItem(menu, "l4d2teleplayer", "Teleport Player");
-	AddMenuItem(menu, "l4d2dontrush", "Dont Rush Player");
-	AddMenuItem(menu, "l4d2airstrike", "Send Airstrike");
-	AddMenuItem(menu, "l4d2changehp", "Change Health Style");
-	AddMenuItem(menu, "l4d2godmode", "God mode");
+	AddMenuItem(menu, "l4d2chargeplayer", "拍飞玩家");
+	AddMenuItem(menu, "l4d2incapplayer", "击倒玩家");
+	AddMenuItem(menu, "l4d2smackillplayer", "拍打致死");
+	AddMenuItem(menu, "l4d2speedplayer", "设置玩家速度");
+	AddMenuItem(menu, "l4d2sethpplayer", "设置玩家血量");
+	AddMenuItem(menu, "l4d2colorplayer", "设置玩家颜色");
+	AddMenuItem(menu, "l4d2sizeplayer", "设置玩家大小");
+	AddMenuItem(menu, "l4d2shakeplayer", "摇晃玩家");
+	AddMenuItem(menu, "l4d2teleplayer", "传送玩家");
+	AddMenuItem(menu, "l4d2dontrush", "传送回起始安全室");
+	AddMenuItem(menu, "l4d2airstrike", "呼叫空袭");
+	AddMenuItem(menu, "l4d2changehp", "交换生命值类型");
+	AddMenuItem(menu, "l4d2godmode", "无敌模式");
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
 
 void BuildGeneralMenu(int client)
 {
 	Menu menu = CreateMenu(MenuHandler_GeneralMenu);
-	SetMenuTitle(menu, "Player Commands");
+	SetMenuTitle(menu, "玩家命令");
 	SetMenuExitBackButton(menu, true);
-	AddMenuItem(menu, "l4d2createexplosion", "Set Explosion");
-	AddMenuItem(menu, "l4d2norescue", "Force rescue vehicle to leave");
+	AddMenuItem(menu, "l4d2createexplosion", "创建爆炸");
+	AddMenuItem(menu, "l4d2norescue", "强制救援离开");
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
 
 void BuildServerMenu(int client)
 {
 	Menu menu = CreateMenu(MenuHandler_ServerMenu);
-	SetMenuTitle(menu, "Player Commands");
+	SetMenuTitle(menu, "玩家命令");
 	SetMenuExitBackButton(menu, true);
-	AddMenuItem(menu, "l4d2gnomerain", "Gnome Rain");
-	AddMenuItem(menu, "l4d2survrain", "Survivors Rain");
-	AddMenuItem(menu, "l4d2gnomewipe", "Wipe all gnomes");
+	AddMenuItem(menu, "l4d2gnomerain", "侏儒雨");
+	AddMenuItem(menu, "l4d2survrain", "幸存者雨");
+	AddMenuItem(menu, "l4d2gnomewipe", "删除所有侏儒");
 	DisplayMenu(menu, client, MENU_TIME_FOREVER);
 }
 

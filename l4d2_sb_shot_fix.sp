@@ -243,6 +243,9 @@ bool CanReloadGun(int entity, int owner)
 		return false;
 	
 	int ammoType = GetEntProp(entity, Prop_Send, "m_iPrimaryAmmoType");
+	if(ammoType < 0 || ammoType >= 32)
+		return false;
+	
 	int ammo = GetEntProp(owner, Prop_Send, "m_iAmmo", _, ammoType);
 	if(ammo > 0)
 		return true;

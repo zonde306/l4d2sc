@@ -308,10 +308,24 @@ public Action Timer_SpawnQueue(Handle timer, any unused)
 ******************************************
 */
 
+stock int GetRandomSurvivor()
+{
+	int count = 0;
+	int survivors[MAXPLAYERS];
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
+			survivors[count++] = i;
+	
+	SortIntegers(survivors, count, Sort_Random);
+	return survivors[0];
+}
+
 stock int SpawnCommand(int zClass, int spawnner = -1)
 {
 	if(!IsValidClient(spawnner))
 		spawnner = L4D_GetHighestFlowSurvivor();
+	if(!IsValidClient(spawnner))
+		spawnner = GetRandomSurvivor();
 	
 	static ConVar z_spawn_range;
 	if(z_spawn_range == null)

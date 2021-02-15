@@ -279,62 +279,62 @@ const int g_iUnknownShoveRange = 90;
 
 static char L4D2WeaponName[56][64] =
 {
-    "weapon_none",                      // 0
-    "weapon_pistol",                    // 1
-    "weapon_smg",                       // 2
-    "weapon_pumpshotgun",               // 3
-    "weapon_autoshotgun",               // 4
-    "weapon_rifle",                     // 5
-    "weapon_hunting_rifle",             // 6
-    "weapon_smg_silenced",              // 7
-    "weapon_shotgun_chrome",            // 8
-    "weapon_rifle_desert",              // 9
-    "weapon_sniper_military",           // 10
-    "weapon_shotgun_spas",              // 11
-    "weapon_first_aid_kit",             // 12
-    "weapon_molotov",                   // 13
-    "weapon_pipe_bomb",                 // 14
-    "weapon_pain_pills",                // 15
-    "weapon_gascan",                    // 16
-    "weapon_propanetank",               // 17
-    "weapon_oxygentank",                // 18
-    "weapon_melee",                     // 19
-    "weapon_chainsaw",                  // 20
-    "weapon_grenade_launcher",          // 21
-    "weapon_ammo_pack",                 // 22
-    "weapon_adrenaline",                // 23
-    "weapon_defibrillator",             // 24
-    "weapon_vomitjar",                  // 25
-    "weapon_rifle_ak47",                // 26
-    "weapon_gnome",                     // 27
-    "weapon_cola_bottles",              // 28
-    "weapon_fireworkcrate",             // 29
-    "weapon_upgradepack_incendiary",    // 30
-    "weapon_upgradepack_explosive",     // 31
-    "weapon_pistol_magnum",             // 32
-    "weapon_smg_mp5",                   // 33
-    "weapon_rifle_sg552",               // 34
-    "weapon_sniper_awp",                // 35
-    "weapon_sniper_scout",              // 36
-    "weapon_rifle_m60",                 // 37
-    "weapon_tank_claw",                 // 38
-    "weapon_hunter_claw",               // 39
-    "weapon_charger_claw",              // 40
-    "weapon_boomer_claw",               // 41
-    "weapon_smoker_claw",               // 42
-    "weapon_spitter_claw",              // 43
-    "weapon_jockey_claw",               // 44
-    "weapon_machinegun",                // 45
-    "vomit",                            // 46
-    "splat",                            // 47
-    "pounce",                           // 48
-    "lounge",                           // 49
-    "pull",                             // 50
-    "choke",                            // 51
-    "rock",                             // 52
-    "physics",                          // 53
-    "weapon_ammo",                      // 54
-    "upgrade_item"                      // 55
+	"weapon_none",                      // 0
+	"weapon_pistol",                    // 1
+	"weapon_smg",                       // 2
+	"weapon_pumpshotgun",               // 3
+	"weapon_autoshotgun",               // 4
+	"weapon_rifle",                     // 5
+	"weapon_hunting_rifle",             // 6
+	"weapon_smg_silenced",              // 7
+	"weapon_shotgun_chrome",            // 8
+	"weapon_rifle_desert",              // 9
+	"weapon_sniper_military",           // 10
+	"weapon_shotgun_spas",              // 11
+	"weapon_first_aid_kit",             // 12
+	"weapon_molotov",                   // 13
+	"weapon_pipe_bomb",                 // 14
+	"weapon_pain_pills",                // 15
+	"weapon_gascan",                    // 16
+	"weapon_propanetank",               // 17
+	"weapon_oxygentank",                // 18
+	"weapon_melee",                     // 19
+	"weapon_chainsaw",                  // 20
+	"weapon_grenade_launcher",          // 21
+	"weapon_ammo_pack",                 // 22
+	"weapon_adrenaline",                // 23
+	"weapon_defibrillator",             // 24
+	"weapon_vomitjar",                  // 25
+	"weapon_rifle_ak47",                // 26
+	"weapon_gnome",                     // 27
+	"weapon_cola_bottles",              // 28
+	"weapon_fireworkcrate",             // 29
+	"weapon_upgradepack_incendiary",    // 30
+	"weapon_upgradepack_explosive",     // 31
+	"weapon_pistol_magnum",             // 32
+	"weapon_smg_mp5",                   // 33
+	"weapon_rifle_sg552",               // 34
+	"weapon_sniper_awp",                // 35
+	"weapon_sniper_scout",              // 36
+	"weapon_rifle_m60",                 // 37
+	"weapon_tank_claw",                 // 38
+	"weapon_hunter_claw",               // 39
+	"weapon_charger_claw",              // 40
+	"weapon_boomer_claw",               // 41
+	"weapon_smoker_claw",               // 42
+	"weapon_spitter_claw",              // 43
+	"weapon_jockey_claw",               // 44
+	"weapon_machinegun",                // 45
+	"vomit",                            // 46
+	"splat",                            // 47
+	"pounce",                           // 48
+	"lounge",                           // 49
+	"pull",                             // 50
+	"choke",                            // 51
+	"rock",                             // 52
+	"physics",                          // 53
+	"weapon_ammo",                      // 54
+	"upgrade_item"                      // 55
 };
 
 // new Float:cung_cdSaveCount[MAXPLAYERS+1][100][3];
@@ -347,6 +347,8 @@ float g_fForgiveOfTK[MAXPLAYERS+1];
 float g_fForgiveOfFF[MAXPLAYERS+1];
 int g_iForgiveTKTarget[MAXPLAYERS+1];
 int g_iForgiveFFTarget[MAXPLAYERS+1];
+Handle g_hTimerRenderHealthBar = null;
+bool g_bIsTankRock[2049];
 
 #define SPRITE_BEAM					"materials/sprites/laserbeam.vmt"
 #define SPRITE_HALO					"materials/sprites/halo01.vmt"
@@ -380,6 +382,7 @@ static const char g_sndShoveMiss[][] = {
 new g_BeamSprite;
 new g_HaloSprite;
 // new g_GlowSrpite;
+int g_iModelBeam;
 
 #define MOLOTOV 0
 #define EXPLODE 1
@@ -813,7 +816,7 @@ public OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_entered_start_area", Event_PlayerEnterStartArea);
 	HookEvent("player_first_spawn", Event_PlayerSpawn);
-	HookEvent("player_first_spawn", Event_PlayerSpawnNotify);
+	// HookEvent("player_first_spawn", Event_PlayerSpawnNotify);
 	HookEvent("bot_player_replace", Event_PlayerReplaceBot);
 	HookEvent("player_bot_replace", Event_BotReplacePlayer);
 	// HookEvent("spit_burst", Event_SpitBurst);
@@ -835,6 +838,7 @@ public OnPluginStart()
 	HookEvent("mission_lost", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_start_pre_entity", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_start_post_nav", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("finale_vehicle_leaving", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("map_transition", Event_RoundWin, EventHookMode_PostNoCopy);
 	HookEvent("finale_win", Event_FinaleWin, EventHookMode_PostNoCopy);
 	HookEvent("finale_vehicle_leaving", Event_FinaleVehicleLeaving);
@@ -1286,6 +1290,7 @@ public OnMapStart()
 	g_BeamSprite = PrecacheModel(SPRITE_BEAM);
 	g_HaloSprite = PrecacheModel(SPRITE_HALO);
 	// g_GlowSrpite = PrecacheModel(SPRITE_GLOW);
+	g_iModelBeam = PrecacheModel("materials/vgui/white_additive.vmt");
 
 	GetConVarString(g_CvarSoundLevel, g_soundLevel, sizeof(g_soundLevel));
 	PrecacheSound(g_soundLevel, true);
@@ -1523,6 +1528,12 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 		KillTimer(g_hTimerSurvival);
 		g_hTimerSurvival = null;
 	}
+	
+	if(g_hTimerRenderHealthBar != null)
+	{
+		KillTimer(g_hTimerRenderHealthBar);
+		g_hTimerRenderHealthBar = null;
+	}
 }
 
 public Action:Event_FinaleWin(Handle:event, String:event_name[], bool:dontBroadcast)
@@ -1717,6 +1728,9 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 			RegPlayerHook(i, g_Cvarhppack.BoolValue);
 		}
 	}
+	
+	if(g_hTimerRenderHealthBar == null)
+		g_hTimerRenderHealthBar = CreateTimer(0.1, Timer_RenderHealthBar, 0, TIMER_REPEAT);
 	
 	g_bIsGamePlaying = true;
 	PrintToServer("游戏开始");
@@ -1937,6 +1951,7 @@ public void OnClientDisconnect(int client)
 	}
 	
 	Initialization(client, true);
+	RemoveGlowModel(client);
 	
 	if(g_kvSavePlayer[client])
 		delete g_kvSavePlayer[client];
@@ -3206,69 +3221,63 @@ void HandleBotBuy(int client)
 		return;
 	
 	// 医疗包 + 针筒 + 补充弹药
+	int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
+	int health = GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client);
+	if(maxHealth / float(health) < 0.3 &&
+		GetPlayerWeaponSlot(client, 3) == -1 &&	// 包/电
+		GetPlayerWeaponSlot(client, 4) == -1)	// 药
 	{
-		int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
-		int health = GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client);
-		if(maxHealth / float(health) < 0.3 &&
-			GetPlayerWeaponSlot(client, 3) == -1 &&	// 包/电
-			GetPlayerWeaponSlot(client, 4) == -1)	// 药
-		{
-			g_clSkillPoint[client] -= 2;
-			DataPack data = CreateDataPack();
-			CreateTimer(3.0, Timer_HandleGiveItem, data);
-			data.WriteCell(client);
-			data.WriteCell(3);
-			data.WriteString("first_aid_kit");
-			data.WriteString("adrenaline");
-			data.WriteString("ammo");
-			return;
-		}
+		g_clSkillPoint[client] -= 2;
+		DataPack data = CreateDataPack();
+		data.WriteCell(client);
+		data.WriteCell(3);
+		data.WriteString("first_aid_kit");
+		data.WriteString("adrenaline");
+		data.WriteString("ammo");
+		CreateTimer(3.0, Timer_HandleGiveItem, data, TIMER_FLAG_NO_MAPCHANGE);
+		return;
 	}
 	
 	// 电击器 + 药丸 + 补充弹药
+	int actor = -1;
+	float origin[3], location[3];
+	GetClientAbsOrigin(client, origin);
+	while((actor = FindEntityByClassname(-1, "survivor_death_model")) > -1)
 	{
-		int actor = -1;
-		float origin[3], location[3];
-		GetClientAbsOrigin(client, origin);
-		while((actor = FindEntityByClassname(-1, "survivor_death_model")) > -1)
+		GetEntPropVector(actor, Prop_Send, "m_vecOrigin", location);
+		if(GetVectorDistance(origin, location) < 500.0)
 		{
-			GetEntPropVector(actor, Prop_Send, "m_vecOrigin", location);
-			if(GetVectorDistance(origin, location) < 500.0)
-			{
-				g_clSkillPoint[client] -= 2;
-				DataPack data = CreateDataPack();
-				CreateTimer(3.0, Timer_HandleGiveItem, data);
-				data.WriteCell(client);
-				data.WriteCell(3);
-				data.WriteString("defibrillator");
-				data.WriteString("pain_pills");
-				data.WriteString("ammo");
-				return;
-			}
+			g_clSkillPoint[client] -= 2;
+			DataPack data = CreateDataPack();
+			data.WriteCell(client);
+			data.WriteCell(3);
+			data.WriteString("defibrillator");
+			data.WriteString("pain_pills");
+			data.WriteString("ammo");
+			CreateTimer(3.0, Timer_HandleGiveItem, data, TIMER_FLAG_NO_MAPCHANGE);
+			return;
 		}
 	}
 	
 	// 武器
+	int ammo = 0, maxAmmo = 0;
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon > MaxClients)
 	{
-		int ammo = 0, maxAmmo = 0;
-		int weapon = GetPlayerWeaponSlot(client, 0);
-		if(weapon > MaxClients)
-		{
-			ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
-			maxAmmo = GetDefaultAmmo(weapon);
-		}
-		if(weapon < MaxClients || ammo / float(maxAmmo) < 0.25)
-		{
-			g_clSkillPoint[client] -= 2;
-			DataPack data = CreateDataPack();
-			CreateTimer(3.0, Timer_HandleGiveItem, data);
-			data.WriteCell(client);
-			data.WriteCell(3);
-			data.WriteString("sniper_awp");
-			data.WriteString("knife");
-			data.WriteString("gascan");
-			return;
-		}
+		ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+		maxAmmo = GetDefaultAmmo(weapon);
+	}
+	if(weapon < MaxClients || ammo / float(maxAmmo) < 0.25)
+	{
+		g_clSkillPoint[client] -= 2;
+		DataPack data = CreateDataPack();
+		data.WriteCell(client);
+		data.WriteCell(3);
+		data.WriteString("sniper_awp");
+		data.WriteString("knife");
+		data.WriteString("gascan");
+		CreateTimer(3.0, Timer_HandleGiveItem, data, TIMER_FLAG_NO_MAPCHANGE);
+		return;
 	}
 }
 
@@ -3462,7 +3471,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
 	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」保留弹匣/升级叠加补子弹/填装可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
-	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示伤害/刷特提示",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示血量/伤害",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
 
 	menu.ExitButton = true;
@@ -3581,7 +3590,7 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 	menu.AddItem(tr("5_%d",SKL_5_Overkill), mps("「精准」对普感1/4几率暴击",(g_clSkill_5[client]&SKL_5_Overkill)));
 	menu.AddItem(tr("5_%d",SKL_5_RocketDude), mps("「火箭」允许榴弹跳",(g_clSkill_5[client]&SKL_5_RocketDude)));
 	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("「持久」冲锋枪25连射后改为消耗备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
-	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("「潜行」降低被特感发现的几率",(g_clSkill_5[client]&SKL_5_Sneak)));
+	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("「潜行」安静时降低被发现几率",(g_clSkill_5[client]&SKL_5_Sneak)));
 	
 	if(g_tMeleeRange != null && g_hDetourTestMeleeSwingCollision != null)
 		menu.AddItem(tr("5_%d",SKL_5_MeleeRange), mps("「刀客」增加近战武器攻击范围",(g_clSkill_5[client]&SKL_5_MeleeRange)));
@@ -5566,10 +5575,24 @@ int ChooseSpecialVictim(int attacker, int ignore = -1)
 	return victim;
 }
 
+stock int GetRandomSurvivor()
+{
+	int count = 0;
+	int survivors[MAXPLAYERS];
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
+			survivors[count++] = i;
+	
+	SortIntegers(survivors, count, Sort_Random);
+	return survivors[0];
+}
+
 stock int SpawnCommand(int spawnner, int zClass)
 {
 	if(!IsValidClient(spawnner))
 		spawnner = L4D_GetHighestFlowSurvivor();
+	if(!IsValidClient(spawnner))
+		spawnner = GetRandomSurvivor();
 	
 	static ConVar z_spawn_range;
 	if(z_spawn_range == null)
@@ -5950,6 +5973,9 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if(StrContains(classname, "_projectile", false) > 0)
 		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnProjectileSpawned);
 	*/
+	
+	if(entity > MaxClients && entity <= 2048 && StrEqual(classname, "tank_rock", false))
+		g_bIsTankRock[entity] = true;
 }
 
 public void OnEntityDestroyed(int entity)
@@ -5970,6 +5996,9 @@ public void OnEntityDestroyed(int entity)
 	SDKUnhook(entity, SDKHook_WeaponDropPost, PlayerHook_OnReloadStopped);
 	SDKUnhook(entity, SDKHook_SetTransmit, GlowHook_SetTransmit);
 	SDKUnhook(entity, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
+	
+	if(entity > MaxClients && entity <= 2048)
+		g_bIsTankRock[entity] = false;
 }
 
 public void ZombieHook_OnSpawned(int entity)
@@ -6851,7 +6880,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			}
 		}
 		
-		if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && (dmg_type & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)) && !IsFakeClient(attacker))
+		if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && (isGunShot || isMeleeHack) && !IsFakeClient(attacker))
 		{
 			int health = GetEventInt(event, "health");
 			bool headshot = event.GetBool("headshot");
@@ -9117,6 +9146,224 @@ public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool do
 	}
 }
 
+bool IsVisibleTo(int client, int target)
+{
+	float vClientPos[3];
+	float vEntityPos[3];
+	float vLookAt[3];
+	float vAng[3];
+
+	GetClientEyePosition(client, vClientPos);
+	GetClientEyePosition(target, vEntityPos);
+	MakeVectorFromPoints(vClientPos, vEntityPos, vLookAt);	// 或者 SubtractVectors(vEntityPos, vClientPos, vLookAt)
+	GetVectorAngles(vLookAt, vAng);
+
+	Handle trace = TR_TraceRayFilterEx(vClientPos, vAng, MASK_PLAYERSOLID, RayType_Infinite, TraceFilter_IsVisibleTo, target);
+
+	bool isVisible;
+
+	if (TR_DidHit(trace))
+	{
+		isVisible = (TR_GetEntityIndex(trace) == target);
+
+		if (!isVisible)
+		{
+			vEntityPos[2] -= 62.0; // results the same as GetClientAbsOrigin
+
+			delete trace;
+			trace = TR_TraceHullFilterEx(vClientPos, vEntityPos, Float:{-16.0, -16.0,  0.0}, Float:{ 16.0,  16.0, 71.0}, MASK_PLAYERSOLID, TraceFilter_IsVisibleTo, target);
+
+			if (TR_DidHit(trace))
+				isVisible = (TR_GetEntityIndex(trace) == target);
+		}
+	}
+
+	delete trace;
+
+	return isVisible;
+}
+
+public bool TraceFilter_IsVisibleTo(int entity, int contentsMask, int client)
+{
+	if(entity == client)
+		return true;
+	
+	if(1 <= entity <= MaxClients)
+		return false;
+	
+	if(entity <= 2048 && g_bIsTankRock[entity])
+		return false;
+	
+	return true;
+}
+
+bool IsPlayerGhost(int client)
+{
+	return (GetEntProp(client, Prop_Send, "m_isGhost") == 1);
+}
+
+public Action Timer_RenderHealthBar(Handle timer, any unused)
+{
+	static ConVar cv_incaphealth;
+	if(cv_incaphealth == null)
+		cv_incaphealth = FindConVar("survivor_incap_health");
+	
+	float time = GetEngineTime();
+	for (int target = 1; target <= MaxClients; target++)
+	{
+		if (!IsClientInGame(target))
+			continue;
+		
+		if (!IsPlayerAlive(target))
+			continue;
+		
+		// 目标潜行中
+		if((g_clSkill_5[target] & SKL_5_Sneak) && g_fNextCalmTime[target] <= time)
+			continue;
+		
+		int targetTeam = GetClientTeam(target);
+
+		if (targetTeam == TEAM_INFECTED)
+		{
+			if (IsPlayerGhost(target))
+				continue;
+			
+			/*
+			if (!(GetZombieClassFlag(target) & g_iCvar_SI))
+				continue;
+			*/
+		}
+		
+		bool isIncapacitated = IsPlayerIncapped(target);
+
+		int maxHealth = GetEntProp(target, Prop_Data, "m_iMaxHealth");
+		int currentHealth = GetClientHealth(target);
+
+		switch (targetTeam)
+		{
+			case 2, 4:
+			{
+				// 倒地状态下 m_iMaxHealth 仍然不变，需要从 cvar 读取
+				if (isIncapacitated)
+					maxHealth = cv_incaphealth.IntValue;
+				else
+					currentHealth += GetPlayerTempHealth(target);
+			}
+			case 3:
+			{
+				if (isIncapacitated)
+					maxHealth = 0;
+			}
+		}
+
+		float percentageHealth;
+
+		if (maxHealth > 0)
+			percentageHealth = (float(currentHealth) / float(maxHealth));
+
+		bool halfHealth = (percentageHealth <= 0.5);
+
+		int color[4];
+		if (isIncapacitated)
+		{
+			color[0] = 255;
+			color[1] = 0;
+			color[2] = 0;
+			color[3] = 240;
+		}
+		else if(GetEntProp(target, Prop_Send, "m_bIsOnThirdStrike", 1))
+		{
+			color[0] = 245;
+			color[1] = 245;
+			color[2] = 245;
+			color[3] = 240;
+		}
+		else
+		{
+			color[0] = halfHealth ? 255 : RoundFloat(255.0 * ((1.0 - percentageHealth) * 2));
+			color[1] = halfHealth ? RoundFloat(255.0 * (percentageHealth) * 2) : 255;
+			color[2] = 0;
+			color[3] = 240;
+		}
+
+		float targetPos[3];
+		GetClientAbsOrigin(target, targetPos);
+		targetPos[2] += 85;
+
+		for (int client = 1; client <= MaxClients; client++)
+		{
+			if (client == target)
+				continue;
+
+			if (!IsClientInGame(client))
+				continue;
+			
+			if(!(g_clSkill_1[client] & SKL_1_DisplayHealth))
+				continue;
+			
+			float clientPos[3];
+			GetClientAbsOrigin(client, clientPos);
+			clientPos[2] += 85;
+			
+			if(GetVectorDistance(clientPos, targetPos) > 512.0)
+				continue;
+			
+			if(IsSurvivorThirdPerson(client) || IsInfectedThirdPerson(client))
+				continue;
+			
+			if(!IsVisibleTo(client, target))
+				continue;
+			
+			float vecPos[3];
+			MakeVectorFromPoints(targetPos, clientPos, vecPos);
+			
+			float clientAng[3];
+			GetVectorAngles(vecPos, clientAng);
+
+			float radius;
+			if (targetTeam == 3)
+				radius = 30.0;
+			else
+				radius = 15.0;
+
+			// left
+			float targetMin[3];
+			targetMin = targetPos;
+			targetMin[0] += radius * Cosine(DegToRad(clientAng[1] - 90.0));
+			targetMin[1] += radius * Sine(DegToRad(clientAng[1] - 90.0));
+
+			// right
+			float targetMax[3];
+			targetMax = targetPos;
+			targetMax[0] += radius * Cosine(DegToRad(clientAng[1] + 90.0));
+			targetMax[1] += radius * Sine(DegToRad(clientAng[1] + 90.0));
+
+			// current
+			float targetCurrent[3];
+			targetCurrent = targetPos;
+			targetCurrent[0] = (percentageHealth * (targetMax[0] - targetMin[0])) + targetMin[0];
+			targetCurrent[1] = (percentageHealth * (targetMax[1] - targetMin[1])) + targetMin[1];
+
+			float vPoint1[3];
+			float vPoint2[3];
+
+			// inside bar
+			vPoint1 = targetMin;
+			vPoint2 = targetCurrent;
+			TE_SetupBeamPoints(vPoint1, vPoint2, g_iModelBeam, 0, 0, 0, 0.1, 1.0, 1.0, 0, 0.0, color, 0);
+			TE_SendToClient(client);
+
+			int colorfill[4];
+			colorfill = color;
+			colorfill[3] = 75;
+			vPoint1 = targetCurrent;
+			vPoint2 = targetMax;
+			TE_SetupBeamPoints(vPoint1, vPoint2, g_iModelBeam, 0, 0, 0, 0.1, 1.0, 1.0, 0, 0.0, colorfill, 0);
+			TE_SendToClient(client);
+		}
+	}
+}
+
 public void Event_PlayerJumpApex(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -10972,7 +11219,9 @@ void HookPlayerReload(int client, int clipSize)
 
 		if(g_iReloadWeaponOldClip[client] <= 0)
 			g_iReloadWeaponOldClip[client] = GetEntProp(weapon, Prop_Send, "m_iClip1");
-
+		if(g_iReloadWeaponOldClip[client] > clipSize)
+			g_iReloadWeaponOldClip[client] = clipSize;
+		
 		SDKUnhook(client, SDKHook_PreThink, PlayerHook_OnReloadThink);
 		SDKUnhook(client, SDKHook_WeaponSwitchPost, PlayerHook_OnReloadStopped);
 		SDKUnhook(client, SDKHook_WeaponDropPost, PlayerHook_OnReloadStopped);
@@ -11031,19 +11280,6 @@ public void PlayerHook_OnReloadThink(int client)
 
 	int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 	int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
-	if(StrContains(className, "shotgun", false) == -1)
-	{
-		// 非霰弹枪检查剩余弹药
-		if(g_iReloadWeaponClip[client] > ammo)
-			g_iReloadWeaponClip[client] = ammo;
-	}
-	else
-	{
-		// 霰弹枪检查剩余弹药
-		if(g_iReloadWeaponClip[client] - g_iReloadWeaponOldClip[client] > ammo)
-			g_iReloadWeaponClip[client] = g_iReloadWeaponOldClip[client] + ammo;
-	}
-
 	if(g_iReloadWeaponClip[client] <= 0)
 	{
 		// PrintHintText(client, "不需要或无法换弹匣");
@@ -11053,18 +11289,50 @@ public void PlayerHook_OnReloadThink(int client)
 
 	if(GetEntProp(weapon, Prop_Send, "m_bInReload"))
 	{
+		/*
+		if(StrContains(className, "shotgun", false) == -1)
+		{
+			// 非霰弹枪检查剩余弹药
+			if(g_iReloadWeaponClip[client] > ammo)
+				g_iReloadWeaponClip[client] = ammo;
+		}
+		else
+		{
+			// 霰弹枪检查剩余弹药
+			if(g_iReloadWeaponClip[client] - g_iReloadWeaponOldClip[client] > ammo)
+				g_iReloadWeaponClip[client] = g_iReloadWeaponOldClip[client] + ammo;
+		}
+		*/
+		
 		if(StrContains(className, "shotgun", false) > -1)
 		{
+			/*
+			int inserted = GetEntProp(weapon, Prop_Send, "m_shellsInserted");
+			ammo += inserted;
+			*/
+			
 			if(g_iReloadWeaponOldClip[client] > 0)
 			{
+				/*
 				int clipSize = CalcPlayerClip(client, weapon);
 				if(g_iReloadWeaponOldClip[client] > clipSize)
 					g_iReloadWeaponOldClip[client] = clipSize;
+				*/
 				
-				// PrintToChat(client, "当前：%d丨原来：%d", GetEntProp(weapon, Prop_Send, "m_iClip1"), g_iReloadWeaponOldClip[client]);
+				// PrintToChat(client, "当前：%d丨原来：%d丨目标：%d丨已填入：%d", GetEntProp(weapon, Prop_Send, "m_iClip1"), g_iReloadWeaponOldClip[client], g_iReloadWeaponClip[client], GetEntProp(weapon, Prop_Send, "m_shellsInserted"));
 				
 				// 将霰弹枪的弹匣还原，并且取消已经填装的子弹，以开始新的填装
 				SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponOldClip[client]);
+				int diff = g_iReloadWeaponClip[client] - g_iReloadWeaponOldClip[client];
+				if(diff > ammo)
+					diff = ammo;
+				if(diff > 0)
+				{
+					SetEntProp(weapon, Prop_Send, "m_reloadNumShells", diff);
+					// SetEntProp(weapon, Prop_Send, "m_shellsInserted", 0);
+				}
+				
+				/*
 				// SetEntProp(weapon, Prop_Send, "m_shellsInserted", 0);
 				g_iReloadWeaponClip[client] -= g_iReloadWeaponOldClip[client];
 				if(g_iReloadWeaponClip[client] > ammo)
@@ -11073,9 +11341,23 @@ public void PlayerHook_OnReloadThink(int client)
 					g_iReloadWeaponClip[client] = clipSize - g_iReloadWeaponOldClip[client];
 				
 				// PrintHintText(client, "原有子弹：%d", g_iReloadWeaponOldClip[client]);
+				*/
+				
 				g_iReloadWeaponOldClip[client] = 0;
+				g_iReloadWeaponClip[client] = 0;
+			}
+			else if(g_iReloadWeaponClip[client] > 0)
+			{
+				// PrintToChat(client, "当前：%d丨目标：%d丨已填入：%d", GetEntProp(weapon, Prop_Send, "m_iClip1"), g_iReloadWeaponClip[client], GetEntProp(weapon, Prop_Send, "m_shellsInserted"));
+				
+				if(g_iReloadWeaponClip[client] > ammo)
+					g_iReloadWeaponClip[client] = ammo;
+				SetEntProp(weapon, Prop_Send, "m_reloadNumShells", g_iReloadWeaponClip[client]);
+				// SetEntProp(weapon, Prop_Send, "m_shellsInserted", 0);
+				g_iReloadWeaponClip[client] = 0;
 			}
 			
+			/*
 			// BUG 修复
 			if(g_iReloadWeaponClip[client] < 1)
 				g_iReloadWeaponClip[client] = GetEntProp(weapon, Prop_Send, "m_reloadNumShells");
@@ -11083,6 +11365,8 @@ public void PlayerHook_OnReloadThink(int client)
 			// 设置霰弹枪需要填装多少子弹
 			// 霰弹枪最终弹匣为 现有子弹+需要填装的子弹
 			SetEntProp(weapon, Prop_Send, "m_reloadNumShells", g_iReloadWeaponClip[client]);
+			*/
+			
 			// PrintCenterText(client, "%d丨%d", GetEntProp(weapon, Prop_Send, "m_shellsInserted"), GetEntProp(weapon, Prop_Send, "m_reloadNumShells"));
 		}
 	}
@@ -11105,6 +11389,17 @@ public void PlayerHook_OnReloadThink(int client)
 		else if(GetEntProp(weapon, Prop_Send, "m_iClip1") > 0 || ammo <= 0)
 		{
 			// 非霰弹枪换弹匣完成
+			int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
+			int diff = g_iReloadWeaponClip[client] - clip;
+			if(diff > ammo)
+				diff = ammo;
+			if(diff)
+			{
+				SetEntProp(weapon, Prop_Send, "m_iClip1", clip + diff);
+				SetEntProp(client, Prop_Send, "m_iAmmo", ammo - diff, _, ammoType);
+			}
+			
+			/*
 			ammo += GetEntProp(weapon, Prop_Send, "m_iClip1");
 			ammo -= g_iReloadWeaponClip[client];
 			
@@ -11115,7 +11410,8 @@ public void PlayerHook_OnReloadThink(int client)
 			
 			SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponClip[client]);
 			SetEntProp(client, Prop_Send, "m_iAmmo", ammo, _, ammoType);
-
+			*/
+			
 			PlayerHook_OnReloadStopped(client, weapon);
 			// PrintHintText(client, "换弹匣完成");
 		}
@@ -13495,36 +13791,6 @@ public Action:StopShake(Handle:timer, any:target)
 	BfWriteFloat(hBf, 0.0);
 	BfWriteFloat(hBf, 0.0);
 	EndMessage();
-}
-
-stock bool:IsVisibleTo(Float:position[3], Float:targetposition[3])
-{
-	decl Float:vAngles[3], Float:vLookAt[3];
-
-	MakeVectorFromPoints(position, targetposition, vLookAt);
-	GetVectorAngles(vLookAt, vAngles);
-
-	new Handle:trace = TR_TraceRayFilterEx(position, vAngles, MASK_SHOT, RayType_Infinite, _TraceFilter);
-
-	new bool:isVisible = false;
-	if (TR_DidHit(trace))
-	{
-		decl Float:vStart[3];
-		TR_GetEndPosition(vStart, trace);
-
-		if ((GetVectorDistance(position, vStart, false) + TRACE_TOLERANCE) >= GetVectorDistance(position, targetposition))
-		{
-			isVisible = true;
-		}
-	}
-	else
-	{
-		LogError("Tracer Bug: Player-Zombie Trace did not hit anything, WTF");
-		isVisible = true;
-	}
-	CloseHandle(trace);
-
-	return isVisible;
 }
 
 public bool:_TraceFilter(entity, contentsMask)

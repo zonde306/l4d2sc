@@ -12084,6 +12084,8 @@ stock bool IsSurvivorThirdPerson(int iClient)
 		return true;
 	if(GetEntPropEnt(iClient, Prop_Send, "m_reviveTarget") > 0)
 		return true;
+	if(GetEntPropEnt(iClient, Prop_Send, "m_hScriptUseTarget") > 0)
+		return true;
 	if(GetEntPropFloat(iClient, Prop_Send, "m_staggerTimer", 1) > -1.0)
 		return true;
 	switch(GetEntProp(iClient, Prop_Send, "m_iCurrentUseAction"))
@@ -12099,7 +12101,7 @@ stock bool IsSurvivorThirdPerson(int iClient)
 				return true;
 		}
 		case 4, 6, 7, 8, 9, 10:
-		return true;
+			return true;
 	}
 
 	static String:sModel[31];

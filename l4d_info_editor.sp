@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.11"
+#define PLUGIN_VERSION		"1.12"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,9 @@
 
 ========================================================================================
 	Change Log:
+
+1.12 (01-Oct-2020)
+	- Fixed not properly adding both melee weapons causing potential issues.
 
 1.11 (24-Sep-2020)
 	- Compatibility update for L4D2's "The Last Stand" update.
@@ -134,7 +137,7 @@ char g_sLastMap[PLATFORM_MAX_PATH];
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "战役和武器修改器",
+	name = "关卡和武器修改工具",
 	author = "SilverShot",
 	description = "Modify gamemodes.txt and weapons.txt values by config instead of conflicting VPK files.",
 	version = PLUGIN_VERSION,
@@ -392,20 +395,20 @@ void ReloadData()
 		if( g_bLeft4Dead2 && strcmp(check, "N/A") && strcmp(key, "meleeweapons") == 0 )
 		{
 			Format(check, sizeof(check), ";%s;", check);
-			ReplaceString(check, sizeof(check), ";riot_shield;", ";");
-			ReplaceString(check, sizeof(check), ";baseball_bat;", ";");
-			ReplaceString(check, sizeof(check), ";cricket_bat;", ";");
-			ReplaceString(check, sizeof(check), ";crowbar;", ";");
-			ReplaceString(check, sizeof(check), ";electric_guitar;", ";");
-			ReplaceString(check, sizeof(check), ";fireaxe;", ";");
-			ReplaceString(check, sizeof(check), ";frying_pan;", ";");
-			ReplaceString(check, sizeof(check), ";golfclub;", ";");
-			ReplaceString(check, sizeof(check), ";katana;", ";");
-			ReplaceString(check, sizeof(check), ";knife;", ";");
-			ReplaceString(check, sizeof(check), ";machete;", ";");
-			ReplaceString(check, sizeof(check), ";tonfa;", ";");
-			ReplaceString(check, sizeof(check), ";pitchfork;", ";");
-			ReplaceString(check, sizeof(check), ";shovel;", ";");
+			ReplaceStringEx(check, sizeof(check), ";riot_shield;", ";");
+			ReplaceStringEx(check, sizeof(check), ";baseball_bat;", ";");
+			ReplaceStringEx(check, sizeof(check), ";cricket_bat;", ";");
+			ReplaceStringEx(check, sizeof(check), ";crowbar;", ";");
+			ReplaceStringEx(check, sizeof(check), ";electric_guitar;", ";");
+			ReplaceStringEx(check, sizeof(check), ";fireaxe;", ";");
+			ReplaceStringEx(check, sizeof(check), ";frying_pan;", ";");
+			ReplaceStringEx(check, sizeof(check), ";golfclub;", ";");
+			ReplaceStringEx(check, sizeof(check), ";katana;", ";");
+			ReplaceStringEx(check, sizeof(check), ";knife;", ";");
+			ReplaceStringEx(check, sizeof(check), ";machete;", ";");
+			ReplaceStringEx(check, sizeof(check), ";tonfa;", ";");
+			ReplaceStringEx(check, sizeof(check), ";pitchfork;", ";");
+			ReplaceStringEx(check, sizeof(check), ";shovel;", ";");
 
 			int pos = strlen(check);
 			if( pos > 0 )
@@ -587,18 +590,21 @@ public MRESReturn GetMissionInfo(Handle hReturn, Handle hParams)
 		if( g_bLeft4Dead2 && strcmp(check, "N/A") && strcmp(key, "meleeweapons") == 0 )
 		{
 			Format(check, sizeof(check), ";%s;", check);
-			ReplaceString(check, sizeof(check), ";riot_shield;", ";");
-			ReplaceString(check, sizeof(check), ";baseball_bat;", ";");
-			ReplaceString(check, sizeof(check), ";cricket_bat;", ";");
-			ReplaceString(check, sizeof(check), ";crowbar;", ";");
-			ReplaceString(check, sizeof(check), ";electric_guitar;", ";");
-			ReplaceString(check, sizeof(check), ";fireaxe;", ";");
-			ReplaceString(check, sizeof(check), ";frying_pan;", ";");
-			ReplaceString(check, sizeof(check), ";golfclub;", ";");
-			ReplaceString(check, sizeof(check), ";katana;", ";");
-			ReplaceString(check, sizeof(check), ";knife;", ";");
-			ReplaceString(check, sizeof(check), ";machete;", ";");
-			ReplaceString(check, sizeof(check), ";tonfa;", ";");
+			ReplaceStringEx(check, sizeof(check), ";riot_shield;", ";");
+			ReplaceStringEx(check, sizeof(check), ";baseball_bat;", ";");
+			ReplaceStringEx(check, sizeof(check), ";cricket_bat;", ";");
+			ReplaceStringEx(check, sizeof(check), ";crowbar;", ";");
+			ReplaceStringEx(check, sizeof(check), ";electric_guitar;", ";");
+			ReplaceStringEx(check, sizeof(check), ";fireaxe;", ";");
+			ReplaceStringEx(check, sizeof(check), ";frying_pan;", ";");
+			ReplaceStringEx(check, sizeof(check), ";golfclub;", ";");
+			ReplaceStringEx(check, sizeof(check), ";katana;", ";");
+			ReplaceStringEx(check, sizeof(check), ";knife;", ";");
+			ReplaceStringEx(check, sizeof(check), ";machete;", ";");
+			ReplaceStringEx(check, sizeof(check), ";tonfa;", ";");
+			ReplaceStringEx(check, sizeof(check), ";pitchfork;", ";");
+			ReplaceStringEx(check, sizeof(check), ";shovel;", ";");
+
 			int pos = strlen(check);
 			if( pos > 0 )
 			{

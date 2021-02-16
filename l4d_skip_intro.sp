@@ -1,4 +1,24 @@
-#define PLUGIN_VERSION		"1.4"
+/*
+*	First Map - Skip Intro Cutscenes
+*	Copyright (C) 2021 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+
+#define PLUGIN_VERSION		"1.8"
 
 /*======================================================================================
 	Plugin Info:
@@ -12,9 +32,22 @@
 ========================================================================================
 	Change Log:
 
+1.8 (15-Feb-2021)
+	- Blocked working on finale maps when not using left4dhooks. Thanks to "Zheldorg" for reporting.
+
+1.7 (10-Oct-2020)
+	- Minor change again to hopefully fix unhook event errors.
+
+1.6 (05-Oct-2020)
+	- Changes to hopefully fix unhook event errors.
+
+1.5 (01-Oct-2020)
+	- Changes to support "The Last Stand" update.
+	- Fixed lateload not enabling the plugin.
+
 1.4 (10-May-2020)
 	- Added cvars: "l4d_skip_intro_allow", "l4d_skip_intro_modes", "l4d_skip_intro_modes_off" and "l4d_skip_intro_modes_tog".
-	- Cvar config saved as "l4d_skip_intro.cfg" in "cfgs/sourcemod" folder. 
+	- Cvar config saved as "l4d_skip_intro.cfg" in "cfgs/sourcemod" folder.
 	- Extra checks to skip intro on some addon maps that use a different entity.
 	- Thanks to "TiTz" for reporting.
 
@@ -42,7 +75,7 @@
 
 
 ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog;
-bool g_bCvarAllow, g_bMapStarted, g_bHookedEvent, g_bLeft4DHooks;
+bool g_bCvarAllow, g_bMapStarted, g_bHookedEvent, g_bLeft4DHooks, g_bFaded;
 
 
 
@@ -53,7 +86,7 @@ native bool L4D_IsFirstMapInScenario(); // So it compiles on forum, optional nat
 
 public Plugin myinfo =
 {
-	name = "跳过第一章开始的过场动画",
+	name = "跳过开场动画",
 	author = "SilverShot",
 	description = "Makes players skip seeing the intro cutscene on first maps, so they can move right away.",
 	version = PLUGIN_VERSION,
@@ -118,8 +151,8 @@ void IsAllowed()
 
 	if( g_bCvarAllow == false && bCvarAllow == true && bAllowMode == true )
 	{
-		OnMapStart();
 		g_bCvarAllow = true;
+		OnMapStart();
 	}
 
 	else if( g_bCvarAllow == true && (bCvarAllow == false || bAllowMode == false) )
@@ -203,12 +236,12 @@ public void OnMapStart()
 {
 	g_bMapStarted = true;
 
-	if( (g_bLeft4DHooks && L4D_IsFirstMapInScenario()) || (!g_bLeft4DHooks && !g_bHookedEvent) )
+	if( (g_bLeft4DHooks && !g_bHookedEvent && L4D_IsFirstMapInScenario()) || (!g_bLeft4DHooks && !g_bHookedEvent) )
 	{
 		if( g_bCvarAllow )
 		{
-			HookEvent("gameinstructor_nodraw", Event_NoDraw); // Because round_start can be too early when clients are not in-game.
 			g_bHookedEvent = true;
+			HookEvent("gameinstructor_nodraw", Event_NoDraw); // Because round_start can be too early when clients are not in-game.
 		}
 	}
 }
@@ -219,8 +252,8 @@ public void OnMapEnd()
 
 	if( g_bLeft4DHooks && g_bHookedEvent )
 	{
-		UnhookEvent("gameinstructor_nodraw", Event_NoDraw);
 		g_bHookedEvent = false;
+		UnhookEvent("gameinstructor_nodraw", Event_NoDraw);
 	}
 }
 
@@ -228,7 +261,17 @@ public void Event_NoDraw(Event event, const char[] name, bool dontBroadcast)
 {
 	if( g_bCvarAllow && (!g_bLeft4DHooks || L4D_IsFirstMapInScenario()) )
 	{
+		// Block finale
+		if( !g_bLeft4DHooks && FindEntityByClassname(MaxClients + 1, "trigger_finale") != INVALID_ENT_REFERENCE )
+			return;
+
+		g_bFaded = false;
 		CreateTimer(1.0, TimerStart);
+		CreateTimer(5.0, TimerStart);
+		CreateTimer(6.0, TimerStart);
+		CreateTimer(6.5, TimerStart);
+		CreateTimer(7.0, TimerStart);
+		CreateTimer(8.0, TimerStart);
 	}
 }
 
@@ -273,8 +316,10 @@ public Action TimerStart(Handle timer)
 		}
 
 		// FADE IN
-		if( done )
+		if( done && !g_bFaded )
 		{
+			g_bFaded = true;
+
 			entity = CreateEntityByName("env_fade");
 			DispatchKeyValue(entity, "spawnflags", "1");
 			DispatchKeyValue(entity, "rendercolor", "0 0 0");
@@ -284,7 +329,7 @@ public Action TimerStart(Handle timer)
 			DispatchSpawn(entity);
 			AcceptEntityInput(entity, "Fade");
 
-			SetVariantString("OnUser1 !self:Kill::2.1:-1");
+			SetVariantString("OnUser1 !self:Kill::2.5:-1");
 			AcceptEntityInput(entity, "AddOutput");
 			AcceptEntityInput(entity, "FireUser1");
 		}

@@ -32,6 +32,8 @@ enum()
 	iRecorded,
 	iSpawned,
 	iMaxHealth,
+	iSkin,
+	iSkinSlot1,
 };
 
 enum()
@@ -48,7 +50,7 @@ char	gameMode[16];
 bool    g_bGiveWeapon;
 bool    g_bCanAppropriate = true;
 
-int 	g_iWeaponInfo[MAXPLAYERS+1][15];
+int 	g_iWeaponInfo[MAXPLAYERS+1][17];
 char 	g_sWeaponInfo[MAXPLAYERS+1][6][64];
 bool    g_bValidMapChange = false;
 
@@ -361,6 +363,8 @@ void TySaveWeapon(int client)
 		g_iWeaponInfo[client][iAmmo] = GetClientAmmo(client, g_sWeaponInfo[client][Slot0]);
 		g_iWeaponInfo[client][iUpgrade] = GetEntProp(iSlot0, Prop_Send, "m_upgradeBitVec", 4);
 		g_iWeaponInfo[client][iUpAmmo]  = GetEntProp(iSlot0, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", 4);
+		g_iWeaponInfo[client][iSkin]  = GetEntProp(iSlot0, Prop_Send, "m_nSkin", 2);
+		g_iWeaponInfo[client][iSkinSlot1]  = GetEntProp(iSlot1, Prop_Send, "m_nSkin", 2);
 	}
 	if (iSlot1 > 0) TySaveSlot1(client, iSlot1);
 	if (iSlot2 > 0) GetEdictClassname(iSlot2, g_sWeaponInfo[client][2], 64);
@@ -516,6 +520,7 @@ void TyGiveWeapon(int client)
 			if (iSlot > 0)
 			{
 				SetEntProp(iSlot, Prop_Send, "m_iClip1", g_iWeaponInfo[client][iClipSlot1], 4);
+				SetEntProp(iSlot, Prop_Send, "m_nSkin", g_iWeaponInfo[client][iSkinSlot1], 2);
 			}
 		}
 	}
@@ -535,6 +540,7 @@ void TyGiveWeapon(int client)
 			SetClientAmmo(client, g_sWeaponInfo[client][0], g_iWeaponInfo[client][iAmmo]);
 			SetEntProp(iSlot, Prop_Send, "m_upgradeBitVec", g_iWeaponInfo[client][iUpgrade], 4);
 			SetEntProp(iSlot, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", g_iWeaponInfo[client][iUpAmmo], 4);
+			SetEntProp(iSlot, Prop_Send, "m_nSkin", g_iWeaponInfo[client][iSkin], 2);
 		}
 	}
 	else if (g_hNoob.BoolValue) CheatCommand(client, "give", "weapon_smg","");

@@ -11382,12 +11382,15 @@ public void PlayerHook_OnReloadThink(int client)
 
 	int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 	int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
+	
+	/*
 	if(g_iReloadWeaponClip[client] <= 0)
 	{
-		// PrintHintText(client, "不需要或无法换弹匣");
+		PrintToChat(client, "不需要或无法换弹匣");
 		PlayerHook_OnReloadStopped(client, weapon);
 		return;
 	}
+	*/
 
 	if(GetEntProp(weapon, Prop_Send, "m_bInReload") &&
 		(!HasEntProp(weapon, Prop_Send, "m_reloadState") || GetEntProp(weapon, Prop_Send, "m_reloadState")))
@@ -11482,10 +11485,11 @@ public void PlayerHook_OnReloadThink(int client)
 			// PrintHintText(client, "填装弹药完成");
 			
 			// 修复卡壳问题
-			float time = GetGameTime() + 0.2;
-			SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
-			SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time);
-			SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
+			float time = GetGameTime();
+			SetEntDataFloat(client, g_iNextAttO, time, true);
+			SetEntDataFloat(weapon, g_iTimeIdleO, time, true);
+			SetEntDataFloat(weapon, g_iNextPAttO, time, true);
+			// PrintToChat(client, "填装完成");
 		}
 		else if(GetEntProp(weapon, Prop_Send, "m_iClip1") > 0 || ammo <= 0)
 		{
@@ -11514,7 +11518,7 @@ public void PlayerHook_OnReloadThink(int client)
 			*/
 			
 			PlayerHook_OnReloadStopped(client, weapon);
-			// PrintHintText(client, "换弹匣完成");
+			// PrintToChat(client, "换弹匣完成");
 		}
 		
 		g_iReloadWeaponOldClip[client] = 0;

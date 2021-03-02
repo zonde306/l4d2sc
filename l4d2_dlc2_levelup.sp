@@ -114,7 +114,7 @@ enum()
 	SKL_2_DoubleJump = 512,
 	SKL_2_ProtectiveSuit = 1024,
 	SKL_2_Magnum = 2048,
-	SKL_2_LadderGun = 4096,
+	SKL_2_LadderRambos = 4096,
 	SKL_2_IncapCrawling = 8192,
 
 	SKL_3_Sacrifice = 1,
@@ -202,6 +202,7 @@ float g_fMaxGravityModify[MAXPLAYERS+1] = { 1.0, ... };
 float g_fNextCalmTime[MAXPLAYERS+1] = { 0.0, ... };
 int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
 bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
+bool g_bIsOnBile[MAXPLAYERS+1] = { false, ... };
 // bool g_bIsInvulnerable[MAXPLAYERS+1];
 bool g_bDeadlineHint[MAXPLAYERS+1];
 int g_iExtraAmmo[MAXPLAYERS+1];
@@ -536,6 +537,10 @@ Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = nul
 	g_pfnCreateTank = null;
 GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
 	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent, g_fwOnAngrySkill, g_fwOnAngryPoint;
+/*
+Handle g_hDetourHolster = null, g_hDetourReload = null, g_hDetourShotgunReload = null;
+bool g_bLadderRambos = false;
+*/
 
 public Plugin:myinfo =
 {
@@ -956,11 +961,11 @@ public OnPluginStart()
 				g_tMeleeRange.SetValue("shovel",			175);
 				g_tMeleeRange.SetValue("pitchfork",			200);
 				
-				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Hooked.");
+				// LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Hooked.");
 			}
 			else
 			{
-				LogMessage("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Error.");
+				LogError("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Error.");
 			}
 			
 			g_hDetourTestSwingCollision = DHookCreateFromConf(hGameData, "CTerrorWeapon::TestSwingCollision");
@@ -1016,11 +1021,11 @@ public OnPluginStart()
 				g_tShoveRange.SetValue("weapon_upgradepack_explosive",		90);
 				*/
 				
-				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Hooked.");
+				// LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Hooked.");
 			}
 			else
 			{
-				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Error.");
+				LogError("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Error.");
 			}
 			
 			/*
@@ -1038,10 +1043,8 @@ public OnPluginStart()
 				g_pfnOnSwingStart = EndPrepSDKCall();
 			}
 			
-			if(g_pfnOnSwingStart != null)
-				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::OnSwingStart Found.");
-			else
-				LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::OnSwingStart Not Found.");
+			if(g_pfnOnSwingStart == null)
+				LogError("l4d2_dlc2_levelup: CTerrorWeapon::OnSwingStart Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Entity);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnPummelEnded"))
@@ -1051,10 +1054,8 @@ public OnPluginStart()
 				g_pfnOnPummelEnded = EndPrepSDKCall();
 			}
 			
-			if(g_pfnOnPummelEnded != null)
-				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnPummelEnded Found.");
-			else
-				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnPummelEnded Not Found.");
+			if(g_pfnOnPummelEnded == null)
+				LogError("l4d2_dlc2_levelup: CTerrorPlayer::OnPummelEnded Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Player);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::FindUseEntity"))
@@ -1068,19 +1069,15 @@ public OnPluginStart()
 				g_pfnFindUseEntity = EndPrepSDKCall();
 			}
 			
-			if(g_pfnFindUseEntity != null)
-				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::FindUseEntity Found.");
-			else
-				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::FindUseEntity Not Found.");
+			if(g_pfnFindUseEntity == null)
+				LogError("l4d2_dlc2_levelup: CTerrorPlayer::FindUseEntity Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Entity);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CCharge::EndCharge"))
 				g_pfnEndCharge = EndPrepSDKCall();
 			
-			if(g_pfnEndCharge != null)
-				LogMessage("l4d2_dlc2_levelup: CCharge::EndCharge Found.");
-			else
-				LogMessage("l4d2_dlc2_levelup: CCharge::EndCharge Not Found.");
+			if(g_pfnEndCharge == null)
+				LogError("l4d2_dlc2_levelup: CCharge::EndCharge Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Player);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnCarryEnded"))
@@ -1091,10 +1088,8 @@ public OnPluginStart()
 				g_pfnOnCarryEnded = EndPrepSDKCall();
 			}
 			
-			if(g_pfnOnCarryEnded != null)
-				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnCarryEnded Found.");
-			else
-				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::OnCarryEnded Not Found.");
+			if(g_pfnOnCarryEnded == null)
+				LogError("l4d2_dlc2_levelup: CTerrorPlayer::OnCarryEnded Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Player);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::IsInvulnerable"))
@@ -1103,10 +1098,8 @@ public OnPluginStart()
 				g_pfnIsInvulnerable = EndPrepSDKCall();
 			}
 			
-			if(g_pfnIsInvulnerable != null)
-				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Found.");
-			else
-				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Not Found.");
+			if(g_pfnIsInvulnerable == null)
+				LogError("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Static);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CHolidayGift::Create"))
@@ -1119,10 +1112,8 @@ public OnPluginStart()
 				g_pfnCreateGift = EndPrepSDKCall();
 			}
 			
-			if(g_pfnCreateGift != null)
-				LogMessage("l4d2_dlc2_levelup: CHolidayGift::Create Found.");
-			else
-				LogMessage("l4d2_dlc2_levelup: CHolidayGift::Create Not Found.");
+			if(g_pfnCreateGift == null)
+				LogError("l4d2_dlc2_levelup: CHolidayGift::Create Not Found.");
 			
 			delete hGameData;
 		}
@@ -1133,6 +1124,7 @@ public OnPluginStart()
 		g_tWeaponID.SetValue(L4D2WeaponName[i], i);
 	
 	PrepSDKCall_CreateSpecials();
+	// PrepSDKCall_LadderRambos();
 	
 	// 缓存以及读取
 	if(g_bLateLoad)
@@ -1171,6 +1163,26 @@ public void OnPluginEnd()
 		DHookDisableDetour(g_hDetourTestSwingCollision, false, TestSwingCollisionPre);
 		DHookDisableDetour(g_hDetourTestSwingCollision, true, TestSwingCollisionPost);
 	}
+	
+	/*
+	if(g_hDetourHolster)
+	{
+		DHookDisableDetour(g_hDetourHolster, false, Detour_Holster);
+	}
+	
+	if(g_hDetourReload)
+	{
+		DHookDisableDetour(g_hDetourReload, false, Detour_Reload);
+	}
+	
+	if(g_hDetourShotgunReload)
+	{
+		DHookDisableDetour(g_hDetourShotgunReload, false, Detour_ShotgunReload);
+	}
+	
+	SafeDropPatch(false);
+	g_bLadderRambos = false;
+	*/
 	
 	/*
 	if(g_hDetourIsInvulnerable)
@@ -1752,7 +1764,7 @@ public void Event_PlayerGrabbed(Event event, const char[] event_name, bool dontB
 	int attacker = GetClientOfUserId(event.GetInt("userid"));
 	if(IsValidAliveClient(attacker))
 	{
-		if(g_bIsHitByVomit[attacker])
+		if(g_bIsOnBile[attacker])
 		{
 			// 胆汁效果紫色
 			CreateGlowModel(attacker, 0xFF80FF);
@@ -1782,7 +1794,7 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 			// 已经不再需要光圈了
 			RemoveGlowModel(attacker);
 		}
-		else if(g_bIsHitByVomit[attacker])
+		else if(g_bIsOnBile[attacker])
 		{
 			// 胆汁效果紫色
 			CreateGlowModel(attacker, 0xFF80FF);
@@ -2063,6 +2075,7 @@ void Initialization(int client, bool invalid = false)
 	g_fNextCalmTime[client] = 0.0;
 	g_cdCanTeleport[client] = true;
 	g_bIsHitByVomit[client] = false;
+	g_bIsOnBile[client] = false;
 	g_bDeadlineHint[client] = false;
 	// g_bIsInvulnerable[client] = false;
 	g_sLastWeapon[client][0] = EOS;
@@ -3500,7 +3513,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("「踏空」允许二级跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
 	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」胆汁时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
 	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
-	menu.AddItem(tr("2_%d",SKL_2_LadderGun), mps("「固定」梯子上掏枪",(g_clSkill_2[client]&SKL_2_LadderGun)));
+	menu.AddItem(tr("2_%d",SKL_2_LadderRambos), mps("「固定」梯子上掏枪",(g_clSkill_2[client]&SKL_2_LadderRambos)));
 	
 	if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
 		menu.AddItem(tr("2_%d",SKL_2_IncapCrawling), mps("「爬行」倒地爬行",(g_clSkill_2[client]&SKL_2_IncapCrawling)));
@@ -9261,31 +9274,64 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 		if (maxHealth > 0)
 			percentageHealth = (float(currentHealth) / float(maxHealth));
 
-		bool halfHealth = (percentageHealth <= 0.5);
-
 		int color[4];
 		if (isIncapacitated)
 		{
+			// 倒地
 			color[0] = 255;
 			color[1] = 0;
 			color[2] = 0;
-			color[3] = 240;
+			// color[3] = 240;
 		}
 		else if(GetEntProp(target, Prop_Send, "m_bIsOnThirdStrike", 1))
 		{
+			// 黑白
 			color[0] = 245;
 			color[1] = 245;
 			color[2] = 245;
-			color[3] = 240;
+			// color[3] = 240;
+		}
+		else if((targetTeam == 2 || targetTeam == 4) && percentageHealth > 0.0)
+		{
+			// 幸存者专用渐变色
+			int healthBase = RoundToZero(percentageHealth * 100);
+			if(healthBase >= g_hCvarLimpHealth.IntValue)
+			{
+				color[0] = 0;
+				color[1] = 255;
+				color[2] = 0;
+			}
+			else if(healthBase > 24)
+			{
+				color[0] = 255;
+				color[1] = 255;
+				color[2] = 0;
+			}
+			else
+			{
+				color[0] = 255;
+				color[1] = 0;
+				color[2] = 0;
+			}
 		}
 		else
 		{
+			// 通用渐变色
+			bool halfHealth = (percentageHealth <= 0.5);
 			color[0] = halfHealth ? 255 : RoundFloat(255.0 * ((1.0 - percentageHealth) * 2));
 			color[1] = halfHealth ? RoundFloat(255.0 * (percentageHealth) * 2) : 255;
 			color[2] = 0;
-			color[3] = 240;
+			// color[3] = 240;
 		}
-
+		
+		// 特感会根据透明度动态调整血条透明度
+		int colorAlpha[4];
+		GetEntityRenderColor(target, colorAlpha[0], colorAlpha[1], colorAlpha[2], colorAlpha[3]);
+		if(targetTeam == 3)
+			color[3] = RoundFloat(240.0 * colorAlpha[3] / 255.0);
+		else
+			color[3] = 240;
+		
 		float targetPos[3];
 		GetClientAbsOrigin(target, targetPos);
 		targetPos[2] += 85;
@@ -9301,6 +9347,9 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 			if(!(g_clSkill_1[client] & SKL_1_DisplayHealth))
 				continue;
 			
+			if(g_bIsOnBile[client])
+				continue;
+			
 			float clientPos[3];
 			GetClientAbsOrigin(client, clientPos);
 			clientPos[2] += 85;
@@ -9314,11 +9363,8 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 			if(!IsVisibleTo(client, target))
 				continue;
 			
-			float vecPos[3];
-			MakeVectorFromPoints(targetPos, clientPos, vecPos);
-			
 			float clientAng[3];
-			GetVectorAngles(vecPos, clientAng);
+			GetClientEyeAngles(client, clientAng);
 
 			float radius;
 			if (targetTeam == 3)
@@ -9329,14 +9375,14 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 			// left
 			float targetMin[3];
 			targetMin = targetPos;
-			targetMin[0] += radius * Cosine(DegToRad(clientAng[1] - 90.0));
-			targetMin[1] += radius * Sine(DegToRad(clientAng[1] - 90.0));
+			targetMin[0] += radius * Cosine(DegToRad(clientAng[1] + 90.0));
+			targetMin[1] += radius * Sine(DegToRad(clientAng[1] + 90.0));
 
 			// right
 			float targetMax[3];
 			targetMax = targetPos;
-			targetMax[0] += radius * Cosine(DegToRad(clientAng[1] + 90.0));
-			targetMax[1] += radius * Sine(DegToRad(clientAng[1] + 90.0));
+			targetMax[0] += radius * Cosine(DegToRad(clientAng[1] - 90.0));
+			targetMax[1] += radius * Sine(DegToRad(clientAng[1] - 90.0));
 
 			// current
 			float targetCurrent[3];
@@ -9355,10 +9401,45 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 
 			int colorfill[4];
 			colorfill = color;
-			colorfill[3] = 75;
+			if(targetTeam == 3)
+				colorfill[3] = RoundFloat(75.0 * colorAlpha[3] / 255.0);
+			else
+				colorfill[3] = 75;
 			vPoint1 = targetCurrent;
 			vPoint2 = targetMax;
 			TE_SetupBeamPoints(vPoint1, vPoint2, g_iModelBeam, 0, 0, 0, 0.1, 1.0, 1.0, 0, 0.0, colorfill, 0);
+			TE_SendToClient(client);
+			
+			// top outline bar
+			vPoint1 = targetMin;
+			vPoint2 = targetMax;
+			vPoint1[2] += 1.0 + 0.07;
+			vPoint2[2] += 1.0 + 0.07;
+			TE_SetupBeamPoints(vPoint1, vPoint2, g_iModelBeam, 0, 0, 0, 0.1, 0.07, 0.07, 0, 0.0, color, 0);
+			TE_SendToClient(client);
+			
+			// bottom outline bar
+			vPoint1 = targetMin;
+			vPoint2 = targetMax;
+			vPoint1[2] -= 1.0 + 0.07;
+			vPoint2[2] -= 1.0 + 0.07;
+			TE_SetupBeamPoints(vPoint1, vPoint2, g_iModelBeam, 0, 0, 0, 0.1, 0.07, 0.07, 0, 0.0, color, 0);
+			TE_SendToClient(client);
+			
+			// left outline bar
+			vPoint1 = targetMin;
+			vPoint2 = targetMin;
+			vPoint1[2] += 1.0 + 0.07;
+			vPoint2[2] -= 1.0 + 0.07;
+			TE_SetupBeamPoints(vPoint1, vPoint2, g_iModelBeam, 0, 0, 0, 0.1, 0.07, 0.07, 0, 0.0, color, 0);
+			TE_SendToClient(client);
+			
+			// right outline bar
+			vPoint1 = targetMax;
+			vPoint2 = targetMax;
+			vPoint1[2] += 1.0 + 0.07;
+			vPoint2[2] -= 1.0 + 0.07;
+			TE_SetupBeamPoints(vPoint1, vPoint2, g_iModelBeam, 0, 0, 0, 0.1, 0.07, 0.07, 0, 0.0, color, 0);
 			TE_SendToClient(client);
 		}
 	}
@@ -9963,12 +10044,12 @@ public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool don
 		RequestFrame(UpdateVomitDuration, client);
 	
 	if(IsValidAliveClient(attacker) && (g_clSkill_4[attacker] & SKL_4_Terror) && GetClientTeam(attacker) == 2 && GetClientTeam(client) == 3)
-	{
 		g_bIsHitByVomit[client] = true;
-		
-		// 胆汁效果紫色
-		CreateGlowModel(client, 0xFF80FF);
-	}
+	
+	g_bIsOnBile[client] = true;
+	
+	// 胆汁效果紫色
+	CreateGlowModel(client, 0xFF80FF);
 }
 
 public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool dontBroadcast)
@@ -9978,8 +10059,10 @@ public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool d
 		return;
 	
 	g_bIsHitByVomit[client] = false;
+	g_bIsOnBile[client] = false;
 	
-	if(GetClientTeam(client) == 3)
+	int team = GetClientTeam(client);
+	if(team == 3)
 	{
 		if(GetCurrentVictim(client) > 0)
 		{
@@ -9991,6 +10074,24 @@ public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool d
 			// 常规状态无光圈
 			RemoveGlowModel(client);
 		}
+	}
+	else if(team == 2 || team == 4)
+	{
+		if(GetCurrentAttacker(client) > 0)
+		{
+			// 被控状态橙色
+			CreateGlowModel(client, 0x4080FF);
+		}
+		else
+		{
+			// 常规状态无光圈
+			RemoveGlowModel(client);
+		}
+	}
+	else
+	{
+		// 未知状态
+		RemoveGlowModel(client);
 	}
 }
 
@@ -10205,6 +10306,7 @@ public Action Timer_UnVimit(Handle timer, any client)
 	if(IsValidAliveClient(client))
 		L4D_OnITExpired(client);
 	
+	g_bIsOnBile[client] = false;
 	g_bIsHitByVomit[client] = false;
 }
 
@@ -11287,7 +11389,8 @@ public void PlayerHook_OnReloadThink(int client)
 		return;
 	}
 
-	if(GetEntProp(weapon, Prop_Send, "m_bInReload"))
+	if(GetEntProp(weapon, Prop_Send, "m_bInReload") &&
+		(!HasEntProp(weapon, Prop_Send, "m_reloadState") || GetEntProp(weapon, Prop_Send, "m_reloadState")))
 	{
 		/*
 		if(StrContains(className, "shotgun", false) == -1)
@@ -11379,12 +11482,10 @@ public void PlayerHook_OnReloadThink(int client)
 			// PrintHintText(client, "填装弹药完成");
 			
 			// 修复卡壳问题
-			float time = GetGameTime() + 0.3;
-			if(GetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack") > time)
-				SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
-			if(GetEntPropFloat(client, Prop_Send, "m_flNextAttack") > time)
-				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
-			SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time - 0.3);
+			float time = GetGameTime() + 0.2;
+			SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
+			SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time);
+			SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
 		}
 		else if(GetEntProp(weapon, Prop_Send, "m_iClip1") > 0 || ammo <= 0)
 		{
@@ -11642,7 +11743,7 @@ public Action:SoH_ShotgunEnd (Handle:timer, Handle:hPack)
 		SetEntDataFloat(iCid,	g_iNextAttO,	flTime,	true);
 		SetEntDataFloat(iEntid,	g_iTimeIdleO,	flTime,	true);
 		SetEntDataFloat(iEntid,	g_iNextPAttO,	flTime,	true);
-		SetEntPropFloat(iEntid, Prop_Send, "m_flTimeWeaponIdle", flTime - 0.2);
+		// SetEntPropFloat(iEntid, Prop_Send, "m_flTimeWeaponIdle", flTime - 0.2);
 
 		KillTimer(timer);
 		CloseHandle(hPack);
@@ -11676,7 +11777,7 @@ public Action:SoH_ShotgunEndCock (Handle:timer, any:hPack)
 		SetEntDataFloat(iCid,	g_iNextAttO,	flTime,	true);
 		SetEntDataFloat(iEntid,	g_iTimeIdleO,	flTime,	true);
 		SetEntDataFloat(iEntid,	g_iNextPAttO,	flTime,	true);
-		SetEntPropFloat(iEntid, Prop_Send, "m_flTimeWeaponIdle", flTime - 1.0);
+		// SetEntPropFloat(iEntid, Prop_Send, "m_flTimeWeaponIdle", flTime - 1.0);
 
 		KillTimer(timer);
 		CloseHandle(hPack);
@@ -12612,7 +12713,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
-		if((g_clSkill_2[client] & SKL_2_LadderGun))
+		if(/*!g_bLadderRambos && */(g_clSkill_2[client] & SKL_2_LadderRambos))
 		{
 			MoveType mtAmbulatoryStyle = GetEntityMoveType(client);
 			if (mtAmbulatoryStyle == MOVETYPE_FLY)
@@ -13363,7 +13464,7 @@ public Action L4D2_OnStagger(int target, int source)
 	// 生还者失衡
 	if(team == 2)
 	{
-		if(g_bIsHitByVomit[target])
+		if(g_bIsOnBile[target])
 		{
 			// 胆汁效果紫色
 			CreateGlowModel(target, 0xFF80FF);
@@ -13387,7 +13488,7 @@ public Action L4D2_OnStagger(int target, int source)
 		int attacker = GetCurrentAttacker(target);
 		if(IsValidAliveClient(attacker))
 		{
-			if(g_bIsHitByVomit[attacker])
+			if(g_bIsOnBile[attacker])
 			{
 				// 胆汁效果紫色
 				CreateGlowModel(attacker, 0xFF80FF);
@@ -13402,7 +13503,7 @@ public Action L4D2_OnStagger(int target, int source)
 	// 感染者失衡
 	else if(team == 3)
 	{
-		if(g_bIsHitByVomit[target])
+		if(g_bIsOnBile[target])
 		{
 			// 胆汁效果紫色
 			CreateGlowModel(target, 0xFF80FF);
@@ -13416,7 +13517,7 @@ public Action L4D2_OnStagger(int target, int source)
 		int victim = GetCurrentVictim(target);
 		if(IsValidAliveClient(victim))
 		{
-			if(g_bIsHitByVomit[victim])
+			if(g_bIsOnBile[victim])
 			{
 				// 胆汁效果紫色
 				CreateGlowModel(victim, 0xFF80FF);
@@ -16975,7 +17076,7 @@ Handle PrepCreateBotCallFromAddress(Handle hSiFuncTrie, const char[] siName) {
 	StartPrepSDKCall(SDKCall_Static);
 	if (!GetTrieValue(hSiFuncTrie, siName, addr) || !PrepSDKCall_SetAddress(addr))
 	{
-		SetFailState("Unable to find NextBotCreatePlayer<%s> address in memory.", siName);
+		LogError("Unable to find NextBotCreatePlayer<%s> address in memory.", siName);
 		return null;
 	}
 	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
@@ -17090,3 +17191,133 @@ void PrepL4D1CreateBotCalls(Handle hGameConf) {
 		g_pfnCreateTank = EndPrepSDKCall();
 	}
 }
+
+/*
+*****************************************************
+*					梯子上掏枪
+*****************************************************
+*/
+
+/*
+int g_iOffsetPrethink = 0;
+Address g_pAddressPrethink = Address_Null;
+
+void PrepSDKCall_LadderRambos()
+{
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4d2_ladderrambos");
+	if(FileExists(sPath))
+	{
+		GameData hGameConf = LoadGameConfigFile("l4d2_ladderrambos");
+		if(hGameConf)
+		{
+			g_hDetourHolster = DHookCreateFromConf(hGameConf, "CTerrorGun::Holster");
+			if(g_hDetourHolster == null)
+				LogError("CTerrorGun::Holster Not Found.");
+			
+			g_hDetourReload = DHookCreateFromConf(hGameConf, "CTerrorGun::Reload");
+			if(g_hDetourHolster == null)
+				LogError("CTerrorGun::Reload Not Found.");
+			
+			g_hDetourShotgunReload = DHookCreateFromConf(hGameConf, "CBaseShotgun::Reload");
+			if(g_hDetourHolster == null)
+				LogError("CBaseShotgun::Reload Not Found.");
+			
+			g_pAddressPrethink = hGameConf.GetAddress("CTerrorPlayer::PreThink");
+			if(g_hDetourHolster == null)
+				LogError("CTerrorPlayer::PreThink Not Found.");
+			
+			g_iOffsetPrethink = hGameConf.GetOffset("CTerrorPlayer::PreThink__SafeDropLogic");
+			if(g_hDetourHolster == null)
+				LogError("CTerrorPlayer::PreThink__SafeDropLogic Not Found.");
+			
+			delete hGameConf;
+		}
+	}
+	
+	if(g_hDetourHolster != null && g_hDetourReload != null && g_hDetourShotgunReload != null &&
+		g_pAddressPrethink != Address_Null && g_iOffsetPrethink != 0)
+	{
+		if(!DHookEnableDetour(g_hDetourHolster, false, Detour_Holster))
+			LogError("CTerrorGun::Holster Hook Failed.");
+		
+		if(!DHookEnableDetour(g_hDetourReload, false, Detour_Reload))
+			LogError("CTerrorGun::Reload Hook Failed.");
+		
+		if(!DHookEnableDetour(g_hDetourShotgunReload, false, Detour_ShotgunReload))
+			LogError("CBaseShotgun::Reload Hook Failed.");
+		
+		SafeDropPatch(true);
+		g_bLadderRambos = true;
+	}
+}
+
+stock void SafeDropPatch(bool enable)
+{	
+	int patchBytes = 0x14;
+	int originalBytes = 0x09;
+	int CurrentoriginalBytes = LoadFromAddress(g_pAddressPrethink + view_as<Address>(g_iOffsetPrethink), NumberType_Int8);
+	int patch = enable? patchBytes : originalBytes;
+	
+	// LogAcitivity("SafeDropPatch: Current Original Byte: %x - %d", CurrentoriginalBytes, CurrentoriginalBytes);
+
+	if (CurrentoriginalBytes != patch)
+	{
+		StoreToAddress(g_pAddressPrethink + view_as<Address>(g_iOffsetPrethink), patch, NumberType_Int8);
+		int ret = LoadFromAddress(g_pAddressPrethink + view_as<Address>(g_iOffsetPrethink), NumberType_Int8);
+		// LogAcitivity("SafeDropPatch: Checking the byte: %x - %d.", ret, ret);
+		LogMessage("SafeDropPatch: Checking the byte: %x - %d.", ret, ret);
+	}
+}
+
+public MRESReturn Detour_Holster(Address pThis, Handle hReturn)
+{	
+	int client = GetClientFromPointer(pThis);
+	
+	if(!(g_clSkill_2[client] & SKL_2_LadderRambos))
+		return MRES_Ignored;
+	
+	if(IsPlayerOnLadder(client) && IsClientInGame(client) && GetClientTeam(client) == 2)
+	{
+		// PrintToServer("Function::Detour_Holster IsPlayerOnLadder: %d, %N", client, client);
+		DHookSetReturn(hReturn, 0);
+		return MRES_Supercede;
+	}
+	
+	return MRES_Ignored;
+}
+
+public MRESReturn Detour_Reload(Address pThis, Handle hReturn)
+{
+	int client = GetClientFromPointer(pThis);
+	if(!(g_clSkill_2[client] & SKL_2_LadderRambos) && IsPlayerOnLadder(client))
+	{
+		// PrintToServer("Function::Detour_Reload blocking reload for %d, %N", client, client);
+		return MRES_Supercede;
+	}
+	
+	return MRES_Ignored;
+}
+
+public MRESReturn Detour_ShotgunReload(Address pThis, Handle hReturn)
+{
+	int client = GetClientFromPointer(pThis);
+	if(!(g_clSkill_2[client] & SKL_2_LadderRambos) && IsPlayerOnLadder(client))
+	{
+		// PrintToServer("Function::Detour_ShotgunReload blocking reload for %d, %N", client, client);
+		return MRES_Supercede;
+	}
+	
+	return MRES_Ignored;
+}
+
+stock bool IsPlayerOnLadder(int client)
+{
+	return GetEntityMoveType(client) == MOVETYPE_LADDER;
+}
+
+stock int GetClientFromPointer(Address pThis)
+{	
+	return GetEntPropEnt(view_as<int>(pThis), Prop_Data, "m_hOwnerEntity");
+}
+*/

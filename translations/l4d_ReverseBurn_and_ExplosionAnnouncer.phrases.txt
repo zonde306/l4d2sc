@@ -1,0 +1,147 @@
+/*
+	******************************************************************************************************************************************************
+
+	You can display phrases in chat with color using any of the methods below:
+
+	Using color codes:
+		•  // Default (use instead of \x01), Alt + 01 Keyboard Shortcut
+		•  // Light Green (use instead of \x03), Alt + 03 Keyboard Shortcut
+		•  // Orange (use instead of \x04), Alt + 04 Keyboard Shortcut
+		•  // Olive (use instead of \x05), Alt + 05 Keyboard Shortcut
+
+	or
+
+	Using color tags:
+		• {default} // Default (use instead of \x01)
+		• {lightgreen} // Light Green (use instead of \x03)
+		• {orange} // Orange (use instead of \x04)
+		• {olive} // Green (use instead of \x05)
+
+	******************************************************************************************************************************************************
+*/
+
+"Phrases"
+{
+
+	"Exploded a gascan"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has exploded a {olive}gascan{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}ha explotado una {olive}lata de gasolina{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}felrobbantott egy {olive}benzines kannát{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}explodiu um {olive}galão{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}explodiu um {olive}galão{lightgreen}!"
+		"ru"			"{orange}{1} {lightgreen}взорвал(а) {olive}канистру{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}打爆了一个 {olive}油桶{lightgreen}!"
+		"zho"			"{orange}{1} {lightgreen}摧毀了一個 {olive}汽油桶{lightgreen}!"
+	}
+
+	"Exploded a fuel barrel"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has exploded a {olive}fuel barrel{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}ha explotado un {olive}barril de combustible{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}felrobbantott egy {olive}üzemanyag hordót{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}explodiu um {olive}barril de combustível{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}explodiu um {olive}barril de combustível{lightgreen}!"
+		"ru"			"{orange}{1} {lightgreen}взорвал(а) {olive}бочку с горючим{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}打爆了一个 {olive}炸药桶{lightgreen}!"
+		"zho"			"{orange}{1} {lightgreen}摧毀了一個 {olive}燃油桶{lightgreen}!"
+	}
+
+	"Exploded a propane canister"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has exploded a {olive}propane canister{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}ha explotado un {olive}tanque de propano{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}felrobbantott egy {olive}propán kannát{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}explodiu um {olive}botijão{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}explodiu um {olive}botijão{lightgreen}!"
+		"ru"			"{orange}{1} {lightgreen}взорвал(а) {olive}балон с пропаном{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}打爆了一个 {olive}煤气罐{lightgreen}!"
+		"zho"			"{orange}{1} {lightgreen}摧毀了一個 {olive}瓦斯桶{lightgreen}!"
+	}
+
+	"Exploded an oxygen tank"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has exploded an {olive}oxygen tank{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}ha explotado un {olive}tanque de oxígeno{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}felrobbantott egy {olive}oxigéntartályt{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}explodiu um {olive}tanque de oxigênio{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}explodiu um {olive}tanque de oxigênio{lightgreen}!"
+		"ru"			"{orange}{1} {lightgreen}взорвал(а) {olive}балон с кислородом{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}打爆了一个 {olive}氧气瓶{lightgreen}!"
+		"zho"			"{orange}{1} {lightgreen}摧毀了一個 {olive}氧氣筒{lightgreen}!"
+	}
+
+	"Exploded a barricade with gascans"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has exploded a {olive}barricade with gascans{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}ha explotado una {olive}barricada con latas de gasolina{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}felrobbantott egy {olive}barikádot egy benzines kannával{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}explodiu uma {olive}barricada com galões{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}explodiu uma {olive}barricada com galões{lightgreen}!"
+		"ru"			"{orange}{1} {lightgreen}взорвал(а) {olive}баррикаду с канистрами{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}点燃了 {olive}路障油桶{lightgreen}!"
+		"zho"			"{orange}{1} {lightgreen}點燃了 {olive}路障汽油桶{lightgreen}!"
+	}
+
+	"Exploded a gas pump"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has exploded a {olive}gas pump{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}ha explotado una {olive}bomba de gasolina{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}felrobbantott egy {olive}benzinszivattyú{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}explodiu uma {olive}bomba de gasolina{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}explodiu uma {olive}bomba de gasolina{lightgreen}!"
+		"ru"			"{orange}{1} {lightgreen}взорвал(а) {olive}бензонасос{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}打爆了一个 {olive}汽油泵{lightgreen}!"
+		"zho"			"{orange}{1} {lightgreen}摧毀了一個 {olive}汽油泵{lightgreen}!"
+	}
+
+	"Exploded a fireworks crate"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has exploded a {olive}fireworks crate{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}ha explotado una {olive}caja de fuegos artificiales{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}felrobbantott egy{olive}tűzijátékos ládát{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}explodiu uma {olive}caixa de fogos de artíficio{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}explodiu uma {olive}caixa de fogos de artíficio{lightgreen}!"
+		"ru"			"{orange}{1} {lightgreen}взорвал(а) {olive}ящик с фейерверком{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}点燃了 {olive}烟花盒{lightgreen}!"
+		"zho"			"{orange}{1} {lightgreen}點燃了 {olive}煙火盒{lightgreen}!"
+	}
+
+	"BurnVictimName"
+	{
+		"#format"		"{1:s},{2:N}"
+		"en"			"{orange}{1}{lightgreen} You instantly burned {olive}{2}{lightgreen}, damage was reversed."
+		"chi"			"{orange}{1}{lightgreen} 你正在烧 {olive}{2}{lightgreen}, 触发保护机制(反伤)."
+		"fr"			"{orange}{1}{lightgreen} Vous avez instantanément brûlé {olive}{2}{lightgreen}, les dégâts ont été inversés."
+	}
+
+	"BurnTeammate"
+	{
+		"#format"		"{1:s}"
+		"en"			"{orange}{1}{lightgreen} You instantly burned a teammate, damage was reversed."
+		"chi"			"{orange}{1}{lightgreen} 你正在烧队友, 触发保护机制(反伤)."
+		"fr"			"{orange}{1}{lightgreen} Vous avez instantanément brûlé un coéquipier, les dégâts ont été inversés."
+	}
+
+	"Announce"
+	{
+		"en"			"{orange}NOTICE:{lightgreen} This server reverses explodable burn damage!"
+		"chi"			"{orange}注意:{lightgreen} 放火/爆炸反伤已开启, 请当心你的行为!"
+		"fr"			"{orange}AVIS:{lightgreen} Ce serveur sens inverse les dommages de brûlure explosifs!"
+	}
+
+	"AnnounceBoth"
+	{
+		"en"			"{orange}NOTICE:{lightgreen} This server reverses burn damage!"
+		"chi"			"{orange}注意:{lightgreen} 放火反伤已开启, 请当心你的行为!"
+		"fr"			"{orange}AVIS:{lightgreen} Ce serveur sens inverse les dommages de brûlure!"
+	}
+
+}

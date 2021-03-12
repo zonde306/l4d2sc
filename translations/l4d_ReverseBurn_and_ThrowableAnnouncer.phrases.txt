@@ -1,0 +1,82 @@
+/*
+	******************************************************************************************************************************************************
+
+	You can display phrases in chat with color using any of the methods below:
+
+	Using color codes:
+		•  // Default (use instead of \x01), Alt + 01 Keyboard Shortcut
+		•  // Light Green (use instead of \x03), Alt + 03 Keyboard Shortcut
+		•  // Orange (use instead of \x04), Alt + 04 Keyboard Shortcut
+		•  // Olive (use instead of \x05), Alt + 05 Keyboard Shortcut
+
+	or
+
+	Using color tags:
+		• {default} // Default (use instead of \x01)
+		• {lightgreen} // Light Green (use instead of \x03)
+		• {orange} // Orange (use instead of \x04)
+		• {olive} // Green (use instead of \x05)
+
+	******************************************************************************************************************************************************
+*/
+
+"Phrases"
+{
+
+	"Thrown a molotov"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has thrown a {olive}molotov{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}扔了一个 {olive}燃烧瓶{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}lanzó un {olive}molotov{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}dobott egy {olive}molotovot{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}jogou um {olive}molotov{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}jogou um {olive}molotov{lightgreen}!"
+	}
+
+	"Thrown a pipe bomb"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has thrown a {olive}pipe bomb{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}扔了一个 {olive}土制炸弹{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}lanzó una {olive}bomba casera{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}dobott egy {olive}csőbombát{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}jogou uma {olive}pipe bomb{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}jogou uma {olive}pipe bomb{lightgreen}!"
+	}
+
+	"Thrown a vomit jar"
+	{
+		"#format"		"{1:N}"
+		"en"			"{orange}{1} {lightgreen}has thrown a {olive}vomit jar{lightgreen}!"
+		"chi"			"{orange}{1} {lightgreen}扔了一瓶 {olive}胆汁{lightgreen}!"
+		"es"			"{orange}{1} {lightgreen}lanzó una {olive}vomitona{lightgreen}!"
+		"hu"			"{orange}{1} {lightgreen}dobott egy {olive}epetartályt{lightgreen}!"
+		"pt"			"{orange}{1} {lightgreen}jogou uma {olive}bile{lightgreen}!"
+		"pt_p"			"{orange}{1} {lightgreen}jogou uma {olive}bile{lightgreen}!"
+	}
+
+	"BurnVictimName"
+	{
+		"#format"		"{1:s},{2:N}"
+		"en"			"{orange}{1}{lightgreen} You instantly burned {olive}{2}{lightgreen}, damage was reversed."
+		"chi"			"{orange}{1}{lightgreen} 你正在放火烧 {olive}{2}{lightgreen}, 触发保护机制(反伤)."
+		"fr"			"{orange}{1}{lightgreen} Vous avez instantanément brûlé {olive}{2}{lightgreen}, les dégâts ont été inversés."
+	}
+
+	"BurnTeammate"
+	{
+		"#format"		"{1:s},{2:N}"
+		"en"			"{orange}{1}{lightgreen} You instantly burned a teammate, damage was reversed."
+		"chi"			"{orange}{1}{lightgreen} 你正在放火烧队友, 触发保护机制(反伤)."
+		"fr"			"{orange}{1}{lightgreen} Vous avez instantanément brûlé un coéquipier, les dégâts ont été inversés."
+	}
+
+	"Announce"
+	{
+		"en"			"{orange}NOTICE:{lightgreen} This server reverses molotov damage!"
+		"chi"			"{orange}注意:{lightgreen} 放火反伤已开启, 请当心你的行为!"
+		"fr"			"{orange}AVIS:{lightgreen} Ce serveur sens inverse les dégâts molotov!"
+	}
+
+}

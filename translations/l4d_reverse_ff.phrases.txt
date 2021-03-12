@@ -1,0 +1,53 @@
+"Phrases"
+{
+	"Announce"
+	{
+		"en" 	"{orange}NOTICE:{lightgreen} This server reverses friendly-fire damage!"
+		"chi" 	"{orange}注意:{lightgreen} 黑枪反伤已启用, 请注意自己的行为!"
+		"fr"	"{orange}AVIS:{lightgreen} Ce serveur sens inverse les dégâts de tir ami!"
+	}
+
+	"AnnounceAll"
+	{
+		"en" 	"{orange}NOTICE:{lightgreen} This server reverses friendly-fire and burn damage!"
+		"chi" 	"{orange}NOTICE:{lightgreen} 友伤反弹已启用, 请注意自己的行为!"
+		"fr"	"{orange}AVIS:{lightgreen} Ce serveur sens inverse les dégâts de tir ami et de brûlure!"
+	}
+
+	"YouAttacked"
+	{
+		"en"	"You attacked"
+		"chi"	"你攻击了"
+		"fr"	"Vous avez attaqué"
+	}
+	"SurvivorFF"
+	{
+		"en"	"friendly-fire damage reversed"
+		"chi"	"友伤反弹"
+		"fr"	"les dégâts de tir ami sens inverse"
+	}
+	"InfectedFF"
+	{
+		"en"	"team attack damage reversed"
+		"chi"	"友伤反弹"
+		"fr"	"les dégâts d'attaque d'équipe sens inverse"
+	}
+	"Attacked"
+	{
+		"en"	"attacked"
+		"chi"	"攻击了"
+		"fr"	"a attaqué"
+	}
+	"ExcessiveFF"
+	{
+		"en"	"Excessive friendly-fire"
+		"chi"	"你是内鬼"
+		"fr"	"Tir ami excessif"
+	}
+	"ExcessiveTA"
+	{
+		"en"	"Excessive team attacks"
+		"chi"	"你是内鬼"
+		"fr"	"Attaques d'équipe excessif"
+	}
+}

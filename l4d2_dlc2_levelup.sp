@@ -12955,11 +12955,11 @@ void ShowStatusPanel(int client)
 		int maxDamage = g_iDamageChanceMax[client];
 		int base = g_iDamageBase[client];
 		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time)
-			menu.DrawText(tr("攻击+%d 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
+			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
 		else if((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time)
-			menu.DrawText(tr("攻击+%d 暴击100%%(%d~%d) 潜行中", base, minDamage, maxDamage));
+			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 潜行中", base, minDamage, maxDamage));
 		else
-			menu.DrawText(tr("攻击+%d 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage));
+			menu.DrawText(tr("攻击+%d%% 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage));
 	}
 	menu.DrawText(" ");
 	

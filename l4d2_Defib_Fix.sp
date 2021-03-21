@@ -54,7 +54,7 @@ public Plugin myinfo =
 	author = "Lux",
 	description = "Fixes defibbing from failing when defibbing an alive character index",
 	version = PLUGIN_VERSION,
-	url = "forums.alliedmods.net/showthread.php?p=2647018"
+	url = "https://forums.alliedmods.net/showthread.php?p=2647018"
 };
 
 public void OnPluginStart()
@@ -207,6 +207,8 @@ public MRESReturn DeathModelCreatePost(int pThis, Handle hReturn)
 	GetClientAbsOrigin(g_iTempClient, vPos);
 	
 	TeleportEntity(iDeathModel, vPos, NULL_VECTOR, NULL_VECTOR);
+	SetEntPropEnt(iDeathModel, Prop_Send, "m_hOwnerEntity", g_iTempClient);
+	// SetEntPropEnt(iDeathModel, Prop_Send, "m_Gender", GetClientUserId(g_iTempClient));
 	
 	g_iDeathModelOwner[iDeathModel] = GetClientUserId(g_iTempClient);
 	return MRES_Ignored;

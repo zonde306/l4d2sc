@@ -100,7 +100,7 @@ enum()
 	SKL_1_KeepClip = 1024,
 	SKL_1_ReviveBlock = 2048,
 	SKL_1_DisplayHealth = 4096,
-	SKL_1_ShoveFatigue = 8192,
+	SKL_1_MultiUpgrade = 8192,
 
 	SKL_2_Chainsaw = 1,
 	SKL_2_Excited = 2,
@@ -116,6 +116,7 @@ enum()
 	SKL_2_Magnum = 2048,
 	SKL_2_LadderRambos = 4096,
 	SKL_2_IncapCrawling = 8192,
+	SKL_2_ShoveFatigue = 16384,
 
 	SKL_3_Sacrifice = 1,
 	SKL_3_Respawn = 2,
@@ -207,7 +208,7 @@ bool g_bIsOnBile[MAXPLAYERS+1] = { false, ... };
 bool g_bDeadlineHint[MAXPLAYERS+1];
 int g_iExtraAmmo[MAXPLAYERS+1];
 int g_iExtraArmor[MAXPLAYERS+1];
-bool g_bAccurateShot[MAXPLAYERS+1];
+int g_iAccurateShot[MAXPLAYERS+1];
 bool g_bOnRocketDude[MAXPLAYERS+1];
 int g_iDamageChance[MAXPLAYERS+1];
 int g_iDamageChanceMin[MAXPLAYERS+1];
@@ -2004,7 +2005,7 @@ void GenerateRandomStats(int client, bool uncap)
 	
 	// 技能
 	g_clSkill_1[client] = GetRandomInt(0, 16383);
-	g_clSkill_2[client] = GetRandomInt(0, 16383);
+	g_clSkill_2[client] = GetRandomInt(0, 32767);
 	g_clSkill_3[client] = GetRandomInt(0, 16383);
 	g_clSkill_4[client] = GetRandomInt(0, 8191);
 	g_clSkill_5[client] = GetRandomInt(0, 8191);
@@ -2087,7 +2088,7 @@ void Initialization(int client, bool invalid = false)
 	mtLastMoveType[client] = MOVETYPE_WALK;
 	g_iExtraAmmo[client] = 0;
 	g_iExtraArmor[client] = 0;
-	g_bAccurateShot[client] = false;
+	g_iAccurateShot[client] = 0;
 	g_fNextAccurateShot[client] = 0.0;
 	g_iReloadWeaponUpgrade[client] = 0;
 	g_iReloadWeaponUpgradeClip[client] = 0;
@@ -3480,12 +3481,12 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」避免队友伤害",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」手枪自动连发",(g_clSkill_1[client]&SKL_1_RapidFire)));
-	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」复活护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
+	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
-	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」保留弹匣/升级叠加补子弹/填装可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
+	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("「保守」填装保留弹匣/可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示血量/伤害",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_1[client]&SKL_1_ShoveFatigue)));
+	menu.AddItem(tr("1_%d",SKL_1_MultiUpgrade), mps("「耐用」弹药包增量/同类叠加/补充子弹",(g_clSkill_1[client]&SKL_1_MultiUpgrade)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -3514,6 +3515,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」胆汁时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
 	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
 	menu.AddItem(tr("2_%d",SKL_2_LadderRambos), mps("「固定」梯子上掏枪",(g_clSkill_2[client]&SKL_2_LadderRambos)));
+	menu.AddItem(tr("2_%d",SKL_2_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_2[client]&SKL_2_ShoveFatigue)));
 	
 	if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
 		menu.AddItem(tr("2_%d",SKL_2_IncapCrawling), mps("「爬行」倒地爬行",(g_clSkill_2[client]&SKL_2_IncapCrawling)));
@@ -5931,7 +5933,7 @@ public void ZombieHook_OnTakeDamagePost(int victim, int attacker, int inflictor,
 	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 || GetClientTeam(attacker) != 2 || (damagetype & DMG_FALL))
 		return;
 	
-	if((damagetype & DMG_CRIT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_bAccurateShot[attacker] && !IsNullVector(damagePosition))
+	if((damagetype & DMG_CRIT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_iAccurateShot[attacker] && !IsNullVector(damagePosition))
 	{
 		float vStart[3];
 		GetClientEyePosition(attacker, vStart);
@@ -5949,7 +5951,7 @@ public void PlayerHook_OnTakeDamagePost(int victim, int attacker, int inflictor,
 	if(!IsValidAliveClient(victim) || attacker <= 0 || damage <= 0.0 || (damagetype & DMG_FALL))
 		return;
 	
-	if((damagetype & DMG_CRIT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_bAccurateShot[attacker] && !IsNullVector(damagePosition))
+	if((damagetype & DMG_CRIT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_iAccurateShot[attacker] && !IsNullVector(damagePosition))
 	{
 		float vStart[3];
 		GetClientEyePosition(attacker, vStart);
@@ -6052,8 +6054,8 @@ public void ZombieHook_OnTraceAttackPost(int victim, int attacker, int inflictor
 	if(!IsValidClient(attacker))
 		return;
 	
-	if((damagetype & DMG_CRIT) && g_bAccurateShot[attacker])
-		g_bAccurateShot[attacker] = false;
+	if((damagetype & DMG_CRIT) && g_iAccurateShot[attacker])
+		g_iAccurateShot[attacker] = false;
 }
 */
 
@@ -6171,13 +6173,13 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(g_bIsAngryCritActive)
 		chance += 500;
 	
-	if(g_bAccurateShot[attacker] || GetRandomInt(1, 1000) <= chance)
+	if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
 	{
 		// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 		
 		if(!IsFakeClient(attacker))
 		{
-			if(g_bAccurateShot[attacker])
+			if(g_iAccurateShot[attacker] > 0)
 				ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 			else
 				ClientCommand(attacker, "play \"ui/littlereward.wav\"");
@@ -6185,7 +6187,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		
 		damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 		damagetype |= DMG_CRIT;
-		// g_bAccurateShot[attacker] = false;
+		// g_iAccurateShot[attacker] -= 1;
 		
 		/*
 		if(g_pCvarAllow.BoolValue)
@@ -6533,8 +6535,8 @@ public void PlayerHook_OnTraceAttackPost(int victim, int attacker, int inflictor
 	if(!IsValidClient(attacker))
 		return;
 	
-	if((damagetype & DMG_CRIT) && g_bAccurateShot[attacker])
-		g_bAccurateShot[attacker] = false;
+	if((damagetype & DMG_CRIT) && g_iAccurateShot[attacker])
+		g_iAccurateShot[attacker] = false;
 }
 */
 
@@ -6659,7 +6661,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			}
 		}
 		
-		if(g_bAccurateShot[attacker] || GetRandomInt(1, 1000) <= chance)
+		if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
 		{
 			if(!IsFakeClient(victim))
 				ClientCommand(victim, "play \"plats/churchbell_end.wav\"");
@@ -6668,7 +6670,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			
 			if(!IsFakeClient(attacker))
 			{
-				if(g_bAccurateShot[attacker])
+				if(g_iAccurateShot[attacker] > 0)
 					ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 				else
 					ClientCommand(attacker, "play \"ui/littlereward.wav\"");
@@ -6676,7 +6678,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			
 			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 			damagetype |= DMG_CRIT;
-			// g_bAccurateShot[attacker] = false;
+			// g_iAccurateShot[attacker] -= 1;
 			
 			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !GetRandomInt(0, 2))
 			{
@@ -10002,7 +10004,7 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	if(maxClip > 0)
 		SetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", maxClip);
 	
-	if((g_clSkill_1[client] & SKL_1_KeepClip) && g_iReloadWeaponUpgradeClip[client] > 0)
+	if((g_clSkill_1[client] & SKL_1_MultiUpgrade) && g_iReloadWeaponUpgradeClip[client] > 0)
 	{
 		int flags = 0;
 		if(upgradeName[13] == 'i' || upgradeName[13] == 'I')
@@ -10020,7 +10022,7 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 		}
 	}
 	
-	if(g_clSkill_1[client] & SKL_1_KeepClip)
+	if(g_clSkill_1[client] & SKL_1_MultiUpgrade)
 		AddAmmo(client, 999);
 	
 	if(g_iLastWeaponAmmo[client] > 0)
@@ -11067,7 +11069,9 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
 	bool isShotgun = (StrContains(classname, "shotgun", false) != -1);
 	bool isSniper = (StrContains(classname, "sniper", false) != -1 || StrContains(classname, "hunting", false) != -1);
-	if(isShotgun || isSniper || StrContains(classname, "smg", false) != -1 || StrContains(classname, "rifle", false) != -1)
+	bool isSMG = (StrContains(classname, "smg", false) != -1);
+	bool isRifle = (StrContains(classname, "rifle", false) != -1);
+	if(isShotgun || isSniper || isSMG || isRifle)
 	{
 		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 		bool hasGetAmmo = false;
@@ -11103,19 +11107,30 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time))										// 潜行攻击
 		{
 			// 只有非无限子弹才生效
-			g_bAccurateShot[client] = true;
+			if(isShotgun)
+				g_iAccurateShot[client] = 1;
+			else if(isSniper)
+				g_iAccurateShot[client] = 3;
+			else if(isRifle)
+				g_iAccurateShot[client] = 5;
+			else if(isSMG)
+				g_iAccurateShot[client] = 7;
+			else
+				g_iAccurateShot[client] = 0;
 			// PrintToChat(client, "weapon_fire");
 			
-			// 好像不是很必要
+			// 检查单发子弹结束，因为一发可以伤害多个目标的
 			RequestFrame(EndAccurateShot, client);
 			g_fNextAccurateShot[client] = time + 5.0;
 		}
-		else
+		/*
+		else if(g_iAccurateShot[client] == 0)
 		{
 			// 取消效果
-			g_bAccurateShot[client] = false;
+			g_iAccurateShot[client] = -1;
 			g_fNextAccurateShot[client] = time + 5.0;
 		}
+		*/
 		
 		if((g_clSkill_4[client] & SKL_4_SniperExtra) &&
 			(StrEqual(classname, "weapon_sniper_awp", false) || StrEqual(classname, "weapon_sniper_scout", false)))
@@ -11288,7 +11303,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 
 public void EndAccurateShot(any client)
 {
-	g_bAccurateShot[client] = false;
+	g_iAccurateShot[client] -= 1;
 }
 
 public void ResetPipeBombDuration(any data)
@@ -12636,7 +12651,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				DoShoveSimulation(client, weaponId);
 			}
 			
-			if((g_clSkill_1[client] & SKL_1_ShoveFatigue) && (buttons & IN_ATTACK2))
+			if((g_clSkill_2[client] & SKL_2_ShoveFatigue) && (buttons & IN_ATTACK2))
 			{
 				SetEntProp(client, Prop_Send, "m_iShovePenalty", 0);
 			}
@@ -12954,7 +12969,7 @@ void ShowStatusPanel(int client)
 		int minDamage = g_iDamageChanceMin[client];
 		int maxDamage = g_iDamageChanceMax[client];
 		int base = g_iDamageBase[client];
-		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time)
+		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time && g_iAccurateShot[client] > 0)
 			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
 		else if((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time)
 			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 潜行中", base, minDamage, maxDamage));

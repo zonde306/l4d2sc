@@ -551,6 +551,8 @@ stock Action:onTankRunCmd(client, &buttons, Float:vel[3], Float:angles[3])
 		// タンクの速さ
 		s_tank_speed = GetConVarFloat(FindConVar("z_tank_speed"));
 	}
+	
+	/*
 	// 岩投げ
 	if ((buttons & IN_ATTACK2)) {
 		// 岩投げしない
@@ -561,6 +563,8 @@ stock Action:onTankRunCmd(client, &buttons, Float:vel[3], Float:angles[3])
 		//delayStart(client, 3);
 		//delayStart(client, 4);
 	}
+	*/
+	
 	// 岩投げ中
 	if (delayExpired(client, 4, TANK_ROCK_AIM_DELAY)
 		&& !delayExpired(client, 3, TANK_ROCK_AIM_TIME))

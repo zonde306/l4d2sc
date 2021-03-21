@@ -4,6 +4,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <left4dhooks>
 
 #define CVAR_FLAGS		FCVAR_NOTIFY
 
@@ -820,6 +821,9 @@ stock float GetDistanceToVec(int client, float vEnd[3]) // credits: Peace-Maker
 
 bool FindEmptyPos(int client, int target, float fSetDist, float vEnd[3])
 {
+	if(L4D_GetRandomPZSpawnPosition(client, 8, RoundFloat(fSetDist), vEnd))
+		return true;
+	
 	const float fClientHeight = 71.0;
 	
 	float vMin[3], vMax[3], vStart[3];

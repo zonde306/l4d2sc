@@ -11235,18 +11235,14 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 				g_iAccurateShot[client] = 0;
 			// PrintToChat(client, "weapon_fire");
 			
+			g_fNextAccurateShot[client] = time + 5.0;
+		}
+		
+		if(g_iAccurateShot[client] > 0)
+		{
 			// 检查单发子弹结束，因为一发可以伤害多个目标的
 			RequestFrame(EndAccurateShot, client);
-			g_fNextAccurateShot[client] = time + 5.0;
 		}
-		/*
-		else if(g_iAccurateShot[client] == 0)
-		{
-			// 取消效果
-			g_iAccurateShot[client] = -1;
-			g_fNextAccurateShot[client] = time + 5.0;
-		}
-		*/
 		
 		if((g_clSkill_4[client] & SKL_4_SniperExtra) &&
 			(StrEqual(classname, "weapon_sniper_awp", false) || StrEqual(classname, "weapon_sniper_scout", false)))
@@ -11364,6 +11360,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			}
 		}
 		
+		g_iAccurateShot[client] = 0;
+		
 		// 小手枪和马格南
 		if(classname[13] == EOS)
 			g_fNextCalmTime[client] = GetEngineTime() + 2.0;
@@ -11378,6 +11376,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			SetEntProp(weapon, Prop_Send, "m_iClip1", 31);
 		}
 		
+		g_iAccurateShot[client] = 0;
 		g_fNextCalmTime[client] = GetEngineTime() + 3.0;
 	}
 	else if((g_clSkill_5[client] & SKL_5_RocketDude) && !(GetEntityFlags(client) & FL_ONGROUND) && StrContains(classname, "grenade_launcher", false) != -1)
@@ -11394,6 +11393,12 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			
 			SetEntProp(weapon, Prop_Send, "m_iClip1", clip + 1);
 		}
+		
+		g_iAccurateShot[client] = 0;
+	}
+	else
+	{
+		g_iAccurateShot[client] = 0;
 	}
 	
 	int pbDuration = IsPlayerHaveEffect(client, 21);

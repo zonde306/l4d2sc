@@ -2076,7 +2076,7 @@ void GenerateRandomStats(int client, bool uncap)
 	g_clAngryMode[client] = GetRandomInt(0, 7);
 	
 	// 技能
-	g_clSkill_1[client] = GetRandomInt(0, 16383);
+	g_clSkill_1[client] = GetRandomInt(0, 32767);
 	g_clSkill_2[client] = GetRandomInt(0, 32767);
 	g_clSkill_3[client] = GetRandomInt(0, 32767);
 	g_clSkill_4[client] = GetRandomInt(0, 16383);

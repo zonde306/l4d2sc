@@ -101,6 +101,7 @@ enum()
 	SKL_1_ReviveBlock = 2048,
 	SKL_1_DisplayHealth = 4096,
 	SKL_1_MultiUpgrade = 8192,
+	SKL_1_Button = 16384,
 
 	SKL_2_Chainsaw = 1,
 	SKL_2_Excited = 2,
@@ -406,6 +407,7 @@ int g_iLastWeaponClip[MAXPLAYERS+1];
 bool g_bLastWeaponDual[MAXPLAYERS+1];
 // int g_iOldRealHealth[MAXPLAYERS+1];
 int g_iLastWeaponAmmo[MAXPLAYERS+1];
+int g_iTimedButton[2048+1] = { -1, ... };
 
 //装备附加
 new g_iRoundEvent = 0;
@@ -1546,6 +1548,9 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 	}
 	*/
 	
+	UnhookEntityOutput("func_button_timed", "OnUnPressed", OutputHook_OnUnPressed);
+	UnhookEntityOutput("func_button_timed", "OnTimeUp", OutputHook_OnUnPressed);
+	
 	if(g_hTimerSurvival != null)
 	{
 		KillTimer(g_hTimerSurvival);
@@ -1755,9 +1760,21 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 	if(g_hTimerRenderHealthBar == null)
 		g_hTimerRenderHealthBar = CreateTimer(0.1, Timer_RenderHealthBar, 0, TIMER_REPEAT);
 	
+	HookEntityOutput("func_button_timed", "OnUnPressed", OutputHook_OnUnPressed);
+	HookEntityOutput("func_button_timed", "OnTimeUp", OutputHook_OnUnPressed);
+	
 	g_bIsGamePlaying = true;
 	PrintToServer("游戏开始");
 	return Plugin_Continue;
+}
+
+public void OutputHook_OnUnPressed(const char[] output, int caller, int activator, float delay)
+{
+	if(caller > MaxClients && caller <= 2048 && g_iTimedButton[caller] > 0)
+	{
+		SetEntProp(caller, Prop_Data, "m_nUseTime", g_iTimedButton[caller]);
+		g_iTimedButton[caller] = -1;
+	}
 }
 
 public Action:Event_RoundStart(Handle:event, String:event_name[], bool:dontBroadcast)
@@ -3304,6 +3321,24 @@ void HandleBotBuy(int client)
 		data.WriteString("machete");
 		CreateTimer(3.0, Timer_HandleGiveItem, data, TIMER_FLAG_NO_MAPCHANGE);
 	}
+	
+	int point = -1;
+	while((point = FindEntityByClassname(point, "point_prop_use_target")) > -1)
+	{
+		GetEntPropVector(point, Prop_Send, "m_vecOrigin", location);
+		if(GetVectorDistance(origin, location, true) < 500.0 * 500.0)
+		{
+			g_clSkillPoint[client] -= 2;
+			DataPack data = CreateDataPack();
+			data.WriteCell(client);
+			data.WriteCell(3);
+			data.WriteString("gascan");
+			data.WriteString("grenade_launcher");
+			data.WriteString("pipe_bomb");
+			CreateTimer(3.0, Timer_HandleGiveItem, data, TIMER_FLAG_NO_MAPCHANGE);
+			break;
+		}
+	}
 }
 
 public Action Timer_HandleGiveItem(Handle timer, any pack)
@@ -3498,6 +3533,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示血量/伤害",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_MultiUpgrade), mps("「耐用」弹药包叠加/补充子弹",(g_clSkill_1[client]&SKL_1_MultiUpgrade)));
+	menu.AddItem(tr("1_%d",SKL_1_Button), mps("「巨力」按按钮时间减少2/3",(g_clSkill_1[client]&SKL_1_Button)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6027,7 +6063,10 @@ public void OnEntityDestroyed(int entity)
 	SDKUnhook(entity, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 	
 	if(entity > MaxClients && entity <= 2048)
+	{
 		g_bIsTankRock[entity] = false;
+		g_iTimedButton[entity] = -1;
+	}
 }
 
 public void ZombieHook_OnSpawned(int entity)
@@ -12900,9 +12939,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			if(IsValidEntity(model) && GetEdictClassname(model, classname, sizeof(classname)) && StrEqual(classname, "survivor_death_model", false))
 			{
 				int owner = GetSurvivorFromDeathModel(model);
-				static int g_iDeathModelButton[2048+1] = { INVALID_ENT_REFERENCE, ... };
+				static int g_iDeathModel[2048+1] = { INVALID_ENT_REFERENCE, ... };
 				if(IsValidClient(owner) && !IsPlayerAlive(owner) && GetClientTeam(owner) == 2 &&
-					(!g_iDeathModelButton[model] || g_iDeathModelButton[model] == INVALID_ENT_REFERENCE || !IsValidEntity(g_iDeathModelButton[model])))
+					(!g_iDeathModel[model] || g_iDeathModel[model] == INVALID_ENT_REFERENCE || !IsValidEntity(g_iDeathModel[model])))
 				{
 					int button = CreateEntityByName("func_button_timed");
 					if(button > MaxClients)
@@ -12947,7 +12986,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						
 						PrintHintText(client, "正在救赎 %N\n***以濒死为代价***", owner);
 						HookSingleEntityOutput(button, "OnTimeUp", OutputHook_OnResurrect, true);
-						g_iDeathModelButton[model] = EntIndexToEntRef(button);
+						g_iDeathModel[model] = EntIndexToEntRef(button);
 					}
 				}
 			}
@@ -12975,6 +13014,17 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			SetEntPropFloat(client, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
 			SetEntPropFloat(client, Prop_Send, "m_flProgressBarDuration", 0.0);
 		}
+		
+		if((g_clSkill_1[client] & SKL_1_Button) && (buttons & IN_USE) && useTarget > MaxClients && useTarget <= 2048)
+		{
+			static char classname[32];
+			if(GetEdictClassname(useTarget, classname, sizeof(classname)) && StrEqual(classname, "func_button_timed", false) && g_iTimedButton[useTarget] <= 0)
+			{
+				g_iTimedButton[useTarget] = GetEntProp(useTarget, Prop_Data, "m_nUseTime");
+				SetEntProp(useTarget, Prop_Data, "m_nUseTime", g_iTimedButton[useTarget] / 3);
+			}
+		}
+		
 	}
 	else if(g_bIsHitByVomit[client])
 	{

@@ -407,7 +407,7 @@ int g_iLastWeaponClip[MAXPLAYERS+1];
 bool g_bLastWeaponDual[MAXPLAYERS+1];
 // int g_iOldRealHealth[MAXPLAYERS+1];
 int g_iLastWeaponAmmo[MAXPLAYERS+1];
-int g_iTimedButton[2048+1] = { -1, ... };
+float g_fTimedButton[2048+1] = { -1.0, ... };
 
 //装备附加
 new g_iRoundEvent = 0;
@@ -1548,8 +1548,12 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 	}
 	*/
 	
-	UnhookEntityOutput("func_button_timed", "OnUnPressed", OutputHook_OnUnPressed);
-	UnhookEntityOutput("func_button_timed", "OnTimeUp", OutputHook_OnUnPressed);
+	UnhookEntityOutput("func_button_timed", "OnPressed", OutputHook_OnButtonPressed);
+	UnhookEntityOutput("func_button_timed", "OnUnPressed", OutputHook_OnButtonUnPressed);
+	UnhookEntityOutput("func_button_timed", "OnTimeUp", OutputHook_OnButtonUnPressed);
+	UnhookEntityOutput("point_script_use_target", "OnUseStarted", OutputHook_OnTargetUseStarted);
+	UnhookEntityOutput("point_script_use_target", "OnUseCanceled", OutputHook_OnTargetUseCanceled);
+	UnhookEntityOutput("point_script_use_target", "OnUseFinished", OutputHook_OnTargetUseCanceled);
 	
 	if(g_hTimerSurvival != null)
 	{
@@ -1760,20 +1764,61 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 	if(g_hTimerRenderHealthBar == null)
 		g_hTimerRenderHealthBar = CreateTimer(0.1, Timer_RenderHealthBar, 0, TIMER_REPEAT);
 	
-	HookEntityOutput("func_button_timed", "OnUnPressed", OutputHook_OnUnPressed);
-	HookEntityOutput("func_button_timed", "OnTimeUp", OutputHook_OnUnPressed);
+	HookEntityOutput("func_button_timed", "OnPressed", OutputHook_OnButtonPressed);
+	HookEntityOutput("func_button_timed", "OnUnPressed", OutputHook_OnButtonUnPressed);
+	HookEntityOutput("func_button_timed", "OnTimeUp", OutputHook_OnButtonUnPressed);
+	HookEntityOutput("point_script_use_target", "OnUseStarted", OutputHook_OnTargetUseStarted);
+	HookEntityOutput("point_script_use_target", "OnUseCanceled", OutputHook_OnTargetUseCanceled);
+	HookEntityOutput("point_script_use_target", "OnUseFinished", OutputHook_OnTargetUseCanceled);
 	
 	g_bIsGamePlaying = true;
 	PrintToServer("游戏开始");
 	return Plugin_Continue;
 }
 
-public void OutputHook_OnUnPressed(const char[] output, int caller, int activator, float delay)
+public void OutputHook_OnTargetUseStarted(const char[] output, int caller, int activator, float delay)
 {
-	if(caller > MaxClients && caller <= 2048 && g_iTimedButton[caller] > 0)
+	if(caller > MaxClients && caller <= 2048 && g_fTimedButton[caller] <= 0.0 &&
+		IsValidAliveClient(activator) && (g_clSkill_1[activator] & SKL_1_Button))
 	{
-		SetEntProp(caller, Prop_Data, "m_nUseTime", g_iTimedButton[caller]);
-		g_iTimedButton[caller] = -1;
+		g_fTimedButton[caller] = GetEntPropFloat(caller, Prop_Data, "m_flDuration");
+		if(GetEntProp(activator, Prop_Send, "m_bAdrenalineActive"))
+			SetEntPropFloat(caller, Prop_Data, "m_flDuration", 1.0);
+		else
+			SetEntPropFloat(caller, Prop_Data, "m_flDuration", g_fTimedButton[caller] / 3.0);
+		// PrintToServer("[%s] m_flDuration=%f", output, g_fTimedButton[caller]);
+	}
+}
+
+public void OutputHook_OnTargetUseCanceled(const char[] output, int caller, int activator, float delay)
+{
+	if(caller > MaxClients && caller <= 2048 && g_fTimedButton[caller] > 0.0)
+	{
+		SetEntPropFloat(caller, Prop_Data, "m_flDuration", g_fTimedButton[caller]);
+		g_fTimedButton[caller] = -1.0;
+	}
+}
+
+public void OutputHook_OnButtonPressed(const char[] output, int caller, int activator, float delay)
+{
+	if(caller > MaxClients && caller <= 2048 && g_fTimedButton[caller] <= 0.0 &&
+		IsValidAliveClient(activator) && (g_clSkill_1[activator] & SKL_1_Button))
+	{
+		g_fTimedButton[caller] = float(GetEntProp(caller, Prop_Data, "m_nUseTime"));
+		if(GetEntProp(activator, Prop_Send, "m_bAdrenalineActive"))
+			SetEntProp(caller, Prop_Data, "m_nUseTime", 1);
+		else
+			SetEntProp(caller, Prop_Data, "m_nUseTime", RoundToCeil(g_fTimedButton[caller] / 3.0));
+		// PrintToServer("[%s] m_nUseTime=%.0f", output, g_fTimedButton[caller]);
+	}
+}
+
+public void OutputHook_OnButtonUnPressed(const char[] output, int caller, int activator, float delay)
+{
+	if(caller > MaxClients && caller <= 2048 && g_fTimedButton[caller] > 0.0)
+	{
+		SetEntProp(caller, Prop_Data, "m_nUseTime", RoundToCeil(g_fTimedButton[caller]));
+		g_fTimedButton[caller] = -1.0;
 	}
 }
 
@@ -3533,7 +3578,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("「坚毅」拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示血量/伤害",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_MultiUpgrade), mps("「耐用」弹药包叠加/补充子弹",(g_clSkill_1[client]&SKL_1_MultiUpgrade)));
-	menu.AddItem(tr("1_%d",SKL_1_Button), mps("「巨力」按按钮时间减少2/3",(g_clSkill_1[client]&SKL_1_Button)));
+	menu.AddItem(tr("1_%d",SKL_1_Button), mps("「巨力」开机关时间减少2/3",(g_clSkill_1[client]&SKL_1_Button)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6065,7 +6110,7 @@ public void OnEntityDestroyed(int entity)
 	if(entity > MaxClients && entity <= 2048)
 	{
 		g_bIsTankRock[entity] = false;
-		g_iTimedButton[entity] = -1;
+		g_fTimedButton[entity] = -1.0;
 	}
 }
 
@@ -13018,10 +13063,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if((g_clSkill_1[client] & SKL_1_Button) && (buttons & IN_USE) && useTarget > MaxClients && useTarget <= 2048)
 		{
 			static char classname[32];
-			if(GetEdictClassname(useTarget, classname, sizeof(classname)) && StrEqual(classname, "func_button_timed", false) && g_iTimedButton[useTarget] <= 0)
+			if(GetEdictClassname(useTarget, classname, sizeof(classname)))
 			{
-				g_iTimedButton[useTarget] = GetEntProp(useTarget, Prop_Data, "m_nUseTime");
-				SetEntProp(useTarget, Prop_Data, "m_nUseTime", g_iTimedButton[useTarget] / 3);
+				if(StrEqual(classname, "func_button_timed", false))
+					OutputHook_OnButtonPressed("OnPressed", useTarget, client, 0.0);
+				else if(StrEqual(classname, "point_script_use_target", false))
+					OutputHook_OnTargetUseStarted("OnUseStarted", useTarget, client, 0.0);
 			}
 		}
 		

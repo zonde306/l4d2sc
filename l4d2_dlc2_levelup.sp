@@ -1342,8 +1342,8 @@ public OnMapStart()
 	PrecacheSound(SOUND_WARP, true);
 	PrecacheSound(SOUND_Ball, true);
 	PrecacheSound(SOUND_Bomb, true);
-	PrecacheSound(SOUND_IMPACT1);
-	PrecacheSound(SOUND_IMPACT2);
+	// PrecacheSound(SOUND_IMPACT1);
+	// PrecacheSound(SOUND_IMPACT2);
 	PrecacheSound(SOUND_STEEL);
 	PrecacheSound(SOUND_GIFT_PICKUP);
 	// PrecacheSound(SOUND_WARP);
@@ -2198,8 +2198,8 @@ void Initialization(int client, bool invalid = false)
 	else
 		g_mEquipData[client].Clear();
 	
-	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
-	// SDKUnhook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
+	SDKUnhook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
+	// SDKUnhook(client, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	// SDKUnhook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
 	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
@@ -5391,6 +5391,7 @@ public void OnGameFrame()
 			{
 				g_ctSelfHeal[i] = curTime + 200.0;
 				
+				/*
 				if(team == 2 && !GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
 				{
 					int health = GetPlayerTempHealth(i) + 80;
@@ -5405,7 +5406,9 @@ public void OnGameFrame()
 					// SetEntProp(i, Prop_Data, "m_iHealth", GetEntProp(i, Prop_Data, "m_iHealth") + 80);
 					AddHealth(i, 80, true, true);
 				}
-
+				*/
+				AddHealth(i, 80, false, true);
+				
 				PrintToChat(i, "\x03「暴疗」\x01你获得 \x0580\x01 生命值。");
 			}
 
@@ -6093,9 +6096,9 @@ public void OnEntityDestroyed(int entity)
 	SDKUnhook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	SDKUnhook(entity, SDKHook_TraceAttack, ZombieHook_OnTraceAttack);
 	// SDKUnhook(entity, SDKHook_TraceAttackPost, ZombieHook_OnTraceAttackPost);
-	// SDKUnhook(entity, SDKHook_OnTakeDamagePost, ZombieHook_OnTakeDamagePost);
-	SDKUnhook(entity, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
-	// SDKUnhook(entity, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
+	// SDKUnhook(entity, SDKHook_OnTakeDamageAlivePost, ZombieHook_OnTakeDamagePost);
+	SDKUnhook(entity, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
+	// SDKUnhook(entity, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(entity, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	// SDKUnhook(entity, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
 	SDKUnhook(entity, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
@@ -6119,7 +6122,7 @@ public void ZombieHook_OnSpawned(int entity)
 	SDKUnhook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	SDKHook(entity, SDKHook_TraceAttack, ZombieHook_OnTraceAttack);
 	// SDKHook(entity, SDKHook_TraceAttackPost, ZombieHook_OnTraceAttackPost);
-	// SDKHook(entity, SDKHook_OnTakeDamagePost, ZombieHook_OnTakeDamagePost);
+	// SDKHook(entity, SDKHook_OnTakeDamageAlivePost, ZombieHook_OnTakeDamagePost);
 }
 
 /*
@@ -10429,14 +10432,14 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 					if(iTarget > 0 && damage > 0.0 && GetVectorDistance(fBeamTwoStart, fBeamTwoEnd) <= L4D2_GetFloatWeaponAttribute(classname, L4D2FWA_Range))
 					{
 						// EmitSoundToAll(SOUND_IMPACT1, iTarget,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
-						EmitAmbientSound(SOUND_IMPACT1, fBeamTwoEnd, iTarget, SNDLEVEL_TRAFFIC);
+						// EmitAmbientSound(SOUND_IMPACT1, fBeamTwoEnd, iTarget, SNDLEVEL_TRAFFIC);
 						SDKHooks_TakeDamage(iTarget, weapon, client, damage, DMG_BULLET, weapon, NULL_VECTOR, fBeamTwoEnd);
 						ShowParticle(fBeamTwoEnd, PARTICLE_BLOOD, 0.5);
 					}
 					else
 					{
 						// EmitSoundToAll(SOUND_IMPACT2, 0,  SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS,1.0, SNDPITCH_NORMAL, -1, fBeamTwoEnd, NULL_VECTOR, true, 0.0);
-						EmitAmbientSound(SOUND_IMPACT2, fBeamTwoEnd, 0, SNDLEVEL_TRAFFIC);
+						// EmitAmbientSound(SOUND_IMPACT2, fBeamTwoEnd, 0, SNDLEVEL_TRAFFIC);
 					}
 					
 					// 子弹效果
@@ -10806,16 +10809,16 @@ void RegPlayerHook(int client, bool fullHealth = false)
 			SetEntProp(client, Prop_Data, "m_iHealth", RoundToZero(maxHealth * fac));
 	}
 	
-	SDKUnhook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
-	// SDKUnhook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
+	SDKUnhook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
+	// SDKUnhook(client, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	// SDKUnhook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
 	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKUnhook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
-	SDKHook(client, SDKHook_OnTakeDamage, PlayerHook_OnTakeDamage);
-	// SDKHook(client, SDKHook_OnTakeDamagePost, PlayerHook_OnTakeDamagePost);
+	SDKHook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
+	// SDKHook(client, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
 	SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	// SDKHook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
 	SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
@@ -12088,21 +12091,21 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 		
 		buffer += amount;
 		
+		if(conv)
+		{
+			int cv = (health + RoundToZero(buffer)) - maxHealth;
+			if(cv > 0)
+			{
+				if(cv > buffer)
+					cv = RoundToZero(buffer);
+				
+				buffer -= cv;
+				health += cv;
+			}
+		}
+		
 		if(limit)
 		{
-			if(conv)
-			{
-				int cv = (health + RoundToZero(buffer)) - maxHealth;
-				if(cv > 0)
-				{
-					if(cv > buffer)
-						cv = RoundToZero(buffer);
-					
-					buffer -= cv;
-					health += cv;
-				}
-			}
-			
 			if(health + RoundToZero(buffer) > maxHealth)
 				buffer = float(maxHealth - health);
 			if(health > maxHealth)
@@ -13037,7 +13040,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
-		if((g_clSkill_3[client] & SKL_3_Sacrifice) && (buttons & IN_SPEED) &&
+		if((g_clSkill_3[client] & SKL_3_Sacrifice) && (buttons & IN_SPEED) && GetEntPropEnt(client, Prop_Send, "m_reviveOwner") <= 0 &&
 			(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1)))
 		{
 			if(g_fSacrificeTime[client] <= 0.0)

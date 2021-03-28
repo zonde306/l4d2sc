@@ -3,6 +3,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <colors>
+#include <regex>
 
 public Plugin myinfo =
 {
@@ -27,7 +28,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnPluginStart()
 {
-	g_CV_Allow = CreateConVar("l4d2_advert_allow", "0", "是否开启插件", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_CV_Allow = CreateConVar("l4d2_advert_allow", "1", "是否开启插件", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_CV_Interval = CreateConVar("l4d2_advert_interval", "30", "滚动广告间隔", FCVAR_NONE, true, 1.0, true, 65535.0);
 	g_CV_RollMode = CreateConVar("l4d2_advert_random", "1", "滚动广告随机化", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_CV_Delay = CreateConVar("l4d2_advert_start_delay", "15", "开局首次滚动广告延迟", FCVAR_NONE, true, 1.0, true, 65535.0);
@@ -37,6 +38,12 @@ public void OnPluginStart()
 	
 	HookEvent("player_team", Event_PlayerTeam);
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("player_left_start_area", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("survival_round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("scavenge_round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("player_left_safe_area", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("start_holdout", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEvent("versus_round_start", Event_RoundStart, EventHookMode_PostNoCopy);
 	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("map_transition", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("mission_lost", Event_RoundEnd, EventHookMode_PostNoCopy);
@@ -139,6 +146,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	{
 		if(g_Timer_New[client] == null)
 			g_Timer_New[client] = CreateTimer(g_CV_NewInterval.FloatValue, Timer_PrintNewAdvert, client, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+		PrintToServer("玩家 %N 进度 %d/%d", client, g_n_NewAdvertPoll[client], g_Array_AdvertNewPoll[client].Length);
 	}
 	else if(newTeam <= 1 && oldTeam > 1)
 	{
@@ -175,8 +183,11 @@ public Action Timer_PrintRollAdvert(Handle timer, any unused)
 	for(int i = 0; i < messages.Length; ++i)
 	{
 		static char buffer[255];
-		if(messages.GetString(index, buffer, sizeof(buffer)) > 0)
+		if(messages.GetString(i, buffer, sizeof(buffer)) > 0)
+		{
+			ProcessMessage(buffer, sizeof(buffer));
 			CPrintToChatAll(buffer);
+		}
 	}
 	
 	g_n_RollAdvertPoll = index + 1;
@@ -202,8 +213,11 @@ public Action Timer_PrintNewAdvert(Handle timer, any client)
 	for(int i = 0; i < messages.Length; ++i)
 	{
 		static char buffer[255];
-		if(messages.GetString(index, buffer, sizeof(buffer)) > 0)
+		if(messages.GetString(i, buffer, sizeof(buffer)) > 0)
+		{
+			ProcessMessage(buffer, sizeof(buffer));
 			CPrintToChat(client, buffer);
+		}
 	}
 	
 	g_n_NewAdvertPoll[client] = index + 1;
@@ -226,9 +240,17 @@ void LoadRollAdvert()
 	
 	g_Array_Advert.Clear();
 	File file = OpenFile(buffer, "rt");
+	PrintToServer("文件 %s", buffer);
+	
 	ArrayList messages = CreateArray(sizeof(buffer));
-	while(!file.EndOfFile() && file.ReadLine(buffer, sizeof(buffer)))
+	while(!file.EndOfFile())
 	{
+		if(!file.ReadLine(buffer, sizeof(buffer)))
+			continue;
+		
+		SplitString(buffer, ";", buffer, sizeof(buffer));
+		TrimString(buffer);
+		
 		if(buffer[0] == EOS)
 		{
 			if(messages.Length > 0)
@@ -240,8 +262,11 @@ void LoadRollAdvert()
 		
 		messages.PushString(buffer);
 	}
+	if(messages.Length > 0)
+		g_Array_Advert.Push(messages);
 	
 	delete file;
+	PrintToServer("轮播广告数量 %d", g_Array_Advert.Length);
 }
 
 void LoadNewAdvert()
@@ -260,9 +285,17 @@ void LoadNewAdvert()
 	
 	g_Array_AdvertNew.Clear();
 	File file = OpenFile(buffer, "rt");
+	PrintToServer("文件 %s", buffer);
+	
 	ArrayList messages = CreateArray(sizeof(buffer));
-	while(!file.EndOfFile() && file.ReadLine(buffer, sizeof(buffer)))
+	while(!file.EndOfFile())
 	{
+		if(!file.ReadLine(buffer, sizeof(buffer)))
+			continue;
+		
+		SplitString(buffer, ";", buffer, sizeof(buffer));
+		TrimString(buffer);
+		
 		if(buffer[0] == EOS)
 		{
 			if(messages.Length > 0)
@@ -274,6 +307,81 @@ void LoadNewAdvert()
 		
 		messages.PushString(buffer);
 	}
+	if(messages.Length > 0)
+		g_Array_AdvertNew.Push(messages);
 	
 	delete file;
+	PrintToServer("新人广告数量 %d", g_Array_AdvertNew.Length);
+}
+
+void ProcessMessage(char[] message, int length)
+{
+	static Regex re1, re2;
+	if(re1 == null || re2 == null)
+	{
+		re1 = CompileRegex("\\[([a-zA-Z0-9\\_]+)\\]", PCRE_CASELESS);
+		re2 = CompileRegex("\\[([a-zA-Z0-9\\_]+):(str|int|bool|float)\\]", PCRE_CASELESS);
+	}
+	
+	static char buffer1[255], buffer2[64], buffer3[6];
+	
+	while(re1.Match(message) > 0)
+	{
+		if(re1.GetSubString(0, buffer1, sizeof(buffer1)) && re1.GetSubString(1, buffer2, sizeof(buffer2)))
+			ReplaceString(message, length, buffer1, ProccessContent(buffer2), true);
+	}
+	
+	while(re2.Match(message) > 0)
+	{
+		if(re2.GetSubString(0, buffer1, sizeof(buffer1)) && re2.GetSubString(1, buffer2, sizeof(buffer2)) && re2.GetSubString(2, buffer3, sizeof(buffer3)))
+			ReplaceString(message, length, buffer1, ProccessContent(buffer2, buffer3), true);
+	}
+}
+
+char ProccessContent(const char[] inst, const char[] type = "")
+{
+	static char buffer[255];
+	strcopy(buffer, sizeof(buffer), inst);
+	
+	if(StrEqual(inst, "datetime", false))
+	{
+		FormatTime(buffer, sizeof(buffer), "%Y年%m月%d日%H时%M分");
+	}
+	else if(StrEqual(inst, "date", false))
+	{
+		FormatTime(buffer, sizeof(buffer), "%Y年%m月%d日");
+	}
+	else if(StrEqual(inst, "time", false))
+	{
+		FormatTime(buffer, sizeof(buffer), "%H时%M分");
+	}
+	else
+	{
+		static StringMap cvars;
+		if(cvars == null)
+			cvars = CreateTrie();
+		
+		ConVar cvar = null;
+		if(!cvars.GetValue(inst, cvar) || cvar == null)
+		{
+			cvar = FindConVar(inst);
+		}
+		if(cvar != null)
+		{
+			cvars.SetValue(inst, cvar);
+			switch(type[0])
+			{
+				case 'i':
+					FormatEx(buffer, sizeof(buffer), "%d", cvar.IntValue);
+				case 'f':
+					FormatEx(buffer, sizeof(buffer), "%.2f", cvar.FloatValue);
+				case 'b':
+					buffer = (cvar.BoolValue ? "开" : "关");
+				case 's', EOS:
+					cvar.GetString(buffer, sizeof(buffer));
+			}
+		}
+	}
+	
+	return buffer;
 }

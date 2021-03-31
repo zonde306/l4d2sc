@@ -93,7 +93,7 @@ public void OnClientConnected(int client)
 		g_Array_AdvertNewPoll[client].Sort(Sort_Random, Sort_Integer);
 }
 
-public void OnClientDisconnect(int client)
+public void OnClientDisconnect_Post(int client)
 {
 	if(g_Timer_New[client] != null)
 		KillTimer(g_Timer_New[client]);
@@ -200,14 +200,20 @@ public Action Timer_PrintNewAdvert(Handle timer, any client)
 		return Plugin_Continue;
 	
 	if(!IsClientInGame(client))
+	{
+		g_Timer_New[client] = null;
 		return Plugin_Stop;
+	}
 	
 	if(g_Array_AdvertNewPoll[client] == null || g_Array_AdvertNewPoll[client].Length <= 0)
 		return Plugin_Continue;
 	
 	int index = g_n_NewAdvertPoll[client];
 	if(index >= g_Array_AdvertNewPoll[client].Length)
+	{
+		g_Timer_New[client] = null;
 		return Plugin_Stop;
+	}
 	
 	ArrayList messages = view_as<ArrayList>(g_Array_AdvertNewPoll[client].Get(index));
 	for(int i = 0; i < messages.Length; ++i)
@@ -345,15 +351,15 @@ char ProccessContent(const char[] inst, const char[] type = "")
 	
 	if(StrEqual(inst, "datetime", false))
 	{
-		FormatTime(buffer, sizeof(buffer), "%Y年%m月%d日%H时%M分");
+		FormatTime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M");
 	}
 	else if(StrEqual(inst, "date", false))
 	{
-		FormatTime(buffer, sizeof(buffer), "%Y年%m月%d日");
+		FormatTime(buffer, sizeof(buffer), "%Y/%m/%d");
 	}
 	else if(StrEqual(inst, "time", false))
 	{
-		FormatTime(buffer, sizeof(buffer), "%H时%M分");
+		FormatTime(buffer, sizeof(buffer), "%H:%M");
 	}
 	else
 	{

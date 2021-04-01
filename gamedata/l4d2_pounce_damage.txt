@@ -1,0 +1,51 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Addresses"
+		{
+			"CTerrorPlayer::OnPouncedOnSurvivor"
+			{
+				"windows"
+				{
+					"signature"	"CTerrorPlayer::OnPouncedOnSurvivor"			
+				}
+				"linux"
+				{
+					"signature"	"CTerrorPlayer::OnPouncedOnSurvivor"
+				}
+			}
+		}
+
+		"Offsets"
+		{
+			"OnPouncedOnSurvivor_Offset"
+			{
+				"windows"		"1101"
+				"linux"			"1310"
+			}
+			"OnPouncedOnSurvivor_Byte"
+			{
+				"windows"		"232" // 0xE8
+				"linux"			"232" // 0xE8
+			}
+			"OnPouncedOnSurvivor_Count"
+			{
+				"windows"		"13"
+				"linux"			"13"
+			}
+		}
+
+		"Signatures"
+		{
+			"CTerrorPlayer::OnPouncedOnSurvivor"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer19OnPouncedOnSurvivorEPS_"
+				"windows"		"\x53\x8B\x2A\x83\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x83\x2A\x2A\x2A\x56\x57\x8B"
+				/* 53 8B ? 83 ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 81 ? ? ? ? ? ? ? ? ? ? 33 ? 89 ? ? ? ? ? ? ? 83 ? ? ? 56 57 8B */
+				/* Search: "Pounce by %s dealt" */
+			}
+		}
+	}
+}

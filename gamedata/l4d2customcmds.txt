@@ -1,0 +1,37 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			"CTerrorPlayer_Fling"
+			{
+				"library"	"server"
+				"linux"	"@_ZN13CTerrorPlayer5FlingERK6Vector17PlayerAnimEvent_tP20CBaseCombatCharacterf"
+				"windows"	"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC\xA8\x00\x00\x00\\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x8B\x43\x10"
+				"mac"	"@_ZN13CTerrorPlayer5FlingERK6Vector17PlayerAnimEvent_tP20CBaseCombatCharacterf"
+			}
+			"CSpitterProjectile_Detonate"
+			{
+				"library"	"server"
+				"linux"	"@_ZN18CSpitterProjectile8DetonateEv"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x94\x00\x00\x00\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x53\x8B\xD9"
+				"mac"	"@_ZN18CSpitterProjectile8DetonateEv"
+			}
+			"CTerrorPlayer_OnStaggered"
+			{
+				"library"	"server"
+				"linux"	"@_ZN13CTerrorPlayer11OnStaggeredEP11CBaseEntityPK6Vector"
+				"windows"	"\x53\x8B\xDC\x83\xEC\x2A\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x83\xEC\x2A\x56\x57\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x84\xC0\x0F\x85\x6E\x08"
+				"mac"	"@_ZN13CTerrorPlayer11OnStaggeredEP11CBaseEntityPK6Vector"
+			}
+			"CTerrorPlayer_OnShovedBySurvivor"
+			{
+				"library"	"server"
+				"linux"	"@_ZN13CTerrorPlayer18OnShovedBySurvivorEPS_RK6Vector"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x53\x8B\x5D\x08\x56\x57\x8B\x7D\x0C\x8B\xF1"
+				"mac"	"@_ZN13CTerrorPlayer18OnShovedBySurvivorEPS_RK6Vector"
+			}
+		}
+	}
+}

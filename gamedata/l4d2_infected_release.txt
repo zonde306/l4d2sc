@@ -1,0 +1,29 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			"CTerrorPlayer::OnPummelEnded"
+			{
+				"library"	"server"
+				"windows"    	"\x8B\x15****\x56\x8B\xF1\x8B\x86\x40\x3E\x00\x00\x83"
+				"linux"		"@_ZN13CTerrorPlayer13OnPummelEndedEbPS_"
+			}
+			"CTerrorPlayer::OnPounceEnd"
+			{
+				"library"    "server"
+				"linux" "@_ZN13CTerrorPlayer13OnPounceEndedEv"
+				"windows" "\x55\x8B\xEC\x51\x53\x8B\xD9\x80\xBB\xAC\x3E\x00\x00\x00"
+				/* 55 8B EC 51 53 8B D9 80 BB AC 3E 00 00 00  */
+			}  
+			"CBaseAbility::StartActivationTimer"
+			{
+				"library"    "server"
+				"linux" "@_ZN12CBaseAbility20StartActivationTimerEff"
+				"windows" "\x55\x8B\xEC\xF3\x0F\x10\x4D\x0C\x0F\x57\xC0"
+				/* 55 8B EC F3 0F 10 4D 0C 0F 57 C0  */
+			}  
+		}
+	}
+}

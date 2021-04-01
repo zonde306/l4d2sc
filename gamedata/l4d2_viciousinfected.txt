@@ -1,0 +1,24 @@
+"Games"
+{
+    "left4dead2"
+    {
+		"Signatures"
+		{
+			/* CTerrorPlayer::BecomeGhost(bool) */
+			"BecomeGhost"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer11BecomeGhostEb"
+				"windows"	"\x55\x8B\xEC\x53\x8B\x5D\x2A\x56\x53\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x84"
+				/* 55 8B EC 53 8B 5D ? 56 53 8B F1 E8 ? ? ? ? 84 */
+			}
+
+			"BecomeGhostAt"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer16SetBecomeGhostAtEf"
+				"windows"	"\xD9\x44\x24\x04\x56\x6A\x00\x68\x2A\x2A\x2A\x2A\x8B\xF1\x68\x2A\x2A\x2A\x2A\xD9"
+			}
+		}
+    }
+}

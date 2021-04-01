@@ -1,0 +1,38 @@
+"Games"
+{
+	"#default"
+	{
+		"Functions"
+		{
+			"CTerrorMeleeWeapon::TestMeleeSwingCollision"
+			{
+				"signature"		"CTerrorMeleeWeapon::TestMeleeSwingCollision"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+				"arguments"
+				{
+					"CTerrorMeleeWeapon"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+		}
+
+		"Signatures"
+		{
+			/*
+			 * CTerrorMeleeWeapon::TestMeleeSwingCollision(CTerrorMeleeWeapon *this, const Vector *)
+			 */
+			"CTerrorMeleeWeapon::TestMeleeSwingCollision"
+			{
+				"library"	"server"
+				"linux"		"@_ZN18CTerrorMeleeWeapon23TestMeleeSwingCollisionERK6Vector"
+				"windows"	"\x53\x8B\x2A\x83\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x56\x8B\x2A\x2A\x57\x89\x2A\x2A\xE8"
+				/* 53 8B ? 83 ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 81 ? ? ? ? ? ? ? ? ? ? 33 ? 89 ? ? 56 8B ? ? 57 89 ? ? E8 */
+				/* Search: "MeleeSlashSplatter" */
+			}
+		}
+	}
+}

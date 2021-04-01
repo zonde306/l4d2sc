@@ -11556,6 +11556,26 @@ void HookPlayerReload(int client, int clipSize)
 	SDKHook(client, SDKHook_WeaponDropPost, PlayerHook_OnReloadStopped);
 }
 
+public Action Timer_ResetWeaponClip(Handle timer, any data)
+{
+	DataPack dp = view_as<DataPack>(data);
+	dp.Reset();
+	
+	int client = dp.ReadCell();
+	int weapon = dp.ReadCell();
+	int clip = dp.ReadCell();
+	
+	if(g_iReloadWeaponOldClip[client] == clip)
+	{
+		if(IsValidEdict(weapon))
+			SetEntProp(weapon, Prop_Send, "m_iClip1", clip);
+		
+		g_iReloadWeaponOldClip[client] = 0;
+	}
+	
+	return Plugin_Continue;
+}
+
 public void ApplyInsertShells(any client)
 {
 	if(!IsValidAliveClient(client) || GetClientTeam(client) != 2 || IsSurvivorHeld(client) ||
@@ -12731,6 +12751,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 							// 这样会更好，不会出现改了子弹却没触发填装动作
 							SetEntProp(weaponId, Prop_Send, "m_iClip1", 0);
+							
+							DataPack dp = CreateDataPack();
+							CreateTimer(0.1, Timer_ResetWeaponClip, dp);
+							dp.WriteCell(client);
+							dp.WriteCell(weaponId);
+							dp.WriteCell(clip);
 						}
 					}
 					else

@@ -1,0 +1,37 @@
+"Games"
+{
+    "left4dead2"
+    {
+        "Addresses"
+        {
+            "TankAttack::Update"
+            {
+                "signature" "TankAttack::Update"
+            }
+        }
+        
+        "Offsets"
+        {
+            "PatсhOffset"
+            {
+                "windows" "1534"
+                "linux" "385"
+            }
+            
+            "PatchCount"
+            {
+                "windows" "19"
+                "linux" "18"
+            }
+        }
+        
+        "Signatures"
+        {
+            "TankAttack::Update"
+            {
+                "windows"    "\x55\x8B\xEC\x81\xEC\x9C\x00\x00\x00\x53\x8B\x5D\x0C"
+                "linux"    "@_ZN10TankAttack6UpdateEP4Tankf"
+            }
+        }
+    }
+}

@@ -1,0 +1,58 @@
+"Games"
+{
+	"#default"
+	{
+		"Functions"
+		{
+			/* cdecl CTankClaw::OnPlayerHit(CTankClaw *this, CTerrorPlayer *, bool) */
+			"CTankClaw::OnPlayerHit"
+			{
+				"signature"		"CTankClaw::OnPlayerHit"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+				"arguments"
+				{
+					"player"
+					{
+						"type"	"cbaseentity"
+					}
+					"incap"
+					{
+						"type"	"bool"
+					}
+				}
+			}
+		}
+	}
+
+	"left4dead"
+	{
+		"Signatures"
+		{
+			"CTankClaw::OnPlayerHit"
+			{
+				"library"		"server"
+				"windows"		"\x81\x2A\x2A\x2A\x2A\x2A\x53\x55\x56\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x2A\x8B"
+				"linux"			"@_ZN9CTankClaw11OnPlayerHitEP13CTerrorPlayerb"
+				/* 81 ? ? ? ? ? 53 55 56 57 8B ? E8 ? ? ? ? 8B ? ? ? ? ? ? 8B */
+				/* Search: "tank_survivor_pound" */
+			}
+		}
+	}
+
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			"CTankClaw::OnPlayerHit"
+			{
+				"library"		"server"
+				"windows"		"\x55\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x53\x56\x8B\x2A\x2A\x57\x8B\x2A\x89\x2A\x2A\xE8"
+				"linux"			"@_ZN9CTankClaw11OnPlayerHitEP13CTerrorPlayerb"
+				/* 55 8B ? 81 ? ? ? ? ? ? ? ? ? ? 33 ? 89 ? ? 53 56 8B ? ? 57 8B ? 89 ? ? E8 */
+				/* Search: "tank_survivor_pound" */
+			}
+		}
+	}
+}

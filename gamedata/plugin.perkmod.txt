@@ -1,0 +1,518 @@
+"Phrases"
+{
+	"WelcomeMessageHint"
+	{
+		"zho"	"歡迎來到天賦系統!"
+	}
+
+	"WelcomeMessageChat"
+	{
+		"zho"	"如果天賦選單沒顯示請輸入 !perks"
+	}
+
+	"BonusDamageText"
+	{
+		"zho"	"額外傷害"
+	}
+
+	"SpritSuccessMessage"
+	{
+		"zho"	"你已自救!"
+	}
+
+	"SpiritTimerFinishedMessage"
+	{
+		"zho"	"你已有足夠的力量再次自救!"
+	}
+
+	"UnbreakableHint"
+	{
+		"zho"	"額外血量"
+	}
+
+	"GrenadierCarryHint"
+	{
+		"zho"	"你攜帶著"
+	}
+
+	"GrenadierCantTake2Grenades_A"
+	{
+		"zho"	"你只有一個"
+	}
+
+	"GrenadierCantTake2Grenades_B"
+	{
+		"zho"	"撿起另一個之前先丟掉現在的."
+	}
+
+	"GrenadierCounter_A"
+	{
+		"zho"	"你還有"
+	}
+
+	"GrenadierCounter_B"
+	{
+		"zho"	"個"
+	}
+
+	"HelpingHandDonorHint"
+	{
+		"zho"	"給予額外暫時血量"
+	}
+
+	"HelpingHandReceiverHint"
+	{
+		"zho"	"給你額外暫時血量!"
+	}
+
+	"BarfBaggedMobHint"
+	{
+		"zho"	"一大群殭屍來了!"
+	}
+
+	"JuggernautHint"
+	{
+		"zho"	"你的血量已增加!"
+	}
+
+	"MetabolicHint"
+	{
+		"zho"	"你的速度已增加!"
+	}
+
+	"StormCallerHint"
+	{
+		"zho"	"一大群殭屍已被吸引!"
+	}
+
+	"MapPerksPanel"
+	{
+		"zho"	"你這回合的天賦"
+	}
+
+	"PyroDescriptionPanel"
+	{
+		"zho"	"可以一次帶 2 個手榴彈"
+	}
+
+	"SpiritDescriptionPanel"
+	{
+		"zho"	"隊友倒地時自救，冷卻"
+	}
+
+	"DoubleTapDescriptionPanel"
+	{
+		"zho"	"增加射速"
+	}
+
+	"SleighOfHandDescriptionPanel"
+	{
+		"zho"	"增加換彈速度"
+	}
+
+	"NotSet"
+	{
+		"zho"	"未選擇"
+	}
+
+	"ChemReliantDescriptionPanel"
+	{
+		"zho"	"使用止痛藥時增加的血量增加"
+	}
+
+	"HelpingHandDescriptionPanel"
+	{
+		"zho"	"給予額外增加血量"
+	}
+
+	"PackRatDescriptionPanel"
+	{
+		"zho"	"攜帶更多彈藥"
+	}
+
+	"HardToKillDescriptionPanel"
+	{
+		"zho"	"倒地時血量更多"
+	}
+
+	"BarfBaggedDescriptionPanel"
+	{
+		"zho"	"嘔吐吸引更多殭屍"
+	}
+
+	"DeadWreckeningDescriptionPanel"
+	{
+		"zho"	"嘔吐吸引的殭屍傷害增加"
+	}
+
+	"MotionSicknessDescriptionPanel"
+	{
+		"zho"	"跑更快，可邊吐邊跑"
+	}
+
+	"BodySlamDescriptionPanel"
+	{
+		"zho"	"最低撲擊傷害"
+	}
+
+	"EfficientKillerDescriptionPanel"
+	{
+		"zho"	"增加切割傷害"
+	}
+
+	"GrasshopperDescriptionPanel"
+	{
+		"zho"	"更快的撲擊"
+	}
+
+	"OldSchoolDescriptionPanel"
+	{
+		"zho"	"增加爪擊傷害"
+	}
+
+	"StormCallerDescriptionPanel"
+	{
+		"zho"	"出生時招喚屍潮"
+	}
+
+	"InitialMenuPanel1"
+	{
+		"zho"	"這個伺服器正在使用天賦系統"
+	}
+
+	"InitialMenuPanel2"
+	{
+		"zho"	"選擇 1 來自定天賦"
+	}
+
+	"InitialMenuPanel3"
+	{
+		"zho"	"自訂天賦"
+	}
+
+	"InitialMenuPanel4"
+	{
+		"zho"	"-------------------------"
+	}
+
+	"InitialMenuPanel5"
+	{
+		"zho"	"選擇 2 來隨機天賦"
+	}
+
+	"InitialMenuPanel6"
+	{
+		"zho"	"隨機天賦"
+	}
+
+	"InitialMenuPanel7"
+	{
+		"zho"	"-------------------------"
+	}
+
+	"InitialMenuPanel8"
+	{
+		"zho"	"如果上一場已選擇過天賦"
+	}
+
+	"InitialMenuPanel9"
+	{
+		"zho"	"可以按3直接延續上一場天賦"
+	}
+
+	"InitialMenuPanel10"
+	{
+		"zho"	"直接開始玩!"
+	}
+
+	"ThanksForChoosingMessage"
+	{
+		"zho"	"Thanks and have fun!"
+	}
+
+	"ChooseSubMenuPanel"
+	{
+		"zho"	"選擇天賦種類"
+	}
+
+	"DoneNagPanel1"
+	{
+		"zho"	"-------------------------"
+	}
+
+	"DoneNagPanel2"
+	{
+		"zho"	"你一定要按完成來讓天賦生效"
+	}
+
+	"DoneNagPanel3"
+	{
+		"zho"	"完成"
+	}
+
+	"ConfirmNagPanel1"
+	{
+		"zho"	"確定嗎?"
+	}
+
+	"ConfirmNagPanel2"
+	{
+		"zho"	"一旦你確認後"
+	}
+
+	"ConfirmNagPanel3"
+	{
+		"zho"	"直到下一場之前燈不能改變"
+	}
+
+	"ConfirmNagPanel4"
+	{
+		"zho"	"確認"
+	}
+
+	"ConfirmNagPanel5"
+	{
+		"zho"	"如果你選擇取消"
+	}
+
+	"ConfirmNagPanel6"
+	{
+		"zho"	"天賦將不會生效"
+	}
+
+	"ConfirmNagPanel7"
+	{
+		"zho"	"直到你按下確認!"
+	}
+
+	"ConfirmNagPanel8"
+	{
+		"zho"	"取消"
+	}
+
+	"ConfirmedMessage"
+	{
+		"zho"	"你的天賦已生效! 要下回合才能再次選擇. \n\n 要看目前天賦且輸入 !perks"
+	}
+
+	"YourPerksPanel"
+	{
+		"zho"	"tPoncho's 天賦系統: 你這回合的天賦"
+	}
+
+	"DoubleTapDescriptionText"
+	{
+		"zho"	"更快的開火速率 (除了機槍砲)"
+	}
+
+	"DisplayDisabledText"
+	{
+		"zho"	"未啟動"
+	}
+
+	"PyroDescriptionText1"
+	{
+		"zho"	"撿到一個手榴彈變成兩個"
+	}
+
+	"PyroDescriptionText2"
+	{
+		"zho"	"而且開場得到兩個手榴彈"
+	}
+
+	"SpiritDescriptionText"
+	{
+		"zho"	"當隊友倒下你會以更多的暫時血量復活"
+	}
+
+	"SpritDescriptionText2"
+	{
+		"zho"	"倒地復活血量, 冷卻"
+	}
+
+	"ChemReliantDescriptionText"
+	{
+		"zho"	"使用止痛藥時增加的血量增加"
+	}
+
+	"ChemReliantDescriptionText2"
+	{
+		"zho"	"而且開場得到一罐止痛藥"
+	}
+
+	"HardToKillDescriptionText"
+	{
+		"zho"	"當你倒地時你會有"
+	}
+
+	"HardToKillDescriptionText2"
+	{
+		"zho"	"更多暫時血量"
+	}
+
+	"SqueezerDescriptionText"
+	{
+		"zho"	"當你的舌頭纏住人時造成更多傷害"
+	}
+
+	"MartialArtistDescriptionPanelCoop"
+	{
+		"zho"	"跑得更快"
+	}
+
+	"AdrenalGlandsHint"
+	{
+		"zho"	"你攻擊的更快!"
+	}
+
+	"DoubleTroubleHint1"
+	{
+		"zho"	"減少你的血量, 生出另一隻坦克!"
+	}
+
+	"DoubleTroubleHint2"
+	{
+		"zho"	"你的血量減少, 你的其他坦克天賦不會生效!"
+	}
+
+	"MartialArtistDescriptionPanel"
+	{
+		"zho"	"三重打擊, 降低體力推人消耗"
+	}
+
+	"MartialArtistDescriptionPanel1"
+	{
+		"zho"	"你的近戰武器能連續攻擊三次"
+	}
+
+	"MartialArtistDescriptionPanel2"
+	{
+		"zho"	"而且你最大推人體力增加"
+	}
+
+	"HelpingHandDescriptionPanel2"
+	{
+		"zho"	"救人更快，被救起的人得到的血量增加"
+	}
+
+	"AcidVomitDescriptionPanel"
+	{
+		"zho"	"倖存者被吐時的HUD消失，降低冷卻"
+	}
+
+	"TongueTwisterDescriptionPanel"
+	{
+		"zho"	"更快更長的舌頭"
+	}
+
+	"TongueTwisterDescriptionPanel1"
+	{
+		"zho"	"舌頭伸長得更快"
+	}
+
+	"TongueTwisterDescriptionPanel2"
+	{
+		"zho"	"舌頭的範圍變遠"
+	}
+
+	"TongueTwisterDescriptionPanel3"
+	{
+		"zho"	"舌頭拉人更快"
+	}
+
+	"DragAndDropDescriptionPanel"
+	{
+		"zho"	"很短的冷卻，近戰攻擊自行放開舌頭"
+	}
+
+	"SpeedDemonDescriptionPanel"
+	{
+		"zho"	"額外速度"
+	}
+
+	"AdrenalGlandsDescriptionPanelShort"
+	{
+		"zho"	"攻擊速度更快"
+	}
+
+	"AdrenalGlandsDescriptionPanel1"
+	{
+		"zho"	"揍人更快"
+	}
+
+	"AdrenalGlandsDescriptionPanel2"
+	{
+		"zho"	"丟石頭更快"
+	}
+
+	"AdrenalGlandsDescriptionPanel3"
+	{
+		"zho"	"防止坦克自殺"
+	}
+
+	"DoubleTroubleDescriptionPanel"
+	{
+		"zho"	"出生時產生第二隻坦克"
+	}
+
+	"DoubleTroubleDescriptionPanel2"
+	{
+		"zho"	"但減少血量"
+	}
+
+	"RideLikeTheWindDescriptionPanel"
+	{
+		"zho"	"更快的騎乘"
+	}
+
+	"FroggerDescriptionPanel"
+	{
+		"zho"	"跳躍距離及"
+	}
+
+	"GhostRiderDescriptionPanel"
+	{
+		"zho"	"隱形"
+	}
+
+	"TwinSpitfireDescriptionPanel"
+	{
+		"zho"	"連續吐兩次"
+	}
+
+	"ScatteringRamDescriptionPanel"
+	{
+		"zho"	"血量增加及擊飛更遠"
+	}
+
+	"SpeedingBulletDescriptionPanel"
+	{
+		"zho"	"衝刺更快"
+	}
+	"LittleLeaguerDescriptionPanel"
+	{
+		"zho"	"開場時自帶球棒"
+	}
+	"MegaAdhesiveDescriptionPanel"
+	{
+		"zho"	"倖存者緩速"
+	}
+	"SmokeItDescriptionPanel"
+	{
+		"zho"	"在拉倖存者時可以移動"
+	}
+
+	"DoubleTapRestrictionWarning"
+	{
+		"zho"	"只有半自動武器"
+	}
+	
+	"MartialArtistDescriptionPanel_noreduc"
+	{
+		"zho"	"三重打擊"
+	}
+	"SpiritBWWarning"
+	{
+		"zho"	"警告:你黑白了!!!"
+	}
+}

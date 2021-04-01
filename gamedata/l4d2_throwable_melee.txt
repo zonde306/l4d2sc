@@ -1,0 +1,20 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			/*
+			 * CBaseEntity::ApplyLocalAngularVelocityImpulse(CBaseEntity *this, const Vector *a2)
+			 */
+			"CBaseEntity::ApplyLocalAngularVelocityImpulse"
+			{
+				"library"	"server"
+				"linux"		"@_ZN11CBaseEntity32ApplyLocalAngularVelocityImpulseERK6Vector"
+				"windows"	"\x55\x8B\x2A\xB8\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\xF3\x0F\x2A\x2A\x2A\x2A\x2A\x2A\x57\x8B"
+				/* 55 8B ? B8 ? ? ? ? E8 ? ? ? ? F3 0F ? ? ? ? ? ? 57 8B */
+				/* Search: "Molotov.Throw" for CMolotovProjectile::Create function. Above string is call. */
+			}
+		}
+	}
+}

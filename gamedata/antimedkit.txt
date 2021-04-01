@@ -1,0 +1,29 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Offsets"
+		{
+			"CFirstAidKit::ShouldStartAction"
+			{
+				"linux"		"448"
+				"windows"	"446"
+			}
+		}
+	}
+	"left4dead"
+	{
+		"Signatures"
+		{
+			/*
+			*  Unique String: stagger_forward
+			*/
+			"CTerrorPlayer::OnStaggered"
+			{
+				"library"	"server"
+				"windows"	"\x83\xEC\x34\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A"
+				"linux"		"@_ZN13CTerrorPlayer11OnStaggeredEP11CBaseEntityPK6Vector"
+			}
+		}
+	}
+}

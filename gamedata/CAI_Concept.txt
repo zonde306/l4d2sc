@@ -1,0 +1,30 @@
+"Games"
+{
+	"left4dead2"
+	{
+		"Addresses"
+        {
+            "CAI_Concept"
+            {
+                "signature" "CAI_Concept"
+            }
+        }
+		"Signatures"
+		{
+			"CAI_Concept"
+            {
+                "library"    "server"
+                "windows"    "\x55\x8B\xEC\x56\x8B\x75\x08\x57\x8B\x3E\x6A\x00\x6A\x00\x6A\x00\x6A\x00\x6A\x01\x83\xEC\x08\x8B\xCC\x68\xF4\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x87\xAC\x07\x00\x00\x8B\xCE\xFF\xD0\x5F\x5E\x5D\xC2\x04\x00"
+                "linux"    "@_ZN16CItem_Adrenaline10OnStartUseEP13CTerrorPlayer"
+            }
+		}
+		"Offsets"
+		{
+			"Offset"
+			{
+				"windows" "25"
+				"linux" "32"
+			}
+		}
+	}
+}

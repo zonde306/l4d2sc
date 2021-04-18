@@ -481,7 +481,7 @@ int g_iActiveEffects[MAXPLAYERS+1][sizeof(g_clCurEquip[])];
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 41;
+const int g_iMaxEqmEffects = 44;
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
@@ -555,7 +555,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.1.2",
+	version = "1.1.3",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -719,8 +719,8 @@ public OnPluginStart()
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSaveStatus = CreateConVar("lv_save_status", "0", "保存奖励计数", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarEquipment = CreateConVar("lv_enable_eq", "1", "是否开启装备功能", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "1", "是否为生还者机器人生存随机属性.0=禁用.1=启用.2=启用+强化", FCVAR_NONE, true, 0.0, true, 2.0);
-	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "1", "是否为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+强化", FCVAR_NONE, true, 0.0, true, 2.0);
+	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "1", "是否为生还者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
+	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "1", "是否为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
@@ -5960,6 +5960,50 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	if(!IsValidAliveClient(victim) || damage <= 0.0)
 		return Plugin_Continue;
 	
+	// 榴弹炸自己
+	if(attacker == victim && (g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
+	{
+		static char classname[32];
+		if(GetEdictClassname(inflictor, classname, sizeof(classname)) &&
+			StrEqual(classname, "grenade_launcher_projectile", false))
+		{
+			float vPos[3], vDir[3], vVel[3], nVel[3], nDir[3];
+			GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
+			// GetClientAbsOrigin(victim, vDir);
+			GetEntPropVector(victim, Prop_Send, "m_vecOrigin", vDir);
+			GetEntDataVector(victim, g_iVelocityO, vVel);
+			
+			SubtractVectors(vDir, vPos, vDir);
+			NormalizeVector(vDir, vDir);
+			
+			NormalizeVector(vVel, nVel);
+			nDir[0] = vDir[0]; nDir[1] = vDir[1]; nDir[2] = 0.0; nVel[2] = 0.0;
+			
+			ScaleVector(vDir, 300.0);
+			vDir[2] *= 1.5;
+			
+			if(GetVectorDotProduct(nVel, nDir) >= 0.0)
+			{
+				// 方向相同
+				AddVectors(vVel, vDir, vVel);
+			}
+			else
+			{
+				// 方向相反
+				vDir[0] = -vDir[0]; vDir[1] = -vDir[1];
+				AddVectors(vVel, vDir, vVel);
+			}
+			
+			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vVel);
+			// SetEntPropVector(victim, Prop_Send, "m_vecBaseVelocity", vVel);
+			
+			// 避免掉落伤害、榴弹伤害降低
+			g_bOnRocketDude[victim] = true;
+			// damage /= 4.0;
+			// return Plugin_Continue;
+		}
+	}
+	
 	if((damagetype & DMG_FALL) || attacker <= 0)
 	{
 		if(g_bOnRocketDude[victim])
@@ -5979,8 +6023,10 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	if((g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -time) || (g_fFreezeTime[victim] > time && IsPlayerHaveEffect(victim, 29)))
 	{
 		// 无敌模式伤害免疫
+		/*
 		if(!IsNullVector(damagePosition) && (g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0))
 			EmitAmbientSound(SOUND_STEEL, damagePosition, victim, SNDLEVEL_HOME);
+		*/
 		return Plugin_Handled;
 	}
 	
@@ -6017,6 +6063,13 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		{
 			// 取消攻击者，避免减速效果
 			attacker = inflictor = 0;
+		}
+		
+		if(GetEntProp(victim, Prop_Send, "m_bAdrenalineActive"))
+		{
+			int effect = IsPlayerHaveEffect(victim, 43);
+			if(effect > 0)
+				damage /= (effect + 1);
 		}
 	}
 	
@@ -6243,6 +6296,8 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	*/
 	
 	// 狙击枪伤害增加
+	// 某次更新后 inflictor 不表示武器了...
+	/*
 	if(ammotype == AMMOTYPE_SNIPERRIFLE && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
 	{
 		static char className[64];
@@ -6254,7 +6309,10 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			else if(StrEqual(className, "weapon_sniper_scout", false))
 				damage *= 2;
 		}
+		
+		// PrintToChat(attacker, "ammotype %d, classname %s, hitbox %d, hitgroup %d", ammotype, className, hitbox, hitgroup);
 	}
+	*/
 	
 	int chance = g_iDamageChance[attacker];
 	int minChDmg = g_iDamageChanceMin[attacker];
@@ -6273,6 +6331,12 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	if(g_bIsAngryCritActive)
 		chance += 500;
+	
+	if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
+	{
+		chance += IsPlayerHaveEffect(attacker, 42) * 200;
+		damage += IsPlayerHaveEffect(attacker, 44) * originalDamage;
+	}
 	
 	if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
 	{
@@ -6682,50 +6746,6 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || (damagetype & DMG_FALL))
 		return Plugin_Continue;
 	
-	// 榴弹炸自己
-	if(attacker == victim && (g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
-	{
-		static char classname[32];
-		if(GetEdictClassname(inflictor, classname, sizeof(classname)) &&
-			StrEqual(classname, "grenade_launcher_projectile", false))
-		{
-			float vPos[3], vDir[3], vVel[3], nVel[3], nDir[3];
-			GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
-			// GetClientAbsOrigin(victim, vDir);
-			GetEntPropVector(victim, Prop_Send, "m_vecOrigin", vDir);
-			GetEntDataVector(victim, g_iVelocityO, vVel);
-			
-			SubtractVectors(vDir, vPos, vDir);
-			NormalizeVector(vDir, vDir);
-			
-			NormalizeVector(vVel, nVel);
-			nDir[0] = vDir[0]; nDir[1] = vDir[1]; nDir[2] = 0.0; nVel[2] = 0.0;
-			
-			ScaleVector(vDir, 300.0);
-			vDir[2] *= 1.5;
-			
-			if(GetVectorDotProduct(nVel, nDir) >= 0.0)
-			{
-				// 方向相同
-				AddVectors(vVel, vDir, vVel);
-			}
-			else
-			{
-				// 方向相反
-				vDir[0] = -vDir[0]; vDir[1] = -vDir[1];
-				AddVectors(vVel, vDir, vVel);
-			}
-			
-			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vVel);
-			// SetEntPropVector(victim, Prop_Send, "m_vecBaseVelocity", vVel);
-			
-			// 避免掉落伤害、榴弹伤害降低
-			g_bOnRocketDude[victim] = true;
-			// damage /= 4.0;
-			return Plugin_Changed;
-		}
-	}
-	
 	if(damage <= 0.0 || hitbox <= 0)
 		return Plugin_Continue;
 	
@@ -6741,43 +6761,22 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(g_bIsAngryCritActive)
 		chance += 500;
 	
+	if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
+	{
+		chance += IsPlayerHaveEffect(attacker, 42) * 200;
+		damage += IsPlayerHaveEffect(attacker, 44) * originalDamage;
+	}
+	
 	// 生还者攻击特感
 	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)
 	{
-		// 榴弹伤害增加
-		/*
-		if((g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
-		{
-			static char classname[32];
-			GetEdictClassname(inflictor, classname, sizeof(classname));
-			if(StrEqual(classname, "grenade_launcher_projectile", false))
-			{
-				float vPos[3];
-				GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
-				
-				// CheatCommand(attacker, "script", "GetPlayerFromUserID(%d).Stagger(Vector(%f,%f,%f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
-				L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(%.0f,%.0f,%.0f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
-				
-				damage *= 5;
-				if(classname[0] == 'p')
-					damage *= 2;
-				
-				return Plugin_Changed;
-			}
-		}
-		*/
-		
 		// 子弹、钢珠弹(霰弹)、砍击、钝击
 		if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
 			return Plugin_Continue;
 		
-		/*
-		// 忽略非主武器的射击
-		if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
-			return Plugin_Continue;
-		*/
-		
 		// 狙击枪伤害增加
+		// 某次更新后 inflictor 不表示武器了...
+		/*
 		if(ammotype == AMMOTYPE_SNIPERRIFLE && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
 		{
 			static char className[64];
@@ -6785,17 +6784,14 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			{
 				GetEntityClassname(inflictor, className, 64);
 				if(StrEqual(className, "weapon_sniper_awp", false))
-				{
 					damage *= 3;
-					originalDamage = damage;
-				}
 				else if(StrEqual(className, "weapon_sniper_scout", false))
-				{
 					damage *= 2;
-					originalDamage = damage;
-				}
 			}
+			
+			// PrintToChat(attacker, "ammotype %d, classname %s, hitbox %d, hitgroup %d", ammotype, className, hitbox, hitgroup);
 		}
+		*/
 		
 		if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
 		{
@@ -6818,13 +6814,6 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			
 			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !GetRandomInt(0, 2))
 			{
-				// Charge(victim, attacker, 250.0, 250.0);
-				/*
-				float vPos[3];
-				GetClientAbsOrigin(attacker, vPos);
-				L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(%.0f,%.0f,%.0f))", GetClientUserId(victim), vPos[0], vPos[1], vPos[2]);
-				*/
-				
 				float vAng[3], vDir[3];
 				GetClientEyeAngles(attacker, vAng);
 				GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
@@ -8146,7 +8135,7 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 		if(g_pCvarTankDeath.BoolValue)
 			CreateTimer(0.1, Timer_TankDeath, data);
 
-		if(g_ttTankKilled >= 1 || g_iRoundEvent == 0)
+		if(g_iRoundEvent == 0)
 			CreateTimer(5.0, Round_Random_Event);
 	}
 	
@@ -9104,7 +9093,7 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 			else if(StrEqual(classname, "witch", false))
 				PrintCenterText(client, "妹%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 			else
-				PrintCenterText(client, "%s%d|%s伤害%d|%s", classname, victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
+				PrintCenterText(client, "目标%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 		}
 		else
 		{
@@ -9152,7 +9141,6 @@ public void NotifyDamageInfo(any client)
 	
 	StringMapSnapshot snap = g_mTotalDamage[client].Snapshot();
 	int size = snap.Length;
-	
 	
 	static char eRef[12];
 	static char name[MAX_NAME_LENGTH];
@@ -12753,7 +12741,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							SetEntProp(weaponId, Prop_Send, "m_iClip1", 0);
 							
 							DataPack dp = CreateDataPack();
-							CreateTimer(0.1, Timer_ResetWeaponClip, dp);
+							CreateTimer(0.2, Timer_ResetWeaponClip, dp);
 							dp.WriteCell(client);
 							dp.WriteCell(weaponId);
 							dp.WriteCell(clip);
@@ -15747,7 +15735,13 @@ void RebuildEquipStr(EquipData_t data)
 		case 40:
 			strcopy(data.sEffect, sizeof(data.sEffect), "「清醒」效果加倍/吃药也触发");
 		case 41:
-			strcopy(data.sEffect, sizeof(data.sEffect), "「坚定」次数+1");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「坚定」倒地次数+1");
+		case 42:
+			strcopy(data.sEffect, sizeof(data.sEffect), "兴奋时暴击率+200");
+		case 43:
+			strcopy(data.sEffect, sizeof(data.sEffect), "兴奋时受到伤害减半");
+		case 44:
+			strcopy(data.sEffect, sizeof(data.sEffect), "兴奋时攻击伤害加倍");
 		default:
 			strcopy(data.sEffect, sizeof(data.sEffect), "");
 	}

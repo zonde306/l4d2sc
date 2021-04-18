@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.33a"
+#define PLUGIN_VERSION		"1.35"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -37,6 +37,20 @@
 
 ========================================================================================
 	Change Log:
+
+1.35 (10-Apr-2021)
+	- Fixed native "L4D_GetTeamScore" error message when using the wrong team values. Thanks to "BHaType" for reporting.
+	- Restricted native "L4D2_IsReachable" client index to bots only. Attempts to find a valid bot otherwise it will throw an error. Thanks to "Forgetest" for reporting.
+
+1.34 (23-Mar-2021)
+	- Added native "L4D_HasPlayerControlledZombies" to return if players can control infected. Thanks to "Spirit_12" for requesting.
+	- Thanks to "Crasher_3637" for the L4D1 signature.
+	- Fixed Linux detection accidentally being broken from version 1.17 update.
+
+	- Updated: L4D1 GameData file.
+	- Updated: L4D2 GameData file.
+	- Updated: Plugin and Include file.
+	- Updated: Test plugin to reflect above changes.
 
 1.33a (04-Mar-2021)
 	- L4D1 GameData updated. Changes fixing "L4D2_OnEntityShoved" were missing from the previous update.
@@ -418,7 +432,7 @@ float g_fProf;
 
 
 
-// Dissolve
+// Dissolver
 #define SPRITE_GLOW							"sprites/blueglow1.vmt"
 
 static const char g_sModels1[][] =
@@ -531,6 +545,7 @@ Handle g_hSDK_Call_Dissolve;
 Handle g_hSDK_Call_OnITExpired;
 Handle g_hSDK_Call_AngularVelocity;
 Handle g_hSDK_Call_IsReachable;
+Handle g_hSDK_Call_HasPlayerControlledZombies;
 Handle g_hSDK_Call_PipeBombPrj;
 Handle g_hSDK_Call_SpitterPrj;
 Handle g_hSDK_Call_ForceNextStage;
@@ -791,8 +806,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 	// ====================================================================================================
 	//									NATIVES
-	// L4D1 = 12 [left4downtown] + 43 - 0 (deprecated) [l4d_direct] + 15 [l4d2addresses] + 13 [silvers - mine!] + 4 [anim] = 87
-	// L4D2 = 52 [left4downtown] + 62 - 1 (deprecated) [l4d_direct] + 26 [l4d2addresses] + 21 [silvers - mine!] + 4 [anim] = 163
+	// L4D1 = 12 [left4downtown] + 43 - 0 (deprecated) [l4d_direct] + 15 [l4d2addresses] + 14 [silvers - mine!] + 4 [anim] = 88
+	// L4D2 = 52 [left4downtown] + 62 - 1 (deprecated) [l4d_direct] + 26 [l4d2addresses] + 22 [silvers - mine!] + 4 [anim] = 164
 	// ====================================================================================================
 	// ANIMATION HOOK
 	CreateNative("AnimHookEnable",		 							Native_AnimHookEnable);
@@ -817,6 +832,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D_IsAnySurvivorInCheckpoint",		 			Native_IsAnySurvivorInCheckpoint);
 	CreateNative("L4D_IsInFirstCheckpoint",		 					Native_IsInFirstCheckpoint);
 	CreateNative("L4D_IsInLastCheckpoint",		 					Native_IsInLastCheckpoint);
+	CreateNative("L4D_HasPlayerControlledZombies",		 			Native_HasPlayerControlledZombies);
 	CreateNative("L4D_PipeBombPrj",		 							Native_PipeBombPrj);
 
 	if( g_bLeft4Dead2 )
@@ -1939,7 +1955,9 @@ public Action CmdDetours(int client, int args)
 
 public Action CmdReload(int client, int args)
 {
+	float timing = GetEngineTime();
 	OnMapStart();
+	ReplyToCommand(client, "[Left4DHooks: Detours reloaded in %f seconds.", GetEngineTime() - timing);
 	return Plugin_Handled;
 }
 
@@ -2302,6 +2320,7 @@ public void OnMapStart()
 			// SDKCall(g_hSDK_Call_GetScriptValueInt, g_pDirector, "TotalCharger",			1);
 		}
 
+		// Melee weapon IDs - They can change when switching map depending on what melee weapons are enabled
 		if( g_bLeft4Dead2 )
 		{
 			delete g_aMeleePtrs;
@@ -2349,6 +2368,7 @@ void LoadGameDataRules()
 	GameData hGameData = new GameData(g_bLeft4Dead2 ? GAMEDATA_2 : GAMEDATA_1);
 	if( hGameData == null ) SetFailState("Failed to load \"%s.txt\" gamedata.", g_bLeft4Dead2 ? GAMEDATA_2 : GAMEDATA_1);
 
+	// Map changes can modify the address
 	g_pGameRules = hGameData.GetAddress("GameRules");
 	ValidateAddress(g_pGameRules, "g_pGameRules", true);
 
@@ -2531,6 +2551,17 @@ void LoadGameData()
 		g_hSDK_Call_IsAnySurvivorInCheckpoint = EndPrepSDKCall();
 		if( g_hSDK_Call_IsAnySurvivorInCheckpoint == null )
 			LogError("Failed to create SDKCall: IsAnySurvivorInExitCheckpoint");
+	}
+
+	StartPrepSDKCall(SDKCall_Static);
+	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "HasPlayerControlledZombies") == false )
+	{
+		LogError("Failed to find signature: HasPlayerControlledZombies");
+	} else {
+		PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
+		g_hSDK_Call_HasPlayerControlledZombies = EndPrepSDKCall();
+		if( g_hSDK_Call_HasPlayerControlledZombies == null )
+			LogError("Failed to create SDKCall: HasPlayerControlledZombies");
 	}
 
 	StartPrepSDKCall(SDKCall_Static);
@@ -3437,7 +3468,7 @@ void LoadGameData()
 	PrintToServer("Various Offsets:");
 	#endif
 
-	// g_bLinuxOS = hGameData.GetOffset("OS") == 1;
+	g_bLinuxOS = hGameData.GetOffset("OS") == 1;
 
 	m_iCampaignScores = hGameData.GetOffset("m_iCampaignScores");
 	ValidateOffset(m_iCampaignScores, "m_iCampaignScores");
@@ -3690,6 +3721,7 @@ public int Native_Deafen(Handle plugin, int numParams)
 	ValidateNatives(g_hSDK_Call_Deafen, "Deafen");
 
 	int client = GetNativeCell(1);
+
 	//PrintToServer("#### CALL g_hSDK_Call_Deafen");
 	SDKCall(g_hSDK_Call_Deafen, client, 1.0, 0.0, 0.01 );
 }
@@ -3727,6 +3759,7 @@ public int Native_OnITExpired(Handle plugin, int numParams)
 	ValidateNatives(g_hSDK_Call_OnITExpired, "OnITExpired");
 
 	int client = GetNativeCell(1);
+
 	//PrintToServer("#### CALL g_hSDK_Call_OnITExpired");
 	SDKCall(g_hSDK_Call_OnITExpired, client);
 }
@@ -3738,6 +3771,7 @@ public int Native_AngularVelocity(Handle plugin, int numParams)
 	float vAng[3];
 	int entity = GetNativeCell(1);
 	GetNativeArray(2, vAng, 3);
+
 	//PrintToServer("#### CALL g_hSDK_Call_AngularVelocity");
 	SDKCall(g_hSDK_Call_AngularVelocity, entity, vAng);
 }
@@ -3853,6 +3887,13 @@ bool InCheckpoint(int client, bool start)
 	return false;
 }
 
+public int Native_HasPlayerControlledZombies(Handle plugin, int numParams)
+{
+	ValidateNatives(g_hSDK_Call_HasPlayerControlledZombies, "HasPlayerControlledZombies");
+
+	return SDKCall(g_hSDK_Call_HasPlayerControlledZombies);
+}
+
 public int Native_PipeBombPrj(Handle plugin, int numParams)
 {
 	ValidateNatives(g_hSDK_Call_PipeBombPrj, "PipeBombPrj");
@@ -3911,6 +3952,25 @@ public int Native_IsReachable(Handle plugin, int numParams)
 	float vPos[3];
 	int client = GetNativeCell(1);
 	GetNativeArray(2, vPos, 3);
+
+	if( IsFakeClient(client) == false )
+	{
+		client = 0;
+
+		for( int i = 1; i <= MaxClients; i++ )
+		{
+			if( IsClientInGame(i) && IsFakeClient(i) && IsPlayerAlive(i) )
+			{
+				client = i;
+				break;
+			}
+		}
+
+		if( !client )
+		{
+			ThrowNativeError(SP_ERROR_PARAM, "L4D2_IsReachable Error: cannot find a valid fake client. This native only works with fake clients.");
+		}
+	}
 
 	return SDKCall(g_hSDK_Call_IsReachable, client, vPos);
 }
@@ -4024,6 +4084,7 @@ public int Native_RestartScenarioFromVote(Handle plugin, int numParams)
 
 	char map[64];
 	GetNativeString(1, map, sizeof(map));
+
 	//PrintToServer("#### CALL g_hSDK_Call_RestartScenarioFromVote");
 	return SDKCall(g_hSDK_Call_RestartScenarioFromVote, g_pDirector, map);
 }
@@ -4061,7 +4122,7 @@ public int Native_GetTeamScore(Handle plugin, int numParams)
 		int team = GetNativeCell(1);
 		if( team != SCORE_TEAM_A && team != SCORE_TEAM_B )
 		{
-			ThrowNativeError(SP_ERROR_PARAM, "Logical team %d is invalid. Accepted values: 0 or 1.", team);
+			ThrowNativeError(SP_ERROR_PARAM, "Logical team %d is invalid. Accepted values: 1 or 2.", team);
 		}
 
 		//campaign_score is a boolean so should be 0 (use round score) or 1 only
@@ -4159,6 +4220,7 @@ public int Native_IsFirstMapInScenario(Handle plugin, int numParams)
 public int Native_IsMissionFinalMap(Handle plugin, int numParams)
 {
 	ValidateNatives(g_hSDK_Call_IsMissionFinalMap, "IsMissionFinalMap");
+
 	//PrintToServer("#### CALL g_hSDK_Call_IsMissionFinalMap");
 	return SDKCall(g_hSDK_Call_IsMissionFinalMap);
 }
@@ -4267,6 +4329,7 @@ public int Native_SpawnSpecial(Handle plugin, int numParams)
 	if( g_bLeft4Dead2 )
 	{
 		ValidateNatives(g_hSDK_Call_SpawnSpecial, "SpawnSpecial");
+
 		//PrintToServer("#### CALL g_hSDK_Call_SpawnSpecial");
 		return SDKCall(g_hSDK_Call_SpawnSpecial, g_pZombieManager, zombieClass, vPos, vAng);
 	}
@@ -4277,18 +4340,21 @@ public int Native_SpawnSpecial(Handle plugin, int numParams)
 			case 1:
 			{
 				ValidateNatives(g_hSDK_Call_SpawnSmoker, "SpawnSmoker");
+
 				//PrintToServer("#### CALL g_hSDK_Call_SpawnSmoker");
 				return SDKCall(g_hSDK_Call_SpawnSmoker, g_pZombieManager, vPos, vAng);
 			}
 			case 2:
 			{
 				ValidateNatives(g_hSDK_Call_SpawnBoomer, "SpawnBoomer");
+
 				//PrintToServer("#### CALL g_hSDK_Call_SpawnBoomer");
 				return SDKCall(g_hSDK_Call_SpawnBoomer, g_pZombieManager, vPos, vAng);
 			}
 			case 3:
 			{
 				ValidateNatives(g_hSDK_Call_SpawnHunter, "SpawnHunter");
+
 				//PrintToServer("#### CALL g_hSDK_Call_SpawnHunter");
 				return SDKCall(g_hSDK_Call_SpawnHunter, g_pZombieManager, vPos, vAng);
 			}
@@ -7162,6 +7228,25 @@ bool GetVScriptOutput(char[] code, char[] ret, int maxlength)
 	return true;
 }
 
+int GetEntityFromAddress(int addr)
+{
+	int max = GetEntityCount();
+	for( int i = 0; i <= max; i++ )
+		if( IsValidEdict(i) )
+			if( GetEntityAddress(i) == view_as<Address>(addr) )
+				return i;
+	return -1;
+}
+
+int GetClientFromAddress(int addr)
+{
+	for(int i = 1; i <= MaxClients; i++ )
+		if( IsClientInGame(i) )
+			if( GetEntityAddress(i) == view_as<Address>(addr) )
+				return i;
+	return 0;
+}
+
 // Unused, but here for demonstration and if required
 stock void ReadMemoryString(int addr, char[] temp, int size)
 {
@@ -7182,23 +7267,4 @@ stock void ReadMemoryString(int addr, char[] temp, int size)
 			return;
 		}
 	}
-}
-
-int GetEntityFromAddress(int addr)
-{
-	int max = GetEntityCount();
-	for( int i = 0; i <= max; i++ )
-		if( IsValidEdict(i) )
-			if( GetEntityAddress(i) == view_as<Address>(addr) )
-				return i;
-	return -1;
-}
-
-int GetClientFromAddress(int addr)
-{
-	for(int i = 1; i <= MaxClients; i++ )
-		if( IsClientInGame(i) )
-			if( GetEntityAddress(i) == view_as<Address>(addr) )
-				return i;
-	return 0;
 }

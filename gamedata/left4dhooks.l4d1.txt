@@ -903,6 +903,16 @@
 				/* Search: "Molotov.Throw" for @CMolotovProjectile::Create@ function. Above string is call. */
 			}
 
+			/* CTerrorGameRules::HasPlayerControlledZombies() */
+			"HasPlayerControlledZombies"
+			{
+				"library"	"server"
+				"linux"		"@_ZN16CTerrorGameRules26HasPlayerControlledZombiesEv"
+				"windows"	"\xF7\x05\x2A\x2A\x2A\x2A\x00\x10\x00\x00\x74\x2A\xB8\x2A\x2A\x2A\x2A\xEB\x2A\xA1\x2A\x2A\x2A\x2A\x8B\x40\x24\x85\xC0\x75\x2A\xB8\x2A\x2A\x2A\x2A\x68\x2A\x2A\x2A\x2A\x50\xE8\x2A\x2A\x2A\x2A\x83\xC4\x08\x85\xC0\x74"
+				/* F7 05 ? ? ? ? 00 10 00 00 74 ? B8 ? ? ? ? EB ? A1 ? ? ? ? 8B 40 24 85 C0 75 ? B8 ? ? ? ? 68 ? ? ? ? 50 E8 ? ? ? ? 83 C4 08 85 C0 74 */
+				/* Search "teamversus". */
+			}
+
 			/*
 			*  CPipeBombProjectile::Create(Vector  const&, QAngle  const&, Vector  const&, Vector  const&, CBaseCombatCharacter *, float)
 			*  Search: "BEEP_CONTEXT"

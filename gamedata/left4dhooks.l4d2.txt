@@ -1440,6 +1440,18 @@
 			}
 
 			/*
+			* CTerrorGameRules::HasPlayerControlledZombies()
+			*/
+			"HasPlayerControlledZombies"
+			{
+				"library"	"server"
+				"linux"		"@_ZN16CTerrorGameRules26HasPlayerControlledZombiesEv"
+				"windows"	"\xF7\x05\x2A\x2A\x2A\x2A\x00\x10\x00\x00\x74\x2A\xB8\x2A\x2A\x2A\x2A\xEB\x2A\xA1\x2A\x2A\x2A\x2A\x8B\x40\x24\x85\xC0\x75\x2A\xB8\x2A\x2A\x2A\x2A\x8B\x0D\x2A\x2A\x2A\x2A\x8B\x11\x50\x8B\x42\x10\xFF\xD0\x85\xC0\x74\x2A\x6A\x00\x68\x2A\x2A\x2A\x2A\x8B\xC8\xE8\x2A\x2A\x2A\x2A\x85\xC0\x7E\x2A"
+				/* F7 05 ? ? ? ? 00 10 00 00 74 ? B8 ? ? ? ? EB ? A1 ? ? ? ? 8B 40 24 85 C0 75 ? B8 ? ? ? ? 8B 0D ? ? ? ? 8B 11 50 8B 42 10 FF D0 85 C0 74 ? 6A 00 68 ? ? ? ? 8B C8 E8 ? ? ? ? 85 C0 7E ? */
+				/* Search "playercontrolledzombies". */
+			}
+
+			/*
 			*  CPipeBombProjectile::Create(Vector  const&, QAngle  const&, Vector  const&, Vector  const&, CBaseCombatCharacter *, float)
 			*  Search: "BEEP_CONTEXT"
 			*/

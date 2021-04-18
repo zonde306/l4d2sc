@@ -88,6 +88,7 @@ public void __pl_l4dh_SetNTVOptional()
 	MarkNativeAsOptional("L4D_IsInFirstCheckpoint");
 	MarkNativeAsOptional("L4D_IsInLastCheckpoint");
 	MarkNativeAsOptional("L4D2_IsReachable");
+	MarkNativeAsOptional("L4D_HasPlayerControlledZombies");
 	MarkNativeAsOptional("L4D_PipeBombPrj");
 
 	MarkNativeAsOptional("L4D2_GetVScriptOutput");
@@ -1033,7 +1034,8 @@ native bool L4D_IsInLastCheckpoint(int client);
 
 /**
  * @brief Checks if a world position is accessible to a player.
- * @remarks You can pass any client index into this (real or fake players, survivors or special infected).
+ * @remarks You must pass a bots client index into this, otherwise the plugin will attempt to find a bot or throw an error otherwise.
+ * @remarks It appears the server will sometimes crash when passing a real players client index.
  * @remarks If the clients flow distance is too far away from the position to test it will return false.
  *
  * @param client	Client id to use for testing
@@ -1043,6 +1045,13 @@ native bool L4D_IsInLastCheckpoint(int client);
  */
 // L4D2 only.
 native bool L4D2_IsReachable(int client, const float vecPos[3]);
+
+/**
+ * @brief Returns if players can control infected
+ *
+ * @return			True if players can control infected, false otherwise
+ */
+native bool L4D_HasPlayerControlledZombies();
 
 /**
  * @brief Creates an activated PipeBomb projectile

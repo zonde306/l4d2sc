@@ -149,6 +149,7 @@ enum()
 	SKL_4_TempRespite = 2048,
 	SKL_4_Terror = 4096,
 	SKL_4_ReviveCount = 8192,
+	SKL_4_MeleeExtra = 16384,
 
 	SKL_5_FireBullet = 1,
 	SKL_5_ExpBullet = 2,
@@ -2079,7 +2080,7 @@ void GenerateRandomStats(int client, bool uncap)
 	g_clSkill_1[client] = GetRandomInt(0, 32767);
 	g_clSkill_2[client] = GetRandomInt(0, 32767);
 	g_clSkill_3[client] = GetRandomInt(0, 32767);
-	g_clSkill_4[client] = GetRandomInt(0, 16383);
+	g_clSkill_4[client] = GetRandomInt(0, 32767);
 	g_clSkill_5[client] = GetRandomInt(0, 16383);
 	
 	// 装备
@@ -3675,6 +3676,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	menu.AddItem(tr("4_%d",SKL_4_TempRespite), mps("「喘息」虚血会慢慢恢复为实血",(g_clSkill_4[client]&SKL_4_TempRespite)));
 	menu.AddItem(tr("4_%d",SKL_4_Terror), mps("「支配」写实显示光圈/胆汁会让特感叛变",(g_clSkill_4[client]&SKL_4_Terror)));
 	menu.AddItem(tr("4_%d",SKL_4_ReviveCount), mps("「坚定」倒地次数+1",(g_clSkill_4[client]&SKL_4_ReviveCount)));
+	menu.AddItem(tr("4_%d",SKL_4_MeleeExtra), mps("「战士」三倍近战伤害",(g_clSkill_4[client]&SKL_4_MeleeExtra)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6322,11 +6324,20 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	if(victim > MaxClients)
 	{
-		// 可能不需要马格南，因为这个已经是可以秒普感了
-		if((g_clSkill_5[attacker] & SKL_5_Overkill) &&
-			(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
-			ammotype > AMMOTYPE_PISTOL && ammotype < AMMOTYPE_TURRET && !GetRandomInt(0, 3))
-			chance += 250;
+		if(HasEntProp(victim, Prop_Send, "m_bIsBurning"))
+		{
+			// 可能不需要马格南，因为这个已经是可以秒普感了
+			if((g_clSkill_5[attacker] & SKL_5_Overkill) &&
+				(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
+				ammotype > AMMOTYPE_PISTOL && ammotype < AMMOTYPE_TURRET && !GetRandomInt(0, 3))
+				chance += 250;
+		}
+		else
+		{
+			// 增加对 机关/墙体/BOSS 的伤害
+			if(g_clSkill_1[attacker] & SKL_1_Button)
+				damage += originalDamage * 2;
+		}
 	}
 	
 	if(g_bIsAngryCritActive)
@@ -6337,6 +6348,9 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		chance += IsPlayerHaveEffect(attacker, 42) * 200;
 		damage += IsPlayerHaveEffect(attacker, 44) * originalDamage;
 	}
+	
+	if(g_clSkill_4[attacker] & SKL_4_MeleeExtra)
+		damage += originalDamage * 2;
 	
 	if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
 	{
@@ -6766,6 +6780,9 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		chance += IsPlayerHaveEffect(attacker, 42) * 200;
 		damage += IsPlayerHaveEffect(attacker, 44) * originalDamage;
 	}
+	
+	if(g_clSkill_4[attacker] & SKL_4_MeleeExtra)
+		damage += originalDamage * 2;
 	
 	// 生还者攻击特感
 	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)

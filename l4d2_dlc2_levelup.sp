@@ -6349,7 +6349,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		damage += IsPlayerHaveEffect(attacker, 44) * originalDamage;
 	}
 	
-	if(g_clSkill_4[attacker] & SKL_4_MeleeExtra)
+	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
 		damage += originalDamage * 2;
 	
 	if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
@@ -6781,7 +6781,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		damage += IsPlayerHaveEffect(attacker, 44) * originalDamage;
 	}
 	
-	if(g_clSkill_4[attacker] & SKL_4_MeleeExtra)
+	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
 		damage += originalDamage * 2;
 	
 	// 生还者攻击特感

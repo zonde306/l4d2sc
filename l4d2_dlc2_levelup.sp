@@ -165,6 +165,9 @@ enum()
 	SKL_5_ShoveRange = 2048,
 	SKL_5_TempRegen = 4096,
 	SKL_5_Resurrect = 8192,
+	SKL_5_Lethal = 16384,	// 
+	SKL_5_Machine = 32768,	// 
+	SKL_5_Robot = 65536,	// 
 };
 
 new g_ttTankKilled		= 0;
@@ -709,6 +712,39 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	return APLRes_Success;
 }
 
+bool g_bHaveLethal = false, g_bHaveProtector = false, g_bHaveRobot = false;
+
+native bool Lethal_SetAllowedClient(int client, bool enable);
+native bool Protector_SetAllowedClient(int client, bool enable);
+native bool Robot_SetAllowedClient(int client, bool enable);
+
+public void OnAllPluginsLoaded()
+{
+	g_bHaveLethal = LibraryExists("lethal_helpers");
+	g_bHaveProtector = LibraryExists("protector_helpers");
+	g_bHaveRobot = LibraryExists("robot_helpers");
+}
+
+public void OnLibraryAdded(const char[] libary)
+{
+	if(StrEqual(libary, "lethal_helpers"))
+		g_bHaveLethal = true;
+	else if(StrEqual(libary, "protector_helpers"))
+		g_bHaveProtector = true;
+	else if(StrEqual(libary, "robot_helpers"))
+		g_bHaveRobot = true;
+}
+
+public void OnLibraryRemoved(const char[] libary)
+{
+	if(StrEqual(libary, "lethal_helpers"))
+		g_bHaveLethal = false;
+	else if(StrEqual(libary, "protector_helpers"))
+		g_bHaveProtector = false;
+	else if(StrEqual(libary, "robot_helpers"))
+		g_bHaveRobot = false;
+}
+
 public OnPluginStart()
 {
 	g_pCvarAllow = CreateConVar("lv_enable", "1", "是否开启插件", FCVAR_NONE, true, 0.0, true, 1.0);
@@ -1145,6 +1181,7 @@ public OnPluginStart()
 	{
 		OnMapStart();
 		OnConfigsExecuted();
+		OnAllPluginsLoaded();
 		g_bIsGamePlaying = L4D_HasAnySurvivorLeftSafeArea();
 	}
 	else
@@ -2207,6 +2244,13 @@ void Initialization(int client, bool invalid = false)
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKUnhook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
+	
+	if(g_bHaveLethal)
+		Lethal_SetAllowedClient(client, false);
+	if(g_bHaveProtector)
+		Protector_SetAllowedClient(client, false);
+	if(g_bHaveRobot)
+		Robot_SetAllowedClient(client, false);
 	
 	if(toDelete1 != null)
 		delete toDelete1;
@@ -3711,6 +3755,13 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 	
 	menu.AddItem(tr("5_%d",SKL_5_TempRegen), mps("「抗性」受伤消耗实血时有1/3几率恢复等量虚血",(g_clSkill_5[client]&SKL_5_TempRegen)));
 	menu.AddItem(tr("5_%d",SKL_5_Resurrect), mps("「救赎」进入濒死以复活队友(按住E)",(g_clSkill_5[client]&SKL_5_Resurrect)));
+	
+	if(g_bHaveLethal)
+		menu.AddItem(tr("5_%d",SKL_5_Lethal), mps("「充能」AWP蹲下可射击充能",(g_clSkill_5[client]&SKL_5_Lethal)));
+	if(g_bHaveProtector)
+		menu.AddItem(tr("5_%d",SKL_5_Machine), mps("「哨塔」输入!gun创建机枪塔",(g_clSkill_5[client]&SKL_5_Machine)));
+	if(g_bHaveRobot)
+		menu.AddItem(tr("5_%d",SKL_5_Robot), mps("「护卫」输入!robot创建护卫枪",(g_clSkill_5[client]&SKL_5_Robot)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6008,8 +6059,12 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	
 	if((damagetype & DMG_FALL) || attacker <= 0)
 	{
+		// 火箭跳免疫掉落伤害
 		if(g_bOnRocketDude[victim])
-			return Plugin_Handled;
+		{
+			damage = 0.0;
+			return Plugin_Changed;
+		}
 		
 		return Plugin_Continue;
 	}
@@ -6018,7 +6073,8 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		((g_clSkill_1[attacker] & SKL_1_Firendly) || (g_clSkill_1[victim] & SKL_1_Firendly)))
 	{
 		// 免疫队友和自己的伤害
-		return Plugin_Handled;
+		damage = 0.0;
+		return Plugin_Changed;
 	}
 	
 	float time = GetEngineTime();
@@ -6029,7 +6085,9 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		if(!IsNullVector(damagePosition) && (g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0))
 			EmitAmbientSound(SOUND_STEEL, damagePosition, victim, SNDLEVEL_HOME);
 		*/
-		return Plugin_Handled;
+		
+		damage = 0.0;
+		return Plugin_Changed;
 	}
 	
 	if(attacker > 0 && IsValidEntity(attacker))
@@ -6927,17 +6985,18 @@ public Action Timer_ClearCacheMessage(Handle timer, any client)
 
 public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	bool attackPlayer = IsValidClient(attacker);
-
-	if(!IsValidClient(victim))
-		return;
-
-	static char weapon[64];
-	GetEventString(event, "weapon", weapon, sizeof(weapon));
 	int dmg = GetEventInt(event, "dmg_health");
 	int dmg_type = event.GetInt("type");
+	
+	if(!IsValidClient(victim) || dmg <= 0)
+		return;
+	
+	static char weapon[64];
+	// 有时获取不到正确的武器...
+	GetEventString(event, "weapon", weapon, sizeof(weapon));
 	
 	if (attackPlayer && (StrEqual(weapon, "tank_claw") || StrEqual(weapon, "tank_rock")) &&
 		GetClientTeam(victim) == 2 && !GetEntProp(victim, Prop_Send, "m_isIncapacitated"))
@@ -7037,17 +7096,19 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			}
 		}
 		
-		if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && (isGunShot || isMeleeHack) && !IsFakeClient(attacker))
+		if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && (isGunShot || isMeleeHack || (dmg_type & (DMG_BUCKSHOT|DMG_BULLET|DMG_SLASH|DMG_CLUB))) && !IsFakeClient(attacker))
 		{
 			int health = GetEventInt(event, "health");
 			bool headshot = event.GetBool("headshot");
 			
 			if(!(dmg_type & DMG_BUCKSHOT))
 			{
+				// 非霰弹枪
 				PrintCenterText(attacker, "%N|%s伤害%d|%s", victim, ((dmg_type & DMG_CRIT) ? "暴击" : ""), dmg, ((health<=0) ? (headshot?"爆头":"击杀") : tr("剩余%d", health)));
 			}
 			else
 			{
+				// 霰弹枪
 				if(g_mTotalDamage[attacker] == null)
 				{
 					g_mTotalDamage[attacker] = CreateTrie();
@@ -8475,11 +8536,14 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		
 		if(extrahp)
 		{
+			/*
 			float buffer = GetEntPropFloat(subject, Prop_Send, "m_healthBuffer");
 			if(buffer + extrahp > 200.0)
 				extrahp = RoundToZero(200 - buffer);
-			
 			SetEntPropFloat(subject, Prop_Send, "m_healthBuffer", buffer + extrahp);
+			*/
+			
+			AddHealth(subject, extrahp);
 			if(!IsFakeClient(subject)) PrintToChat(subject, "\x03[\x05提示\x03]\x04倒地被救起恢复额外HP:%d",extrahp);
 		}
 		
@@ -10844,6 +10908,13 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		if(maxHealth > g_hCvarPainPillsMaxHeal.IntValue)
 			g_hCvarPainPillsMaxHeal.IntValue = maxHealth;
 	}
+	
+	if(g_bHaveLethal)
+		Lethal_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Lethal));
+	if(g_bHaveProtector)
+		Protector_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Machine));
+	if(g_bHaveRobot)
+		Robot_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Machine));
 }
 
 public void PlayerHook_OnPostThinkPost(int client)
@@ -12001,6 +12072,15 @@ void OnSkillAttach(int client, int level, int skill)
 		CheatCommand(client, "upgrade_add", "LASER_SIGHT");
 	else if(level == 1 && skill == SKL_1_Armor)
 		AddArmor(client, 100);
+	else if(level == 5 && skill == SKL_5_Lethal)
+	{
+		CheatCommand(client, "give", "sniper_awp");
+		PrintHintText(client, "***蹲下进行充能***");
+	}
+	else if(level == 5 && skill == SKL_5_Machine)
+		PrintHintText(client, "***聊天框输入!gun创建哨塔***");
+	else if(level == 5 && skill == SKL_5_Robot)
+		PrintHintText(client, "***聊天框输入!robot创建护卫***");
 }
 
 stock bool AddHealth(int client, int amount, bool limit = true, bool conv = false)
@@ -12074,8 +12154,24 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 		// 确定是否真的有效增加或有效减少
 		if((amount > 0 && (health > oldHealth || buffer > oldBuffer)) || (amount < 0 && (oldHealth > health || oldBuffer > buffer)))
 		{
-			SetEntPropFloat(client, Prop_Send, "m_healthBuffer", buffer);
-			SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+			/*
+			if(buffer > 200.0)
+			{
+				ConVar painPillsDecayCvar;
+				if (painPillsDecayCvar == null)
+					painPillsDecayCvar = FindConVar("pain_pills_decay_rate");
+				
+				// 通过时间来扩展上限
+				float time = (200.0 - buffer) / painPillsDecayCvar.FloatValue;
+				SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 200.0);
+				SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime() + time);
+			}
+			else
+			*/
+			{
+				SetEntPropFloat(client, Prop_Send, "m_healthBuffer", buffer);
+				SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+			}
 		}
 	}
 	else if(team == 3)
@@ -15350,7 +15446,7 @@ DealDamage(attacker=0,victim,damage,dmg_type=0)
 	SDKHooks_TakeDamage(victim, 0, attacker, float(damage), dmg_type);
 }
 
-public LittleFlower(Float:pos[3], type)
+stock void LittleFlower(Float:pos[3], type, int attacker = -1)
 {
 	/* Cause fire(type=0) or explosion(type=1) */
 	new entity = CreateEntityByName("prop_physics");
@@ -15366,7 +15462,7 @@ public LittleFlower(Float:pos[3], type)
 		DispatchSpawn(entity);
 		SetEntData(entity, GetEntSendPropOffs(entity, "m_CollisionGroup"), 1, 1, true);
 		TeleportEntity(entity, pos, NULL_VECTOR, NULL_VECTOR);
-		AcceptEntityInput(entity, "break");
+		AcceptEntityInput(entity, "break", attacker, entity);
 	}
 }
 
@@ -17189,7 +17285,7 @@ public int MenuHandler_AdminMenu2nd_GiveHealth(Menu menu, MenuAction action, int
 		return 0;
 	}
 	
-	AddHealth(client, amount, _, true);
+	AddHealth(client, amount, false, false);
 	PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 \x05%d\x01 点血量。", target, amount);
 	
 	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);

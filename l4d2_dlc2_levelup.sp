@@ -82,6 +82,7 @@ const float g_fJumpHeightDucking = 52.0;	// 跳跃高度(蹲下)
 #define IsSurvivorHeld(%1)		(GetEntPropEnt(%1, Prop_Send, "m_jockeyAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pummelAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pounceAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_tongueOwner") > 0 || GetEntPropEnt(%1, Prop_Send, "m_carryAttacker") > 0)
 #define mps(%1,%2)				tr("%s %s", %1, (%2 ? "√" : ""))
 #define IsNullVector(%1)		(%1[0] == NULL_VECTOR[0] || %1[1] == NULL_VECTOR[1] || %1[2] == NULL_VECTOR[2])
+#define NATIVE_EXISTS(%0)		(GetFeatureStatus(FeatureType_Native, %0) == FeatureStatus_Available)
 
 int g_clSkill_1[MAXPLAYERS+1], g_clSkill_2[MAXPLAYERS+1], g_clSkill_3[MAXPLAYERS+1], g_clSkill_4[MAXPLAYERS+1], g_clSkill_5[MAXPLAYERS+1];
 
@@ -711,6 +712,10 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	
 	// Action LV_OnGiveArgryPoints(int client, int& amount)
 	g_fwOnAngryPoint = CreateGlobalForward("LV_OnGiveArgryPoints", ET_Hook, Param_Cell, Param_CellByRef);
+	
+	MarkNativeAsOptional("Lethal_SetAllowedClient");
+	MarkNativeAsOptional("Protector_SetAllowedClient");
+	MarkNativeAsOptional("Robot_SetAllowedClient");
 	
 	return APLRes_Success;
 }
@@ -2258,11 +2263,11 @@ void Initialization(int client, bool invalid = false)
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKUnhook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 	
-	if(g_bHaveLethal)
+	if(g_bHaveLethal && NATIVE_EXISTS("Lethal_SetAllowedClient"))
 		Lethal_SetAllowedClient(client, false);
-	if(g_bHaveProtector)
+	if(g_bHaveProtector && NATIVE_EXISTS("Protector_SetAllowedClient"))
 		Protector_SetAllowedClient(client, false);
-	if(g_bHaveRobot)
+	if(g_bHaveRobot && NATIVE_EXISTS("Robot_SetAllowedClient"))
 		Robot_SetAllowedClient(client, false);
 	
 	if(toDelete1 != null)
@@ -3701,7 +3706,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("「跳弹」子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
 	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪会暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
 	menu.AddItem(tr("3_%d",SKL_3_Cure), mps("「清醒」打针治疗濒死状态",(g_clSkill_3[client]&SKL_3_Cure)));
-	menu.AddItem(tr("3_%d",SKL_3_Minigun), mps("「部署」静走(Shift)+E部署一挺固定机枪",(g_clSkill_3[client]&SKL_3_Minigun)));
+	menu.AddItem(tr("3_%d",SKL_3_Minigun), mps("「工程」鼠标中键部署固定机枪",(g_clSkill_3[client]&SKL_3_Minigun)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -10925,11 +10930,11 @@ void RegPlayerHook(int client, bool fullHealth = false)
 			g_hCvarPainPillsMaxHeal.IntValue = maxHealth;
 	}
 	
-	if(g_bHaveLethal)
+	if(g_bHaveLethal && NATIVE_EXISTS("Lethal_SetAllowedClient"))
 		Lethal_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Lethal));
-	if(g_bHaveProtector)
+	if(g_bHaveProtector && NATIVE_EXISTS("Protector_SetAllowedClient"))
 		Protector_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Machine));
-	if(g_bHaveRobot)
+	if(g_bHaveRobot && NATIVE_EXISTS("Robot_SetAllowedClient"))
 		Robot_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Machine));
 }
 
@@ -13150,8 +13155,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
-		if((g_clSkill_3[client] & SKL_3_Minigun) && (buttons & IN_USE) && (buttons & IN_SPEED) && useTarget <= MaxClients &&
-			g_hTimerMinigun[client] == null && !IsSurvivorThirdPerson(client))
+		if((g_clSkill_3[client] & SKL_3_Minigun) && (buttons & IN_ZOOM) && useTarget <= MaxClients &&
+			g_hTimerMinigun[client] == null && (flags & FL_ONGROUND) && !IsSurvivorThirdPerson(client))
 		{
 			if(g_fMinigunTime[client] <= 0.0)
 			{
@@ -13372,6 +13377,7 @@ public void OutputHook_OnResurrect(const char[] output, int caller, int activato
 	SetEntPropFloat(activator, Prop_Send, "m_healthBufferTime", GetGameTime());
 }
 
+/*
 Float:GetAngle(Float:x1[3], Float:x2[3])
 {
 	decl Float:a[3];
@@ -13382,6 +13388,7 @@ Float:GetAngle(Float:x1[3], Float:x2[3])
 	
 	return ArcCosine(GetVectorDotProduct(a, b)/(GetVectorLength(a)*GetVectorLength(b)));
 }
+*/
 
 public Action Timer_DestroyMinigun(Handle timer, any pack)
 {
@@ -13393,6 +13400,10 @@ public Action Timer_DestroyMinigun(Handle timer, any pack)
 	
 	if(IsValidEntity(machine))
 	{
+		// 过热时不删除机枪，避免刷冷却
+		if(GetEntProp(machine, Prop_Send, "m_overheated"))
+			return Plugin_Continue;
+		
 		int index = EntRefToEntIndex(machine);
 		for(int i = 1; i <= MaxClients; ++i)
 			if(IsValidAliveClient(i) && GetEntPropEnt(i, Prop_Send, "m_hUseEntity") == index)
@@ -13465,7 +13476,7 @@ stock int GetAimDeathModel(int client)
 	return target;
 }
 
-stock int CreateMiniGun(int client, int type = 1)
+stock int CreateMiniGun(int client, int type = 1, bool mount = true)
 {
 	new index = -1;
 	decl Float:VecOrigin[3], Float:VecAngles[3], Float:VecDirection[3];
@@ -13492,11 +13503,10 @@ stock int CreateMiniGun(int client, int type = 1)
 	{
 		SetEntityModel (index, "models/w_models/weapons/w_minigun.mdl");
 	}
-
-
-	DispatchKeyValueFloat (index, "MaxPitch", 360.00);
-	DispatchKeyValueFloat (index, "MinPitch", -360.00);
-	DispatchKeyValueFloat (index, "MaxYaw", 190.00);
+	
+	DispatchKeyValueFloat(index, "MaxPitch", 360.00);
+	DispatchKeyValueFloat(index, "MinPitch", -360.00);
+	DispatchKeyValueFloat(index, "MaxYaw", 190.00);
 	DispatchSpawn(index);
 	GetClientAbsOrigin(client, VecOrigin);
 	GetClientEyeAngles(client, VecAngles);
@@ -13508,9 +13518,31 @@ stock int CreateMiniGun(int client, int type = 1)
 	VecAngles[2] = 0.0;
 	DispatchKeyValueVector(index, "Angles", VecAngles);
 	DispatchSpawn(index);
+	
+	// 禁用碰撞
 	SetEntProp(index, Prop_Data, "m_CollisionGroup", 2);
 	
 	TeleportEntity(index, VecOrigin, NULL_VECTOR, NULL_VECTOR);
+	
+	// 安装在物体上面，让机枪可以跟随物体移动
+	if(mount)
+	{
+		int ground = GetEntPropEnt(client, Prop_Send, "m_hGroundEntity");
+		if(ground > MaxClients)
+		{
+			static char targetname[64];
+			GetEntPropString(ground, Prop_Data, "m_iName", targetname, sizeof(targetname));
+			if(targetname[0] == EOS)
+			{
+				FormatEx(targetname, sizeof(targetname), "mounted_%d", index);
+				DispatchKeyValue(ground, "targetname", targetname);
+			}
+			
+			SetVariantString(targetname);
+			AcceptEntityInput(index, "SetParent", index, index);
+		}
+	}
+	
 	return index;
 }
 

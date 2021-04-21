@@ -370,9 +370,9 @@ RemoveProtector(client, index = -1)
 		{
 			SDKUnhook(GunData.GunModelFoot, SDKHook_Use, SDKHooked_OnUse);
 			SDKUnhook(GunData.GunModelHead, SDKHook_Use, SDKHooked_OnUse);
-			RemoveEnt(GunData.GunModelFoot);
-			RemoveEnt(GunData.GunModelHead);
-			RemoveEnt(GunData.GunModelOnBack);
+			RemoveEnt((GunData.GunModelFoot));
+			RemoveEnt((GunData.GunModelHead));
+			RemoveEnt((GunData.GunModelOnBack));
 			
 			g_hArrayGunList.Erase(index);
 		}
@@ -385,9 +385,9 @@ RemoveProtector(client, index = -1)
 		
 		SDKUnhook(GunData.GunModelFoot, SDKHook_Use, SDKHooked_OnUse);
 		SDKUnhook(GunData.GunModelHead, SDKHook_Use, SDKHooked_OnUse);
-		RemoveEnt(GunData.GunModelFoot);
-		RemoveEnt(GunData.GunModelHead);
-		RemoveEnt(GunData.GunModelOnBack);
+		RemoveEnt((GunData.GunModelFoot));
+		RemoveEnt((GunData.GunModelHead));
+		RemoveEnt((GunData.GunModelOnBack));
 		
 		g_hArrayGunList.Erase(index);
 		HaveProtector[client] = (FindClientGun(client, GunData, -1) != -1);
@@ -475,8 +475,8 @@ GoBack(client, index = -1)
 			GunData.ProtectorState = state_carry;
 			SDKUnhook(GunData.GunModelFoot, SDKHook_Use, SDKHooked_OnUse);
 			SDKUnhook(GunData.GunModelHead, SDKHook_Use, SDKHooked_OnUse);
-			RemoveEnt(GunData.GunModelFoot);
-			RemoveEnt(GunData.GunModelHead);
+			RemoveEnt((GunData.GunModelFoot));
+			RemoveEnt((GunData.GunModelHead));
 			GunData.GunModelFoot = INVALID_ENT_REFERENCE;
 			GunData.GunModelHead = INVALID_ENT_REFERENCE;
 			GunData.GunModelOnBack = EntIndexToEntRef(CreateOnBack(client));
@@ -491,8 +491,8 @@ GoBack(client, index = -1)
 		GunData.ProtectorState = state_carry;
 		SDKUnhook(GunData.GunModelFoot, SDKHook_Use, SDKHooked_OnUse);
 		SDKUnhook(GunData.GunModelHead, SDKHook_Use, SDKHooked_OnUse);
-		RemoveEnt(GunData.GunModelFoot);
-		RemoveEnt(GunData.GunModelHead);
+		RemoveEnt((GunData.GunModelFoot));
+		RemoveEnt((GunData.GunModelHead));
 		GunData.GunModelFoot = INVALID_ENT_REFERENCE;
 		GunData.GunModelHead = INVALID_ENT_REFERENCE;
 		GunData.GunModelOnBack = EntIndexToEntRef(CreateOnBack(client));
@@ -523,7 +523,7 @@ GoWork(client, index = -1)
 		while((index = FindClientGun(client, GunData, index)) > -1)
 		{
 			GunData.ProtectorState = state_work;
-			RemoveEnt(GunData.GunModelOnBack);
+			RemoveEnt((GunData.GunModelOnBack));
 			GunData.GunModelOnBack = INVALID_ENT_REFERENCE;
 			
 			GunData.GunModelFoot = EntIndexToEntRef(CreateFoot(gun_pos, client));
@@ -544,7 +544,7 @@ GoWork(client, index = -1)
 		g_hArrayGunList.GetArray(index, GunData, sizeof(GunInfo_t));
 		
 		GunData.ProtectorState = state_work;
-		RemoveEnt(GunData.GunModelOnBack);
+		RemoveEnt((GunData.GunModelOnBack));
 		GunData.GunModelOnBack = INVALID_ENT_REFERENCE;
 		
 		GunData.GunModelFoot = EntIndexToEntRef(CreateFoot(gun_pos, client));
@@ -761,6 +761,7 @@ int GetBestTarget(int index, float gunPos[3], float gunAng[3])
 			return hitTarget;
 	}
 	
+	delete data;
 	return -1;
 }
 
@@ -852,6 +853,7 @@ Shot(index, Float:gunpos[3],  Float:shotangle[3])
 	}
 
 	CloseHandle(trace);
+	delete data;
 }
 
 ShowMuzzleFlash(Float:pos[3],  Float:angle[3])
@@ -1328,7 +1330,7 @@ public ShowParticle(Float:pos[3], Float:ang[3],String:particlename[], Float:time
 RemoveEnt(ent)
 {
 
-	if(ent>0 && IsValidEntity(ent) && IsValidEdict(ent))
+	if(ent!=0 && IsValidEntity(ent) && IsValidEdict(ent))
 	{
 		RemoveEdict(ent);
 	}

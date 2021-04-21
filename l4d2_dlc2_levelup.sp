@@ -134,6 +134,7 @@ enum()
 	SKL_3_Ricochet = 4096,
 	SKL_3_Accurate = 8192,
 	SKL_3_Cure = 16384,
+	SKL_3_Minigun = 32768,
 
 	SKL_4_ClawHeal = 1,
 	SKL_4_DmgExtra = 2,
@@ -233,6 +234,8 @@ float g_fLotteryStartTime = 0.0;
 float g_fNextAccurateShot[MAXPLAYERS+1];
 int g_iMaxReviveCount[MAXPLAYERS+1];
 float g_fSacrificeTime[MAXPLAYERS+1];
+float g_fMinigunTime[MAXPLAYERS+1];
+Handle g_hTimerMinigun[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -1349,6 +1352,8 @@ public OnMapStart()
 	PrecacheModel("models/infected/witch_bride.mdl", true);
 	PrecacheModel("models/infected/hulk_dlc3.mdl", true);
 	PrecacheModel("models/infected/witch.mdl", true);
+	PrecacheModel("models/w_models/weapons/50cal.mdl", true);
+	PrecacheModel("models/w_models/weapons/w_minigun.mdl", true);
 
 	g_BeamSprite = PrecacheModel(SPRITE_BEAM);
 	g_HaloSprite = PrecacheModel(SPRITE_HALO);
@@ -1572,6 +1577,11 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 		
 		if(g_fFreezeTime[i] > 0.0)
 			g_fFreezeTime[i] = 0.0;
+		if(g_hTimerMinigun[i] != null)
+		{
+			KillTimer(g_hTimerMinigun[i]);
+			g_hTimerMinigun[i] = null;
+		}
 	}
 	
 	RestoreConVar();
@@ -2116,9 +2126,9 @@ void GenerateRandomStats(int client, bool uncap)
 	// 技能
 	g_clSkill_1[client] = GetRandomInt(0, 32767);
 	g_clSkill_2[client] = GetRandomInt(0, 32767);
-	g_clSkill_3[client] = GetRandomInt(0, 32767);
+	g_clSkill_3[client] = GetRandomInt(0, 65535);
 	g_clSkill_4[client] = GetRandomInt(0, 32767);
-	g_clSkill_5[client] = GetRandomInt(0, 16383);
+	g_clSkill_5[client] = GetRandomInt(0, 131071);
 	
 	// 装备
 	for(int i = 0; i < 4; ++i)
@@ -2218,6 +2228,9 @@ void Initialization(int client, bool invalid = false)
 	g_fPressedTime[client] = 0.0;
 	g_iMaxReviveCount[client] = 0;
 	g_fSacrificeTime[client] = 0.0;
+	g_fMinigunTime[client] = 0.0;
+	Handle toDelete4 = g_hTimerMinigun[client];
+	g_hTimerMinigun[client] = null;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -2258,6 +2271,8 @@ void Initialization(int client, bool invalid = false)
 		// delete toDelete2;
 	// if(toDelete3 != null)
 		// delete toDelete3;
+	if(toDelete4 != null)
+		KillTimer(toDelete4);
 }
 
 //读档
@@ -3686,6 +3701,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("「跳弹」子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
 	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪会暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
 	menu.AddItem(tr("3_%d",SKL_3_Cure), mps("「清醒」打针治疗濒死状态",(g_clSkill_3[client]&SKL_3_Cure)));
+	menu.AddItem(tr("3_%d",SKL_3_Minigun), mps("「部署」静走(Shift)+E部署一挺固定机枪",(g_clSkill_3[client]&SKL_3_Minigun)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -13134,6 +13150,62 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
+		if((g_clSkill_3[client] & SKL_3_Minigun) && (buttons & IN_USE) && (buttons & IN_SPEED) && useTarget <= MaxClients &&
+			g_hTimerMinigun[client] == null && !IsSurvivorThirdPerson(client))
+		{
+			if(g_fMinigunTime[client] <= 0.0)
+			{
+				g_fMinigunTime[client] = time + 3.0;
+				SetEntPropFloat(client, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+				SetEntPropFloat(client, Prop_Send, "m_flProgressBarDuration", 3.0);
+				PrintHintText(client, "***正在建造机枪***");
+			}
+			else if(g_fMinigunTime[client] <= time)
+			{
+				g_fMinigunTime[client] = 0.0;
+				SetEntPropFloat(client, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+				SetEntPropFloat(client, Prop_Send, "m_flProgressBarDuration", 0.0);
+				
+				int machine = CreateMiniGun(client, GetRandomInt(0, 1));
+				if(machine > MaxClients)
+				{
+					DataPack data = CreateDataPack();
+					g_hTimerMinigun[client] = CreateTimer(5.0, Timer_DestroyMinigun, data, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+					data.WriteCell(client);
+					data.WriteCell(EntIndexToEntRef(machine));	// 可能会内存泄漏
+				}
+				else
+				{
+					PrintHintText(client, "***建造机枪失败***");
+				}
+			}
+		}
+		else if(g_fMinigunTime[client] > 0.0)
+		{
+			g_fMinigunTime[client] = 0.0;
+			SetEntPropFloat(client, Prop_Send, "m_flProgressBarStartTime", GetGameTime());
+			SetEntPropFloat(client, Prop_Send, "m_flProgressBarDuration", 0.0);
+		}
+		
+		// 可旋转任意角度的机枪
+		/*
+		if(g_clSkill_3[client] & SKL_3_Minigun)
+		{
+			static char classname[64];
+			int machine = GetEntPropEnt(client, Prop_Send, "m_hUseEntity");
+			if(machine > MaxClients && IsValidEdict(machine) && GetEdictClassname(machine, classname, sizeof(classname)) && 
+				(StrEqual(classname, "prop_minigun", false) || StrEqual(classname, "prop_minigun_l4d1", false)))
+			{
+				float eyeAngles[3], gunAngles[3];
+				GetClientEyeAngles(client, eyeAngles);
+				GetEntPropVector(machine, Prop_Send, "m_angRotation", gunAngles);
+				eyeAngles[0] = gunAngles[0] = 0.0;
+				float diff = GetAngle(eyeAngles, gunAngles) * 180.0 / 3.14159265358979323846;
+				if(diff > 89.0)
+					TeleportEntity(machine, NULL_VECTOR, eyeAngles, NULL_VECTOR);
+			}
+		}
+		*/
 	}
 	else if(g_bIsHitByVomit[client])
 	{
@@ -13300,6 +13372,38 @@ public void OutputHook_OnResurrect(const char[] output, int caller, int activato
 	SetEntPropFloat(activator, Prop_Send, "m_healthBufferTime", GetGameTime());
 }
 
+Float:GetAngle(Float:x1[3], Float:x2[3])
+{
+	decl Float:a[3];
+	decl Float:b[3];
+	 
+	GetAngleVectors(x1, a, NULL_VECTOR, NULL_VECTOR);
+	GetAngleVectors(x2, b, NULL_VECTOR, NULL_VECTOR);
+	
+	return ArcCosine(GetVectorDotProduct(a, b)/(GetVectorLength(a)*GetVectorLength(b)));
+}
+
+public Action Timer_DestroyMinigun(Handle timer, any pack)
+{
+	DataPack data = view_as<DataPack>(pack);
+	data.Reset();
+	
+	int client = data.ReadCell();
+	int machine = data.ReadCell();
+	
+	if(IsValidEntity(machine))
+	{
+		int index = EntRefToEntIndex(machine);
+		for(int i = 1; i <= MaxClients; ++i)
+			if(IsValidAliveClient(i) && GetEntPropEnt(i, Prop_Send, "m_hUseEntity") == index)
+				return Plugin_Continue;
+	}
+	
+	g_hTimerMinigun[client] = null;
+	RemoveEntity(machine);
+	return Plugin_Stop;
+}
+
 stock int GetSurvivorFromDeathModel(int iEntity)
 {
 	/*
@@ -13359,6 +13463,55 @@ stock int GetAimDeathModel(int client)
 	}
 	
 	return target;
+}
+
+stock int CreateMiniGun(int client, int type = 1)
+{
+	new index = -1;
+	decl Float:VecOrigin[3], Float:VecAngles[3], Float:VecDirection[3];
+	if (type == 1)
+	{
+		index = CreateEntityByName ("prop_minigun");
+	}
+	else if (type == 0)
+	{
+		index = CreateEntityByName ("prop_minigun_l4d1");
+	}
+	if (index == -1)
+	{
+		// ReplyToCommand(client, "[SM] Failed to create minigun!");
+		return -1;
+	}
+	// DispatchKeyValue(index, "model", "Minigun_1");
+	
+	if (type==1)
+	{
+		SetEntityModel (index, "models/w_models/weapons/50cal.mdl");
+	}
+	else if (type==0)
+	{
+		SetEntityModel (index, "models/w_models/weapons/w_minigun.mdl");
+	}
+
+
+	DispatchKeyValueFloat (index, "MaxPitch", 360.00);
+	DispatchKeyValueFloat (index, "MinPitch", -360.00);
+	DispatchKeyValueFloat (index, "MaxYaw", 190.00);
+	DispatchSpawn(index);
+	GetClientAbsOrigin(client, VecOrigin);
+	GetClientEyeAngles(client, VecAngles);
+	GetAngleVectors(VecAngles, VecDirection, NULL_VECTOR, NULL_VECTOR);
+	VecOrigin[0] += VecDirection[0] * 32;
+	VecOrigin[1] += VecDirection[1] * 32;
+	VecOrigin[2] += VecDirection[2] * 1;
+	VecAngles[0] = 0.0;
+	VecAngles[2] = 0.0;
+	DispatchKeyValueVector(index, "Angles", VecAngles);
+	DispatchSpawn(index);
+	SetEntProp(index, Prop_Data, "m_CollisionGroup", 2);
+	
+	TeleportEntity(index, VecOrigin, NULL_VECTOR, NULL_VECTOR);
+	return index;
 }
 
 stock int L4D2_GetWeaponId(const char[] weaponName)

@@ -1,6 +1,6 @@
 /*
 *	Extinguisher and Flamethrower
-*	Copyright (C) 2020 Silvers
+*	Copyright (C) 2021 Silvers
 *
 *	This program is free software: you can redistribute it and/or modify
 *	it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.13"
+#define PLUGIN_VERSION		"1.15"
 
 /*======================================================================================
 	Plugin Info:
@@ -31,6 +31,13 @@
 
 ========================================================================================
 	Change Log:
+
+1.15 (15-Feb-2021)
+	- Fixed "Cannot create new entity when no map is running" error. Thanks to "Dragokas" for reporting.
+	- Fixed "Property "m_flFrozen" not found" error. Thanks to "Mi.Cura" for reporting and "Marttt" for fixing.
+
+1.14 (30-Sep-2020)
+	- Fixed compile errors on SM 1.11.
 
 1.13 (15-Jul-2020)
 	- Fixed players getting stuck when an extinguisher breaks during pick up. Thanks to "xZk" for reporting.
@@ -201,7 +208,7 @@ int g_iHooked[MAXPLAYERS+1];		// SDKHooks PreThink 0=Off/1=On.
 float g_fTimeout[MAXPLAYERS+1];		// Timeouts
 
 
-enum ()
+enum
 {
 	ENUM_WALLEXT	= (1 << 0),
 	ENUM_DROPPED	= (1 << 1),
@@ -210,14 +217,14 @@ enum ()
 	ENUM_INCAPPED	= (1 << 4),
 	ENUM_INREVIVE	= (1 << 5)
 }
-enum ()
+enum
 {
 	ENUM_EXTINGUISHER	= (1 << 0),
 	ENUM_FLAMETHROWER	= (1 << 1),
 	ENUM_FREEZERSPRAY	= (1 << 2),
 	ENUM_BLASTPUSHBACK	= (1 << 3)
 }
-enum ()
+enum
 {
 	TYPE_EXTINGUISHER = 1,
 	TYPE_FLAMETHROWER,
@@ -225,7 +232,7 @@ enum ()
 	TYPE_BLASTPUSHBACK
 }
 
-enum ()
+enum
 {
 	INDEX_PROP,
 	INDEX_PART,
@@ -841,11 +848,11 @@ public void Event_ReviveSuccess(Event event, const char[] name, bool dontBroadca
 			g_iGunSlot[client] = 1;
 
 		MoveExtinguisher(client, false);
-		CreateTimer(0.1, tmrReviveSuccess, userid);
+		CreateTimer(0.1, TimerReviveSuccess, userid);
 	}
 }
 
-public Action tmrReviveSuccess(Handle timer, any client)
+public Action TimerReviveSuccess(Handle timer, any client)
 {
 	client = GetClientOfUserId(client);
 	if( client && IsClientInGame(client) && GetClientTeam(client) == 2 && IsPlayerAlive(client) )
@@ -1018,7 +1025,7 @@ public void Event_BlockEnd(Event event, const char[] name, bool dontBroadcast)
 	{
 		g_iPlayerData[client][INDEX_BLOCK] &= ~ENUM_BLOCKED;
 
-		CreateTimer(0.1, tmrReviveSuccess, userid);
+		CreateTimer(0.1, TimerReviveSuccess, userid);
 	}
 }
 
@@ -1111,7 +1118,7 @@ public void Event_GascanDropped(Event event, const char[] name, bool dontBroadca
 			g_fTimeout[client] = GetGameTime() + 0.5;
 		}
 
-		CreateTimer(0.0, tmrReviveSuccess, userid);
+		CreateTimer(0.0, TimerReviveSuccess, userid);
 	}
 }
 
@@ -1130,7 +1137,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 	g_bGlow = false;
 
 	if( g_iPlayerSpawn == 1 && g_iRoundStart == 0 )
-		CreateTimer(1.0, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, TimerStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	g_iRoundStart = 1;
 }
 
@@ -1152,11 +1159,11 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	}
 
 	if( g_iPlayerSpawn == 0 && g_iRoundStart == 1 )
-		CreateTimer(1.0, tmrStart, _, TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, TimerStart, _, TIMER_FLAG_NO_MAPCHANGE);
 	g_iPlayerSpawn = 1;
 }
 
-public Action tmrStart(Handle timer)
+public Action TimerStart(Handle timer)
 {
 	ResetPlugin();
 	LoadExtinguishers();
@@ -1164,6 +1171,7 @@ public Action tmrStart(Handle timer)
 
 void LoadExtinguishers()
 {
+	if( !g_bMapStarted ) return;
 	if( g_iLoadStatus == 1 ) return;
 	g_iLoadStatus = 1;
 	g_iSpawnCount = 0;
@@ -2152,7 +2160,7 @@ public Action CmdExtGlow(int client, int args)
 // ====================================================================================================
 //					TIMEOUT / TRACE / HURT / PUSH - PRETHINK
 // ====================================================================================================
-public Action tmrTrace(Handle timer)
+public Action TimerTrace(Handle timer)
 {
 	bool destroy = true;
 	static bool bSwitch;
@@ -2282,7 +2290,10 @@ void TraceAttack(int client, bool bHullTrace, int iPushEntity, bool bFirstTrace)
 				( (g_iCvarCombo && type == TYPE_FREEZERSPRAY && g_iCvarType & ENUM_FREEZERSPRAY) || (!g_iCvarCombo && type == TYPE_FREEZERSPRAY) ) &&
 				GetEntProp(entity, Prop_Data, "m_iHealth") > 0 && GetEntProp(entity, Prop_Send, "m_glowColorOverride") == 0 )
 			{
-				SetEntPropFloat(entity, Prop_Data, "m_flFrozen", 0.3);
+				if( HasEntProp(entity, Prop_Data, "m_flFrozen") )
+				{
+					SetEntPropFloat(entity, Prop_Data, "m_flFrozen", 0.3);
+				}
 				SetEntProp(entity, Prop_Send, "m_nGlowRange", 350);
 				SetEntProp(entity, Prop_Send, "m_iGlowType", 2);
 				SetEntProp(entity, Prop_Send, "m_glowColorOverride", g_iCvarGlowS);
@@ -2607,7 +2618,7 @@ public void OnPreThink(int client)
 						TraceAttack(client, true, 0, true);
 
 						if( g_hTimerTrace == null )
-							g_hTimerTrace = CreateTimer(g_fCvarFreq, tmrTrace, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+							g_hTimerTrace = CreateTimer(g_fCvarFreq, TimerTrace, _, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 					}
 
 					CreateEffects(client);
@@ -3389,7 +3400,7 @@ public void OnHealthChanged(const char[] output, int caller, int activator, floa
 		AcceptEntityInput(entity, "FireUser1");
 
 		EmitSoundToAll(SOUND_SPRAY, caller, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, NULL_VECTOR, NULL_VECTOR, true, 5.0);
-		CreateTimer(5.0, tmrStopSound, EntIndexToEntRef(caller));
+		CreateTimer(5.0, TimerStopSound, EntIndexToEntRef(caller));
 	}
 
 	AcceptEntityInput(caller, "StopGlowing");
@@ -3427,7 +3438,7 @@ public void OnHealthChanged(const char[] output, int caller, int activator, floa
 	}
 }
 
-public Action tmrStopSound(Handle timer, any entity)
+public Action TimerStopSound(Handle timer, any entity)
 {
 	if( IsValidEntRef(entity) )
 		StopSound(entity, SNDCHAN_AUTO, SOUND_SPRAY);

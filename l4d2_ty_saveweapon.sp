@@ -146,6 +146,22 @@ public Action Event_RoundStart(Event event, const char[] name, bool dontBroadcas
 // --------------------------------------
 public Action Event_MapTransition(Event event, const char[] name, bool dontBroadcast)
 {
+	if(g_hFullHealth.BoolValue)
+	{
+		for(int i = 1; i <= MaxClients; i++)
+		{
+			if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == 2)
+			{
+				SetEntProp(i, Prop_Data, "m_iHealth", GetEntProp(i, Prop_Data, "m_iMaxHealth"));
+				SetEntPropFloat(i, Prop_Send, "m_healthBuffer", 0.0);
+				SetEntPropFloat(i, Prop_Send, "m_healthBufferTime", GetGameTime());
+				SetEntProp(i, Prop_Send, "m_bIsOnThirdStrike", 0);
+				SetEntProp(i, Prop_Send, "m_currentReviveCount", 0);
+				SetEntProp(i, Prop_Send, "m_isGoingToDie", 0);
+			}
+		}
+	}
+	
 	TyCleanAll();
 	TySaveWeaponAll();
 	g_bValidMapChange = true;  // only map changes between transition and new map are valid

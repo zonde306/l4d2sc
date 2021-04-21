@@ -319,7 +319,7 @@ void UpdateRobotData(int client)
 	RobotRangeEffect[client] = 500.0 + 25.0 * rangeFactor;
 	*/
 	
-	RobotAttackEffect[client] = 0.5;
+	RobotAttackEffect[client] = 0.75;
 	RobotAmmoEffect[client] = 1.0;
 	RobotRangeEffect[client] = 500.0;
 }
@@ -411,7 +411,7 @@ public Event_PlayerHurt(Handle:event, const String:name[], bool:dontBroadcast)
 
 DelRobot(ent)
 {
-	if(ent > 0 && IsValidEntity(ent))
+	if(ent != 0 && IsValidEntity(ent))
     {
 		decl String:item[65];
 		GetEdictClassname(ent, item, sizeof(item));

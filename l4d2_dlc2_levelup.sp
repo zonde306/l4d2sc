@@ -3,11 +3,15 @@
 #include <sdktools>
 #include <sdkhooks>
 #include <geoip>
-#include <l4d2_skill_detect>
-#include <left4dhooks>
-// #include <l4d_info_editor>
 #include <dhooks>
 #include <adminmenu>
+#include <left4dhooks>
+
+#undef REQUIRE_PLUGIN
+#undef REQUIRE_EXTENSIONS
+#tryinclude <l4d2_skill_detect>
+#tryinclude <weaponhandling>
+// #tryinclude <l4d_info_editor>
 
 #define SOUND_Bomb					"weapons/grenade_launcher/grenadefire/grenade_launcher_explode_1.wav"
 #define SOUND_BCLAW					"animation/bombing_run_01.wav"
@@ -716,21 +720,26 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	MarkNativeAsOptional("Lethal_SetAllowedClient");
 	MarkNativeAsOptional("Protector_SetAllowedClient");
 	MarkNativeAsOptional("Robot_SetAllowedClient");
+	MarkNativeAsOptional("IncapWeapon_SetAllowedClient");
 	
 	return APLRes_Success;
 }
 
-bool g_bHaveLethal = false, g_bHaveProtector = false, g_bHaveRobot = false;
+bool g_bHaveLethal = false, g_bHaveProtector = false, g_bHaveRobot = false, g_bHaveIncapWeapon = false, g_bHaveWeaponHandling = false;
 
+// 这几个暂时没有 inc 文件
 native bool Lethal_SetAllowedClient(int client, bool enable);
 native bool Protector_SetAllowedClient(int client, bool enable);
 native bool Robot_SetAllowedClient(int client, bool enable);
+native bool IncapWeapon_SetAllowedClient(int client, bool enable);
 
 public void OnAllPluginsLoaded()
 {
 	g_bHaveLethal = LibraryExists("lethal_helpers");
 	g_bHaveProtector = LibraryExists("protector_helpers");
 	g_bHaveRobot = LibraryExists("robot_helpers");
+	g_bHaveIncapWeapon = LibraryExists("incapweapon_helpers");
+	g_bHaveWeaponHandling = LibraryExists("WeaponHandling");
 }
 
 public void OnLibraryAdded(const char[] libary)
@@ -741,6 +750,10 @@ public void OnLibraryAdded(const char[] libary)
 		g_bHaveProtector = true;
 	else if(StrEqual(libary, "robot_helpers"))
 		g_bHaveRobot = true;
+	else if(StrEqual(libary, "incapweapon_helpers"))
+		g_bHaveIncapWeapon = true;
+	else if(StrEqual(libary, "WeaponHandling"))
+		g_bHaveWeaponHandling = true;
 }
 
 public void OnLibraryRemoved(const char[] libary)
@@ -751,6 +764,10 @@ public void OnLibraryRemoved(const char[] libary)
 		g_bHaveProtector = false;
 	else if(StrEqual(libary, "robot_helpers"))
 		g_bHaveRobot = false;
+	else if(StrEqual(libary, "incapweapon_helpers"))
+		g_bHaveIncapWeapon = false;
+	else if(StrEqual(libary, "WeaponHandling"))
+		g_bHaveWeaponHandling = false;
 }
 
 public OnPluginStart()
@@ -2269,6 +2286,8 @@ void Initialization(int client, bool invalid = false)
 		Protector_SetAllowedClient(client, false);
 	if(g_bHaveRobot && NATIVE_EXISTS("Robot_SetAllowedClient"))
 		Robot_SetAllowedClient(client, false);
+	if(g_bHaveIncapWeapon && NATIVE_EXISTS("IncapWeapon_SetAllowedClient"))
+		IncapWeapon_SetAllowedClient(client, false);
 	
 	if(toDelete1 != null)
 		delete toDelete1;
@@ -3632,7 +3651,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("「强身」血量上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+10%",(g_clSkill_1[client]&SKL_1_Movement)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("「自愈」倒地救起血量+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("「凶狠」暴击率+5",(g_clSkill_1[client]&SKL_1_DmgExtra)));
+	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("「凶狠」暴击率+5‰",(g_clSkill_1[client]&SKL_1_DmgExtra)));
 	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
 	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」避免队友伤害",(g_clSkill_1[client]&SKL_1_Firendly)));
@@ -3659,7 +3678,11 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("二级天赋(2硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("「狂锯」无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
+	if(g_bHaveWeaponHandling)
+		menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("「狂锯」无限电(链)锯燃油且攻速加快",(g_clSkill_2[client]&SKL_2_Chainsaw)));
+	else
+		menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("「狂锯」无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
+	
 	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」爆头杀死特感1/3几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
 	menu.AddItem(tr("2_%d",SKL_2_PainPills), mps("「嗜药」每120秒获得一个药丸",(g_clSkill_2[client]&SKL_2_PainPills)));
 	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」每300秒恢复全血",(g_clSkill_2[client]&SKL_2_FullHealth)));
@@ -3670,7 +3693,12 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("「自守」倒地推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("「踏空」允许二级跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
 	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」胆汁时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
-	menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
+	
+	if(g_bHaveIncapWeapon)
+		menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地马格南且可用任何武器",(g_clSkill_2[client]&SKL_2_Magnum)));
+	else
+		menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
+	
 	menu.AddItem(tr("2_%d",SKL_2_LadderRambos), mps("「固定」梯子上掏枪",(g_clSkill_2[client]&SKL_2_LadderRambos)));
 	menu.AddItem(tr("2_%d",SKL_2_ShoveFatigue), mps("「充沛」推不会疲劳",(g_clSkill_2[client]&SKL_2_ShoveFatigue)));
 	
@@ -3723,9 +3751,9 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	menu.SetTitle(tr("四级天赋(4硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("「坚韧」被坦克击中恢复HP",(g_clSkill_4[client]&SKL_4_ClawHeal)));
-	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+20",(g_clSkill_4[client]&SKL_4_DmgExtra)));
+	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("「狂妄」暴击率+20‰",(g_clSkill_4[client]&SKL_4_DmgExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("「霸气」蹲下推弹开周围特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
-	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」射速增加",(g_clSkill_4[client]&SKL_4_FastFired)));
+	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("「疾射」枪械射速增加",(g_clSkill_4[client]&SKL_4_FastFired)));
 	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("「神狙」AWP射速加快无限备弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
 	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("「嗜弹」上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
 	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("「扫射」M60无限子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
@@ -3741,7 +3769,11 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	menu.AddItem(tr("4_%d",SKL_4_TempRespite), mps("「喘息」虚血会慢慢恢复为实血",(g_clSkill_4[client]&SKL_4_TempRespite)));
 	menu.AddItem(tr("4_%d",SKL_4_Terror), mps("「支配」写实显示光圈/胆汁会让特感叛变",(g_clSkill_4[client]&SKL_4_Terror)));
 	menu.AddItem(tr("4_%d",SKL_4_ReviveCount), mps("「坚定」倒地次数+1",(g_clSkill_4[client]&SKL_4_ReviveCount)));
-	menu.AddItem(tr("4_%d",SKL_4_MeleeExtra), mps("「战士」三倍近战伤害",(g_clSkill_4[client]&SKL_4_MeleeExtra)));
+	
+	if(g_bHaveWeaponHandling)
+		menu.AddItem(tr("4_%d",SKL_4_MeleeExtra), mps("「快刀」两倍近战伤害且攻速加快",(g_clSkill_4[client]&SKL_4_MeleeExtra)));
+	else
+		menu.AddItem(tr("4_%d",SKL_4_MeleeExtra), mps("「战士」三倍近战伤害",(g_clSkill_4[client]&SKL_4_MeleeExtra)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6117,8 +6149,9 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		GetEdictClassname(attacker, classname, 64);
 		
 		int reviver = GetEntPropEnt(victim, Prop_Send, "m_reviveOwner");
-		int health = GetEntProp(victim, Prop_Data, "m_iHealth") + GetPlayerTempHealth(victim);
-		if(IsPlayerIncapped(victim) && IsValidAliveClient(reviver) && health > damage &&
+		int tempHealth = GetPlayerTempHealth(victim);
+		int health = GetEntProp(victim, Prop_Data, "m_iHealth");
+		if(IsPlayerIncapped(victim) && IsValidAliveClient(reviver) && health + tempHealth > damage &&
 			((g_clSkill_1[victim] & SKL_1_ReviveBlock) || (g_clSkill_1[reviver] & SKL_1_ReviveBlock)))
 		{
 			// 将伤害类型替换为不会打断
@@ -6127,7 +6160,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		
 		if((g_clSkill_4[victim] & SKL_4_Defensive) && StrEqual(classname, "infected", false))
 		{
-			if(damage > 1.0 && (health <= damage || GetRandomInt(0, 1)))
+			if(damage > 1.0 && (health + tempHealth <= damage || GetRandomInt(0, 1)))
 			{
 				damage /= 2.0;
 				if(damage < 1.0)
@@ -6151,6 +6184,46 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 			int effect = IsPlayerHaveEffect(victim, 43);
 			if(effect > 0)
 				damage /= (effect + 1);
+		}
+		
+		int maxHealth = GetEntProp(victim, Prop_Send, "m_iMaxHealth");
+		if(tempHealth + damage <= 200.0 && health + tempHealth <= maxHealth &&
+			(g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0) &&
+			!GetEntProp(victim, Prop_Send, "m_isIncapacitated", 1) &&
+			!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
+		{
+			if((g_clSkill_3[victim] & SKL_3_TempSanctuary) && tempHealth > 0)
+			{
+				if(tempHealth >= damage)
+				{
+					tempHealth -= RoundToCeil(damage);
+					// health += RoundToCeil(damage);
+					damage = 0.0;
+					SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", float(tempHealth));
+					SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
+					// SetEntProp(victim, Prop_Data, "m_iHealth", health);
+				}
+				else
+				{
+					damage -= tempHealth;
+					// health += tempHealth;
+					tempHealth = 0;
+					SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", 0.0);
+					SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
+					// SetEntProp(victim, Prop_Data, "m_iHealth", health);
+				}
+			}
+			
+			// 不能交换顺序，否则就看不到效果了
+			if((g_clSkill_5[victim] & SKL_5_TempRegen) && damage > 0.0 && !GetRandomInt(0, 2))
+			{
+				if(health + tempHealth + damage <= maxHealth)
+				{
+					tempHealth += RoundToCeil(damage);
+					SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", float(tempHealth));
+					SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
+				}
+			}
 		}
 	}
 	
@@ -6429,7 +6502,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	}
 	
 	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
-		damage += originalDamage * 2;
+		damage += originalDamage * (g_bHaveWeaponHandling ? 1 : 2);
 	
 	if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
 	{
@@ -6624,7 +6697,7 @@ public void Event_PlayerIncapacitatedStart(Event event, const char[] event_name,
 	if(!IsValidAliveClient(client) || GetClientTeam(client) != 2)
 		return;
 	
-	if(g_clSkill_2[client] & SKL_2_Magnum)
+	if(/*!g_bHaveIncapWeapon && */(g_clSkill_2[client] & SKL_2_Magnum))
 	{
 		int weapon = GetPlayerWeaponSlot(client, 1);
 		if(weapon > MaxClients && IsValidEntity(weapon))
@@ -6765,7 +6838,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		}
 	}
 	
-	if((g_clSkill_2[client] & SKL_2_Magnum) && g_sLastWeapon[client][0] != EOS)
+	if(/*!g_bHaveIncapWeapon && */(g_clSkill_2[client] & SKL_2_Magnum) && g_sLastWeapon[client][0] != EOS)
 	{
 		int weapon = GetPlayerWeaponSlot(client, 1);
 		if(weapon > MaxClients && IsValidEntity(weapon))
@@ -7197,6 +7270,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			
 			GiveAngryPoint(victim, amount);
 			
+			/*
 			int tempHealth = GetPlayerTempHealth(victim);
 			int health = GetEntProp(victim, Prop_Data, "m_iHealth");
 			int maxHealth = GetEntProp(victim, Prop_Send, "m_iMaxHealth");
@@ -7236,6 +7310,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 					}
 				}
 			}
+			*/
 		}
 	}
 	
@@ -8488,7 +8563,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	}
 	
 	// 修复电击复活后的武器
-	if((g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
+	if(/*!g_bHaveIncapWeapon && */(g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
 	{
 		int weapon = GetPlayerWeaponSlot(subject, 1);
 		if(weapon > MaxClients && IsValidEntity(weapon))
@@ -8594,7 +8669,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		}
 	}
 	
-	if((g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
+	if(/*!g_bHaveIncapWeapon && */(g_clSkill_2[subject] & SKL_2_Magnum) && g_sLastWeapon[subject][0] != EOS)
 	{
 		int weapon = GetPlayerWeaponSlot(subject, 1);
 		if(weapon > MaxClients && IsValidEntity(weapon))
@@ -8919,6 +8994,7 @@ public void Event_PlayerSacrifice(Event event, const char[] eventName, bool dont
 	}
 }
 
+#if defined _skilldetect_included_
 public int OnSkeet(int survivor, int hunter)
 {
 	if(!IsValidClient(survivor))
@@ -9127,6 +9203,7 @@ public int OnSpecialClear(int clearer, int pinner, int pinvictim, int zombieClas
 	g_ttProtected[clearer] += 1;
 	return 0;
 }
+#endif	// _skilldetect_included_
 
 public bool TraceFilter_NonPlayerOtherAny(int entity, int mask, any other)
 {
@@ -10552,7 +10629,7 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 		
 	}
 	
-	if(g_clSkill_4[client] & SKL_4_FastFired)
+	if(!g_bHaveWeaponHandling && (g_clSkill_4[client] & SKL_4_FastFired))
 	{
 		if(StrContains(classname, "rifle_desert", false) > 0)
 			SetWeaponSpeed2(weapon, 1.25);
@@ -10936,6 +11013,8 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		Protector_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Machine));
 	if(g_bHaveRobot && NATIVE_EXISTS("Robot_SetAllowedClient"))
 		Robot_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Machine));
+	if(g_bHaveIncapWeapon && NATIVE_EXISTS("IncapWeapon_SetAllowedClient"))
+		IncapWeapon_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_Magnum));
 }
 
 public void PlayerHook_OnPostThinkPost(int client)
@@ -11301,7 +11380,7 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 	int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 	int ammo = GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType);
 	
-	if ((g_clSkill_4[iCid] & SKL_4_FastReload))
+	if (!g_bHaveWeaponHandling && (g_clSkill_4[iCid] & SKL_4_FastReload))
 		SoH_OnReload(iCid);
 	
 	if((g_clSkill_1[iCid] & SKL_1_KeepClip) && g_iReloadWeaponKeepClip[iCid] > 0)
@@ -11350,7 +11429,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	if(!IsValidEntity(weapon))
 		return;
-
+	
 	char weapons[64], classname[64];
 	event.GetString("weapon", weapons, 64);
 	GetEdictClassname(weapon, classname, 64);
@@ -11599,13 +11678,82 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	}
 	
 	// 只对单发有效，三连发无效
-	if(weaponSpeed != 1.0)
+	if(!g_bHaveWeaponHandling && weaponSpeed != 1.0)
 	{
 		// AdjustWeaponSpeed(weapon, weaponSpeed);
 		// SetWeaponSpeed(weapon, weaponSpeed);
 		SetWeaponSpeed2(weapon, weaponSpeed);
 	}
 }
+
+#if defined _WeaponHandling_included
+public void WH_OnGetRateOfFire(int client, int weapon, L4D2WeaponType weapontype, float &speedmodifier)
+{
+	if((g_clSkill_4[client] & SKL_4_MachStrafe) && weapontype == L4D2WeaponType_RifleM60)
+		speedmodifier = 0.8;
+	else if((g_clSkill_4[client] & SKL_4_SniperExtra) && weapontype == L4D2WeaponType_SniperAwp)
+		speedmodifier = 2.25;
+	else if((g_clSkill_4[client] & SKL_4_SniperExtra) && weapontype == L4D2WeaponType_SniperScout)
+		speedmodifier = 2.0;
+	else if((g_clSkill_2[client] & SKL_2_Chainsaw) && weapontype == L4D2WeaponType_Chainsaw)
+		speedmodifier = 2.0;
+	/*
+	else if((g_clSkill_4[client] & SKL_4_MeleeExtra) && weapontype == L4D2WeaponType_Melee)
+		speedmodifier = 1.5;
+	*/
+	
+	// 只是枪械类
+	bool isShotgun = (weapontype == L4D2WeaponType_Autoshotgun || weapontype == L4D2WeaponType_AutoshotgunSpas ||
+		weapontype == L4D2WeaponType_Pumpshotgun || weapontype == L4D2WeaponType_PumpshotgunChrome);
+	bool isSniper = (weapontype == L4D2WeaponType_HuntingRifle || weapontype == L4D2WeaponType_SniperAwp ||
+		weapontype == L4D2WeaponType_SniperMilitary || weapontype == L4D2WeaponType_SniperScout);
+	bool isSMG = (weapontype == L4D2WeaponType_SMG || weapontype == L4D2WeaponType_SMGSilenced ||
+		weapontype == L4D2WeaponType_SMGMp5);
+	bool isRifle = (weapontype == L4D2WeaponType_Rifle || weapontype == L4D2WeaponType_RifleAk47 ||
+		weapontype == L4D2WeaponType_RifleDesert || weapontype == L4D2WeaponType_RifleSg552 ||
+		weapontype == L4D2WeaponType_RifleM60);
+	bool isPistol = (weapontype == L4D2WeaponType_Pistol || weapontype == L4D2WeaponType_Magnum);
+	if((g_clSkill_4[client] & SKL_4_FastFired) && (isShotgun || isSniper || isSMG || isRifle || isPistol))
+		speedmodifier *= 1.25;
+	
+	// PrintToChat(client, "weapontype %d, speedmodifier %f", weapontype, speedmodifier);
+}
+
+public void WH_OnReloadModifier(int client, int weapon, L4D2WeaponType weapontype, float &speedmodifier)
+{
+	bool isShotgun = (weapontype == L4D2WeaponType_Autoshotgun || weapontype == L4D2WeaponType_AutoshotgunSpas ||
+		weapontype == L4D2WeaponType_Pumpshotgun || weapontype == L4D2WeaponType_PumpshotgunChrome);
+	bool isSniper = (weapontype == L4D2WeaponType_HuntingRifle || weapontype == L4D2WeaponType_SniperAwp ||
+		weapontype == L4D2WeaponType_SniperMilitary || weapontype == L4D2WeaponType_SniperScout);
+	bool isSMG = (weapontype == L4D2WeaponType_SMG || weapontype == L4D2WeaponType_SMGSilenced ||
+		weapontype == L4D2WeaponType_SMGMp5);
+	bool isRifle = (weapontype == L4D2WeaponType_Rifle || weapontype == L4D2WeaponType_RifleAk47 ||
+		weapontype == L4D2WeaponType_RifleDesert || weapontype == L4D2WeaponType_RifleSg552 ||
+		weapontype == L4D2WeaponType_RifleM60);
+	bool isPistol = (weapontype == L4D2WeaponType_Pistol || weapontype == L4D2WeaponType_Magnum);
+	if((g_clSkill_4[client] & SKL_4_FastReload) && (isShotgun || isSniper || isSMG || isRifle || isPistol))
+		speedmodifier = 2.0;
+	
+	// PrintToChat(client, "weapontype %d, speedmodifier %f", weapontype, speedmodifier);
+}
+
+public void WH_OnDeployModifier(int client, int weapon, L4D2WeaponType weapontype, float &speedmodifier)
+{
+	// 对电锯无效...
+	if((g_clSkill_2[client] & SKL_2_Chainsaw) && weapontype == L4D2WeaponType_Chainsaw)
+		speedmodifier = 3.0;
+	
+	// PrintToChat(client, "weapontype %d, speedmodifier %f", weapontype, speedmodifier);
+}
+
+public void WH_OnMeleeSwing(int client, int weapon, float &speedmodifier)
+{
+	if(g_clSkill_4[client] & SKL_4_MeleeExtra)
+		speedmodifier = 1.5;
+	
+	// PrintToChat(client, "speedmodifier %f", speedmodifier);
+}
+#endif	// _WeaponHandling_included
 
 public void EndAccurateShot(any client)
 {

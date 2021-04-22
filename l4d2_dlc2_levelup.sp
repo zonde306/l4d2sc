@@ -6530,6 +6530,22 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	}
 	
 	damage += originalDamage * baseDmg / 100.0;
+	
+	// 用于伤害显示
+	if(victim > MaxClients && !HasEntProp(victim, Prop_Send, "m_mobRush")
+		&& HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") != 0 &&
+		HasEntProp(victim, Prop_Data, "m_iHealth") && GetEntProp(victim, Prop_Data, "m_iHealth") > 0)
+	{
+		Event event = CreateEvent("infected_hurt");
+		event.SetInt("attacker", GetClientUserId(attacker));
+		event.SetInt("entityid", victim);
+		event.SetInt("amount", RoundToCeil(damage));
+		event.SetInt("type", damagetype);
+		event.SetInt("hitgroup", hitgroup);
+		Event_InfectedHurt(event, "entity_hurt", true);
+		delete event;
+	}
+	
 	return Plugin_Changed;
 }
 

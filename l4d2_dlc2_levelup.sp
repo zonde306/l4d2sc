@@ -3719,7 +3719,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("三级天赋(3硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡1/3清尸(倒地可按Shift立即触发)",(g_clSkill_3[client]&SKL_3_Sacrifice)));
+	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡1/3清尸(倒地Shift自杀100%触发)",(g_clSkill_3[client]&SKL_3_Sacrifice)));
 	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("「永生」复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
 	menu.AddItem(tr("3_%d",SKL_3_IncapFire), mps("「纵火」倒地点燃攻击者和周围普感",(g_clSkill_3[client]&SKL_3_IncapFire)));
 	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("「妙手」帮助队友随机获得奖励",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
@@ -6950,7 +6950,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	}
 	
 	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
-		damage += originalDamage * 2;
+		damage += originalDamage * (g_bHaveWeaponHandling ? 1 : 2);
 	
 	// 生还者攻击特感
 	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)

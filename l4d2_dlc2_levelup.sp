@@ -721,17 +721,20 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	MarkNativeAsOptional("Protector_SetAllowedClient");
 	MarkNativeAsOptional("Robot_SetAllowedClient");
 	MarkNativeAsOptional("IncapWeapon_SetAllowedClient");
+	MarkNativeAsOptional("SelfHelp_SetAllowedClient");
 	
 	return APLRes_Success;
 }
 
-bool g_bHaveLethal = false, g_bHaveProtector = false, g_bHaveRobot = false, g_bHaveIncapWeapon = false, g_bHaveWeaponHandling = false;
+bool g_bHaveLethal = false, g_bHaveProtector = false, g_bHaveRobot = false, g_bHaveIncapWeapon = false,
+	g_bHaveWeaponHandling = false, g_bHaveSelfHelp = false;
 
 // 这几个暂时没有 inc 文件
 native bool Lethal_SetAllowedClient(int client, bool enable);
 native bool Protector_SetAllowedClient(int client, bool enable);
 native bool Robot_SetAllowedClient(int client, bool enable);
 native bool IncapWeapon_SetAllowedClient(int client, bool enable);
+native bool SelfHelp_SetAllowedClient(int client, bool enable);
 
 public void OnAllPluginsLoaded()
 {
@@ -740,6 +743,7 @@ public void OnAllPluginsLoaded()
 	g_bHaveRobot = LibraryExists("robot_helpers");
 	g_bHaveIncapWeapon = LibraryExists("incapweapon_helpers");
 	g_bHaveWeaponHandling = LibraryExists("WeaponHandling");
+	g_bHaveSelfHelp = LibraryExists("self_help_includes");
 }
 
 public void OnLibraryAdded(const char[] libary)
@@ -754,6 +758,8 @@ public void OnLibraryAdded(const char[] libary)
 		g_bHaveIncapWeapon = true;
 	else if(StrEqual(libary, "WeaponHandling"))
 		g_bHaveWeaponHandling = true;
+	else if(StrEqual(libary, "self_help_includes"))
+		g_bHaveSelfHelp = true;
 }
 
 public void OnLibraryRemoved(const char[] libary)
@@ -768,6 +774,8 @@ public void OnLibraryRemoved(const char[] libary)
 		g_bHaveIncapWeapon = false;
 	else if(StrEqual(libary, "WeaponHandling"))
 		g_bHaveWeaponHandling = false;
+	else if(StrEqual(libary, "self_help_includes"))
+		g_bHaveSelfHelp = false;
 }
 
 public OnPluginStart()
@@ -2288,6 +2296,8 @@ void Initialization(int client, bool invalid = false)
 		Robot_SetAllowedClient(client, false);
 	if(g_bHaveIncapWeapon && NATIVE_EXISTS("IncapWeapon_SetAllowedClient"))
 		IncapWeapon_SetAllowedClient(client, false);
+	if(g_bHaveSelfHelp && NATIVE_EXISTS("SelfHelp_SetAllowedClient"))
+		SelfHelp_SetAllowedClient(client, false);
 	
 	if(toDelete1 != null)
 		delete toDelete1;
@@ -3689,7 +3699,12 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("「电疗」每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
 	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("「擅医」打包治疗量+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
 	menu.AddItem(tr("2_%d",SKL_2_PipeBomb), mps("「爆破」每100秒获得一个土制",(g_clSkill_2[client]&SKL_2_PipeBomb)));
-	menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("「顽强」倒地1/4几率自救",(g_clSkill_2[client]&SKL_2_SelfHelp)));
+	
+	if(g_bHaveSelfHelp)
+		menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("「顽强」倒地按住Ctrl自救(包/药/针)",(g_clSkill_2[client]&SKL_2_SelfHelp)));
+	else
+		menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("「顽强」倒地1/4几率自救",(g_clSkill_2[client]&SKL_2_SelfHelp)));
+	
 	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("「自守」倒地推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("「踏空」允许二级跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
 	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」胆汁时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
@@ -6749,7 +6764,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		return;
 	}
 	
-	if (g_clSkill_2[client] & SKL_2_SelfHelp)
+	if (!g_bHaveSelfHelp && (g_clSkill_2[client] & SKL_2_SelfHelp))
 	{
 		int chance = 1 + IsPlayerHaveEffect(client, 17);
 		if(GetRandomInt(0, 3) < chance)
@@ -11031,6 +11046,8 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		Robot_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_Machine));
 	if(g_bHaveIncapWeapon && NATIVE_EXISTS("IncapWeapon_SetAllowedClient"))
 		IncapWeapon_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_Magnum));
+	if(g_bHaveSelfHelp && NATIVE_EXISTS("SelfHelp_SetAllowedClient"))
+		SelfHelp_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_SelfHelp));
 }
 
 public void PlayerHook_OnPostThinkPost(int client)
@@ -15424,7 +15441,7 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 				if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge"))
 				{
 					// CheatCommand(client, "give", "health");
-					L4D2_RunScript("script", "GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(client));
+					L4D2_RunScript("GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(client));
 				}
 				SetEntProp(client,Prop_Send,"m_iHealth", 1);
 				SetEntPropFloat(client,Prop_Send,"m_healthBuffer", 0.0);

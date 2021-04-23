@@ -1,7 +1,7 @@
 #pragma semicolon 1
 #include <sourcemod>
 #include <sdktools>
-#include <l4d2_simple_combat>
+// #include <l4d2_simple_combat>
 
 #define PLUGIN_VERSION "2.83"
 
@@ -23,8 +23,7 @@ int iSurvivorClass, iUse, iBotChance, iHardHP, iSHCount[MAXPLAYERS+1][2], iAttac
 	iBotHelp[MAXPLAYERS+1];
 
 Handle hSHTime[MAXPLAYERS+1] = null, hSHStartForward, hSHPreForward, hSHForward, hSHPostForward,
-	hSHInterruptedForward, hSHFinishForward, hSHGameData = null, hSHSetTempHP = null,
-	hSHAdrenalineRush = null;
+	hSHInterruptedForward, hSHFinishForward/*, hSHGameData = null, hSHSetTempHP = null, hSHAdrenalineRush = null*/;
 
 SelfHelpState shsStatus[MAXPLAYERS+1];
 
@@ -43,6 +42,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	
 	CreateNative("GetSHStats", SH_GetStats);
 	CreateNative("SetSHStats", SH_SetStats);
+	CreateNative("SelfHelp_SetAllowedClient", SelfHelp_SetAllowedClient);
 	
 	RegPluginLibrary("self_help_includes");
 	return APLRes_Success;
@@ -104,6 +104,20 @@ public SH_SetStats(Handle plugin, int numParams)
 	iSHCount[client][1] = iReviveCount;
 }
 
+bool g_bAllowedClient[MAXPLAYERS+1];
+
+public int SelfHelp_SetAllowedClient(Handle plugin, int numParams)
+{
+	if(numParams < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "Invalid numParams");
+	
+	int client = GetNativeCell(1);
+	bool allow = GetNativeCell(2);
+	bool old = g_bAllowedClient[client];
+	g_bAllowedClient[client] = allow;
+	return view_as<int>(old);
+}
+
 public Plugin myinfo =
 {
 	name = "自救",
@@ -115,6 +129,7 @@ public Plugin myinfo =
 
 public void OnPluginStart()
 {
+	/*
 	if (!bIsL4D)
 	{
 		hSHGameData = LoadGameConfigFile("new_ammo_packs-l4d2");
@@ -143,6 +158,7 @@ public void OnPluginStart()
 		
 		delete hSHGameData;
 	}
+	*/
 	
 	hSHStartForward = CreateGlobalForward("OnSelfHelpStart", ET_Ignore, Param_Cell);
 	hSHPreForward = CreateGlobalForward("OnSelfHelpPre", ET_Ignore, Param_Cell, Param_Cell);
@@ -159,7 +175,7 @@ public void OnPluginStart()
 	shKillAttacker = CreateConVar("self_help_kill_attacker", "1", "是否杀死控制者", FCVAR_SPONLY, true, 0.0, true, 1.0);
 	shBot = CreateConVar("self_help_bot", "1", "是否允许机器人自救", FCVAR_SPONLY, true, 0.0, true, 1.0);
 	shBotChance = CreateConVar("self_help_bot_chance", "2", "机器人自救几率.1=有时.2=经常.3=很少", FCVAR_SPONLY, true, 1.0, true, 3.0);
-	shHardHP = CreateConVar("self_help_hard_hp", "80", "医疗包自救后血量", FCVAR_SPONLY, true, 1.0);
+	shHardHP = CreateConVar("self_help_hard_hp", "50", "医疗包自救后血量", FCVAR_SPONLY, true, 1.0);
 	shTempHP = CreateConVar("self_help_temp_hp", "30", "药物自救后血量", FCVAR_SPONLY, true, 1.0);
 	
 	iUse = shUse.IntValue;
@@ -220,14 +236,16 @@ public void OnPluginStart()
 	AddNormalSoundHook(OnAllSoundsFix);
 	
 	CreateTimer(1.0, RecordLastPosition, _, TIMER_REPEAT);
-	CreateTimer(1.0, Timer_SetupSkill);
+	// CreateTimer(1.0, Timer_SetupSkill);
 }
 
+/*
 public Action Timer_SetupSkill(Handle timer, any unused)
 {
 	SC_CreateSkill("sh_selfhelp", "自救", 0, "倒地被控按住 CTRL(蹲下) 自救");
 	return Plugin_Continue;
 }
+*/
 
 public void OnSHCVarsChanged(ConVar cvar, const char[] sOldValue, const char[] sNewValue)
 {
@@ -904,6 +922,8 @@ public Action SHReviveCompletion(Handle timer, Handle dpSHRevive)
 		ePlayerIncapacitated.Fire();
 	}
 	
+	DoSelfHelp(client, _, (GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1)) ? true : false);
+	
 	Event eReviveSuccess = CreateEvent("revive_success");
 	eReviveSuccess.SetInt("userid", GetClientUserId(client));
 	eReviveSuccess.SetInt("subject", GetClientUserId(client));
@@ -911,7 +931,6 @@ public Action SHReviveCompletion(Handle timer, Handle dpSHRevive)
 	eReviveSuccess.SetBool("lastlife", (!GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) && iSHCount[client][0] == FindConVar("survivor_max_incapacitated_count").IntValue) ? true : false);
 	eReviveSuccess.Fire();
 	
-	DoSelfHelp(client, _, (GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1)) ? true : false);
 	return Plugin_Stop;
 }
 
@@ -1024,7 +1043,7 @@ void ClearSHData(int client)
 
 bool IsSelfHelpAble(int client)
 {
-	if(!IsFakeClient(client) && !SC_IsClientHaveSkill(client, "sh_selfhelp"))
+	if(!g_bAllowedClient[client])
 		return false;
 	
 	bool bHasPA = CheckPlayerSupply(client, 4), bHasMedkit = CheckPlayerSupply(client, 3);
@@ -1147,7 +1166,8 @@ void DoSelfHelp(int client, int other = 0, bool bLedge)
 					if(cvDuration == null)
 						cvDuration = FindConVar("adrenaline_duration");
 					
-					SDKCall(hSHAdrenalineRush, client, cvDuration.FloatValue);
+					// SDKCall(hSHAdrenalineRush, client, cvDuration.FloatValue);
+					L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), cvDuration.IntValue);
 					
 					// bFirstAidUsed = 3;
 					PrintToChatAll("\x03[SH] \x05%N\x01 使用 \x04针筒\x01 自救成功。", client);
@@ -1255,6 +1275,15 @@ void DoSelfHelp(int client, int other = 0, bool bLedge)
 				}
 			}
 		}
+		else
+		{
+			int dominator = iAttacker[client];
+			iAttacker[client] = 0;
+			if (dominator != 0 && IsClientInGame(dominator) && GetClientTeam(dominator) == 3 && IsPlayerAlive(dominator))
+			{
+				L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(dominator), GetClientUserId(client));
+			}
+		}
 		
 		Call_StartForward(hSHForward);
 		Call_PushCell(client);
@@ -1267,6 +1296,7 @@ void DoSelfHelp(int client, int other = 0, bool bLedge)
 
 void SelfHelpFixer(int client, bool bDoNotTamper, int other = 0, int bMedkitUsed = 0, bool bAnnounce = false)
 {
+	/*
 	if (!bDoNotTamper)
 	{
 		int iReviveCount = GetEntProp(client, Prop_Send, "m_currentReviveCount");
@@ -1291,13 +1321,18 @@ void SelfHelpFixer(int client, bool bDoNotTamper, int other = 0, int bMedkitUsed
 			SetEntProp(client, Prop_Send, "m_isGoingToDie", 0);
 		}
 	}
+	*/
 	
+	L4D2_RunScript("GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(client));
+	
+	/*
 	SetEntProp(client, Prop_Send, "m_isIncapacitated", 0);
 	if (GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
 	{
 		SetEntProp(client, Prop_Send, "m_isHangingFromLedge", 0);
 		SetEntProp(client, Prop_Send, "m_isFallingFromLedge", 0);
 	}
+	*/
 	
 	TeleportEntity(client, fLastPos[client], NULL_VECTOR, NULL_VECTOR);
 	
@@ -1339,6 +1374,8 @@ void SelfHelpFixer(int client, bool bDoNotTamper, int other = 0, int bMedkitUsed
 	}
 	
 	SetEntProp(client, Prop_Data, "m_iHealth", 1);
+	
+	/*
 	if (!bIsL4D)
 	{
 		SDKCall(hSHSetTempHP, client, health);
@@ -1348,6 +1385,10 @@ void SelfHelpFixer(int client, bool bDoNotTamper, int other = 0, int bMedkitUsed
 		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", health);
 		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 	}
+	*/
+	
+	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", health);
+	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 	
 	/*
 	if (bMedkitUsed == 1)
@@ -1430,3 +1471,21 @@ stock void ExecuteCommand(int client, const char[] sCommand, const char[] sArgum
 	SetCommandFlags(sCommand, iFlags);
 }
 
+stock void L4D2_RunScript(char[] sCode, any ...)
+{
+	static int iScriptLogic = INVALID_ENT_REFERENCE;
+	if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+	{
+		iScriptLogic = EntIndexToEntRef(CreateEntityByName("logic_script"));
+		if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+			SetFailState("Could not create 'logic_script'");
+		
+		DispatchSpawn(iScriptLogic);
+	}
+	
+	static char sBuffer[8192];
+	VFormat(sBuffer, sizeof(sBuffer), sCode, 2);
+	
+	SetVariantString(sBuffer);
+	AcceptEntityInput(iScriptLogic, "RunScriptCode");
+}

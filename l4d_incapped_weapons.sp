@@ -560,6 +560,23 @@ public void Event_Incapped(Event event, const char[] name, bool dontBroadcast)
 	}
 }
 
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon,
+	int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
+{
+	if(!g_bAllowedClient[client] && GetClientTeam(client) == 2 && GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
+	{
+		// 强制使用副武器
+		int slot = GetPlayerWeaponSlot(client, 1);
+		if(slot > MaxClients && weapon != slot)
+		{
+			weapon = slot;
+			return Plugin_Changed;
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
 stock bool CheatCommand(int client, const char[] command, const char[] arguments = "", any ...)
 {
 	char fmt[1024];

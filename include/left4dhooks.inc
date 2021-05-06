@@ -242,6 +242,7 @@ public void __pl_l4dh_SetNTVOptional()
 	// =========================
 	MarkNativeAsOptional("L4D_CTerrorPlayer_OnVomitedUpon");
 	MarkNativeAsOptional("L4D_CancelStagger");
+	MarkNativeAsOptional("L4D_RespawnPlayer");
 	MarkNativeAsOptional("L4D_CreateRescuableSurvivors");
 	MarkNativeAsOptional("L4D_ReviveSurvivor");
 	MarkNativeAsOptional("L4D_GetHighestFlowSurvivor");
@@ -1033,8 +1034,8 @@ native bool L4D_IsInFirstCheckpoint(int client);
 native bool L4D_IsInLastCheckpoint(int client);
 
 /**
- * @brief Checks if a world position is accessible to a player.
- * @remarks You must pass a bots client index into this, otherwise the plugin will attempt to find a bot or throw an error otherwise.
+ * @brief Checks if a world position is accessible to a Survivor bot.
+ * @remarks You must pass a survivor bots client index into this, otherwise the plugin will attempt to find a bot or throw an error otherwise.
  * @remarks It appears the server will sometimes crash when passing a real players client index.
  * @remarks If the clients flow distance is too far away from the position to test it will return false.
  *
@@ -2612,6 +2613,15 @@ native void L4D2_CTerrorPlayer_Fling(int client, int attacker, float vecDir[3]);
  * @noreturn
  */
 native void L4D_CancelStagger(int client);
+
+/**
+ * @brief Respawns a player from dead state.
+ *
+ * @param client			Client ID of the person to affect
+ *
+ * @noreturn
+ */
+native void L4D_RespawnPlayer(int client);
 
 /**
  * @brief Spawns all dead survivors in rescuable rooms.

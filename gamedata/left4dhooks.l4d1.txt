@@ -1331,8 +1331,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer14OnLedgeGrabbedERK6Vector"
-				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\x81\x2A\x2A\x2A\x2A\x2A\x53\x56\x8B\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x57\x2A\x2A\x84"
-				/* 55 8B ? 83 ? ? 81 ? ? ? ? ? 53 56 8B ? 8B ? 8B ? ? ? ? ? 57 ? ? 84 */
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x81\xEC\x2A\x2A\x2A\x2A\x53\x56\x8B\xF1\x8B\x06\x8B\x90\x2A\x2A\x2A\x2A\x57\xFF\xD2\x84\xC0"
+				/* ? ? ? ? ? ? 81 EC ? ? ? ? 53 56 8B F1 8B 06 8B 90 ? ? ? ? 57 FF D2 84 C0 */
 			}
 
 			// Search: "ledge_hang"
@@ -1340,8 +1340,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer9OnRevivedEv"
-				"windows"	"\x83\x2A\x2A\x53\x55\x56\x57\x8B\x2A\x8B\x2A\x8B"
-				/* 83 ? ? 53 55 56 57 8B ? 8B ? 8B */
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x56\x57\x8B\xF9\x8B\x07\x8B\x90\x2A\x2A\x2A\x2A\xFF\xD2\x84\xC0\x0F\x84"
+				/* ? ? ? ? ? 56 57 8B F9 8B 07 8B 90 ? ? ? ? FF D2 84 C0 0F 84 */
 			}
 
 			/*
@@ -1831,6 +1831,16 @@
 			// ====================================================================================================
 			// UNUSED SIGNATURES
 			// ====================================================================================================
+			/* CTerrorPlayer::RoundRespawn(CTerrorPlayer *this) */
+			"RoundRespawn"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer12RoundRespawnEv"
+				"windows"	"\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x84\xC0\x75"
+				/* 56 8B F1 E8 ? ? ? ? E8 ? ? ? ? 84 C0 75	*/
+				/* previous function in vtable has a string */
+			}
+
 			/*
 			 * CDirector::IsFinaleEscapeInProgress(void)
 			 * unique string "#L4D_idle_spectator" in CTerrorPlayer::PreThink()

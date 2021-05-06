@@ -2021,8 +2021,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer14OnLedgeGrabbedERK6Vector"
-				"windows"	"\x55\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x53\x56\x8B\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x57\x2A\x2A\x84\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B"
-				/* 55 8B ? 81 ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 53 56 8B ? 8B ? 8B ? ? ? ? ? 57 ? ? 84 ? 0F 84 ? ? ? ? 8B */
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x53\x56\x8B\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x57\x2A\x2A\x84\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B"
+				/* ? ? ? ? ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 53 56 8B ? 8B ? 8B ? ? ? ? ? 57 ? ? 84 ? 0F 84 ? ? ? ? 8B */
 			}
 
 			/*
@@ -3065,6 +3065,15 @@
 				"linux" 	"@_ZNK9CDirector24IsFinaleEscapeInProgressEv"
 				"windows" 	"\x8B\x81\x2A\x2A\x2A\x2A\x83\x38\x2A\x75\x03\x32\xC0\xC3\x33\xC0\x83\xB9\x2A\x2A\x2A\x2A\x02\x0F\x94\xC0\xC3"
 				/* 8B 81 ? ? ? ? 83 38 ? 75 03 32 C0 C3 33 C0 83 B9 ? ? ? ? 02 0F 94 C0 C3 */
+			}
+
+			/* CTerrorPlayer::RoundRespawn */
+			"RoundRespawn"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer12RoundRespawnEv"
+				"windows"	"\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x84\xC0\x75"
+				/* 56 8B F1 E8 ? ? ? ? E8 ? ? ? ? 84 C0 75	*/
 			}
 
 			/*

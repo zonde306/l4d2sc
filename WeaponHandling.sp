@@ -32,7 +32,7 @@
 
 #define GAMEDATA "WeaponHandling"
 
-#define PLUGIN_VERSION "1.0.5"
+#define PLUGIN_VERSION "1.0.6"
 
 #define USING_PILLS_ACT 187
 
@@ -42,6 +42,7 @@
 #define DESERT_BURST_OFFSET_END 8
 static int g_DesertBurstOffset = -1;
 static float g_fBurstEndTime[MAXPLAYERS+1];
+static float g_fBurstModifier;
 
 enum L4D2WeaponType 
 {
@@ -401,7 +402,7 @@ public MRESReturn OnGetRateOfFire(int pThis, Handle hReturn)
 	
 	if(g_iWeaponType[pThis] == L4D2WeaponType_RifleDesert)
 	{
-		g_fBurstEndTime[iClient] = GetGameTime() + ClampFloatAboveZero(DESERT_BURST_INTERVAL / fRateOfFireModifier);
+		g_fBurstModifier = fRateOfFireModifier;
 	}
 	
 	DHookSetReturn(hReturn, fRateOfFire);
@@ -413,11 +414,23 @@ public MRESReturn OnGetRateOfFire(int pThis, Handle hReturn)
 //call order hack
 public MRESReturn OnGetRateOfFireBurst(int pThis, Handle hReturn)
 {
+	//return MRES_Ignored;
 	static int iClient;
 	iClient = GetEntPropEnt(pThis, Prop_Send, "m_hOwnerEntity");
 	if(iClient < 1)
 		return MRES_Ignored;
-
+	
+	float flValveBurstData = GetEntDataFloat(pThis, g_DesertBurstOffset + DESERT_BURST_OFFSET_END);
+	if(flValveBurstData == g_fBurstEndTime[iClient])// store the modified value to not scale it again
+	{
+		return MRES_Ignored;
+	}
+	
+	float fTime = GetGameTime();
+	flValveBurstData = flValveBurstData - fTime;
+	flValveBurstData = ClampFloatAboveZero(flValveBurstData / g_fBurstModifier);
+	g_fBurstEndTime[iClient] = flValveBurstData + fTime;
+	
 	SetEntDataFloat(pThis, g_DesertBurstOffset + DESERT_BURST_OFFSET_END, g_fBurstEndTime[iClient]);
 	return MRES_Ignored;
 }

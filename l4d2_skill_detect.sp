@@ -1677,6 +1677,11 @@ public Action: Timer_ChargeCheck( Handle:timer, any:client )
 		return Plugin_Stop;
 	}
 	
+	bool charging = false;
+	new abilityEnt = GetEntPropEnt( g_iVictimCharger[client], Prop_Send, "m_customAbility" );
+	if ( IsValidEntity(abilityEnt) && GetEntProp(abilityEnt, Prop_Send, "m_isCharging") )
+		charging = true;
+	
 	// we're done checking if either the victim reached the ground, or died
 	if ( !IsPlayerAlive(client) )
 	{
@@ -1688,7 +1693,7 @@ public Action: Timer_ChargeCheck( Handle:timer, any:client )
 		
 		return Plugin_Stop;
 	}
-	else if ( GetEntityFlags(client) & FL_ONGROUND && g_iChargeVictim[ g_iVictimCharger[client] ] != client )
+	else if ( !charging && g_iChargeVictim[ g_iVictimCharger[client] ] != client )
 	{
 		// survivor reached the ground and didn't die (yet)
 		// the client-check condition checks whether the survivor is still being carried by the charger

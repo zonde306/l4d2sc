@@ -37,6 +37,15 @@
 #define TEAM_SURVIVORS		2
 #define TEAM_INFECTED		3
 #define CVAR_FLAGS			FCVAR_PROTECTED|FCVAR_NOT_CONNECTED|FCVAR_DONTRECORD
+#define	DMG_CHOKE			(1 << 20)
+#define	DMG_MELEE			(1 << 21)
+#define	DMG_STUMBLE			(1 << 25)
+#define	DMG_HEADSHOT		(1 << 30)
+#define	DMG_DISMEMBER		(1 << 31)
+#define	DAMAGE_NO			0
+#define	DAMAGE_EVENTS_ONLY	1
+#define	DAMAGE_YES			2
+#define	DAMAGE_AIM			3
 
 #define AMMOTYPE_PISTOL				1
 #define AMMOTYPE_MAGNUM				2
@@ -5538,7 +5547,7 @@ public void OnGameFrame()
 				g_ctGodMode[i] = -curTime - 9.0;
 				g_csHasGodMode[i] = !!IsPlayerHaveEffect(i, 9);
 				
-				// SetEntProp(i, Prop_Data, "m_takedamage", 0, 1);
+				// SetEntProp(i, Prop_Data, "m_takedamage", DAMAGE_NO, 1);
 				// EmitSoundToClient(client, g_soundLevel);
 
 				ClientCommand(i, "play \"%s\"", g_soundLevel);
@@ -6253,7 +6262,7 @@ public void ZombieHook_OnTakeDamagePost(int victim, int attacker, int inflictor,
 	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 || GetClientTeam(attacker) != 2 || (damagetype & DMG_FALL))
 		return;
 	
-	if((damagetype & DMG_CRIT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_iAccurateShot[attacker] && !IsNullVector(damagePosition))
+	if((damagetype & DMG_HEADSHOT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_iAccurateShot[attacker] && !IsNullVector(damagePosition))
 	{
 		float vStart[3];
 		GetClientEyePosition(attacker, vStart);
@@ -6271,7 +6280,7 @@ public void PlayerHook_OnTakeDamagePost(int victim, int attacker, int inflictor,
 	if(!IsValidAliveClient(victim) || attacker <= 0 || damage <= 0.0 || (damagetype & DMG_FALL))
 		return;
 	
-	if((damagetype & DMG_CRIT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_iAccurateShot[attacker] && !IsNullVector(damagePosition))
+	if((damagetype & DMG_HEADSHOT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_iAccurateShot[attacker] && !IsNullVector(damagePosition))
 	{
 		float vStart[3];
 		GetClientEyePosition(attacker, vStart);
@@ -6301,7 +6310,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 	
 	// 可伤害实体
 	else if(HasEntProp(entity, Prop_Data, "m_takedamage") && HasEntProp(entity, Prop_Data, "m_iHealth") &&
-		GetEntProp(entity, Prop_Data, "m_takedamage") == 2 && GetEntProp(entity, Prop_Data, "m_iHealth") > 0)
+		GetEntProp(entity, Prop_Data, "m_takedamage") == DAMAGE_YES && GetEntProp(entity, Prop_Data, "m_iHealth") > 0)
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
 	/*
@@ -6377,7 +6386,7 @@ public void ZombieHook_OnTraceAttackPost(int victim, int attacker, int inflictor
 	if(!IsValidClient(attacker))
 		return;
 	
-	if((damagetype & DMG_CRIT) && g_iAccurateShot[attacker])
+	if((damagetype & DMG_HEADSHOT) && g_iAccurateShot[attacker])
 		g_iAccurateShot[attacker] = false;
 }
 */
@@ -6455,7 +6464,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
 		return Plugin_Continue;
 	
-	if(HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") == 0)
+	if(HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") == DAMAGE_NO)
 		return Plugin_Continue;
 	
 	/*
@@ -6532,7 +6541,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		}
 		
 		damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
-		damagetype |= DMG_CRIT;
+		damagetype |= DMG_HEADSHOT;
 		// g_iAccurateShot[attacker] -= 1;
 		
 		/*
@@ -6548,7 +6557,7 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	// 用于伤害显示
 	if(victim > MaxClients && !HasEntProp(victim, Prop_Send, "m_mobRush")
-		&& HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") != 0 &&
+		&& HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") != DAMAGE_NO &&
 		HasEntProp(victim, Prop_Data, "m_iHealth") && GetEntProp(victim, Prop_Data, "m_iHealth") > 0)
 	{
 		Event event = CreateEvent("infected_hurt");
@@ -6932,7 +6941,7 @@ public void PlayerHook_OnTraceAttackPost(int victim, int attacker, int inflictor
 	if(!IsValidClient(attacker))
 		return;
 	
-	if((damagetype & DMG_CRIT) && g_iAccurateShot[attacker])
+	if((damagetype & DMG_HEADSHOT) && g_iAccurateShot[attacker])
 		g_iAccurateShot[attacker] = false;
 }
 */
@@ -7009,7 +7018,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 			}
 			
 			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
-			damagetype |= DMG_CRIT;
+			damagetype |= DMG_HEADSHOT;
 			// g_iAccurateShot[attacker] -= 1;
 			
 			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !GetRandomInt(0, 2))
@@ -7046,7 +7055,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 				ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 			
 			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
-			damagetype |= DMG_CRIT;
+			damagetype |= DMG_HEADSHOT;
 			
 			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !IsSurvivorHeld(victim))
 			{
@@ -7182,7 +7191,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				}
 			}
 			
-			if(dmg_type & DMG_CRIT)
+			if(dmg_type & DMG_HEADSHOT)
 			{
 				int mulEffect = IsPlayerHaveEffect(attacker, 12);
 				if (mulEffect > 0)
@@ -7229,7 +7238,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			if(!(dmg_type & DMG_BUCKSHOT))
 			{
 				// 非霰弹枪
-				PrintCenterText(attacker, "%N|%s伤害%d|%s", victim, ((dmg_type & DMG_CRIT) ? "暴击" : ""), dmg, ((health<=0) ? (headshot?"爆头":"击杀") : tr("剩余%d", health)));
+				PrintCenterText(attacker, "%N|%s伤害%d|%s", victim, ((dmg_type & DMG_HEADSHOT) ? "暴击" : ""), dmg, ((health<=0) ? (headshot?"爆头":"击杀") : tr("剩余%d", health)));
 			}
 			else
 			{
@@ -9299,11 +9308,11 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 		if(!(type & DMG_BUCKSHOT))
 		{
 			if(StrEqual(classname, "infected", false))
-				PrintCenterText(client, "普感%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
+				PrintCenterText(client, "普感%d|%s伤害%d|%s", victim, ((type & DMG_HEADSHOT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 			else if(StrEqual(classname, "witch", false))
-				PrintCenterText(client, "妹%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
+				PrintCenterText(client, "妹%d|%s伤害%d|%s", victim, ((type & DMG_HEADSHOT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 			else
-				PrintCenterText(client, "目标%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
+				PrintCenterText(client, "目标%d|%s伤害%d|%s", victim, ((type & DMG_HEADSHOT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 		}
 		else
 		{
@@ -9395,7 +9404,7 @@ public void NotifyDamageInfo(any client)
 				FormatEx(name, sizeof(name), "妹%d", entity);
 		}
 		
-		Format(msg, sizeof(msg), "%s%s|%s伤害%d|%s\n", msg, name, ((td.dmg_type & DMG_CRIT) ? "暴击" : ""), td.dmg, (alive ? tr("剩余%d", health) : (td.headshot ? "爆头" : "击杀")));
+		Format(msg, sizeof(msg), "%s%s|%s伤害%d|%s\n", msg, name, ((td.dmg_type & DMG_HEADSHOT) ? "暴击" : ""), td.dmg, (alive ? tr("剩余%d", health) : (td.headshot ? "爆头" : "击杀")));
 	}
 	
 	if(msg[0] != EOS)
@@ -11295,7 +11304,7 @@ public Event_SpitBurst(Handle:event, const String:name[], bool:dontBroadcast)
 	new client = GetClientOfUserId(GetEventInt(event,"userid"));
 	if (IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		// SetEntProp(client, Prop_Data, "m_takedamage", 0, 1);
+		// SetEntProp(client, Prop_Data, "m_takedamage", DAMAGE_NO, 1);
 		// CreateTimer(3.0, Superman, client);
 	}
 }
@@ -11304,7 +11313,7 @@ public Action:Superman(Handle:timer, any:client)
 {
 	g_csHasGodMode[client] = false;
 	if (!client || !IsClientInGame(client) || !IsPlayerAlive(client)) return;
-	SetEntProp(client, Prop_Data, "m_takedamage", 2, 1);
+	SetEntProp(client, Prop_Data, "m_takedamage", DAMAGE_YES, 1);
 	if(!IsFakeClient(client)) PrintToChat(client, "\x03[\x05提示\x03]\x04无敌能力失效.");
 }
 
@@ -12921,7 +12930,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				SubtractVectors(vec, pos, dir);
 				
 				Charge(i, client, 750.0);
-				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_AIRBOAT, weapon, dir, pos);
+				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
 			}
 			
 			if(IsPlayerHaveEffect(client, 30))
@@ -12942,7 +12951,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						continue;
 					
 					SubtractVectors(vec, pos, dir);
-					SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 30)), DMG_AIRBOAT, weapon, dir, pos);
+					SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 30)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
 				}
 			}
 			
@@ -14095,7 +14104,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 				if( GetVectorDistance(vPos, vLoc, true) <= range )
 				{
 					// L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(client));
-					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, vDir, vLoc);
+					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_STUMBLE|DMG_MELEE, weapon, vDir, vLoc);
 					L4D_StaggerPlayer(target, client, vPos);
 					
 					// 停止冲锋
@@ -14128,7 +14137,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 			{
 				// GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", vLoc);
 				if( GetVectorDistance(vPos, vLoc, true) <= range )
-					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_AIRBOAT, weapon, vDir, vLoc);
+					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_STUMBLE|DMG_MELEE, weapon, vDir, vLoc);
 				
 				// 声音
 				EmitSoundToClient(client, g_sndShoveInfected[GetRandomInt(0, sizeof(g_sndShoveInfected)-1)], target,

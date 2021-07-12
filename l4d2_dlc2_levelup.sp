@@ -223,7 +223,7 @@ float g_fNextGunShover[MAXPLAYERS+1];
 // new bool:g_bHanFirstRelease[MAXPLAYERS+1] = false;
 float g_fMaxSpeedModify[MAXPLAYERS+1] = { 1.0, ... };
 float g_fMaxGravityModify[MAXPLAYERS+1] = { 1.0, ... };
-float g_fNextCalmTime[MAXPLAYERS+1] = { 0.0, ... };
+// float g_fNextCalmTime[MAXPLAYERS+1] = { 0.0, ... };
 int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
 bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
 bool g_bIsOnBile[MAXPLAYERS+1] = { false, ... };
@@ -282,6 +282,9 @@ MoveType mtLastMoveType[MAXPLAYERS+1];
 int g_iJumpFlags[MAXPLAYERS+1] = 0;
 // int g_iTotalDamage[MAXPLAYERS+1][MAXPLAYERS+1] = 0;
 // int g_iLastDamage[MAXPLAYERS+1][MAXPLAYERS+1] = 0;
+int g_iIsInCombat[MAXPLAYERS+1] = { -1, ... };
+int g_iIsSneaking[MAXPLAYERS+1] = { -1, ... };
+int g_iIsInBattlefield[MAXPLAYERS+1] = { -1, ... };
 
 new String:g_soundLevel[80];
 new String:g_sndPortalERROR[80];
@@ -561,11 +564,11 @@ bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS,
 	g_pCvarSaveStatus, g_pCvarBotRP, g_pCvarBotBuy;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
-Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null,
-	g_pfnCreateSmoker = null, g_pfnCreateBoomer = null, g_pfnCreateHunter = null, g_pfnCreateSpitter = null, g_pfnCreateJockey = null, g_pfnCreateCharger = null,
-	g_pfnCreateTank = null;
+Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null;
 GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
 	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent, g_fwOnAngrySkill, g_fwOnAngryPoint;
+ConVar g_pCvarInCombat, g_pCvarSneaking, g_pCvarInBattlefield;
+
 /*
 Handle g_hDetourHolster = null, g_hDetourReload = null, g_hDetourShotgunReload = null;
 bool g_bLadderRambos = false;
@@ -684,6 +687,15 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// void LV_SetFreezeTimer(int client, float time)
 	CreateNative("LV_SetFreezeTimer", Native_SetFreezeTimer);
 	
+	// bool LV_IsSneaking(int client)
+	CreateNative("LV_IsSneaking", Native_IsSneaking);
+	
+	// bool LV_IsInCombat(int client)
+	CreateNative("LV_IsInCombat", Native_IsInCombat);
+	
+	// bool LV_IsInBattleField(int client)
+	CreateNative("LV_IsInBattleField", Native_IsInBattleField);
+	
 	// Action LV_OnUpdateStatus(int client, bool& heal, int& damage, int& health, int& speed, int& gravity, int& critChance, int& critDamageMin, int& critDamageMax, int[] effects, int num_effects)
 	g_fwOnUpdateStatus = CreateGlobalForward("LV_OnUpdateStatus", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_CellByRef, Param_Array, Param_Cell);
 	
@@ -789,14 +801,14 @@ public void OnLibraryRemoved(const char[] libary)
 
 public OnPluginStart()
 {
-	g_pCvarAllow = CreateConVar("lv_enable", "1", "是否开启插件", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_Cvarautomenu = CreateConVar("lv_automenu", "1", "是否在需要时候自动弹出天赋技能选单", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarAllow = CreateConVar("lv_enable", "1", "是否开启插件(的各种提示),并不影响技能和属性生效", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_Cvarautomenu = CreateConVar("lv_automenu", "1", "是否在需要时候自动弹出天赋菜单", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarKickSteamId = CreateConVar("lv_autokick", "0", "是否禁止 SteamID 不正确的玩家加入", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarRP = CreateConVar("lv_enable_rp", "1", "是否开启人品功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarRE = CreateConVar("lv_enable_re", "1", "是否开启天启功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarAS = CreateConVar("lv_enable_as", "1", "是否开启怒气技功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_pCvarSaveStatus = CreateConVar("lv_save_status", "0", "保存奖励计数", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarSaveStatus = CreateConVar("lv_save_status", "0", "保存奖励计数(进度)", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarEquipment = CreateConVar("lv_enable_eq", "1", "是否开启装备功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "1", "是否为生还者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
 	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "1", "是否为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
@@ -804,13 +816,13 @@ public OnPluginStart()
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
 	cv_sndPortalFX = CreateConVar("lv_portals_soundfx","ui/pickup_misc42.wav", "读点声音文件途径", FCVAR_NONE);
-	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒)，过期无法读档.0=无限", FCVAR_NONE, true, 0.0);
+	g_pCvarValidity = CreateConVar("lv_save_validity","86400", "存档有效期(秒),过期重置.0=无限", FCVAR_NONE, true, 0.0);
 	g_pCvarGiftChance = CreateConVar("lv_gift_chance","1", "特感死亡掉落礼物几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
 	g_pCvarStartPoints = CreateConVar("lv_starter_points","3", "初始硬币数量", FCVAR_NONE, true, 0.0, true, 30.0);
-	g_pCvarReimburse = CreateConVar("lv_expired_reimburse","1750", "存档过期战斗力补偿(补偿硬币=先前战斗力/补偿数值).0=禁用", FCVAR_NONE, true, 0.0);
+	g_pCvarReimburse = CreateConVar("lv_expired_reimburse","1750", "存档过期重置补偿率(补偿硬币=先前战斗力/补偿率).0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarBotRP = CreateConVar("lv_bot_rp","15", "机器人开门时触发人品事件的几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
 	g_pCvarBotBuy = CreateConVar("lv_bot_buy","30", "机器人开门时触发购物的几率(1~100)", FCVAR_NONE, true, 0.0, true, 100.0);
-	g_pCvarGiveEquipment = CreateConVar("lv_give_eq", "3000", "获得装备所需最小战斗力", FCVAR_NONE, true, 0.0);
+	g_pCvarGiveEquipment = CreateConVar("lv_give_eq", "3000", "获得装备所需最小战斗力,低于该值无法随机获得(开箱除外)", FCVAR_NONE, true, 0.0);
 	
 	g_pCvarCommonKilled = CreateConVar("lv_bonus_common_kill", "150", "干掉多少普感奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarDefibUsed = CreateConVar("lv_bonus_defib_used", "6", "治疗/电击多少次队友奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
@@ -875,6 +887,12 @@ public OnPluginStart()
 	g_hCvarPainPillsMaxHeal = FindConVar("pain_pills_health_threshold");
 	g_hCvarIncapCrawling = FindConVar("survivor_allow_crawling");
 	g_hCvarChargerShove = FindConVar("z_charger_allow_shove");
+	g_pCvarInCombat = CreateConVar("lv_concept_incombat", "", "");
+	g_pCvarSneaking = CreateConVar("lv_concept_sneaking", "", "");
+	g_pCvarInBattlefield = CreateConVar("lv_concept_inbattlefield", "", "");
+	g_pCvarInCombat.AddChangeHook(ConVarChaged_Concept);
+	g_pCvarSneaking.AddChangeHook(ConVarChaged_Concept);
+	g_pCvarInBattlefield.AddChangeHook(ConVarChaged_Concept);
 
 	HookConVarChange(g_hCvarZombieHealth, ConVarChaged_ZombieHealth);
 	g_iCommonHealth = g_hCvarZombieHealth.IntValue;
@@ -1011,6 +1029,7 @@ public OnPluginStart()
 	// HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
 	// HookEvent("player_team", Event__PlayerTeam);
 	
+	// 皮肤
 	g_tWeaponSkin = CreateTrie();
 	g_tWeaponSkin.SetValue("weapon_pistol_magnum",		2);
 	g_tWeaponSkin.SetValue("weapon_smg_silenced",		1);
@@ -1035,6 +1054,7 @@ public OnPluginStart()
 			if(DHookEnableDetour(g_hDetourTestMeleeSwingCollision, false, TestMeleeSwingCollisionPre) &&
 				DHookEnableDetour(g_hDetourTestMeleeSwingCollision, true, TestMeleeSwingCollisionPost))
 			{
+				// 近战武器攻击范围
 				g_tMeleeRange = CreateTrie();
 				g_tMeleeRange.SetValue("baseball_bat",		130);
 				g_tMeleeRange.SetValue("cricket_bat",		130);
@@ -1062,6 +1082,7 @@ public OnPluginStart()
 			if(DHookEnableDetour(g_hDetourTestSwingCollision, false, TestSwingCollisionPre) &&
 				DHookEnableDetour(g_hDetourTestSwingCollision, true, TestSwingCollisionPost))
 			{
+				// 推的攻击范围
 				g_tShoveRange = CreateTrie();
 				g_tShoveRange.SetValue("baseball_bat",				130);
 				g_tShoveRange.SetValue("cricket_bat",				130);
@@ -1132,7 +1153,6 @@ public OnPluginStart()
 				PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 				g_pfnOnSwingStart = EndPrepSDKCall();
 			}
-			
 			if(g_pfnOnSwingStart == null)
 				LogError("l4d2_dlc2_levelup: CTerrorWeapon::OnSwingStart Not Found.");
 			
@@ -1143,7 +1163,6 @@ public OnPluginStart()
 				PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 				g_pfnOnPummelEnded = EndPrepSDKCall();
 			}
-			
 			if(g_pfnOnPummelEnded == null)
 				LogError("l4d2_dlc2_levelup: CTerrorPlayer::OnPummelEnded Not Found.");
 			
@@ -1158,14 +1177,12 @@ public OnPluginStart()
 				PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity,SDKPass_Pointer);
 				g_pfnFindUseEntity = EndPrepSDKCall();
 			}
-			
 			if(g_pfnFindUseEntity == null)
 				LogError("l4d2_dlc2_levelup: CTerrorPlayer::FindUseEntity Not Found.");
 			
 			StartPrepSDKCall(SDKCall_Entity);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CCharge::EndCharge"))
 				g_pfnEndCharge = EndPrepSDKCall();
-			
 			if(g_pfnEndCharge == null)
 				LogError("l4d2_dlc2_levelup: CCharge::EndCharge Not Found.");
 			
@@ -1177,7 +1194,6 @@ public OnPluginStart()
 				PrepSDKCall_AddParameter(SDKType_Bool,SDKPass_Plain);
 				g_pfnOnCarryEnded = EndPrepSDKCall();
 			}
-			
 			if(g_pfnOnCarryEnded == null)
 				LogError("l4d2_dlc2_levelup: CTerrorPlayer::OnCarryEnded Not Found.");
 			
@@ -1187,7 +1203,6 @@ public OnPluginStart()
 				PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_Plain);
 				g_pfnIsInvulnerable = EndPrepSDKCall();
 			}
-			
 			if(g_pfnIsInvulnerable == null)
 				LogError("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Not Found.");
 			
@@ -1201,7 +1216,6 @@ public OnPluginStart()
 				PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 				g_pfnCreateGift = EndPrepSDKCall();
 			}
-			
 			if(g_pfnCreateGift == null)
 				LogError("l4d2_dlc2_levelup: CHolidayGift::Create Not Found.");
 			
@@ -1214,9 +1228,6 @@ public OnPluginStart()
 		g_tWeaponID.SetValue(L4D2WeaponName[i], i);
 	
 	LoadTranslations("common.phrases");
-	
-	PrepSDKCall_CreateSpecials();
-	// PrepSDKCall_LadderRambos();
 	
 	// 缓存以及读取
 	if(g_bLateLoad)
@@ -1239,6 +1250,7 @@ public OnPluginStart()
 
 public void OnConfigsExecuted()
 {
+	// 检测倒地爬行插件
 	ConVar l4d2_crawling = FindConVar("l4d2_crawling");
 	g_bIsPluginCrawling = (l4d2_crawling != null && l4d2_crawling.BoolValue);
 }
@@ -1294,6 +1306,71 @@ public void ConVarChaged_ZombieHealth(ConVar cvar, const char[] oldValue, const 
 	g_iCommonHealth = StringToInt(newValue);
 	// g_iCommonHealth = g_hCvarZombieHealth.IntValue;
 	PrintToServer("僵尸血量更改：%d丨%s", g_iCommonHealth, newValue);
+}
+
+public void ConVarChaged_Concept(ConVar cvar, const char[] oldValue, const char[] newValue)
+{
+	static char data[MAXPLAYERS+1][16];
+	int count = ExplodeString(newValue, ",", data, sizeof(data), sizeof(data[]));
+	
+	static char buffer[2][8];
+	for(int i = 0; i < count; ++i)
+	{
+		if(data[i][0] == EOS)
+			continue;
+		
+		if(ExplodeString(data[i], ":", buffer, sizeof(buffer), sizeof(buffer[])) != sizeof(buffer))
+			continue;
+		
+		int client = StringToInt(buffer[0]);
+		if(!IsValidClient(client))
+			continue;
+		
+		int state = StringToInt(buffer[1]);
+		if(cvar == g_pCvarInCombat)
+		{
+			if(g_iIsInCombat[client] != state)
+			{
+				if(state)
+					PrintCenterText(client, "***进入战斗状态***");
+				else
+					PrintCenterText(client, "***离开战斗状态***");
+			}
+			
+			g_iIsInCombat[client] = state;
+			// PrintToServer("client %N state incombat is %d", client, state);
+		}
+		else if(cvar == g_pCvarSneaking)
+		{
+			if(g_iIsSneaking[client] != state)
+			{
+				if(state)
+					PrintCenterText(client, "***进入潜行状态***");
+				else
+					PrintCenterText(client, "***离开潜行状态***");
+			}
+			
+			g_iIsSneaking[client] = state;
+			// PrintToServer("client %N state sneaking is %d", client, state);
+		}
+		else if(cvar == g_pCvarInBattlefield)
+		{
+			if(g_iIsInBattlefield[client] != state)
+			{
+				if(state)
+					PrintCenterText(client, "***进入战场***");
+				else
+					PrintCenterText(client, "***离开战场***");
+			}
+			
+			g_iIsInBattlefield[client] = state;
+			// PrintToServer("client %N state inbattlefield is %d", client, state);
+		}
+		else
+		{
+			PrintToServer("client %N state unknown is %d", client, state);
+		}
+	}
 }
 
 /*
@@ -1359,7 +1436,7 @@ public OnMapStart()
 	g_bIsGamePlaying = false;
 	g_fLotteryStartTime = 0.0;
 	
-	/*
+	// 部分地图缺少模型，为避免服务器挂掉，必须进行缓存
 	PrecacheModel("models/survivors/survivor_teenangst.mdl", true);
 	PrecacheModel("models/survivors/survivor_namvet.mdl", true);
 	PrecacheModel("models/survivors/survivor_manager.mdl", true);
@@ -1385,9 +1462,6 @@ public OnMapStart()
 	PrecacheModel("models/infected/common_male_jimmy.mdl", true);
 	PrecacheModel("models/infected/boomette.mdl", true);
 	PrecacheModel("models/w_models/weapons/w_eq_medkit.mdl", true);
-	*/
-	
-	// 部分地图缺少模型，为避免 CTD，必须进行缓存
 	PrecacheModel("models/infected/witch_bride.mdl", true);
 	PrecacheModel("models/infected/hulk_dlc3.mdl", true);
 	PrecacheModel("models/infected/witch.mdl", true);
@@ -1848,6 +1922,7 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 		}
 	}
 	
+	// 血条
 	if(g_hTimerRenderHealthBar == null)
 		g_hTimerRenderHealthBar = CreateTimer(0.1, Timer_RenderHealthBar, 0, TIMER_REPEAT);
 	
@@ -1915,7 +1990,7 @@ public Action:Event_RoundStart(Handle:event, String:event_name[], bool:dontBroad
 	g_iRoundEvent = 0;
 	g_szRoundEvent = "无";
 	g_fNextRoundEvent = 0.0;
-
+	
 	CreateTimer(1.0, Timer_RoundStartPost);
 }
 
@@ -2111,6 +2186,22 @@ public Action Timer_RoundStartPost(Handle timer, any data)
 		RegPlayerHook(i, false);
 	}
 	
+	/*
+	char buffer[8192], buf2[255];
+	strcopy(buffer, sizeof(buffer), "function VSLib::EasyLogic::Notifications::OnConcept::L4D2_DLC2_LevelUP(query){if(query.concept.find(\"VSLibQueryData_\")==null)return;local id=Utils.StringReplace(query.concept,\"VSLibQueryData_\",\"\").tointeger();");
+	g_pCvarSneaking.GetName(buf2, sizeof(buf2));
+	Format(buffer, sizeof(buffer), "%sif(\"%s\" in query)Convars.SetValue(\"%s\",Utils.StringReplace(Convars.GetStr(\"%s\"),\",\"+id+@\":\\d+\",\"\")+\",\"+id+\":\"+query.%s.tointeger());", buffer, "sneaking", buf2, buf2, "sneaking");
+	g_pCvarInCombat.GetName(buf2, sizeof(buf2));
+	Format(buffer, sizeof(buffer), "%sif(\"%s\" in query)Convars.SetValue(\"%s\",Utils.StringReplace(Convars.GetStr(\"%s\"),\",\"+id+@\":\\d+\",\"\")+\",\"+id+\":\"+query.%s.tointeger());", buffer, "incombat", buf2, buf2, "incombat");
+	g_pCvarInBattlefield.GetName(buf2, sizeof(buf2));
+	Format(buffer, sizeof(buffer), "%sif(\"%s\" in query)Convars.SetValue(\"%s\",Utils.StringReplace(Convars.GetStr(\"%s\"),\",\"+id+@\":\\d+\",\"\")+\",\"+id+\":\"+query.%s.tointeger());", buffer, "inbattlefield", buf2, buf2, "inbattlefield");
+	StrCat(buffer, sizeof(buffer), "}");
+	
+	// 需要 admin system 才能生效
+	L4D2_RunScript(buffer);
+	LogMessage(buffer);
+	*/
+	
 	return Plugin_Continue;
 }
 
@@ -2232,7 +2323,7 @@ void Initialization(int client, bool invalid = false)
 	g_fFreezeTime[client] = 0.0;
 	g_fMaxSpeedModify[client] = 1.0;
 	g_fMaxGravityModify[client] = 1.0;
-	g_fNextCalmTime[client] = 0.0;
+	// g_fNextCalmTime[client] = 0.0;
 	g_cdCanTeleport[client] = true;
 	g_bIsHitByVomit[client] = false;
 	g_bIsOnBile[client] = false;
@@ -2268,6 +2359,9 @@ void Initialization(int client, bool invalid = false)
 	g_iMaxReviveCount[client] = 0;
 	g_fSacrificeTime[client] = 0.0;
 	g_fMinigunTime[client] = 0.0;
+	g_iIsInBattlefield[client] = 0;
+	g_iIsInCombat[client] = 0;
+	g_iIsSneaking[client] = 0;
 	Handle toDelete4 = g_hTimerMinigun[client];
 	g_hTimerMinigun[client] = null;
 	// g_bIgnorePreventStagger[client] = false;
@@ -3756,7 +3850,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("「储备」更多携带弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
 	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("「守备」受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
 	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("「跳弹」子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
-	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪会暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
+	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪总是暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
 	menu.AddItem(tr("3_%d",SKL_3_Cure), mps("「清醒」打针治疗濒死状态",(g_clSkill_3[client]&SKL_3_Cure)));
 	menu.AddItem(tr("3_%d",SKL_3_Minigun), mps("「工程」鼠标中键部署固定机枪",(g_clSkill_3[client]&SKL_3_Minigun)));
 
@@ -3822,7 +3916,7 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 	menu.AddItem(tr("5_%d",SKL_5_Overkill), mps("「精准」对普感1/4几率暴击",(g_clSkill_5[client]&SKL_5_Overkill)));
 	menu.AddItem(tr("5_%d",SKL_5_RocketDude), mps("「火箭」允许榴弹跳",(g_clSkill_5[client]&SKL_5_RocketDude)));
 	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("「持久」冲锋枪25连射后改为消耗备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
-	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("「潜行」安静时降低被发现几率",(g_clSkill_5[client]&SKL_5_Sneak)));
+	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("「隐蔽」潜行时降低被攻击几率且有1/3几率暴击",(g_clSkill_5[client]&SKL_5_Sneak)));
 	
 	if(g_tMeleeRange != null && g_hDetourTestMeleeSwingCollision != null)
 		menu.AddItem(tr("5_%d",SKL_5_MeleeRange), mps("「刀客」增加近战武器攻击范围",(g_clSkill_5[client]&SKL_5_MeleeRange)));
@@ -5403,7 +5497,7 @@ public void OnGameFrame()
 					g_csHasGodMode[i] = false;
 				}
 				
-				if((g_clSkill_2[i] & SKL_2_PainPills) && g_ctPainPills[i] > 0.0 && g_ctPainPills[i] <= curTime)
+				if((g_clSkill_2[i] & SKL_2_PainPills) && g_ctPainPills[i] > 0.0 && g_ctPainPills[i] <= curTime && g_iIsInCombat[i] <= 0)
 				{
 					g_ctPainPills[i] = curTime + 120.0;
 					if(GetPlayerWeaponSlot(i, 4) == -1)
@@ -5417,7 +5511,7 @@ public void OnGameFrame()
 					}
 				}
 
-				if((g_clSkill_2[i] & SKL_2_PipeBomb) && g_ctPipeBomb[i] > 0.0 && g_ctPipeBomb[i] <= curTime)
+				if((g_clSkill_2[i] & SKL_2_PipeBomb) && g_ctPipeBomb[i] > 0.0 && g_ctPipeBomb[i] <= curTime && g_iIsInCombat[i] <= 0)
 				{
 					g_ctPipeBomb[i] = curTime + 100.0;
 					if(GetPlayerWeaponSlot(i, 2) == -1)
@@ -5439,7 +5533,7 @@ public void OnGameFrame()
 					}
 				}
 
-				if((g_clSkill_2[i] & SKL_2_Defibrillator) && g_ctDefibrillator[i] > 0.0 && g_ctDefibrillator[i] <= curTime)
+				if((g_clSkill_2[i] & SKL_2_Defibrillator) && g_ctDefibrillator[i] > 0.0 && g_ctDefibrillator[i] <= curTime && g_iIsInCombat[i] <= 0)
 				{
 					g_ctDefibrillator[i] = curTime + 200.0;
 					if(GetPlayerWeaponSlot(i, 3) == -1)
@@ -5463,7 +5557,7 @@ public void OnGameFrame()
 				}
 				
 				if((g_clSkill_4[i] & SKL_4_TempRespite) && g_ctConvTemp[i] > 0.0 && g_ctConvTemp[i] <= curTime &&
-					!IsPlayerIncapped(i) && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
+					!IsPlayerIncapped(i) && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1) && g_iIsInCombat[i] <= 0)
 				{
 					g_ctConvTemp[i] = curTime + 2.0;
 					
@@ -5491,7 +5585,7 @@ public void OnGameFrame()
 				}
 			}
 
-			if((g_clSkill_2[i] & SKL_2_FullHealth) && g_ctFullHealth[i] > 0.0 && g_ctFullHealth[i] <= curTime)
+			if((g_clSkill_2[i] & SKL_2_FullHealth) && g_ctFullHealth[i] > 0.0 && g_ctFullHealth[i] <= curTime && g_iIsInCombat[i] <= 0)
 			{
 				g_ctFullHealth[i] = curTime + 300.0;
 				int maxHealth = GetEntProp(i, Prop_Data, "m_iMaxHealth");
@@ -5517,7 +5611,7 @@ public void OnGameFrame()
 				}
 			}
 
-			if((g_clSkill_3[i] & SKL_3_SelfHeal) && g_ctSelfHeal[i] > 0.0 && g_ctSelfHeal[i] <= curTime)
+			if((g_clSkill_3[i] & SKL_3_SelfHeal) && g_ctSelfHeal[i] > 0.0 && g_ctSelfHeal[i] <= curTime && g_iIsInCombat[i] <= 0)
 			{
 				g_ctSelfHeal[i] = curTime + 200.0;
 				
@@ -5542,7 +5636,7 @@ public void OnGameFrame()
 				PrintToChat(i, "\x03「暴疗」\x01你获得 \x0580\x01 生命值。");
 			}
 
-			if((g_clSkill_3[i] & SKL_3_GodMode) && g_ctGodMode[i] > 0.0 && g_ctGodMode[i] <= curTime)
+			if((g_clSkill_3[i] & SKL_3_GodMode) && g_ctGodMode[i] > 0.0 && g_ctGodMode[i] <= curTime && g_iIsInCombat[i] <= 0)
 			{
 				g_ctGodMode[i] = -curTime - 9.0;
 				g_csHasGodMode[i] = !!IsPlayerHaveEffect(i, 9);
@@ -5587,6 +5681,19 @@ public void OnGameFrame()
 				if(!IsFakeClient(i))
 					PrintHintText(i, "距离解冻还有 %d 秒", timeleft);
 			}
+			
+			static char buffer[64];
+			
+			// 需要 admin system
+			if(team == 2)
+			{
+				g_pCvarSneaking.GetName(buffer, sizeof(buffer));
+				L4D2_RunScript("Convars.SetValue(\"%s\",\"%d:\"+::VSLib.Player(%d).IsSneaking().tointeger());", buffer, i, i);
+				g_pCvarInBattlefield.GetName(buffer, sizeof(buffer));
+				L4D2_RunScript("Convars.SetValue(\"%s\",\"%d:\"+::VSLib.Player(%d).IsInBattlefield().tointeger());", buffer, i, i);
+			}
+			g_pCvarInCombat.GetName(buffer, sizeof(buffer));
+			L4D2_RunScript("Convars.SetValue(\"%s\",\"%d:\"+::VSLib.Player(%d).IsInCombat().tointeger());", buffer, i, i);
 		}
 
 		if(g_iRoundEvent > 0 && g_fNextRoundEvent <= curTime)
@@ -5733,7 +5840,8 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 	}
 	
 	// 防止特感故意攻击胆汁玩家
-	if((g_clSkill_2[curTarget] & SKL_2_ProtectiveSuit) && g_bIsHitByVomit[curTarget])
+	if((g_clSkill_2[curTarget] & SKL_2_ProtectiveSuit) && g_bIsHitByVomit[curTarget] &&
+		(GetEntProp(curTarget, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(curTarget, Prop_Send, "m_isHangingFromLedge", 1)))
 	{
 		int victim = ChooseOtherVictim(specialInfected);
 		if(victim > -1 && victim != curTarget)
@@ -5744,7 +5852,7 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 	}
 	
 	// 特感切换目标
-	if((g_clSkill_5[curTarget] & SKL_5_Sneak) && g_fNextCalmTime[curTarget] <= GetEngineTime() && !GetRandomInt(0, 1))
+	if((g_clSkill_5[curTarget] & SKL_5_Sneak) && (/*g_fNextCalmTime[curTarget] <= GetEngineTime() || */g_iIsSneaking[curTarget] > 0) && !GetRandomInt(0, 1))
 	{
 		int victim = ChooseOtherVictim(specialInfected, curTarget);
 		if(victim > -1)
@@ -5832,160 +5940,12 @@ stock int GetRandomSurvivor()
 
 stock int SpawnCommand(int spawnner, int zClass)
 {
-	if(!IsValidClient(spawnner))
-		spawnner = L4D_GetHighestFlowSurvivor();
-	if(!IsValidClient(spawnner))
-		spawnner = GetRandomSurvivor();
+	L4D2_RunScript(
+		"local a={'cm_DominatorLimit':null,'cm_MaxSpecials':null,'MaxSpecials':null,'SmokerLimit':null,'BoomerLimit':null,'HunterLimit':null,'SpitterLimit':null,'JockeyLimit':null,'ChargerLimit':null,'WitchLimit':null,'cm_WitchLimit':null,'TankLimit':null,'cm_TankLimit':null};foreach(k,v in a){if(k in SessionOptions&&SessionOptions[k]!=null)a[key]=v;SessionOptions[k]<-99;}ZSpawn({'type':%d});foreach(k,v in a){if(v!=null)SessionOptions[k]<-v;else delete SessionOptions[k];}",
+		zClass
+	);
 	
-	static ConVar z_spawn_range;
-	if(z_spawn_range == null)
-		z_spawn_range = FindConVar("z_spawn_range");
-	
-	float vPos[3];
-	if(!L4D_GetRandomPZSpawnPosition(spawnner, zClass, z_spawn_range.IntValue, vPos))
-		return 0;
-	
-	int bot = -1;
-	bool postspawn = false;
-	switch(zClass)
-	{
-		case ZC_SMOKER:
-		{
-			if(g_pfnCreateSmoker != null)
-			{
-				bot = SDKCall(g_pfnCreateSmoker, "舌头");
-				if(bot > 0)
-				{
-					SetEntityModel(bot, MODEL_SMOKER);
-					postspawn = true;
-				}
-			}
-			if(bot <= 0)
-				bot = L4D2_SpawnSpecial(zClass, vPos, Float:{0.0, 0.0, 0.0});
-			if(bot <= 0)
-				CheatCommand(spawnner, "z_spawn_old", "smoker auto");
-		}
-		case ZC_BOOMER:
-		{
-			if(g_pfnCreateBoomer != null)
-			{
-				bot = SDKCall(g_pfnCreateBoomer, "胖子");
-				if(bot > 0)
-				{
-					SetEntityModel(bot, MODEL_BOOMER);
-					postspawn = true;
-				}
-			}
-			if(bot <= 0)
-				bot = L4D2_SpawnSpecial(zClass, vPos, Float:{0.0, 0.0, 0.0});
-			if(bot <= 0)
-				CheatCommand(spawnner, "z_spawn_old", "boomer auto");
-		}
-		case ZC_HUNTER:
-		{
-			if(g_pfnCreateHunter != null)
-			{
-				bot = SDKCall(g_pfnCreateHunter, "猎人");
-				if(bot > 0)
-				{
-					SetEntityModel(bot, MODEL_HUNTER);
-					postspawn = true;
-				}
-			}
-			if(bot <= 0)
-				bot = L4D2_SpawnSpecial(zClass, vPos, Float:{0.0, 0.0, 0.0});
-			if(bot <= 0)
-				CheatCommand(spawnner, "z_spawn_old", "hunter auto");
-		}
-		case ZC_SPITTER:
-		{
-			if(g_pfnCreateSpitter != null)
-			{
-				bot = SDKCall(g_pfnCreateSpitter, "口水");
-				if(bot > 0)
-				{
-					SetEntityModel(bot, MODEL_SPITTER);
-					postspawn = true;
-				}
-			}
-			if(bot <= 0)
-				bot = L4D2_SpawnSpecial(zClass, vPos, Float:{0.0, 0.0, 0.0});
-			if(bot <= 0)
-				CheatCommand(spawnner, "z_spawn_old", "spitter auto");
-		}
-		case ZC_JOCKEY:
-		{
-			if(g_pfnCreateJockey != null)
-			{
-				bot = SDKCall(g_pfnCreateJockey, "猴");
-				if(bot > 0)
-				{
-					SetEntityModel(bot, MODEL_JOCKEY);
-					postspawn = true;
-				}
-			}
-			if(bot <= 0)
-				bot = L4D2_SpawnSpecial(zClass, vPos, Float:{0.0, 0.0, 0.0});
-			if(bot <= 0)
-				CheatCommand(spawnner, "z_spawn_old", "jockey auto");
-		}
-		case ZC_CHARGER:
-		{
-			if(g_pfnCreateCharger != null)
-			{
-				bot = SDKCall(g_pfnCreateCharger, "牛");
-				if(bot > 0)
-				{
-					SetEntityModel(bot, MODEL_CHARGER);
-					postspawn = true;
-				}
-			}
-			if(bot <= 0)
-				bot = L4D2_SpawnSpecial(zClass, vPos, Float:{0.0, 0.0, 0.0});
-			if(bot <= 0)
-				CheatCommand(spawnner, "z_spawn_old", "charger auto");
-		}
-		case ZC_TANK:
-		{
-			if(g_pfnCreateTank != null)
-			{
-				bot = SDKCall(g_pfnCreateTank, "克");
-				if(bot > 0)
-				{
-					SetEntityModel(bot, MODEL_TANK);
-					postspawn = true;
-				}
-			}
-			if(bot <= 0)
-				bot = L4D2_SpawnTank(vPos, Float:{0.0, 0.0, 0.0});
-			if(bot <= 0)
-				CheatCommand(spawnner, "z_spawn_old", "tank auto");
-		}
-		case ZC_WITCH:
-		{
-			if(GetRandomInt(0, 1))
-				bot = L4D2_SpawnWitchBride(vPos, Float:{0.0, 0.0, 0.0}) > 0;
-			else
-				bot = L4D2_SpawnWitch(vPos, Float:{0.0, 0.0, 0.0}) > 0;
-		}
-	}
-	
-	if(postspawn && bot)
-	{
-		ChangeClientTeam(bot, 3);
-		SetEntProp(bot, Prop_Send, "m_usSolidFlags", 16);
-		SetEntProp(bot, Prop_Send, "movetype", 2);
-		SetEntProp(bot, Prop_Send, "deadflag", 0);
-		SetEntProp(bot, Prop_Send, "m_lifeState", 0);
-		SetEntProp(bot, Prop_Send, "m_iObserverMode", 0);
-		SetEntProp(bot, Prop_Send, "m_iPlayerState", 0);
-		SetEntProp(bot, Prop_Send, "m_zombieState", 0);
-		DispatchSpawn(bot);
-		ActivateEntity(bot);
-		TeleportEntity(bot, vPos, NULL_VECTOR, NULL_VECTOR);
-	}
-	
-	return bot;
+	return -1;
 }
 
 stock void SpawnCommonZombie(const char[] zombieName, float position[3], const char[] targetName = "")
@@ -6519,6 +6479,9 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(g_bIsAngryCritActive)
 		chance += 500;
 	
+	if((g_clSkill_5[attacker] & SKL_5_Sneak) && g_iIsSneaking[attacker] == 0)
+		chance += 333;
+	
 	if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
 	{
 		chance += IsPlayerHaveEffect(attacker, 42) * 200;
@@ -6967,6 +6930,9 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(g_bIsAngryCritActive)
 		chance += 500;
 	
+	if((g_clSkill_5[attacker] & SKL_5_Sneak) && g_iIsSneaking[attacker] == 0)
+		chance += 333;
+	
 	if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
 	{
 		chance += IsPlayerHaveEffect(attacker, 42) * 200;
@@ -7309,6 +7275,10 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				amount = (dmg > 10 ? 10 : dmg);
 			
 			GiveAngryPoint(victim, amount);
+			
+			// 受伤暂停恢复
+			if((g_clSkill_4[victim] & SKL_4_TempRespite) && g_ctConvTemp[victim] > 0.0)
+				g_ctConvTemp[victim] = GetEngineTime() + 5.0;
 			
 			/*
 			int tempHealth = GetPlayerTempHealth(victim);
@@ -9596,7 +9566,7 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 	if(cv_incaphealth == null)
 		cv_incaphealth = FindConVar("survivor_incap_health");
 	
-	float time = GetEngineTime();
+	// float time = GetEngineTime();
 	for (int target = 1; target <= MaxClients; target++)
 	{
 		if (!IsClientInGame(target))
@@ -9606,7 +9576,7 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 			continue;
 		
 		// 目标潜行中
-		if((g_clSkill_5[target] & SKL_5_Sneak) && g_fNextCalmTime[target] <= time)
+		if((g_clSkill_5[target] & SKL_5_Sneak) && (/*g_fNextCalmTime[target] <= time || */g_iIsSneaking[target] > 0))
 			continue;
 		
 		int targetTeam = GetClientTeam(target);
@@ -11526,7 +11496,9 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			hasGetAmmo = true;
 		}
 		else if(((g_clSkill_3[client] & SKL_3_Accurate) && clip == maxClip && g_fNextAccurateShot[client] <= time) ||		// 第一枪一定会暴击
-			((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time))										// 潜行攻击
+			/*((g_clSkill_5[client] & SKL_5_Sneak) && (g_fNextCalmTime[client] <= time || g_iIsSneaking[client] > 0)) ||*/	// 潜行攻击
+			((g_clSkill_3[client] & SKL_3_Accurate) && (g_iIsInCombat[client] == 0))/* ||									// 脱战攻击
+			((g_clSkill_4[client] & SKL_4_SniperExtra) && (g_iIsInBattlefield[client] == 0 && isSniper))*/)					// 远距离狙击
 		{
 			// 只有非无限子弹才生效
 			if(isShotgun)
@@ -11632,11 +11604,13 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 				ClientCommand(client, "play \"ui/bigreward.wav\"");
 		}
 		
+		/*
 		// 消音冲锋枪和其他武器
 		if(StrContains(classname, "smg_silenced", false))
 			g_fNextCalmTime[client] = GetEngineTime() + 2.0;
 		else
 			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
+		*/
 	}
 	else if(StrContains(classname, "pistol", false) > -1)
 	{
@@ -11668,11 +11642,13 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		
 		g_iAccurateShot[client] = 0;
 		
+		/*
 		// 小手枪和马格南
 		if(classname[13] == EOS)
 			g_fNextCalmTime[client] = GetEngineTime() + 2.0;
 		else
 			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
+		*/
 	}
 	else if(StrEqual(classname, "weapon_chainsaw", false))
 	{
@@ -11683,7 +11659,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		}
 		
 		g_iAccurateShot[client] = 0;
-		g_fNextCalmTime[client] = GetEngineTime() + 3.0;
+		// g_fNextCalmTime[client] = GetEngineTime() + 3.0;
 	}
 	else if((g_clSkill_5[client] & SKL_5_RocketDude) && !(GetEntityFlags(client) & FL_ONGROUND) && StrContains(classname, "grenade_launcher", false) != -1)
 	{
@@ -11725,6 +11701,26 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		// AdjustWeaponSpeed(weapon, weaponSpeed);
 		// SetWeaponSpeed(weapon, weaponSpeed);
 		SetWeaponSpeed2(weapon, weaponSpeed);
+	}
+	
+	// 开枪吸引僵尸
+	if(!(g_clSkill_5[client] & SKL_5_Sneak) && clip > 0 && (isShotgun || isSniper || isSMG || isRifle))
+	{
+		int radius = 300;
+		if(isShotgun)
+			radius = 350;
+		else if(isSniper)
+			radius = 450;
+		else if(isRifle)
+			radius = 400;
+		else if(isSMG)
+			radius = 300;
+		else if(StrEqual(classname, "weapon_chainsaw", false))
+			radius = 500;
+		else if(StrContains(classname, "pistol", false) > -1)
+			radius = 250;
+		
+		L4D2_RunScript("RushVictim(Ent(%d),%d)", client, radius);
 	}
 }
 
@@ -13532,8 +13528,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		g_bOnRocketDude[client] = false;
 	}
 	
+	/*
 	if(GetVectorLength(vel, true) > 9.0 && !(buttons & (IN_SPEED|IN_DUCK)))
 		g_fNextCalmTime[client] += time + 1.0;
+	*/
 	
 	return Plugin_Changed;
 }
@@ -13795,17 +13793,19 @@ void ShowStatusPanel(int client)
 	}
 	
 	if(g_iDamageChance[client] > 0 || g_iDamageBase[client] > 0 ||
-		((g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time) ||
-		((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time))
+		((g_clSkill_3[client] & SKL_3_Accurate) && (g_fNextAccurateShot[client] <= time || g_iIsInCombat[client] == 0))/* ||
+		((g_clSkill_5[client] & SKL_5_Sneak) && (g_fNextCalmTime[client] <= time || g_iIsSneaking[client] > 0))*/)
 	{
 		float chance = g_iDamageChance[client] * 0.1;
 		int minDamage = g_iDamageChanceMin[client];
 		int maxDamage = g_iDamageChanceMax[client];
 		int base = g_iDamageBase[client];
-		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && g_fNextAccurateShot[client] <= time && g_iAccurateShot[client] > 0)
+		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && (g_fNextAccurateShot[client] <= time || g_iIsInCombat[client] == 0) && g_iAccurateShot[client] > 0)
 			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
-		else if((g_clSkill_5[client] & SKL_5_Sneak) && g_fNextCalmTime[client] <= time)
+		/*
+		else if((g_clSkill_5[client] & SKL_5_Sneak) && (g_fNextCalmTime[client] <= time || g_iIsSneaking[client] > 0))
 			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 潜行中", base, minDamage, maxDamage));
+		*/
 		else
 			menu.DrawText(tr("攻击+%d%% 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage));
 	}
@@ -17060,6 +17060,42 @@ public int Native_SetFreezeTimer(Handle plugin, int argc)
 	return 0;
 }
 
+public int Native_IsSneaking(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return /*g_fNextCalmTime[client] <= GetEngineTime() || */g_iIsSneaking[client] > 0;
+}
+
+public int Native_IsInCombat(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_iIsInCombat[client] == 0;
+}
+
+public int Native_IsInBattleField(Handle plugin, int argc)
+{
+	if(argc < 1)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int client = GetNativeCell(1);
+	if(!IsValidAliveClient(client))
+		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
+	
+	return g_iIsInBattlefield[client] == 0;
+}
+
 /*
 *****************************************************
 *					管理员菜单
@@ -17911,294 +17947,3 @@ public int MenuHandler_AdminMenu_RandomAttr(Menu menu, MenuAction action, int cl
 	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
 	return 0;
 }
-
-/*
-*****************************************************
-*					刷特感
-*****************************************************
-*/
-
-void PrepSDKCall_CreateSpecials()
-{
-	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4dinfectedbots");
-	if(FileExists(sPath))
-	{
-		Handle hGameConf = LoadGameConfigFile("l4dinfectedbots");
-		if(hGameConf)
-		{
-			//find create bot signature
-			Address replaceWithBot = GameConfGetAddress(hGameConf, "NextBotCreatePlayerBot.jumptable");
-			if (replaceWithBot != Address_Null && LoadFromAddress(replaceWithBot, NumberType_Int8) == 0x68) {
-				// We're on L4D2 and linux
-				PrepWindowsCreateBotCalls(replaceWithBot);
-			}
-			else
-			{
-				PrepL4D1CreateBotCalls(hGameConf);
-				PrepL4D2CreateBotCalls(hGameConf);
-			}
-			
-			delete hGameConf;
-		}
-	}
-}
-
-#define NAME_CreateSmoker "NextBotCreatePlayerBot<Smoker>"
-#define NAME_CreateBoomer "NextBotCreatePlayerBot<Boomer>"
-#define NAME_CreateHunter "NextBotCreatePlayerBot<Hunter>"
-#define NAME_CreateSpitter "NextBotCreatePlayerBot<Spitter>"
-#define NAME_CreateJockey "NextBotCreatePlayerBot<Jockey>"
-#define NAME_CreateCharger "NextBotCreatePlayerBot<Charger>"
-#define NAME_CreateTank "NextBotCreatePlayerBot<Tank>"
-
-Handle PrepCreateBotCallFromAddress(Handle hSiFuncTrie, const char[] siName) {
-	Address addr;
-	StartPrepSDKCall(SDKCall_Static);
-	if (!GetTrieValue(hSiFuncTrie, siName, addr) || !PrepSDKCall_SetAddress(addr))
-	{
-		LogError("Unable to find NextBotCreatePlayer<%s> address in memory.", siName);
-		return null;
-	}
-	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-	PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-	return EndPrepSDKCall();	
-}
-
-void LoadStringFromAdddress(Address addr, char[] buffer, int maxlength) {
-	int i = 0;
-	while(i < maxlength) {
-		char val = LoadFromAddress(addr + view_as<Address>(i), NumberType_Int8);
-		if(val == 0) {
-			buffer[i] = 0;
-			break;
-		}
-		buffer[i] = val;
-		i++;
-	}
-	buffer[maxlength - 1] = 0;
-}
-
-void PrepWindowsCreateBotCalls(Address jumpTableAddr) {
-	Handle hInfectedFuncs = CreateTrie();
-	// We have the address of the jump table, starting at the first PUSH instruction of the
-	// PUSH mem32 (5 bytes)
-	// CALL rel32 (5 bytes)
-	// JUMP rel8 (2 bytes)
-	// repeated pattern.
-	
-	// Each push is pushing the address of a string onto the stack. Let's grab these strings to identify each case.
-	// "Hunter" / "Smoker" / etc.
-	for(int i = 0; i < 7; i++) {
-		// 12 bytes in PUSH32, CALL32, JMP8.
-		Address caseBase = jumpTableAddr + view_as<Address>(i * 12);
-		Address siStringAddr = view_as<Address>(LoadFromAddress(caseBase + view_as<Address>(1), NumberType_Int32));
-		static char siName[32];
-		LoadStringFromAdddress(siStringAddr, siName, sizeof(siName));
-
-		Address funcRefAddr = caseBase + view_as<Address>(6); // 2nd byte of call, 5+1 byte offset.
-		int funcRelOffset = LoadFromAddress(funcRefAddr, NumberType_Int32);
-		Address callOffsetBase = caseBase + view_as<Address>(10); // first byte of next instruction after the CALL instruction
-		Address nextBotCreatePlayerBotTAddr = callOffsetBase + view_as<Address>(funcRelOffset);
-		//PrintToServer("Found NextBotCreatePlayerBot<%s>() @ %08x", siName, nextBotCreatePlayerBotTAddr);
-		SetTrieValue(hInfectedFuncs, siName, nextBotCreatePlayerBotTAddr);
-	}
-
-	g_pfnCreateSmoker = PrepCreateBotCallFromAddress(hInfectedFuncs, "Smoker");
-	g_pfnCreateBoomer = PrepCreateBotCallFromAddress(hInfectedFuncs, "Boomer");
-	g_pfnCreateHunter = PrepCreateBotCallFromAddress(hInfectedFuncs, "Hunter");
-	g_pfnCreateTank = PrepCreateBotCallFromAddress(hInfectedFuncs, "Tank");
-	g_pfnCreateSpitter = PrepCreateBotCallFromAddress(hInfectedFuncs, "Spitter");
-	g_pfnCreateJockey = PrepCreateBotCallFromAddress(hInfectedFuncs, "Jockey");
-	g_pfnCreateCharger = PrepCreateBotCallFromAddress(hInfectedFuncs, "Charger");
-}
-
-void PrepL4D2CreateBotCalls(Handle hGameConf) {
-	StartPrepSDKCall(SDKCall_Static);
-	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateSpitter))
-	{
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		g_pfnCreateSpitter = EndPrepSDKCall();
-	}
-	
-	StartPrepSDKCall(SDKCall_Static);
-	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateJockey))
-	{
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		g_pfnCreateJockey = EndPrepSDKCall();
-	}
-	
-	StartPrepSDKCall(SDKCall_Static);
-	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateCharger))
-	{
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		g_pfnCreateCharger = EndPrepSDKCall();
-	}
-}
-
-void PrepL4D1CreateBotCalls(Handle hGameConf) {
-	StartPrepSDKCall(SDKCall_Static);
-	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateSmoker))
-	{
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		g_pfnCreateSmoker = EndPrepSDKCall();
-	}
-	
-	StartPrepSDKCall(SDKCall_Static);
-	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateBoomer))
-	{
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		g_pfnCreateBoomer = EndPrepSDKCall();
-	}
-	
-	StartPrepSDKCall(SDKCall_Static);
-	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateHunter))
-	{
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		g_pfnCreateHunter = EndPrepSDKCall();
-	}
-	
-	StartPrepSDKCall(SDKCall_Static);
-	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateTank))
-	{
-		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
-		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
-		g_pfnCreateTank = EndPrepSDKCall();
-	}
-}
-
-/*
-*****************************************************
-*					梯子上掏枪
-*****************************************************
-*/
-
-/*
-int g_iOffsetPrethink = 0;
-Address g_pAddressPrethink = Address_Null;
-
-void PrepSDKCall_LadderRambos()
-{
-	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4d2_ladderrambos");
-	if(FileExists(sPath))
-	{
-		GameData hGameConf = LoadGameConfigFile("l4d2_ladderrambos");
-		if(hGameConf)
-		{
-			g_hDetourHolster = DHookCreateFromConf(hGameConf, "CTerrorGun::Holster");
-			if(g_hDetourHolster == null)
-				LogError("CTerrorGun::Holster Not Found.");
-			
-			g_hDetourReload = DHookCreateFromConf(hGameConf, "CTerrorGun::Reload");
-			if(g_hDetourHolster == null)
-				LogError("CTerrorGun::Reload Not Found.");
-			
-			g_hDetourShotgunReload = DHookCreateFromConf(hGameConf, "CBaseShotgun::Reload");
-			if(g_hDetourHolster == null)
-				LogError("CBaseShotgun::Reload Not Found.");
-			
-			g_pAddressPrethink = hGameConf.GetAddress("CTerrorPlayer::PreThink");
-			if(g_hDetourHolster == null)
-				LogError("CTerrorPlayer::PreThink Not Found.");
-			
-			g_iOffsetPrethink = hGameConf.GetOffset("CTerrorPlayer::PreThink__SafeDropLogic");
-			if(g_hDetourHolster == null)
-				LogError("CTerrorPlayer::PreThink__SafeDropLogic Not Found.");
-			
-			delete hGameConf;
-		}
-	}
-	
-	if(g_hDetourHolster != null && g_hDetourReload != null && g_hDetourShotgunReload != null &&
-		g_pAddressPrethink != Address_Null && g_iOffsetPrethink != 0)
-	{
-		if(!DHookEnableDetour(g_hDetourHolster, false, Detour_Holster))
-			LogError("CTerrorGun::Holster Hook Failed.");
-		
-		if(!DHookEnableDetour(g_hDetourReload, false, Detour_Reload))
-			LogError("CTerrorGun::Reload Hook Failed.");
-		
-		if(!DHookEnableDetour(g_hDetourShotgunReload, false, Detour_ShotgunReload))
-			LogError("CBaseShotgun::Reload Hook Failed.");
-		
-		SafeDropPatch(true);
-		g_bLadderRambos = true;
-	}
-}
-
-stock void SafeDropPatch(bool enable)
-{	
-	int patchBytes = 0x14;
-	int originalBytes = 0x09;
-	int CurrentoriginalBytes = LoadFromAddress(g_pAddressPrethink + view_as<Address>(g_iOffsetPrethink), NumberType_Int8);
-	int patch = enable? patchBytes : originalBytes;
-	
-	// LogAcitivity("SafeDropPatch: Current Original Byte: %x - %d", CurrentoriginalBytes, CurrentoriginalBytes);
-
-	if (CurrentoriginalBytes != patch)
-	{
-		StoreToAddress(g_pAddressPrethink + view_as<Address>(g_iOffsetPrethink), patch, NumberType_Int8);
-		int ret = LoadFromAddress(g_pAddressPrethink + view_as<Address>(g_iOffsetPrethink), NumberType_Int8);
-		// LogAcitivity("SafeDropPatch: Checking the byte: %x - %d.", ret, ret);
-		LogMessage("SafeDropPatch: Checking the byte: %x - %d.", ret, ret);
-	}
-}
-
-public MRESReturn Detour_Holster(Address pThis, Handle hReturn)
-{	
-	int client = GetClientFromPointer(pThis);
-	
-	if(!(g_clSkill_2[client] & SKL_2_LadderRambos))
-		return MRES_Ignored;
-	
-	if(IsPlayerOnLadder(client) && IsClientInGame(client) && GetClientTeam(client) == 2)
-	{
-		// PrintToServer("Function::Detour_Holster IsPlayerOnLadder: %d, %N", client, client);
-		DHookSetReturn(hReturn, 0);
-		return MRES_Supercede;
-	}
-	
-	return MRES_Ignored;
-}
-
-public MRESReturn Detour_Reload(Address pThis, Handle hReturn)
-{
-	int client = GetClientFromPointer(pThis);
-	if(!(g_clSkill_2[client] & SKL_2_LadderRambos) && IsPlayerOnLadder(client))
-	{
-		// PrintToServer("Function::Detour_Reload blocking reload for %d, %N", client, client);
-		return MRES_Supercede;
-	}
-	
-	return MRES_Ignored;
-}
-
-public MRESReturn Detour_ShotgunReload(Address pThis, Handle hReturn)
-{
-	int client = GetClientFromPointer(pThis);
-	if(!(g_clSkill_2[client] & SKL_2_LadderRambos) && IsPlayerOnLadder(client))
-	{
-		// PrintToServer("Function::Detour_ShotgunReload blocking reload for %d, %N", client, client);
-		return MRES_Supercede;
-	}
-	
-	return MRES_Ignored;
-}
-
-stock bool IsPlayerOnLadder(int client)
-{
-	return GetEntityMoveType(client) == MOVETYPE_LADDER;
-}
-
-stock int GetClientFromPointer(Address pThis)
-{	
-	return GetEntPropEnt(view_as<int>(pThis), Prop_Data, "m_hOwnerEntity");
-}
-*/

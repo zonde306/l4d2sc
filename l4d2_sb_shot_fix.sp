@@ -43,6 +43,23 @@ public void OnPluginStart()
 	g_tMeleeStartDelay.SetValue("tonfa",			0.16);
 	g_tMeleeStartDelay.SetValue("shovel",			0.1);
 	g_tMeleeStartDelay.SetValue("pitchfork",		0.11);
+	
+}
+
+public void OnMapStart()
+{
+	int flags = GetCommandFlags("sb_force_max_intensity");
+	SetCommandFlags("sb_force_max_intensity", 0);
+	ServerCommand("sb_force_max_intensity Coach");
+	ServerCommand("sb_force_max_intensity Ellis");
+	ServerCommand("sb_force_max_intensity Rochelle");
+	ServerCommand("sb_force_max_intensity Nick");
+	ServerCommand("sb_force_max_intensity Bill");
+	ServerCommand("sb_force_max_intensity Louis");
+	ServerCommand("sb_force_max_intensity Francis");
+	ServerCommand("sb_force_max_intensity Zoey");
+	SetCommandFlags("sb_force_max_intensity", flags);
+	PrintToServer("sb_force_max_intensity apply...");
 }
 
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3],

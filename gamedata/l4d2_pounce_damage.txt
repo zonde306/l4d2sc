@@ -21,8 +21,8 @@
 		{
 			"OnPouncedOnSurvivor_Offset"
 			{
-				"windows"		"1101"
-				"linux"			"1310"
+				"windows"		"1105"
+				"linux"			"1237"
 			}
 			"OnPouncedOnSurvivor_Byte"
 			{

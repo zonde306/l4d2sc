@@ -17,17 +17,17 @@
 		{
 			"CRifle_M60::PrimaryAttack"
 			{
-				"linux"		"228"	//0x85
+				"linux"		"222"	//0x85
 				"windows"	"271"	//0x75
 			}
 			"CWeaponAmmoSpawn::Use_NadeLauncher_Patch"
 			{
-				"linux"		"87"	//0x15
+				"linux"		"81"	//0x15
 				"windows"	"75"	//0x15
 			}
 			"CWeaponAmmoSpawn::Use_M60_Patch"
 			{
-				"linux"		"237"	//0x25
+				"linux"		"101"	//0x25
 				"windows"	"92"	//0x25
 			}
 		}

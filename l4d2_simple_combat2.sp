@@ -2926,7 +2926,7 @@ public Action Timer_OnCombatThink(Handle timer, any data)
 		
 		// 战斗状态检查
 		// if(FindEnemyInRange(i, g_fCombatRadius) > 0)
-		if(IsVisibleThreats(i))
+		if(IsInCombat(i))
 		{
 			if(!g_bInBattle[i])
 			{
@@ -4633,13 +4633,15 @@ stock bool IsValidEnemy(int client, int other)
 
 #define ABS_ADD(%1,%2)		(%1 >= 0 ? (%1 += %2) : (%1 -= %2))
 
-stock bool IsVisibleThreats(int client)
+stock bool IsInCombat(int client)
 {
 	if(!IsValidAliveClient(client))
 		return false;
 	
+	/*
 	return (GetEntProp(client, Prop_Send, "m_hasVisibleThreats", 1) != 0 ||
 		GetEntProp(client, Prop_Send, "m_clientIntensity") > 0);
+	*/
 	
 	/*
 	return (GetEntProp(client, Prop_Send, "m_hasVisibleThreats") > 0 ||
@@ -4650,6 +4652,32 @@ stock bool IsVisibleThreats(int client)
 		GetEntPropEnt(client, Prop_Send, "m_tongueOwner") > 0 ||
 		GetEntPropEnt(client, Prop_Send, "m_carryAttacker") > 0);
 	*/
+	
+	static ConVar cv_variant;
+	if(cv_variant == null)
+		cv_variant = CreateConVar("sc2_variant_incombat", "", "");
+	
+	L4D2_RunScript("Convars.SetValue(\"sc2_variant_incombat\",PlayerInstanceFromIndex(%d).IsInCombat().tointeger())", client);
+	return cv_variant.BoolValue;
+}
+
+stock void L4D2_RunScript(char[] sCode, any ...)
+{
+	static int iScriptLogic = INVALID_ENT_REFERENCE;
+	if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+	{
+		iScriptLogic = EntIndexToEntRef(CreateEntityByName("logic_script"));
+		if( iScriptLogic == INVALID_ENT_REFERENCE || !IsValidEntity(iScriptLogic) )
+			SetFailState("Could not create 'logic_script'");
+		
+		DispatchSpawn(iScriptLogic);
+	}
+	
+	static char sBuffer[8192];
+	VFormat(sBuffer, sizeof(sBuffer), sCode, 2);
+	
+	SetVariantString(sBuffer);
+	AcceptEntityInput(iScriptLogic, "RunScriptCode");
 }
 
 stock int GetCurrentAttacker(int client)

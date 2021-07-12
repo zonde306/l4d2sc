@@ -49,7 +49,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public Plugin myinfo =
 {
-	name = "机枪空弹匣不掉落",
+	name = "[L4D2]M60_NoDrop_AmmoPile_patch",
 	author = "Lux",
 	description = "Prevents m60 from dropping and allows use of ammo piles",
 	version = PLUGIN_VERSION,

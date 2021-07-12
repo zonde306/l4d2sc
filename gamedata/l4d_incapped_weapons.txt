@@ -34,7 +34,7 @@
 			"CanDeploy_Offset"
 			{
 				"windows"		"18"
-				"linux"			"29"
+				"linux"			"19"
 			}
 			"CanDeploy_Byte"
 			{
@@ -50,7 +50,7 @@
 			"OnIncap_Offset"
 			{
 				"windows"		"0"
-				"linux"			"794"
+				"linux"			"816"
 			}
 			"OnIncap_Byte"
 			{

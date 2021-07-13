@@ -1,13 +1,13 @@
 #pragma semicolon 1
 #include <sourcemod>
 #include <sdktools>
-#include <sdkhooks>
 #include <adminmenu>
+#include <regex>
 
 #define PLUGIN_VERSION			"0.0.0"
 #include "modules/l4d2ps.sp"
 
-public Plugin:myinfo =
+public Plugin myinfo =
 {
 	name = "技能树(技能框架)",
 	author = "zonde306",
@@ -18,21 +18,7 @@ public Plugin:myinfo =
 
 bool g_bLateLoad = false;
 
-// enum 不好用。。。一堆 warn
-const int SLOT_Defensive = 0;
-const int SLOT_Restoration = 1;
-const int SLOT_Special = 2;
-const int SLOT_Pistol = 3;
-const int SLOT_Shotgun = 4;
-const int SLOT_SMG = 5;
-const int SLOT_Rifle = 6;
-const int SLOT_Sniper = 7;
-const int SLOT_Melee = 8;
-const int SLOT_Ability = 9;
-const int SLOT_SIZE = 10;
-
 ConVar g_cvExpP, g_cvExpB, g_cvExpM, g_cvMaxLevel, g_cvMaxSklLevel, g_cvPoint;
-ConVar g_cvSklExpRate[SLOT_SIZE];
 
 public OnPluginStart()
 {
@@ -43,16 +29,6 @@ public OnPluginStart()
 	g_cvMaxLevel = CreateConVar("l4d2_sf_level_max", "100", "等级上限", CVAR_FLAGS, true, 0.0);
 	g_cvMaxSklLevel = CreateConVar("l4d2_sf_skill_level_max", "100", "技能等级上限", CVAR_FLAGS, true, 0.0);
 	g_cvPoint = CreateConVar("l4d2_sf_levelup_points", "1", "升级获得技能点数量", CVAR_FLAGS, true, 0.0);
-	g_cvSklExpRate[SLOT_Defensive] = CreateConVar("l4d2_st_defensive_rate", "1", "抗性技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_Restoration] = CreateConVar("l4d2_st_restoration_rate", "1", "恢复技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_Special] = CreateConVar("l4d2_sf_special_rate", "1", "特殊/其他/杂项技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_Pistol] = CreateConVar("l4d2_sf_pistol_rate", "1", "手枪技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_Shotgun] = CreateConVar("l4d2_sf_shotgun_rate", "1", "霰弹枪技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_SMG] = CreateConVar("l4d2_sf_smg_rate", "1", "冲锋枪技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_Rifle] = CreateConVar("l4d2_sf_rifle_rate", "1", "步枪技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_Sniper] = CreateConVar("l4d2_sf_sniper_rate", "1", "狙击枪技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_Melee] = CreateConVar("l4d2_sf_melee_rate", "1", "近战技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
-	g_cvSklExpRate[SLOT_Ability] = CreateConVar("l4d2_sf_ability_rate", "1", "特感技能经验倍率(获得Exp=倍率*基础+补偿)", CVAR_FLAGS, true, 0.0, true, 100.0);
 	AutoExecConfig(true, "l4d2_skill_framework");
 	
 	OnConVarChanged_UpdateCache(null, "", "");
@@ -62,8 +38,6 @@ public OnPluginStart()
 	g_cvMaxLevel.AddChangeHook(OnConVarChanged_UpdateCache);
 	g_cvMaxSklLevel.AddChangeHook(OnConVarChanged_UpdateCache);
 	g_cvPoint.AddChangeHook(OnConVarChanged_UpdateCache);
-	for(int i = 0; i < SLOT_SIZE; ++i)
-		g_cvSklExpRate[i].AddChangeHook(OnConVarChanged_UpdateCache);
 	
 	// sm_admin 菜单
 	TopMenu tm = GetAdminTopMenu();
@@ -76,10 +50,11 @@ public OnPluginStart()
 	
 	if(g_bLateLoad)
 		OnMapStart();
+	
+	RegConsoleCmd("sm_skill", Cmd_SkillMenu, "");
 }
 
 int g_iExpP, g_iExpB, g_iExpM, g_iMaxLevel, g_iMaxSkill, g_iSkillPoint;
-float g_fSklExpRate[SLOT_SIZE];
 
 public void OnConVarChanged_UpdateCache(ConVar cvar, const char[] oldValue, const char[] newValue)
 {
@@ -89,22 +64,27 @@ public void OnConVarChanged_UpdateCache(ConVar cvar, const char[] oldValue, cons
 	g_iMaxLevel = g_cvMaxLevel.IntValue;
 	g_iMaxSkill = g_cvMaxSklLevel.IntValue;
 	g_iSkillPoint = g_cvPoint.IntValue;
-	for(int i = 0; i < SLOT_SIZE; ++i)
-		g_fSklExpRate[i] = g_cvSklExpRate[i].FloatValue;
 }
 
-/*
-********************************************
-*                管理员菜单                *
-********************************************
-*/
+StringMap g_AllPerks, g_SlotPerks;
+StringMap g_MenuData[MAXPLAYERS+1];
+ArrayList g_SlotIndexes;
+
+enum struct PerkData_t
+{
+	int maxLevel;
+	int slot;
+	int baseLevel;
+	int baseSkillLevel;
+	float levelFactor;
+}
 
 enum struct PlayerData_t
 {
 	int level;
 	int experience;
-	int lvSkills[SLOT_SIZE];
-	int expSkills[SLOT_SIZE];
+	StringMap lvSkills;
+	StringMap expSkills;
 	StringMap perks;
 	int prevCap;
 	int points;
@@ -113,23 +93,116 @@ enum struct PlayerData_t
 	{
 		this.level = this.experience = 0;
 		this.prevCap = g_iExpB;
-		for(int i = 0; i < SLOT_SIZE; ++i)
-			this.lvSkills[i] = this.expSkills[i] = 0;
+		this.lvSkills = CreateTrie();
+		this.expSkills = CreateTrie();
 		this.perks = CreateTrie();
+	}
+	
+	int GetSklExp(int slotId)
+	{
+		if(slotId < 0 || slotId >= g_SlotIndexes.Length)
+			return -1;
+		
+		char buffer[64];
+		StringMap slot = g_SlotIndexes.Get(slotId);
+		if(!slot.GetString("#slotName", buffer, sizeof(buffer)))
+			return -1;
+		
+		// 为避免技能槽位失踪，这里使用比较稳定的 name 作为 key
+		int result = 0;
+		this.lvSkills.GetValue(buffer, result);
+		return result;
+	}
+	
+	int GetSklLv(int slotId)
+	{
+		if(slotId < 0 || slotId >= g_SlotIndexes.Length)
+			return -1;
+		
+		char buffer[64];
+		StringMap slot = g_SlotIndexes.Get(slotId);
+		if(!slot.GetString("#slotName", buffer, sizeof(buffer)))
+			return -1;
+		
+		// 为避免技能槽位失踪，这里使用比较稳定的 name 作为 key
+		int result = 0;
+		this.expSkills.GetValue(buffer, result);
+		return result;
+	}
+	
+	int GetPerk(const char[] name)
+	{
+		int result = 0;
+		this.perks.GetValue(name, result);
+		return result;
+	}
+	
+	bool SetPerk(const char[] name, int value)
+	{
+		PerkData_t data;
+		if(!FindPerk(name, data))
+			return false;
+		
+		if(value < 0)
+			value = 0;
+		else if(value > data.maxLevel)
+			value = data.maxLevel;
+		
+		if(value == this.GetPerk(name))
+			return false;
+		
+		if(value == 0)
+			this.perks.Remove(name);
+		else
+			this.perks.SetValue(name, value);
+		
+		return true;
+	}
+	
+	bool SetSklExp(int slotId, int value)
+	{
+		if(slotId < 0 || slotId >= g_SlotIndexes.Length)
+			return false;
+		
+		char buffer[64];
+		StringMap slot = g_SlotIndexes.Get(slotId);
+		if(!slot.GetString("#slotName", buffer, sizeof(buffer)))
+			return false;
+		
+		this.expSkills.SetValue(buffer, value);
+		return true;
+	}
+	
+	bool SetSklLv(int slotId, int value)
+	{
+		if(slotId < 0 || slotId >= g_SlotIndexes.Length)
+			return false;
+		
+		char buffer[64];
+		StringMap slot = g_SlotIndexes.Get(slotId);
+		if(!slot.GetString("#slotName", buffer, sizeof(buffer)))
+			return false;
+		
+		this.lvSkills.SetValue(buffer, value);
+		return true;
 	}
 }
 
-enum struct PerkData_t
+enum PerkPerm_t
 {
-	int maxLevel;
-	int slot;
-	int baseLevel;
-	int baseSkillLevel;
+	NO_ACCESS = 0,			// 禁止访问
+	CAN_VIEW = (1 << 0),	// 可以查看
+	CAN_FETCH = (1 << 2),	// 可以选取
+	FREE_FETCH = (1 << 3),	// 允许无限制选取
 }
 
 PlayerData_t g_PlayerData[MAXPLAYERS+1];
-StringMap g_AllPerks;
-StringMap g_MenuData[MAXPLAYERS+1];
+
+/*
+********************************************
+*                管理员菜单                *
+********************************************
+*/
 
 public void OnAdminMenuReady(Handle tm)
 {
@@ -242,15 +315,14 @@ public void TopMenuItem_GiveSkillExperience(TopMenu topmenu, TopMenuAction actio
 	
 	Menu menu = CreateMenu(MenuHandler_GiveSkillExperience);
 	menu.SetTitle("%T", "给玩家技能经验-选择类型", client);
-	menu.AddItem("0", tr("%T", "抗性", client));
-	menu.AddItem("1", tr("%T", "恢复", client));
-	menu.AddItem("3", tr("%T", "手枪", client));
-	menu.AddItem("4", tr("%T", "霰弹枪", client));
-	menu.AddItem("5", tr("%T", "冲锋枪", client));
-	menu.AddItem("6", tr("%T", "步枪", client));
-	menu.AddItem("7", tr("%T", "近战", client));
-	menu.AddItem("8", tr("%T", "特感", client));
-	menu.AddItem("2", tr("%T", "其他", client));
+	
+	char slotName[64];
+	for(int i = 0; i < g_SlotIndexes.Length; ++i)
+	{
+		GetSlotName(client, i, slotName, sizeof(slotName));
+		menu.AddItem(tr("%d", i), slotName);
+	}
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -433,15 +505,14 @@ public void TopMenuItem_GiveSkillLevel(TopMenu topmenu, TopMenuAction action, To
 	
 	Menu menu = CreateMenu(MenuHandler_GiveSkillLevel);
 	menu.SetTitle("%T", "给玩家技能等级-选择类型", client);
-	menu.AddItem("0", tr("%T", "抗性", client));
-	menu.AddItem("1", tr("%T", "恢复", client));
-	menu.AddItem("3", tr("%T", "手枪", client));
-	menu.AddItem("4", tr("%T", "霰弹枪", client));
-	menu.AddItem("5", tr("%T", "冲锋枪", client));
-	menu.AddItem("6", tr("%T", "步枪", client));
-	menu.AddItem("7", tr("%T", "近战", client));
-	menu.AddItem("8", tr("%T", "特感", client));
-	menu.AddItem("2", tr("%T", "其他", client));
+	
+	char slotName[64];
+	for(int i = 0; i < g_SlotIndexes.Length; ++i)
+	{
+		GetSlotName(client, i, slotName, sizeof(slotName));
+		menu.AddItem(tr("%d", i), slotName);
+	}
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -624,15 +695,14 @@ public void TopMenuItem_GivePerk(TopMenu topmenu, TopMenuAction action, TopMenuO
 	
 	Menu menu = CreateMenu(MenuHandler_GivePerk);
 	menu.SetTitle("%T", "给玩家技能-选择类型", client);
-	menu.AddItem("0", tr("%T", "抗性", client));
-	menu.AddItem("1", tr("%T", "恢复", client));
-	menu.AddItem("3", tr("%T", "手枪", client));
-	menu.AddItem("4", tr("%T", "霰弹枪", client));
-	menu.AddItem("5", tr("%T", "冲锋枪", client));
-	menu.AddItem("6", tr("%T", "步枪", client));
-	menu.AddItem("7", tr("%T", "近战", client));
-	menu.AddItem("8", tr("%T", "特感", client));
-	menu.AddItem("2", tr("%T", "其他", client));
+	
+	char slotName[64];
+	for(int i = 0; i < g_SlotIndexes.Length; ++i)
+	{
+		GetSlotName(client, i, slotName, sizeof(slotName));
+		menu.AddItem(tr("%d", i), slotName);
+	}
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -657,21 +727,16 @@ public int MenuHandler_GivePerk(Menu menu, MenuAction action, int client, int se
 	
 	Menu menu2 = CreateMenu(MenuHandler_GivePerk2);
 	menu2.SetTitle("%T", "给玩家技能-选择技能", client, display);
-	int slot = view_as<int>(StringToInt(info));
-	g_MenuData[client].SetValue("slot", slot);
+	int slotId = StringToInt(info);
+	g_MenuData[client].SetValue("slot", slotId);
 	g_MenuData[client].SetString("slotName", display);
 	
-	StringMapSnapshot iter = g_AllPerks.Snapshot();
-	int count = iter.Length;
-	PerkData_t data;
-	for(int i = 0; i < count; ++i)
+	StringMap perks = g_SlotIndexes.Get(slotId);
+	StringMapSnapshot iter = perks.Snapshot();
+	for(int i = 0; i < iter.Length; ++i)
 	{
-		// 应该不需要缓存优化的吧，毕竟不是经常调用的
 		iter.GetKey(i, info, sizeof(info));
-		if(!FindPerk(info, data) || data.slot != slot)
-			continue;
-		
-		GetPerkName(client, info, display, sizeof(display));
+		GetPerkName(client, info, 1, display, sizeof(display));
 		menu2.AddItem(info, display);
 	}
 	
@@ -773,7 +838,289 @@ public int MenuHandler_GivePerk4(Menu menu, MenuAction action, int client, int s
 
 /*
 ********************************************
-*               玩家数据存储               *
+*                 玩家菜单                 *
+********************************************
+*/
+
+StringMap g_AccessCache[MAXPLAYERS+1];
+
+void RefreshAccessCache(int client, bool force = false)
+{
+	if(!IsValidClient(client))
+		return;
+	
+	if(g_AccessCache[client] != null && !force)
+	{
+		float time = 0.0;
+		g_AccessCache[client].GetValue("#time", time);
+		if(GetEngineTime() - time < 1.0)
+			return;
+	}
+	
+	g_AccessCache[client] = CreateTrie();
+	
+	char buffer[64];
+	PerkData_t data;
+	int level = g_PlayerData[client].level;
+	int[] sklLevel = new int[g_SlotIndexes.Length];
+	for(int i = 0; i < g_SlotIndexes.Length; ++i)
+	{
+		StringMap slot = g_SlotIndexes.Get(i);
+		sklLevel[i] = g_PlayerData[client].GetSklLv(i);
+		
+		int count = 0, used = 0;
+		StringMapSnapshot iter = slot.Snapshot();
+		for(int j = 0; j < iter.Length; ++j)
+		{
+			iter.GetKey(i, buffer, sizeof(buffer));
+			if(buffer[0] == '#')
+				continue;
+			
+			PerkPerm_t perm = NO_ACCESS;
+			int perkLevel = g_PlayerData[client].GetPerk(buffer);
+			slot.GetArray(buffer, data, sizeof(data));
+			if(data.baseLevel >= level && data.baseSkillLevel >= sklLevel[i])
+			{
+				perm |= CAN_VIEW;
+				
+				if(data.baseSkillLevel * data.levelFactor * (perkLevel + 1))
+					perm |= CAN_FETCH;
+			}
+			
+			perm = GetPerkAccess(client, i, buffer, perm);
+			g_AccessCache[client].SetValue(buffer, perm);
+			
+			count += 1;
+			if(perkLevel)	// 或者检查 perm
+				used += 1;
+		}
+		
+		g_AccessCache[client].SetValue(tr("#%d_count"), count);
+		g_AccessCache[client].SetValue(tr("#%d_used"), used);
+	}
+	
+	g_AccessCache[client].SetValue("#time", GetEngineTime());
+}
+
+public Action Cmd_SkillMenu(int client, int argc)
+{
+	if(!IsValidClient(client))
+		return Plugin_Continue;
+	
+	ShowMainMenu(client);
+	return Plugin_Continue;
+}
+
+void ShowMainMenu(int client)
+{
+	if(!IsValidClient(client))
+		return;
+	
+	Menu menu = CreateMenu(MenuHandler_MainMenu);
+	menu.SetTitle("%T", "主菜单", client, g_PlayerData[client].level, g_PlayerData[client].experience, g_PlayerData[client].points);
+	RefreshAccessCache(client);
+	
+	char slotName[64];
+	for(int i = 0; i < g_SlotIndexes.Length; ++i)
+	{
+		int count = 0, used = 0;
+		GetSlotName(client, i, slotName, sizeof(slotName));
+		g_AccessCache[client].GetValue(tr("#%d_count"), count);
+		g_AccessCache[client].GetValue(tr("#%d_used"), used);
+		menu.AddItem(tr("%d", i), tr("%T", "技能分类项", client, g_PlayerData[client].GetSklLv(i), used, count));
+	}
+	
+	menu.ExitButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_MainMenu(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		// if(selected == MenuCancel_ExitBack)
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[8];
+	menu.GetItem(selected, info, sizeof(info));
+	ShowSlotMenu(client, StringToInt(info));
+	return 0;
+}
+
+void ShowSlotMenu(int client, int slotId)
+{
+	if(!IsValidClient(client) || slotId < 0 || slotId >= g_SlotIndexes.Length)
+		return;
+	
+	char buffer[64];
+	GetSlotName(client, slotId, buffer, sizeof(buffer));
+	
+	Menu menu = CreateMenu(MenuHandler_SlotMenu);
+	menu.SetTitle("%T", "技能菜单", client,
+		buffer,
+		g_PlayerData[client].level,
+		g_PlayerData[client].GetSklLv(slotId),
+		g_PlayerData[client].GetSklExp(slotId),
+		g_PlayerData[client].points
+	);
+	
+	char perkName[64];
+	StringMap slot = g_SlotIndexes.Get(slotId);
+	StringMapSnapshot iter = slot.Snapshot();
+	for(int i = 0; i < iter.Length; ++i)
+	{
+		iter.GetKey(i, buffer, sizeof(buffer));
+		if(buffer[0] == '#')
+			continue;
+		
+		PerkPerm_t perm = NO_ACCESS;
+		g_AccessCache[client].GetValue(buffer, perm);
+		if(!(perm & (CAN_VIEW|FREE_FETCH)))
+			continue;
+		
+		int perkLevel = g_PlayerData[client].GetPerk(buffer);
+		GetPerkName(client, buffer, perkLevel, perkName, sizeof(perkName));
+		menu.AddItem(buffer, tr("%T", "技能列表选项", client, perkName, perkLevel));
+	}
+	
+	menu.ExitButton = true;
+	menu.ExitBackButton = true;
+	menu.Display(client, MENU_TIME_FOREVER);
+}
+
+public int MenuHandler_SlotMenu(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action == MenuAction_End)
+		return 0;
+	if(action == MenuAction_Cancel)
+	{
+		if(selected == MenuCancel_ExitBack)
+			ShowMainMenu(client);
+		return 0;
+	}
+	if(action != MenuAction_Select)
+		return 0;
+	
+	char info[64];
+	menu.GetItem(selected, info, sizeof(info));
+	ShowPerkMenu(client, info);
+	return 0;
+}
+
+void ShowPerkMenu(int client, const char[] perk)
+{
+	if(!IsValidClient(client))
+		return;
+	
+	PerkData_t data;
+	if(!FindPerk(perk, data))
+		return;
+	
+	int perkLevel = g_PlayerData[client].GetPerk(perk);
+	Panel menu = CreatePanel();
+	menu.SetTitle(tr("%T", "技能详情", client,
+		g_PlayerData[client].level,
+		g_PlayerData[client].GetSklLv(data.slot),
+		g_PlayerData[client].GetSklExp(data.slot),
+		g_PlayerData[client].points
+	));
+	
+	char perkName[64], perkDesc[128];
+	menu.DrawText("\n");
+	
+	if(perkLevel <= 0)
+	{
+		menu.DrawText(tr("%T", "当前：(无)", client));
+	}
+	else
+	{
+		GetPerkName(client, perk, perkLevel, perkName, sizeof(perkName));
+		menu.DrawText(tr("%T", "当前：", client, perkName, perkLevel));
+		
+		GetPerkDescription(client, perk, perkLevel, perkDesc, sizeof(perkDesc));
+		menu.DrawText(perkDesc);
+	}
+	
+	menu.DrawText("\n");
+	
+	if(perkLevel < data.maxLevel)
+	{
+		GetPerkName(client, perk, perkLevel + 1, perkName, sizeof(perkName));
+		menu.DrawText(tr("%T", "下一级：", client, perkName, perkLevel + 1));
+		
+		int level = g_PlayerData[client].level;
+		int sklLevel = g_PlayerData[client].GetSklLv(data.slot);
+		menu.DrawText(tr("%T", "要求：", client, data.baseLevel, level, data.baseSkillLevel * data.levelFactor * (perkLevel + 1), sklLevel));
+		
+		GetPerkDescription(client, perk, perkLevel + 1, perkDesc, sizeof(perkDesc));
+		menu.DrawText(perkDesc);
+	}
+	
+	menu.DrawText("\n");
+	
+	PerkPerm_t perm = NO_ACCESS;
+	g_AccessCache[client].GetValue(perk, perm);
+	
+	if((perm & (CAN_FETCH|FREE_FETCH)) && g_PlayerData[client].points > 0)
+		menu.DrawItem(tr("%T", "Yes", client), ITEMDRAW_DEFAULT);
+	else
+		menu.DrawItem(tr("%T", "Yes", client), ITEMDRAW_DISABLED);
+	
+	menu.DrawItem(tr("%T", "No", client), ITEMDRAW_DEFAULT);
+	menu.DrawItem("", ITEMDRAW_IGNORE);
+	menu.DrawItem("", ITEMDRAW_IGNORE);
+	menu.DrawItem("", ITEMDRAW_IGNORE);
+	menu.DrawItem("", ITEMDRAW_IGNORE);
+	menu.DrawItem("", ITEMDRAW_IGNORE);
+	menu.DrawItem(tr("%T", "Back", client), ITEMDRAW_CONTROL);
+	menu.DrawItem("", ITEMDRAW_IGNORE);
+	menu.DrawItem(tr("%T", "Exit", client), ITEMDRAW_CONTROL);
+	menu.Send(client, MenuHandler_PerkMenu, MENU_TIME_FOREVER);
+	
+	g_AccessCache[client].SetValue("#slotId", data.slot);
+	g_AccessCache[client].SetString("#perk", perk);
+}
+
+public int MenuHandler_PerkMenu(Menu menu, MenuAction action, int client, int selected)
+{
+	if(action != MenuAction_Select)
+		return 0;
+	
+	switch(selected)
+	{
+		case 1:
+		{
+			char perk[64];
+			g_AccessCache[client].GetString("#perk", perk, sizeof(perk));
+			
+			if(g_PlayerData[client].points > 0)
+			{
+				g_PlayerData[client].points -= 1;
+				GivePerk(client, perk, 1);
+				RefreshAccessCache(client, true);
+			}
+			
+			ShowPerkMenu(client, perk);
+		}
+		case 2, 8:
+		{
+			int slotId = -1;
+			if(g_AccessCache[client].GetValue("#slotId", slotId))
+				ShowSlotMenu(client, slotId);
+		}
+	}
+	
+	return 0;
+}
+
+/*
+********************************************
+*                 玩家数据                 *
 ********************************************
 */
 
@@ -821,14 +1168,17 @@ public void OnMapEnd()
 
 void GiveSkillExperience(int client, int slot, int amount)
 {
-	int skillCap = RoundFloat(g_iExpM * Pow(float(g_PlayerData[client].lvSkills[slot]), float(g_iExpP)) + g_iExpB);
+	int lvSkill = g_PlayerData[client].GetSklLv(slot);
+	int skillCap = RoundFloat(g_iExpM * Pow(float(lvSkill), float(g_iExpP)) + g_iExpB);
 	if(!NotifySkillExperiencePre(client, slot, amount, skillCap))
 		return;
 	
-	g_PlayerData[client].expSkills[slot] += amount;
-	if(g_PlayerData[client].expSkills[slot] >= skillCap && g_PlayerData[client].lvSkills[slot] < g_iMaxSkill)
+	int expSkill = g_PlayerData[client].GetSklExp(slot);
+	g_PlayerData[client].SetSklExp(slot, expSkill += amount);
+	
+	if(expSkill >= skillCap && lvSkill < g_iMaxSkill)
 	{
-		GiveSkillLevel(client, 1, g_PlayerData[client].expSkills[slot] - skillCap);
+		GiveSkillLevel(client, 1, expSkill - skillCap);
 		GiveExperience(client, skillCap);
 	}
 	
@@ -837,26 +1187,29 @@ void GiveSkillExperience(int client, int slot, int amount)
 
 void GiveSkillLevel(int client, int slot, int level, int remaining = 0)
 {
-	level += g_PlayerData[client].lvSkills[slot];
+	level += g_PlayerData[client].GetSklLv(slot);
 	if(!NotifySkillLevelUpPre(client, slot, level, remaining))
 		return;
 	
-	g_PlayerData[client].lvSkills[slot] = level;
-	g_PlayerData[client].expSkills[slot] = remaining;
+	g_PlayerData[client].SetSklLv(slot, level);
+	g_PlayerData[client].SetSklExp(slot, remaining);
 	
 	NotifySkillLevelUpPost(client, slot, level, remaining);
 }
 
 void GiveExperience(int client, int amount)
 {
-	int levelCap = g_iExpM * g_PlayerData[client].prevCap + g_iExpB * g_PlayerData[client].level;
+	int level = g_PlayerData[client].level;
+	int levelCap = g_iExpM * g_PlayerData[client].prevCap + g_iExpB * level;
 	if(!NotifyExperiencePre(client, amount, levelCap))
 		return;
 	
-	g_PlayerData[client].experience += amount;
-	if(g_PlayerData[client].experience >= levelCap && g_PlayerData[client].level < g_iMaxLevel)
+	int experience = g_PlayerData[client].experience;
+	g_PlayerData[client].experience = experience += amount;
+	
+	if(experience >= levelCap && level < g_iMaxLevel)
 	{
-		GiveLevel(client, 1, g_PlayerData[client].experience - levelCap);
+		GiveLevel(client, 1, experience - levelCap);
 	}
 	
 	NotifyExperiencePost(client, amount, levelCap);
@@ -887,34 +1240,15 @@ bool FindPerk(const char[] perk, PerkData_t data)
 
 bool GivePerk(int client, const char[] perk, int level)
 {
-	PerkData_t data;
-	if(!FindPerk(perk, data) || data.maxLevel <= 0)
+	char buffer[64];
+	strcopy(buffer, sizeof(buffer), perk);
+	if(!NotifyPerkPre(client, level, buffer, sizeof(buffer)))
 		return false;
 	
-	if(level > data.maxLevel)
-		level = data.maxLevel;
+	bool result = g_PlayerData[client].SetPerk(buffer, g_PlayerData[client].GetPerk(buffer) + level);
 	
-	int oldLevel = 0;
-	g_PlayerData[client].perks.GetValue(perk, oldLevel);
-	
-	oldLevel += level;
-	if(oldLevel < 0)
-		oldLevel = 0;
-	else if(oldLevel > data.maxLevel)
-		oldLevel = data.maxLevel;
-	
-	if(oldLevel > 0)
-		g_PlayerData[client].perks.SetValue(perk, oldLevel);
-	else
-		g_PlayerData[client].perks.Remove(perk);
-	return true;
-}
-
-int GetPerk(int client, const char[] perk)
-{
-	int level = 0;
-	g_PlayerData[client].perks.GetValue(perk, level);
-	return level;
+	NotifyPerkPost(client, level, buffer);
+	return result;
 }
 
 void GivePoint(int client, int amount)
@@ -934,41 +1268,54 @@ void GivePoint(int client, int amount)
 */
 
 GlobalForward g_fwSkillExperiencePre, g_fwSkillExperiencePost, g_fwExperiencePre, g_fwExperiencePost, g_fwSkillLevelUpPre, g_fwSkillLevelUpPost,
-	g_fwLevelUpPre, g_fwLevelUpPost, g_fwPerkName, g_fwPerkDescription, g_fwPointPre, g_fwPointPost;
+	g_fwLevelUpPre, g_fwLevelUpPost, g_fwPerkName, g_fwPerkDescription, g_fwPointPre, g_fwPointPost, g_fwCanAccessPerk, g_fwSlotName,
+	g_fwPerkPre, g_fwPerkPost;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
 	RegPluginLibrary("l4d2_skill_framework");
 	
 	g_AllPerks = CreateTrie();
+	g_SlotPerks = CreateTrie();
+	g_SlotIndexes = CreateArray();
 	g_bLateLoad = late;
 	
-	// Action L4D2SF_OnSkillExperiencePre(int client, int& slot, int& amount, int& cap)
+	// Action L4D2SF_OnSkillExperiencePre(int client, int& slotId, int& amount, int& cap)
 	g_fwSkillExperiencePre = CreateGlobalForward("L4D2SF_OnSkillExperiencePre", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
-	// void L4D2SF_OnSkillExperiencePost(int client, int slot, int amount, int cap)
+	// void L4D2SF_OnSkillExperiencePost(int client, int slotId, int amount, int cap)
 	g_fwSkillExperiencePost = CreateGlobalForward("L4D2SF_OnSkillExperiencePost", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
 	// Action L4D2SF_OnExperiencePre(int client, int& amount, int& cap)
 	g_fwExperiencePre = CreateGlobalForward("L4D2SF_OnExperiencePre", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef);
 	// void L4D2SF_OnExperiencePost(int client, int amount, int cap)
 	g_fwExperiencePost = CreateGlobalForward("L4D2SF_OnExperiencePost", ET_Hook, Param_Cell, Param_Cell, Param_Cell);
-	// Action L4D2SF_OnSkillLevelUpPre(int client, int& slot, int& nextLevel, int& remaining)
+	// Action L4D2SF_OnSkillLevelUpPre(int client, int& slotId, int& nextLevel, int& remaining)
 	g_fwSkillLevelUpPre = CreateGlobalForward("L4D2SF_OnSkillLevelUpPre", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef, Param_CellByRef);
-	// void L4D2SF_OnSkillLevelUpPost(int client, int slot, int nextLevel, int remaining)
+	// void L4D2SF_OnSkillLevelUpPost(int client, int slotId, int nextLevel, int remaining)
 	g_fwSkillLevelUpPost = CreateGlobalForward("L4D2SF_OnSkillLevelUpPost", ET_Ignore, Param_Cell, Param_Cell, Param_Cell, Param_Cell);
 	// Action L4D2SF_OnLevelUpPre(int client, int& nextLevel, int& remaining)
 	g_fwLevelUpPre = CreateGlobalForward("L4D2SF_OnLevelUpPre", ET_Hook, Param_Cell, Param_CellByRef, Param_CellByRef);
 	// void L4D2SF_OnLevelUpPost(int client, int nextLevel, int remaining)
 	g_fwLevelUpPost = CreateGlobalForward("L4D2SF_OnLevelUpPost", ET_Ignore, Param_Cell, Param_Cell, Param_Cell);
-	// Action L4D2SF_OnGetPerkName(int client, const char[] name, char[] result, int maxlen)
-	g_fwPerkName = CreateGlobalForward("L4D2SF_OnGetPerkName", ET_Event, Param_Cell, Param_String, Param_String, Param_Cell);
-	// Action L4D2SF_OnGetPerkDescription(int client, const char[] name, char[] result, int maxlen)
-	g_fwPerkDescription = CreateGlobalForward("L4D2SF_OnGetPerkDescription", ET_Event, Param_String, Param_String, Param_Cell);
+	// Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
+	g_fwPerkName = CreateGlobalForward("L4D2SF_OnGetPerkName", ET_Event, Param_Cell, Param_String, Param_Cell, Param_String, Param_Cell);
+	// Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int level, char[] result, int maxlen)
+	g_fwPerkDescription = CreateGlobalForward("L4D2SF_OnGetPerkDescription", ET_Event, Param_String, Param_Cell, Param_String, Param_Cell);
 	// Action L4D2SF_PointPre(int client, int& amount)
 	g_fwPointPre = CreateGlobalForward("L4D2SF_PointPre", ET_Hook, Param_Cell, Param_CellByRef);
 	// void L4D2SF_PointPost(int client, int amount)
 	g_fwPointPost = CreateGlobalForward("L4D2SF_PointPost", ET_Ignore, Param_Cell, Param_Cell);
+	// Action L4D2SF_CanAccessPerk(int client, int slotId, const char[] perk, int& result)
+	g_fwCanAccessPerk = CreateGlobalForward("L4D2SF_CanAccessPerk", ET_Event, Param_Cell, Param_String, Param_CellByRef);
+	// Action L4D2SF_OnGetSlotName(int client, int slotId, char[] result, int maxlen)
+	g_fwSlotName = CreateGlobalForward("L4D2SF_OnGetSlotName", ET_Event, Param_Cell, Param_String, Param_Cell);
+	// Action L4D2SF_OnPerkPre(int client, int& level, char[] perk, int maxlen)
+	g_fwPerkPre = CreateGlobalForward("L4D2SF_OnPerkPre", ET_Hook, Param_Cell, Param_Cell, Param_String, Param_Cell);
+	// void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
+	g_fwPerkPost = CreateGlobalForward("L4D2SF_OnPerkPost", ET_Ignore, Param_Cell, Param_Cell, Param_String);
 	
-	// bool Native_RegPerk(const char[] name, int slot, int maxLevel, int baseSkillLevel, int baseLevel)
+	// int L4D2SF_RegSlot(const char[] name)
+	CreateNative("L4D2SF_RegSlot", Native_RegSlot);
+	// bool L4D2SF_RegPerk(int slotId, const char[] name, int maxLevel, int baseSkillLevel, int baseLevel, float factor)
 	CreateNative("L4D2SF_RegPerk", Native_RegPerk);
 	// bool L4D2SF_FindPerk(const char[] name, PerkData_t data)
 	CreateNative("L4D2SF_FindPerk", Native_FindPerk);
@@ -976,19 +1323,19 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D2SF_GivePerk", Native_GivePerk);
 	// int L4D2SF_GetClientPerk(int client, const char[] name)
 	CreateNative("L4D2SF_GetClientPerk", Native_GetPerk);
-	// void L4D2SF_GiveSkillExperience(int client, int slot, int amount)
+	// void L4D2SF_GiveSkillExperience(int client, int slotId, int amount)
 	CreateNative("L4D2SF_GiveSkillExperience", Native_GiveSkillExperience);
 	// void L4D2SF_GiveExperience(int client, int amount)
 	CreateNative("L4D2SF_GiveExperience", Native_GiveExperience);
-	// int L4D2SF_GetSkillExperience(int client, int slot)
+	// int L4D2SF_GetSkillExperience(int client, int slotId)
 	CreateNative("L4D2SF_GetSkillExperience", Native_GetSkillExperience);
 	// int L4D2SF_GetExperience(int client)
 	CreateNative("L4D2SF_GetExperience", Native_GetExperience);
-	// int L4D2SF_GetSkillLevel(int client, int slot)
+	// int L4D2SF_GetSkillLevel(int client, int slotId)
 	CreateNative("L4D2SF_GetSkillLevel", Native_GetSkillLevel);
 	// int L4D2SF_GetLevel(int client)
 	CreateNative("L4D2SF_GetLevel", Native_GetLevel);
-	// int L4D2SF_GiveSkillLevel(int client, int slot, int level, int remaining)
+	// int L4D2SF_GiveSkillLevel(int client, int slotId, int level, int remaining)
 	CreateNative("L4D2SF_GiveSkillLevel", Native_GiveSkillLevel);
 	// int L4D2SF_GiveLevel(int client, int level, int remaining)
 	CreateNative("L4D2SF_GiveLevel", Native_GiveLevel);
@@ -1000,21 +1347,64 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D2SF_GetPoint", Native_GetPoint);
 }
 
-public any Native_RegPerk(Handle plugin, int argc)
+public any Native_RegSlot(Handle plugin, int argc)
 {
 	char name[255];
 	GetNativeString(1, name, sizeof(name));
+	
+	static Regex re;
+	if(re == null)
+		re = CompileRegex("^[a-zA-Z0-9]+[a-zA-Z0-9_\\-]*[a-zA-Z0-9]+$", PCRE_CASELESS|PCRE_UTF8|PCRE_NOTEMPTY|PCRE_DOLLAR_ENDONLY);
+	if(re.Match(name) < 1)
+		return -1;
+	
+	StringMap slot;
+	int slotId = -1;
+	if(g_SlotPerks.GetValue(name, slot) && slot.GetValue("#slotId", slotId))
+		return slotId;
+	
+	slot = CreateTrie();
+	slotId = g_SlotIndexes.Length;
+	g_SlotIndexes.Push(slot);
+	g_SlotPerks.SetValue(name, slot);
+	
+	// 这是 reference，所以不需要设置回去
+	slot.SetValue("#slotId", slotId);
+	slot.SetString("#slotName", name);
+	
+	return slotId;
+}
+
+public any Native_RegPerk(Handle plugin, int argc)
+{
+	char name[255];
+	GetNativeString(2, name, sizeof(name));
+	
+	static Regex re;
+	if(re == null)
+		re = CompileRegex("^[a-zA-Z0-9]+[a-zA-Z0-9_\\-]*[a-zA-Z0-9]+$", PCRE_CASELESS|PCRE_UTF8|PCRE_NOTEMPTY|PCRE_DOLLAR_ENDONLY);
+	if(re.Match(name) < 1)
+		return false;
 	
 	PerkData_t data;
 	if(FindPerk(name, data))
 		return false;
 	
-	data.slot = view_as<int>(GetNativeCell(2));
+	data.slot = GetNativeCell(1);
+	if(data.slot < 0 || data.slot >= g_SlotIndexes.Length)
+		return false;
+	
 	data.maxLevel = GetNativeCell(3);
 	data.baseSkillLevel = GetNativeCell(4);
 	data.baseLevel = GetNativeCell(5);
+	data.levelFactor = view_as<float>(GetNativeCell(6));
 	
 	g_AllPerks.SetArray(name, data, sizeof(data));
+	
+	// 这是 reference，所以不需要设置回去
+	StringMap slot = g_SlotIndexes.Get(data.slot);
+	slot.SetArray(name, data, sizeof(data));
+	
 	return true;
 }
 
@@ -1049,7 +1439,7 @@ public any Native_GetPerk(Handle plugin, int argc)
 	char name[255];
 	GetNativeString(2, name, sizeof(name));
 	
-	return GetPerk(client, name);
+	return g_PlayerData[client].GetPerk(name);
 }
 
 public any Native_GiveSkillExperience(Handle plugin, int argc)
@@ -1074,7 +1464,7 @@ public any Native_GetSkillExperience(Handle plugin, int argc)
 	int client = GetNativeCell(1);
 	int slot = GetNativeCell(2);
 	
-	return g_PlayerData[client].expSkills[slot];
+	return g_PlayerData[client].GetSklExp(slot);
 }
 
 public any Native_GetExperience(Handle plugin, int argc)
@@ -1089,7 +1479,7 @@ public any Native_GetSkillLevel(Handle plugin, int argc)
 	int client = GetNativeCell(1);
 	int slot = GetNativeCell(2);
 	
-	return g_PlayerData[client].lvSkills[slot];
+	return g_PlayerData[client].GetSklLv(slot);
 }
 
 public any Native_GetLevel(Handle plugin, int argc)
@@ -1318,22 +1708,89 @@ void NotifyPointPost(int client, int amount)
 	Call_Finish();
 }
 
-void GetPerkName(int client, const char[] name, char[] result, int maxlen)
+void GetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
 {
 	Call_StartForward(g_fwPerkName);
 	Call_PushCell(client);
 	Call_PushString(name);
+	Call_PushCell(level);
 	Call_PushStringEx(result, maxlen, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(maxlen);
 	Call_Finish();
 }
 
-void GetPerkDescription(int client, const char[] name, char[] result, int maxlen)
+void GetPerkDescription(int client, const char[] name, int level, char[] result, int maxlen)
 {
 	Call_StartForward(g_fwPerkDescription);
 	Call_PushCell(client);
 	Call_PushString(name);
+	Call_PushCell(level);
 	Call_PushStringEx(result, maxlen, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(maxlen);
+	Call_Finish();
+}
+
+PerkPerm_t GetPerkAccess(int client, int slot, const char[] perk, PerkPerm_t perm = (CAN_FETCH | CAN_VIEW))
+{
+	Action state = Plugin_Continue;
+	
+	Call_StartForward(g_fwCanAccessPerk);
+	Call_PushCell(client);
+	Call_PushCell(slot);
+	Call_PushString(perk);
+	Call_PushCellRef(perm);
+	
+	if(Call_Finish(state) != SP_ERROR_NONE || state == Plugin_Continue)
+		return (CAN_FETCH | CAN_VIEW);
+	
+	if(state >= Plugin_Handled)
+		return NO_ACCESS;
+	
+	return perm;
+}
+
+void GetSlotName(int client, int slot, char[] result, int maxlen)
+{
+	Call_StartForward(g_fwSlotName);
+	Call_PushCell(client);
+	Call_PushCell(slot);
+	Call_PushStringEx(result, maxlen, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+	Call_PushCell(maxlen);
+	Call_Finish();
+}
+
+bool NotifyPerkPre(int client, int& level, char[] perk, int maxlen)
+{
+	int cloneLevel = level;
+	char clonePerk[64];
+	Action state = Plugin_Continue;
+	strcopy(clonePerk, sizeof(clonePerk), perk);
+	
+	Call_StartForward(g_fwPerkPre);
+	Call_PushCell(client);
+	Call_PushCell(level);
+	Call_PushStringEx(clonePerk, sizeof(clonePerk), SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
+	Call_PushCell(sizeof(clonePerk));
+	if(Call_Finish(state) != SP_ERROR_NONE)
+		state = Plugin_Continue;
+	
+	if(state >= Plugin_Handled)
+		return false;
+	
+	if(state == Plugin_Changed)
+	{
+		level = cloneLevel;
+		strcopy(perk, maxlen, clonePerk);
+	}
+	
+	return true;
+}
+
+void NotifyPerkPost(int client, int level, const char[] perk)
+{
+	Call_StartForward(g_fwPerkPost);
+	Call_PushCell(client);
+	Call_PushCell(level);
+	Call_PushString(perk);
 	Call_Finish();
 }

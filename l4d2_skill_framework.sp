@@ -1210,6 +1210,7 @@ void GiveExperience(int client, int amount)
 	if(experience >= levelCap && level < g_iMaxLevel)
 	{
 		GiveLevel(client, 1, experience - levelCap);
+		GivePoint(client, g_iSkillPoint);
 	}
 	
 	NotifyExperiencePost(client, amount, levelCap);
@@ -1223,7 +1224,6 @@ void GiveLevel(int client, int level, int remaining = 0)
 	
 	g_PlayerData[client].level = nextLevel;
 	g_PlayerData[client].experience = remaining;
-	GivePoint(client, g_iSkillPoint * (nextLevel - level));
 	
 	int prevCap = g_iExpB;
 	for(int i = 1; i <= nextLevel; ++i)
@@ -1335,9 +1335,9 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D2SF_GetSkillLevel", Native_GetSkillLevel);
 	// int L4D2SF_GetLevel(int client)
 	CreateNative("L4D2SF_GetLevel", Native_GetLevel);
-	// int L4D2SF_GiveSkillLevel(int client, int slotId, int level, int remaining)
+	// int L4D2SF_GiveSkillLevel(int client, int slotId, int level)
 	CreateNative("L4D2SF_GiveSkillLevel", Native_GiveSkillLevel);
-	// int L4D2SF_GiveLevel(int client, int level, int remaining)
+	// int L4D2SF_GiveLevel(int client, int level)
 	CreateNative("L4D2SF_GiveLevel", Native_GiveLevel);
 	// StringMapSnapshot L4D2SF_GetAllPerks()
 	CreateNative("L4D2SF_GetAllPerks", Native_GetAllPerks);
@@ -1494,7 +1494,7 @@ public any Native_GiveSkillLevel(Handle plugin, any argc)
 	int client = GetNativeCell(1);
 	int slot = GetNativeCell(2);
 	int amount = GetNativeCell(3);
-	int remaining = GetNativeCell(4);
+	int remaining = g_PlayerData[client].GetSklExp(slot);
 	
 	GiveSkillLevel(client, view_as<int>(slot), amount, remaining);
 }
@@ -1503,7 +1503,7 @@ public any Native_GiveLevel(Handle plugin, any argc)
 {
 	int client = GetNativeCell(1);
 	int amount = GetNativeCell(2);
-	int remaining = GetNativeCell(3);
+	int remaining = g_PlayerData[client].experience;
 	
 	GiveLevel(client, amount, remaining);
 }

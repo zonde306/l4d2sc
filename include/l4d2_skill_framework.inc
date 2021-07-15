@@ -65,11 +65,11 @@ native bool L4D2SF_RegPerk(int slotId, const char[] name, int maxLevel, int base
  * @brief 根据技能类名获取技能数据
  *
  * @param name					技能类名
- * @param data					返回的技能数据
+ * @param data					返回的技能数据(PerkData_t)
  *
  * @return						找到时返回 true 并填充传入的 data，否则返回 false
  */
-native bool L4D2SF_FindPerk(const char[] name, PerkData_t data);
+native bool L4D2SF_FindPerk(const char[] name, any[] data);
 
 /**
  * @brief 给玩家一个技能

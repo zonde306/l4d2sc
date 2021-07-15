@@ -1559,6 +1559,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D2SF_GivePoint", Native_GivePoint);
 	// int L4D2SF_GetPoint(int client)
 	CreateNative("L4D2SF_GetPoint", Native_GetPoint);
+	// bool 
 }
 
 public any Native_RegSlot(Handle plugin, int argc)
@@ -1922,26 +1923,36 @@ void NotifyPointPost(int client, int amount)
 	Call_Finish();
 }
 
-void GetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
+bool GetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
 {
+	Action state = Plugin_Changed;
+	
 	Call_StartForward(g_fwPerkName);
 	Call_PushCell(client);
 	Call_PushString(name);
 	Call_PushCell(level);
 	Call_PushStringEx(result, maxlen, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(maxlen);
-	Call_Finish();
+	if(Call_Finish(state) != SP_ERROR_NONE)
+		return false;
+	
+	return state == Plugin_Changed;
 }
 
-void GetPerkDescription(int client, const char[] name, int level, char[] result, int maxlen)
+bool GetPerkDescription(int client, const char[] name, int level, char[] result, int maxlen)
 {
+	Action state = Plugin_Changed;
+	
 	Call_StartForward(g_fwPerkDescription);
 	Call_PushCell(client);
 	Call_PushString(name);
 	Call_PushCell(level);
 	Call_PushStringEx(result, maxlen, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(maxlen);
-	Call_Finish();
+	if(Call_Finish(state) != SP_ERROR_NONE)
+		return false;
+	
+	return state == Plugin_Changed;
 }
 
 PerkPerm_t GetPerkAccess(int client, int slot, const char[] perk, PerkPerm_t perm = (CAN_FETCH | CAN_VIEW))
@@ -1963,14 +1974,19 @@ PerkPerm_t GetPerkAccess(int client, int slot, const char[] perk, PerkPerm_t per
 	return perm;
 }
 
-void GetSlotName(int client, int slot, char[] result, int maxlen)
+bool GetSlotName(int client, int slot, char[] result, int maxlen)
 {
+	Action state = Plugin_Changed;
+	
 	Call_StartForward(g_fwSlotName);
 	Call_PushCell(client);
 	Call_PushCell(slot);
 	Call_PushStringEx(result, maxlen, SM_PARAM_STRING_UTF8|SM_PARAM_STRING_COPY, SM_PARAM_COPYBACK);
 	Call_PushCell(maxlen);
-	Call_Finish();
+	if(Call_Finish(state) != SP_ERROR_NONE)
+		return false;
+	
+	return state == Plugin_Changed;
 }
 
 bool NotifyPerkPre(int client, int& level, char[] perk, int maxlen)

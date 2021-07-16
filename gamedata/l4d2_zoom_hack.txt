@@ -6,10 +6,12 @@
 		{
 			"CGetFov"
 			{
-				"library"	"server"
-				"linux"		"@_ZN11CBasePlayer6GetFOVEv"
-				"windows"	"\x56\x8B\xF1\x8B\x06\x8B\x90\xF8\x04\x00\x00\x57"
-			}
+				"library"    "server"
+				"linux"        "@_ZN11CBasePlayer6GetFOVEv"
+				"windows"    "\xE9\x0B\xD2\xFF\xFF"
+				/* E9 0B D2 FF FF */
+			} 
+			
 			"CGetDefaultFov"
 			{
 				"library"	"server"
@@ -21,8 +23,8 @@
 		{
 			"GetZoomLevel"
 			{
-				"windows"	"450"
-				"linux"		"452"
+				"windows"	"451"
+				"linux"		"453"
 			}
 		}
 	}

@@ -237,11 +237,12 @@ typeset SDKHookCB
 	function void (int client);
 
 	// Spawn
+	// Think
 	function Action (int entity);
 
 	// GroundEntChanged
 	// SpawnPost
-	// Think/Post
+	// ThinkPost
 	// VPhysicsUpdate/Post
 	function void (int entity);
 
@@ -348,9 +349,19 @@ typeset SDKHookCB
 forward void OnEntityCreated(int entity, const char[] classname);
 
 /**
- * When an entity is destroyed
+ * When an entity is spawned
  *
  * @param entity        Entity index
+ * @param classname     Class name
+ *
+ * @note Check for support at runtime using GetFeatureStatus on SDKHook_OnEntitySpawned capability.
+ */
+forward void OnEntitySpawned(int entity, const char[] classname);
+
+/**
+ * When an entity is destroyed
+ *
+ * @param entity        Entity index or edict reference.
  */
 forward void OnEntityDestroyed(int entity);
 
@@ -414,6 +425,7 @@ native void SDKUnhook(int entity, SDKHookType type, SDKHookCB callback);
  * @param weapon         Weapon index (orangebox and later) or -1 for unspecified
  * @param damageForce    Velocity of damage force
  * @param damagePosition Origin of damage
+ * @error                Invalid entity, attacker, inflictor, or weapon entity.
  */
 native void SDKHooks_TakeDamage(int entity, int inflictor, int attacker,
 		float damage, int damageType=DMG_GENERIC, int weapon=-1,

@@ -640,6 +640,48 @@
 				}
 			}
 
+			"OnVomitedUpon"
+			{
+				"signature"		"CTerrorPlayer_OnVomitedUpon"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+				"arguments"
+				{
+					"a1"
+					{
+						"type"	"cbaseentity"
+					}
+					"a2"
+					{
+						"type"	"bool"
+					}
+				}
+			}
+
+			"OnHitByVomitJar"
+			{
+				"signature"		"CTerrorPlayer_OnHitByVomitJar"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+				"arguments"
+				{
+					"a1"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+
+			"OnMaterializeFromGhost"
+			{
+				"signature"		"MaterializeFromGhost"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"entity"
+			}
+
 			"UseHealingItems"
 			{
 				"signature"		"UseHealingItems"
@@ -883,6 +925,32 @@
 					"signature" "VanillaModeOffset"
 				}
 			}
+
+			"ForceNextStage"
+			{
+				"windows"
+				{
+					"signature" "ForceNextStage"
+				}
+				"linux"
+				{
+					"signature" "ForceNextStage"
+				}
+			}
+
+			"ForceNextStageAddress"
+			{
+				"windows"
+				{
+					"signature" "ForceNextStageAddress"
+					"read"		"163"	// Midway through nearer target call
+					// "read"	"1436"	// From function start
+				}
+				"linux"
+				{
+					"signature" "ForceNextStageAddress"
+				}
+			}
 		}
 
 
@@ -991,7 +1059,7 @@
 			"SpawnTimer"
 			{
 				"windows"	"11308"
-				"linux"		"11288"
+				"linux"		"11256"
 			}
 
 			"m_rescueCheckTimer"
@@ -1099,35 +1167,39 @@
 				"windows"	"28"
 				"linux"		"28"
 			}
+			// Can be found in the "CTerrorPlayer::IsInvulnerable" function
 			"InvulnerabilityTimer"
 			{
-				"windows"	"11924"
-				"linux"		"11904"
+				"windows"	"11892" // 2.2.1.3
+				"linux"		"11872" // 2.2.1.3
 			}
+			// Can be found near the text "TANK OFFER: Player %s has %d tickets\n" in that section above, where the line reads "mov     edx, [ebx+30A8h]" - it's this value
 			"m_iTankTickets"
 			{
-				"windows"	"12476"
-				"linux"		"12456"
+				"windows"	"12444" // 2.2.1.3
+				"linux"		"12424" // 2.2.1.3
 			}
+			// Can be found in the "CTerrorPlayer::GetShovePenalty" and "CTerrorPlayer::SetShovePenalty" functions
 			"m_iShovePenalty"
 			{
-				"windows"	"11536"
-				"linux"		"11516"
+				"windows"	"11504" // 2.2.1.3
+				"linux"		"11484" // 2.2.1.3
 			}
 			"m_fNextShoveTime"
 			{
-				"windows"	"11532"
-				"linux"		"11512"
+				"windows"	"11500" // 2.2.1.3
+				"linux"		"11480" // 2.2.1.3
 			}
+			// Can be in the "CTerrorPlayer::OnRevived" function
 			"m_preIncapacitatedHealth"
 			{
-				"windows"	"14876"
-				"linux"		"14856"
+				"windows"	"14844" // 2.2.1.3
+				"linux"		"14824" // 2.2.1.3
 			}
 			"m_preIncapacitatedHealthBuffer"
 			{
-				"windows"	"14880"
-				"linux"		"14860"
+				"windows"	"14848" // 2.2.1.3
+				"linux"		"14828" // 2.2.1.3
 			}
 			"m_maxFlames"
 			{
@@ -1475,14 +1547,44 @@
 			}
 
 			/*
+			*  CTerrorPlayer::OnAdrenalineUsed(CTerrorPlayer *this, float)
+			*/
+			"OnAdrenalineUsed"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer16OnAdrenalineUsedEf"
+				"windows"	"\x55\x8B\x2A\x51\x53\x56\x8B\x2A\x8D\x2A\x2A\x2A\x2A\x2A\x57\x8B\x2A\xE8"
+				/* 55 8B ? 51 53 56 8B ? 8D ? ? ? ? ? 57 8B ? E8 */
+				/* Search: "%s used adrenaline\n" call is 3rd above, match to Linux. */
+			}
+
+			/*
+			*  ScriptClassDesc_t * GetScriptDesc<CDirector>(CDirector *)
+			*/
+			"ForceNextStageAddress"
+			{
+				"library"	"server"
+				"linux"		"@_ZN9CDirector14ForceNextStageEv"
+				// Midway through nearer target call
+				"windows"	"\x89\x2A\x2A\xC7\x2A\x2A\x2A\x2A\x2A\x2A\xC7\x2A\x2A\x2A\x2A\x2A\x2A\x89\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x50\xE8\x2A\x2A\x2A\x2A\x33\x2A\x8D"
+				/* 89 ? ? C7 ? ? ? ? ? ? C7 ? ? ? ? ? ? 89 ? ? A1 ? ? ? ? 50 E8 ? ? ? ? 33 ? 8D */
+
+				// FUnction start
+				// "windows"	"\x80\x2A\x2A\x2A\x2A\x2A\x00\x0F\x85\x2A\x2A\x2A\x2A\x53\x56\xB8\x2A\x2A\x2A\x2A\xA3"
+				/* 80 ? ? ? ? ? 00 0F 85 ? ? ? ? 53 56 B8 ? ? ? ? A3 */
+				/* Search "Push the ScriptedMode to next stage" */
+			}
+
+			/*
 			*  CDirector::ForceNextStage(CDirector *this)
+			*  Note: Unused since breaks every update, windows has a new method above to get the address
 			*/
 			"ForceNextStage"
 			{
 				"library"	"server"
 				"linux"		"@_ZN9CDirector14ForceNextStageEv"
-				"windows"	"\x8B\x2A\x88\x05\x00\x00\xE9\x2A\x8D\x01\x00"
-				/* 8B ? 88 05 00 00 E9 ? 8D 01 00 */
+				"windows"	"\x8B\x2A\x88\x05\x00\x00\xE9\x2A\x9A\x01\x00"
+				/* 8B ? 88 05 00 00 E9 ? 9A 01 00 */ 
 				/* Search "ForceNextStage" call below of XRef */
 			}
 
@@ -1602,8 +1704,33 @@
 				"library"	"server"
 				"linux"		"@_ZNK11SurvivorBot11IsReachableERK6Vector"
 				"windows"	"\x55\x8B\xEC\xD9\x05\x2A\x2A\x2A\x2A\x8B\x45\x08"
-				/*  55 8B EC D9 05 ? ? ? ? 8B 45 08 */
+				/* 55 8B EC D9 05 ? ? ? ? 8B 45 08 */
 				/* Search "Trying to use something to help us along" call somewhere above */
+			}
+
+			/*
+			*  float NavAreaTravelDistance<ShortestPathCost>(Vector const&, Vector const&, ShortestPathCost &)
+			*/
+			"NavAreaTravelDistance"
+			{
+				"library"	"server"
+				"linux"		"@_Z21NavAreaTravelDistanceI16ShortestPathCostEfRK6VectorS3_RT_"
+				"windows"	"\x53\x8B\x2A\x83\x2A\x2A\x83\x2A\x2A\x83\x2A\x04\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\xD9\x2A\x2A\x2A\x2A\x2A\x83"
+				/* 53 8B ? 83 ? ? 83 ? ? 83 ? 04 55 8B ? ? 89 ? ? ? 8B ? D9 ? ? ? ? ? 83 */
+				/* Search string: "Degenerate area %d". Xref this sub and goto .rdata VTable. Go ~6 entries down to "CNavArea::ComputeEarliestOccupyTimes". This sub calls our target function. */
+			}
+
+			// UNUSED: Using VScript Wrapper alternative. Args are difficult to follow for SDKCall.
+			/*
+			*  int NavAreaBuildPath<ShortestPathCost>(CNavArea *,CNavArea *,Vector const*,Vector const*,ShortestPathCost &,CNavArea **,float,int,bool)
+			*/
+			"NavAreaBuildPath"
+			{
+				"library"	"server"
+				"linux"		"@_Z16NavAreaBuildPathI16ShortestPathCostEbP8CNavAreaS2_PK6VectorS5_RT_PS2_fib"
+				"windows"	"\x53\x8B\x2A\x83\x2A\x08\x83\x2A\x2A\x83\x2A\x04\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x83\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x56"
+				/* 53 8B ? 83 ? 08 83 ? ? 83 ? 04 55 8B ? ? 89 ? ? ? 8B ? 83 ? ? A1 ? ? ? ? 33 ? 56 */
+				/* Search "Arguments: ( area, area, flMaxPathLengt". Go into 3rd sub above or 2nd in HexRays. Match against Linux function. At the bottom is a call to target function, which should contain "& 0xF9 | 9" a little above the middle of the script in Hexrays */
 			}
 			// =========================
 
@@ -2049,8 +2176,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer11OnStaggeredEP11CBaseEntityPK6Vector"
-				"windows" 	"\x53\x8B\x2A\x83\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x83\x2A\x2A\x56\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x84\x2A\x0F\x85\x2A\x2A\x2A\x2A\x8B\x2A\x8B"
-				/* 53 8B ? 83 ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 83 ? ? 56 57 8B ? E8 ? ? ? ? 84 ? 0F 85 ? ? ? ? 8B ? 8B
+				"windows" 	"\x2A\x2A\x2A\x2A\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x83\x2A\x2A\x56\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x84\x2A\x0F\x85\x2A\x2A\x2A\x2A\x8B\x2A\x8B"
+				/* ? ? ? ? ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 83 ? ? 56 57 8B ? E8 ? ? ? ? 84 ? 0F 85 ? ? ? ? 8B ? 8B
 				 * Using a long local jump as the unique portion (last few bytes of sig)
 				 */
 			}
@@ -2113,8 +2240,9 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN11SurvivorBot15UseHealingItemsEP6ActionIS_E"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x20\x53\x56\x8B\xD9\x57\x8D\x8B"
-				/* 55 8B EC 83 EC 20 53 56 8B D9 57 8D 8B */
+				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\x53\x56\x57\x8B\x2A\x8D\x2A\x2A\x2A\x2A\x2A\x8D\x2A\x2A\x2A\x2A\x2A\xE8"
+				/* 55 8B ? 83 ? ? 53 56 57 8B ? 8D ? ? ? ? ? 8D ? ? ? ? ? E8 */
+				/* Search "Trying to heal a friend" */
 			}
 
 			/*
@@ -2161,7 +2289,7 @@
 				"library"	"server"
 				"linux"		"@_ZN9CDirector13ResetMobTimerEv"
 				"windows"	"\x55\x8B\xEC\x51\x56\x57\x8D\xB9\x2A\x2A\x2A\x2A\x8B\xCF\xE8\x2A\x2A\x2A\x2A\xD9"
-							/* 55 8B EC 51 56 57 8D B9 ? ? ? ? 8B CF E8 ? ? ? ? D9 */
+				/* 55 8B EC 51 56 57 8D B9 ? ? ? ? 8B CF E8 ? ? ? ? D9 */
 			}
 
 			/*
@@ -2204,7 +2332,7 @@
 				"library"	"server"
 				"linux"		"@_ZNK9CDirector20IsFirstMapInScenarioEv"
 				"windows"	"\xA1\x2A\x2A\x2A\x2A\x8B\x40\x3C\x56\x8B\xF0"
-							/* A1 ? ? ? ? 8B 40 3C 56 8B F0 */
+				/* A1 ? ? ? ? 8B 40 3C 56 8B F0 */
 			}
 
 			/* CTerrorGameRules::IsMissionFinalMap()
@@ -2217,7 +2345,7 @@
 				"library"	"server"
 				"linux"		"@_ZN16CTerrorGameRules17IsMissionFinalMapEv"
 				"windows"	"\x8B\x0D\x2A\x2A\x2A\x2A\x8B\x01\x8B\x50\x28\x56\xFF\xD2\x8B\x10\x8B\xC8\x8B\x42\x04\x6A\x00\xFF\xD0\x8B\xF0\x85\xF6\x75\x04\xB0"
-							/* 8B 0D ? ? ? ? 8B 01 8B 50 28 56 FF D2 8B 10 8B C8 8B 42 04 6A 00 FF D0 8B F0 85 F6 75 04 B0 */
+				/* 8B 0D ? ? ? ? 8B 01 8B 50 28 56 FF D2 8B 10 8B C8 8B 42 04 6A 00 FF D0 8B F0 85 F6 75 04 B0 */
 			}
 
 			/* CGameRulesProxy::NotifyNetworkStateChanged()
@@ -2233,7 +2361,7 @@
 				"library"	"server"
 				"linux"		"@_ZN15CGameRulesProxy25NotifyNetworkStateChangedEv"
 				"windows"	"\xA1\x2A\x2A\x2A\x2A\x85\xC0\x74\x2A\x80\x78"
-							/* A1 ? ? ? ? 85 C0 74 ? 80 78 */
+				/* A1 ? ? ? ? 85 C0 74 ? 80 78 */
 			}
 
 			// find string " Highest survivor flow distance = %f Tank at = %f witch at %f\n" in CDirectorVersusMode::UpdateVersusBossSpawning
@@ -2256,7 +2384,70 @@
 				"windows"	"\x55\x8B\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x85\x2A\x74"
 				/* 55 8B ? 8B ? 8B ? ? ? ? ? ? ? 85 ? 74 */
 				/* Search: "Director state change SUSTAIN_PEAK" few calls below */
-				/* Found by SilverShot */
+				/* Found by "SilverShot" */
+			}
+
+			/* CDirector::AreWanderersAllowed(void)
+			* Used to get offset for CDirectorScavengeMode
+			*	*(director + offset) == ptr to CDirectorScavengeMode
+			* has unique string "AlwaysAllowWanderers"
+ 			*/
+			"AreWanderersAllowed"
+			{
+				"library"	"server"
+				"linux"		"@_ZNK9CDirector19AreWanderersAllowedEv"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x2A\x56\x8B\xF1\x8B\x8E\x2A\x2A\x2A\x2A\x8D\x45\xFF"
+				/* 55 8B EC 83 EC ? 56 8B F1 8B 8E ? ? ? ? 8D 45 FF */
+			}
+
+			/*
+			 * CDirector::IsFinaleEscapeInProgress(void)
+			 * unique string "#L4D_idle_spectator" in CTerrorPlayer::PreThink()
+			 * CDirector::IsFinaleEscapeInProgress is a couple calls before the string, and a couple calls after CountdownTimer::Now
+			 */
+			"IsFinaleEscapeInProgress"
+			{
+				"library" 	"server"
+				"linux" 	"@_ZNK9CDirector24IsFinaleEscapeInProgressEv"
+				"windows" 	"\x8B\x81\x2A\x2A\x2A\x2A\x83\x38\x2A\x75\x03\x32\xC0\xC3\x33\xC0\x83\xB9\x2A\x2A\x2A\x2A\x02\x0F\x94\xC0\xC3"
+				/* 8B 81 ? ? ? ? 83 38 ? 75 03 32 C0 C3 33 C0 83 B9 ? ? ? ? 02 0F 94 C0 C3 */
+			}
+
+			/*
+			 * CTerrorPlayer::CanBecomeGhost(bool areSpawnsDisabled)
+			 * unique string "ghost_spawn_time"
+			 */
+			"CanBecomeGhost"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer14CanBecomeGhostEb"
+				"windows"	"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x83\xEC\x78\x56\x57\x8B\xF1"
+				/* 53 8B DC 83 EC ? 83 E4 F0 83 C4 ? 55 8B 6B 04 89 6C 24 ? 8B EC 83 EC 78 56 57 8B F1 */
+			}
+
+			/*
+			 * CTerrorPlayer::TakeOverBot
+			 * unique string "[TAKEOVER]: %s (%d) possessed %s"
+			 */
+			"TakeOverBot"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer11TakeOverBotEb"
+				"windows"	"\x55\x8B\xEC\x81\xEC\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x53\x56\x8D\x85"
+				/* 55 8B EC 81 EC ? ? ? ? A1 ? ? ? ? 33 C5 89 45 FC 53 56 8D 85 */
+			}
+
+			/*
+			 * SurvivorBot::SetHumanSpectator(CTerrorPlayer*)
+			 * Very similar to BossZombiePlayerBot::SetHumanSpectator()
+			 * SurvivorBot version has 5 xref (one of them is CTerrorPlayer::TakeOverBot), BossZombie has just 1 (CTerrorPlayer::TakeOverBot)
+			 */
+			"SetHumanSpec"
+			{
+				"library"	"server"
+				"linux"		"@_ZN11SurvivorBot17SetHumanSpectatorEP13CTerrorPlayer"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x83\xBE\x2A\x2A\x2A\x2A\x00\x7E\x07\x32\xC0\x5E\x5D\xC2\x04\x00\x8B\x0D"
+				/* ? ? ? ? ? ? 83 BE ? ? ? ? 00 7E 07 32 C0 5E 5D C2 04 00 8B 0D */
 			}
 
 
@@ -2271,8 +2462,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer13OnVomitedUponEPS_b"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x2A\x53\x56\x57\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x84\xC0\x74\x2A\x8B\x06\x8B\x90"
-				/* 55 8B EC 83 EC ? 53 56 57 8B F1 E8 ? ? ? ? 84 C0 74 ? 8B 06 8B 90 */
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x53\x56\x57\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x84\xC0\x74\x2A\x8B\x06\x8B\x90"
+				/* ? ? ? ? ? ? 53 56 57 8B F1 E8 ? ? ? ? 84 C0 74 ? 8B 06 8B 90 */
 			}
 
 			/*
@@ -2320,10 +2511,10 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer13CancelStaggerEv"
-				"windows"	"\x56\x8B\x2A\xF3\x2A\x2A\x2A\x2C\x2A\x2A\x2A\x0F\x2A\x2A\x2A\x2A\x2A\x2A\x57"
+				"windows"	"\x56\x8B\x2A\xF3\x2A\x2A\x2A\x0C\x2A\x2A\x2A\x0F\x2A\x2A\x2A\x2A\x2A\x2A\x57"
 				/* Sig may break, using offsets to make unique */
-				/* 56 8B ? F3 ? ? ? 2C ? ? ? 0F ? ? ? ? ? ? 57 */
-				/* Search "SurvivorWasPounced" - few calls above. */ // Found by SilverShot.
+				/* 56 8B ? F3 ? ? ? 0C ? ? ? 0F ? ? ? ? ? ? 57 */ 
+				/* Search "SurvivorWasPounced" - few calls above. */ // Found by "SilverShot" updated by "Crasher_3637".
 			}
 
 			/*
@@ -2346,7 +2537,7 @@
 				"library"	"server"
 				"linux"		"@_ZN16CTerrorGameRules19GetVersusCompletionEP13CTerrorPlayer"
 				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\x53\x56\x8B\x2A\x2A\x8B\x2A\x85\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B\x2A\xE8"
-				/* 55 8B ? 83 ? ? 53 56 8B ? ? 8B ? 85 ? 0F 84 ? ? ? ? 8B ? E8 */ // Found by SilverShot.
+				/* 55 8B ? 83 ? ? 53 56 8B ? ? 8B ? 85 ? 0F 84 ? ? ? ? 8B ? E8 */ // Found by "SilverShot".
 				/* Found via "RecomputeTeamScores" and "RecomputeVersusCompletion" function. Difficult but can be matched comparing Nix/Win HexRays */
 			}
 
@@ -2358,7 +2549,7 @@
 				"library"	"server"
 				"linux"		"@_ZNK25CDirectorTacticalServices22GetHighestFlowSurvivorEN13TerrorNavArea8FlowTypeE"
 				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xF3\x0F\x2A\x2A\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x89\x2A\x2A\x89"
-				/* 55 8B ? 83 ? ? F3 0F ? ? ? ? ? ? 33 ? 89 ? ? 89 ? ? 89 */ // Found by SilverShot.
+				/* 55 8B ? 83 ? ? F3 0F ? ? ? ? ? ? 33 ? 89 ? ? 89 ? ? 89 */ // Found by "SilverShot".
 				/* Search "Director state change SUSTAIN_PEAK". Call below. */
 			}
 
@@ -2438,8 +2629,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer20MaterializeFromGhostEv"
-				"windows"	"\x56\x8B\xF1\x8B\x06\x8B\x90\x2A\x2A\x2A\x2A\xFF\xD2\x50\xE8\x2A\x2A\x2A\x2A\x83\xC4"
-				/* 56 8B F1 8B 06 8B 90 ? ? ? ? FF D2 50 E8 ? ? ? ? 83 C4 */
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x50\xE8\x2A\x2A\x2A\x2A\x83\x2A\x2A\x50\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x2A\x50\x68\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x68"
+				/* ? ? ? ? ? ? ? ? ? ? ? ? ? 50 E8 ? ? ? ? 83 ? ? 50 8B ? 8B ? ? ? ? ? 8B ? ? ? 50 68 ? ? ? ? E8 ? ? ? ? 68 */
 				/* Search "%s materialized from spawn mode as a %s" */
 			}
 
@@ -2494,7 +2685,7 @@
 				"library"	"server"
 				"linux"		"@_ZN9CDirector16StartRematchVoteEv"
 				"windows"	"\x83\x2A\x2A\x56\x8B\xF1\x68\x2A\x2A\x2A\x2A\x6A\x2A\xB9\x2A\x2A\x2A\x2A\xC6"
-				/* 83 ? ? 56 8B F1 68 ? ? ? ? 6A ? B9 ? ? ? ? C6 */ // Found by SilverShot.
+				/* 83 ? ? 56 8B F1 68 ? ? ? ? 6A ? B9 ? ? ? ? C6 */ // Found by "SilverShot".
 				/* Search: "PZEndGame" one of two. */
 			}
 
@@ -2506,7 +2697,7 @@
 				"library"	"server"
 				"linux"		"@_ZN9CDirector11FullRestartEv"
 				"windows"	"\x56\x8B\x2A\xC7\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\xE8"
-				/* 56 8B ? C7 ? ? ? ? ? ? ? ? ? E8 ? ? ? ? E8 */ // Found by SilverShot.
+				/* 56 8B ? C7 ? ? ? ? ? ? ? ? ? E8 ? ? ? ? E8 */ // Found by "SilverShot".
 				/* Search "Staying on original map" for "CDirector::Restart". XRef - small function.*/
 			}
 
@@ -2518,7 +2709,7 @@
 				"library"	"server"
 				"linux"		"@_ZN19CDirectorVersusMode24HideScoreboardNonVirtualEv"
 				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x84\x2A\x74\x2A\x53\x8D"
-				/* 55 8B ? 83 ? ? E8 ? ? ? ? 84 ? 74 ? 53 8D */ // Found by SilverShot.
+				/* 55 8B ? 83 ? ? E8 ? ? ? ? 84 ? 74 ? 53 8D */ // Found by "SilverShot".
 				/* String "fullscreen_vs_results" */
 			}
 
@@ -2542,7 +2733,7 @@
 				"library"	"server"
 				"linux"		"@_ZN9CDirector14HideScoreboardEv"
 				"windows"	"\x56\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x8B"
-				/* 56 8B ? 8B ? ? ? ? ? E8 ? ? ? ? 8B ? ? ? ? ? E8 ? ? ? ? 8B */ // Found by SilverShot.
+				/* 56 8B ? 8B ? ? ? ? ? E8 ? ? ? ? 8B ? ? ? ? ? E8 ? ? ? ? 8B */ // Found by "SilverShot".
 				/* Search "message_box". Function with 1 string. Xref is target. */
 			}
 
@@ -2553,9 +2744,9 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN9CDirector23RegisterForbiddenTargetEP11CBaseEntity"
-				"windows"	"\x55\x8B\x2A\x53\x8B\x2A\x2A\x56\x8D\x2A\x2A\x03\x00\x00\x8B\x2A\x2A\x33"
+				"windows"	"\x55\x8B\x2A\x53\x56\x57\x8B\x7D\x08\x83\xCB\xFF\x8B\xF1\x85\xFF\x74\x2A\x8B\x07\x8B\x50\x08\x8B\xCF\xFF\xD2\x8B\x00\x89\x45\x08\xEB\x2A\x89\x5D\x08\x8D\x4D\x08\x51\x8D\x8E\xB4\x03\x00\x00"
 				/* Sig may break, using offsets to make unique */
-				/* 55 8B ? 53 8B ? ? 56 8D ? ? 03 00 00 8B ? ? 33 */ // Found by SilverShot.
+				/* 55 8B ? 53 56 57 8B 7D 08 83 CB FF 8B F1 85 FF 74 ? 8B 07 8B 50 08 8B CF FF D2 8B 00 89 45 08 EB ? 89 5D 08 8D 4D 08 51 8D 8E B4 03 00 00 */ // Found by "SilverShot" updated by "Crasher_3637"
 				/* Search: "prop %s at %.0f %.0f %0.f missing model" for "CBaseProp::Spawn". XRef called by "CBreakableProp::Spawn" (largest function) which calls target function */
 			}
 
@@ -2566,8 +2757,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN9CDirector25UnregisterForbiddenTargetEP11CBaseEntity"
-				"windows"	"\x55\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x81\x2A\x2A\x2A\x2A\x2A\x33\x2A\x85"
-				/* 55 8B ? 8B ? ? ? ? ? 81 ? ? ? ? ? 33 ? 85 */ // Found by SilverShot.
+                "windows"		"\x55\x8B\x2A\x56\x57\x8B\x7D\x08\x8B\xF1\x85\xFF\x74\x2A\x8B\x07\x8B\x50\x08\x8B\xCF\xFF\xD2\x8B\x00\x89\x45\x08"
+				/* 55 8B ? 56 57 8B 7D 08 8B F1 85 FF 74 ? 8B 07 8B 50 08 8B CF FF D2 8B 00 89 45 08 */ // Found by "SilverShot" updated by "Crasher_3637"
 				/* Search "triggered_car_alarm" for "CCarProp::InputSurvivorStandingOnCar". Called in here. */
 			}
 
@@ -2583,7 +2774,7 @@
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer17OnSlammedSurvivorEPS_bb"
 				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\xD9\x2A\x56\x57\x6A\x2A\x51\xD9\x2A\x2A\x68\x2A\x2A\x2A\x2A\x8B\x2A\xE8\x2A\x2A\x2A\x2A\xF3"
-				/* 55 8B ? 83 ? ? D9 ? 56 57 6A ? 51 D9 ? ? 68 ? ? ? ? 8B ? E8 ? ? ? ? F3 */ // Found by SilverShot.
+				/* 55 8B ? 83 ? ? D9 ? 56 57 6A ? 51 D9 ? ? 68 ? ? ? ? 8B ? E8 ? ? ? ? F3 */ // Found by "SilverShot".
 				/* Search "ChargerZombie.ImpactHard" */
 			}
 
@@ -2596,7 +2787,7 @@
 				"linux"		"@_ZN13CTerrorPlayer16OnLeptOnSurvivorEPS_"
 				"windows"	"\x55\x8B\x2A\xA1\x2A\x2A\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x2A\x57\x8B\x2A\x0F\x85\x2A\x2A\x2A\x2A\x56"
 				/* 55 8B ? A1 ? ? ? ? 83 ? ? 83 ? ? ? 57 8B ? 0F 85 ? ? ? ? 56 */
-				/* Search: "JockeyZombie.Ride" */ // Found by SilverShot.
+				/* Search: "JockeyZombie.Ride" */ // Found by "SilverShot".
 			}
 
 			/*
@@ -2619,7 +2810,7 @@
 				"library"	"server"
 				"linux"		"@_ZN16CTerrorGameRules19ClearRoundDurationsEv"
 				"windows"	""
-				/*  */
+				/* */
 			}
 
 			/*
@@ -2630,7 +2821,7 @@
 				"library"	"server"
 				"linux"		"@_ZN19CDirectorVersusMode25ClearTeamScoresNonVirtualEb"
 				"windows"	""
-				/*  */
+				/* */
 			}
 
 			/*
@@ -2670,7 +2861,7 @@
 				"library"	"server"
 				"linux"		"@_ZN16CTerrorGameRules29RecordInfectedDamageForVersusEi"
 				"windows"	"\x55\x8B\x2A\xF7\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x53\x56"
-				/* 55 8B ? F7 ? ? ? ? ? ? ? ? ? 53 56 */ // Found by SilverShot.
+				/* 55 8B ? F7 ? ? ? ? ? ? ? ? ? 53 56 */ // Found by "SilverShot".
 				/* Search "victim_x" for "CTerrorGameRules::PopulateDeathEvent". Xref to vtable.
 				 * Function below is "CTerrorGameRules::TrackPlayerZombieDamage". This calls target.
 				 * Probably correct, Win looks different to Nix.
@@ -2696,7 +2887,7 @@
 				"library"	"server"
 				"linux"		"@_ZNK8CNavArea9IsBlockedEib"
 				"windows"	"\x55\x8B\x2A\x80\x2A\x2A\x2A\x74\x2A\x8B\x2A\x2A\x85\x2A\x79"
-				/* 55 8B ? 80 ? ? ? 74 ? 8B ? ? 85 ? 79 */ // Found by SilverShot.
+				/* 55 8B ? 80 ? ? ? 74 ? 8B ? ? 85 ? 79 */ // Found by "SilverShot".
 				/* Search: "BLOCKED_SURVIVOR". Above/below is target. */
 			}
 
@@ -2833,6 +3024,9 @@
 			// ====================================================================================================
 			// ADDONS DISABLER
 			// ====================================================================================================
+			// Details on finding offsets can be found here: https://github.com/ProdigySim/left4dhooks/pull/1
+			// Big thanks to "ProdigySim" for updating for The Last Stand update.
+
 			/*
 			* CBaseServer::FillServerInfo(SVC_ServerInfo *)
 			*/
@@ -2872,10 +3066,31 @@
 			"VanillaModeOffset"
 			{
 				"library"	"engine"
-				"linux"		"\x88\x46\x55\xC7\x04\x24\x4C"
-				/* 88 46 55 C7 04 24 4C */
+				"linux"		"\x88\x2A\x55\xC7\x04\x24\x4C"
+				/* 88 ? 55 C7 04 24 4C */
 				"windows"	"\x88\x5F\x5D\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xC6\x47\x5F\x57"
 				/* 88 5F 5D ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? C6 47 5F 57 */
+			}
+
+
+
+			// ====================================================================================================
+			// LOBBY RESERVATION
+			// ====================================================================================================
+
+			/*
+			 * CBaseServer::SetReservationCookie(uint64_t, char*, va_list)
+			 * - clear the reservation by setting a cookie of 0
+			 */
+			"SetReservationCookie"
+			{
+				"library"	"engine"
+				"linux"		"@_ZN11CBaseServer20SetReservationCookieEyPKcz"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x53\x8B\x2A\x2A\x56\x8B\x2A\x2A\x57\x8B\x2A\x2A\x3B"
+				/* ? ? ? ? ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 53 8B ? ? 56 8B ? ? 57 8B ? ? 3B */
+				// Wildcarded so compatible with l4dtoolz.
+				// "windows"	"\x55\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x53\x8B\x2A\x2A\x56\x8B\x2A\x2A\x57\x8B\x2A\x2A\x3B"
+				/* 55 8B ? 81 ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 53 8B ? ? 56 8B ? ? 57 8B ? ? 3B */
 			}
 
 
@@ -3027,17 +3242,15 @@
 				/* 55 8B EC 56 8B F1 F3 0F 10 86 ? ? ? ? 0F 2E 45 08 9F 57 */
 			}
 
-			/* CDirector::AreWanderersAllowed(void)
-			* Used to get offset for CDirectorScavengeMode
-			*	*(director + offset) == ptr to CDirectorScavengeMode
-			* has unique string "AlwaysAllowWanderers"
- 			*/
-			"AreWanderersAllowed"
+			/*
+			 * CDirector::IsFinale(void)const
+			 */
+			"IsFinale"
 			{
 				"library"	"server"
-				"linux"		"@_ZNK9CDirector19AreWanderersAllowedEv"
-				"windows"	"\x55\x8B\xEC\x83\xEC\x2A\x56\x8B\xF1\x8B\x8E\x2A\x2A\x2A\x2A\x8D\x45\xFF"
-				/* 55 8B EC 83 EC ? 56 8B F1 8B 8E ? ? ? ? 8D 45 FF */
+				"linux"		"@_ZNK9CDirector8IsFinaleEv"
+				"windows"	"\x8B\x81\x2A\x2A\x2A\x2A\x33\xC9\x83\x38\x2A\x0F\x95\xC0\xC3"
+				/* 8B 81 ? ? ? ? 33 C9 83 38 ? 0F 95 C0 C3 */
 			}
 
 			/*
@@ -3054,19 +3267,6 @@
 				/* 8B 0D ? ? ? ? 85 C9 74 ? A1 ? ? ? ? D9 ? ? 51 D9 ? ? E8 ? ? ? ? 8B */
 			}
 
-			/*
-			 * CDirector::IsFinaleEscapeInProgress(void)
-			 * unique string "#L4D_idle_spectator" in CTerrorPlayer::PreThink()
-			 * CDirector::IsFinaleEscapeInProgress is a couple calls before the string, and a couple calls after CountdownTimer::Now
-			 */
-			"IsFinaleEscapeInProgress"
-			{
-				"library" 	"server"
-				"linux" 	"@_ZNK9CDirector24IsFinaleEscapeInProgressEv"
-				"windows" 	"\x8B\x81\x2A\x2A\x2A\x2A\x83\x38\x2A\x75\x03\x32\xC0\xC3\x33\xC0\x83\xB9\x2A\x2A\x2A\x2A\x02\x0F\x94\xC0\xC3"
-				/* 8B 81 ? ? ? ? 83 38 ? 75 03 32 C0 C3 33 C0 83 B9 ? ? ? ? 02 0F 94 C0 C3 */
-			}
-
 			/* CTerrorPlayer::RoundRespawn */
 			"RoundRespawn"
 			{
@@ -3074,29 +3274,6 @@
 				"linux"		"@_ZN13CTerrorPlayer12RoundRespawnEv"
 				"windows"	"\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x84\xC0\x75"
 				/* 56 8B F1 E8 ? ? ? ? E8 ? ? ? ? 84 C0 75	*/
-			}
-
-			/*
-			 * CTerrorPlayer::CanBecomeGhost(bool areSpawnsDisabled)
-			 * unique string "ghost_spawn_time"
-			 */
-			"CanBecomeGhost"
-			{
-				"library"	"server"
-				"linux"		"@_ZN13CTerrorPlayer14CanBecomeGhostEb"
-				"windows"	"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x83\xEC\x78\x56\x57\x8B\xF1"
-				/* 53 8B DC 83 EC ? 83 E4 F0 83 C4 ? 55 8B 6B 04 89 6C 24 ? 8B EC 83 EC 78 56 57 8B F1 */
-			}
-
-			/*
-			 * CDirector::IsFinale(void)const
-			 */
-			"IsFinale"
-			{
-				"library"	"server"
-				"linux"		"@_ZNK9CDirector8IsFinaleEv"
-				"windows"	"\x8B\x81\x2A\x2A\x2A\x2A\x33\xC9\x83\x38\x2A\x0F\x95\xC0\xC3"
-				/* 8B 81 ? ? ? ? 33 C9 83 38 ? 0F 95 C0 C3 */
 			}
 
 			/*
@@ -3159,47 +3336,7 @@
 				"library"	"server"
 				"linux"		"@_ZN14InfectedShoved8OnShovedEP8InfectedP11CBaseEntity"
 				"windows"	""
-				/*  */
-			}
-
-			/*
-			 * CBaseServer::SetReservationCookie(uint64_t, char*, va_list)
-			 * - clear the reservation by setting a cookie of 0
-			 */
-			"SetReservationCookie"
-			{
-				"library"	"engine"
-				"linux"		"@_ZN11CBaseServer20SetReservationCookieEyPKcz"
-				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x53\x8B\x2A\x2A\x56\x8B\x2A\x2A\x57\x8B\x2A\x2A\x3B"
-				/* ? ? ? ? ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 53 8B ? ? 56 8B ? ? 57 8B ? ? 3B */
-				// Wildcarded so compatible with l4dtoolz.
-				// "windows"	"\x55\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\x53\x8B\x2A\x2A\x56\x8B\x2A\x2A\x57\x8B\x2A\x2A\x3B"
-				/* 55 8B ? 81 ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? 53 8B ? ? 56 8B ? ? 57 8B ? ? 3B */
-			}
-
-			/*
-			 * CTerrorPlayer::TakeOverBot
-			 * unique string "[TAKEOVER]: %s (%d) possessed %s"
-			 */
-			"TakeOverBot"
-			{
-				"library"	"server"
-				"linux"		"@_ZN13CTerrorPlayer11TakeOverBotEb"
-				"windows"	"\x55\x8B\xEC\x81\xEC\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x53\x56\x8D\x85"
-				/* 55 8B EC 81 EC ? ? ? ? A1 ? ? ? ? 33 C5 89 45 FC 53 56 8D 85 */
-			}
-
-			/*
-			 * SurvivorBot::SetHumanSpectator(CTerrorPlayer*)
-			 * Very similar to BossZombiePlayerBot::SetHumanSpectator()
-			 * SurvivorBot version has 5 xref (one of them is CTerrorPlayer::TakeOverBot), BossZombie has just 1 (CTerrorPlayer::TakeOverBot)
-			 */
-			"SetHumanSpec"
-			{
-				"library"	"server"
-				"linux"		"@_ZN11SurvivorBot17SetHumanSpectatorEP13CTerrorPlayer"
-				"windows"	"\x55\x8B\xEC\x56\x8B\xF1\x83\xBE\x2A\x2A\x2A\x2A\x00\x7E\x07\x32\xC0\x5E\x5D\xC2\x04\x00\x8B\x0D"
-				/* 55 8B EC 56 8B F1 83 BE ? ? ? ? 00 7E 07 32 C0 5E 5D C2 04 00 8B 0D */
+				/* */
 			}
 
 			/*

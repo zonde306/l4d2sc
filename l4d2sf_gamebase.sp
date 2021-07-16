@@ -18,6 +18,8 @@ public Plugin myinfo =
 
 int g_iSlotSurvival, g_iSlotHealing, g_iSlotPistol, g_iSlotShotgun, g_iSlotRifle, g_iSlotSniper, g_iSlotSpecial, g_iSlotAbility, g_iSlotMelee;
 ConVar g_cvHurtRate, g_cvHealRate, g_cvPistolRate, g_cvShotgunRate, g_cvRifleRate, g_cvSniperRate, g_cvSpecialRate, g_cvAbilityRate, g_cvMeleeRate;
+ConVar g_cvEasy, g_cvNormal, g_cvHard, g_cvExpert, g_cvRealism;
+ConVar g_hDiff, g_hMode;
 
 public OnPluginStart()
 {
@@ -31,8 +33,15 @@ public OnPluginStart()
 	g_cvSpecialRate = CreateConVar("l4d2sf_special_rate", "1.0", "特殊武器经验乘数", CVAR_FLAGS, true, 0.0);
 	g_cvAbilityRate = CreateConVar("l4d2sf_ability_rate", "1.0", "特感能力经验乘数", CVAR_FLAGS, true, 0.0);
 	g_cvMeleeRate = CreateConVar("l4d2sf_melee_rate", "1.0", "近战武器经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvEasy = CreateConVar("l4d2sf_difficulty_easy", "0.8", "简单难度经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvNormal = CreateConVar("l4d2sf_difficulty_normal", "1.0", "普通难度经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvHard = CreateConVar("l4d2sf_difficulty_hard", "1.2", "困难难度经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvExpert = CreateConVar("l4d2sf_difficulty_expert", "1.5", "专家难度经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvRealism = CreateConVar("l4d2sf_difficulty_realism", "1.25", "写实难度经验乘数", CVAR_FLAGS, true, 0.0);
 	AutoExecConfig(true, "l4d2sf_gamebase");
 	
+	g_hDiff = FindConVar("z_difficulty");
+	g_hMode = FindConVar("mp_gamemode");
 	OnCvarChanged_UpdateCache(null, "", "");
 	g_cvHurtRate.AddChangeHook(OnCvarChanged_UpdateCache);
 	g_cvHealRate.AddChangeHook(OnCvarChanged_UpdateCache);
@@ -43,6 +52,13 @@ public OnPluginStart()
 	g_cvSpecialRate.AddChangeHook(OnCvarChanged_UpdateCache);
 	g_cvAbilityRate.AddChangeHook(OnCvarChanged_UpdateCache);
 	g_cvMeleeRate.AddChangeHook(OnCvarChanged_UpdateCache);
+	g_cvEasy.AddChangeHook(OnCvarChanged_UpdateCache);
+	g_cvNormal.AddChangeHook(OnCvarChanged_UpdateCache);
+	g_cvHard.AddChangeHook(OnCvarChanged_UpdateCache);
+	g_cvExpert.AddChangeHook(OnCvarChanged_UpdateCache);
+	g_cvRealism.AddChangeHook(OnCvarChanged_UpdateCache);
+	g_hDiff.AddChangeHook(OnCvarChanged_UpdateDifficulty);
+	g_hMode.AddChangeHook(OnCvarChanged_UpdateDifficulty);
 	
 	LoadTranslations("l4d2sf_gamebase.phrases.txt");
 	
@@ -83,7 +99,7 @@ public OnPluginStart()
 	HookEvent("ability_use", Event_AbilityUsed);
 }
 
-float g_fRateHurt, g_fRateHeal, g_fRatePistol, g_fRateShotgun, g_fRateRifle, g_fRateSniper, g_fRateSpecial, g_fRateAbility, g_fRateMelee;
+float g_fRateHurt, g_fRateHeal, g_fRatePistol, g_fRateShotgun, g_fRateRifle, g_fRateSniper, g_fRateSpecial, g_fRateAbility, g_fRateMelee, g_fFacDiff;
 
 public void OnCvarChanged_UpdateCache(ConVar cvar, const char[] ov, const char[] nv)
 {
@@ -96,6 +112,27 @@ public void OnCvarChanged_UpdateCache(ConVar cvar, const char[] ov, const char[]
 	g_fRateSpecial = g_cvSpecialRate.FloatValue;
 	g_fRateAbility = g_cvAbilityRate.FloatValue;
 	g_fRateMelee = g_cvMeleeRate.FloatValue;
+	OnCvarChanged_UpdateDifficulty(null, "", "");
+}
+
+public void OnCvarChanged_UpdateDifficulty(ConVar cvar, const char[] ov, const char[] nv)
+{
+	char diff[16];
+	g_hDiff.GetString(diff, sizeof(diff));
+	
+	if(!strcmp(diff, "easy", false))
+		g_fFacDiff = g_cvEasy.FloatValue;
+	else if(!strcmp(diff, "normal", false))
+		g_fFacDiff = g_cvNormal.FloatValue;
+	else if(!strcmp(diff, "hard", false))
+		g_fFacDiff = g_cvHard.FloatValue;
+	else if(!strcmp(diff, "impossible", false))
+		g_fFacDiff = g_cvExpert.FloatValue;
+	
+	char mode[32];
+	g_hMode.GetString(mode, sizeof(mode));
+	if(StrContains(mode, "realism", false) > -1)
+		g_fFacDiff *= g_cvRealism.FloatValue;
 }
 
 public Action L4D2SF_OnGetSlotName(int client, int slotId, char[] result, int maxlen)
@@ -153,43 +190,48 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		{
 			if((damageType & DMG_BUCKSHOT) || IsShotgun(weapon))
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotShotgun, RoundFloat(damage * g_fRateShotgun));
+				GiveSkillExperience(attacker, g_iSlotShotgun, RoundFloat(damage * g_fRateShotgun));
 			}
 			else if((damageType & DMG_BULLET) && IsRifle(weapon))
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotRifle, RoundFloat(damage * g_fRateRifle));
+				GiveSkillExperience(attacker, g_iSlotRifle, RoundFloat(damage * g_fRateRifle));
 			}
 			else if((damageType & DMG_BULLET) && IsSniper(weapon))
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotSniper, RoundFloat(damage * g_fRateSniper));
+				GiveSkillExperience(attacker, g_iSlotSniper, RoundFloat(damage * g_fRateSniper));
 			}
 			else if((damageType & DMG_BULLET) && IsMelee(weapon))
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
+				GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
 			}
 			else if((damageType & DMG_BULLET) && IsPistol(weapon))
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotPistol, RoundFloat(damage * g_fRatePistol));
+				GiveSkillExperience(attacker, g_iSlotPistol, RoundFloat(damage * g_fRatePistol));
 			}
 			else if((damageType & (DMG_SLASH|DMG_CLUB)) || IsMelee(weapon))
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
+				GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
 			}
 			else
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotSpecial, RoundFloat(damage * g_fRateSpecial));
+				GiveSkillExperience(attacker, g_iSlotSpecial, RoundFloat(damage * g_fRateSpecial));
 			}
 		}
 		else if(teamAttacker == 3 && teamVictim == 2)
 		{
 			if(IsClaw(weapon))
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
+				GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
 			}
 			else
 			{
-				L4D2SF_GiveSkillExperience(attacker, g_iSlotAbility, RoundFloat(damage * g_fRateAbility));
+				GiveSkillExperience(attacker, g_iSlotAbility, RoundFloat(damage * g_fRateAbility));
 			}
+		}
+		
+		if(teamAttacker != teamVictim)
+		{
+			GiveSkillExperience(victim, g_iSlotSurvival, RoundFloat(damage * g_fRateHurt));
 		}
 	}
 	else
@@ -198,9 +240,9 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		if(attacker > MaxClients && IsValidEdict(attacker))
 		{
 			teamAttacker = GetEntProp(attacker, Prop_Data, "m_iTeamNum");
-			if(teamAttacker != teamVictim)
+			if(teamAttacker == 3 && teamVictim == 2)
 			{
-				L4D2SF_GiveSkillExperience(victim, g_iSlotSurvival, RoundFloat(damage * g_fRateHurt));
+				GiveSkillExperience(victim, g_iSlotSurvival, RoundFloat(damage * g_fRateHurt));
 			}
 		}
 	}
@@ -226,31 +268,31 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	
 	if((damageType & DMG_BUCKSHOT) && IsShotgun(classname))
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotShotgun, RoundFloat(damage * g_fRateShotgun));
+		GiveSkillExperience(attacker, g_iSlotShotgun, RoundFloat(damage * g_fRateShotgun));
 	}
 	else if((damageType & DMG_BULLET) && IsRifle(classname))
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotRifle, RoundFloat(damage * g_fRateRifle));
+		GiveSkillExperience(attacker, g_iSlotRifle, RoundFloat(damage * g_fRateRifle));
 	}
 	else if((damageType & DMG_BULLET) && IsSniper(classname))
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotSniper, RoundFloat(damage * g_fRateSniper));
+		GiveSkillExperience(attacker, g_iSlotSniper, RoundFloat(damage * g_fRateSniper));
 	}
 	else if((damageType & DMG_BULLET) && IsMelee(classname))
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
+		GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
 	}
 	else if((damageType & DMG_BULLET) && IsPistol(classname))
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotPistol, RoundFloat(damage * g_fRatePistol));
+		GiveSkillExperience(attacker, g_iSlotPistol, RoundFloat(damage * g_fRatePistol));
 	}
 	else if((damageType & (DMG_SLASH|DMG_CLUB)) && IsMelee(classname))
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
+		GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
 	}
 	else
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotSpecial, RoundFloat(damage * g_fRateSpecial));
+		GiveSkillExperience(attacker, g_iSlotSpecial, RoundFloat(damage * g_fRateSpecial));
 	}
 }
 
@@ -260,7 +302,7 @@ public void Event_PillsUsed(Event event, const char[] eventName, bool dontBroadc
 	if(!IsValidClient(client))
 		return;
 	
-	L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(50 * g_fRateHeal));
+	GiveSkillExperience(client, g_iSlotHealing, RoundFloat(50 * g_fRateHeal));
 }
 
 public void Event_AdrenalineUsed(Event event, const char[] eventName, bool dontBroadcast)
@@ -269,7 +311,7 @@ public void Event_AdrenalineUsed(Event event, const char[] eventName, bool dontB
 	if(!IsValidClient(client))
 		return;
 	
-	L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(30 * g_fRateHeal));
+	GiveSkillExperience(client, g_iSlotHealing, RoundFloat(30 * g_fRateHeal));
 }
 
 public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroadcast)
@@ -282,13 +324,13 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	
 	if(client == subject)
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(health * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotHealing, RoundFloat(health * g_fRateHeal));
 	}
 	else
 	{
 		int amount = RoundFloat(health * g_fRateHeal);
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, amount > health ? amount : health);
-		L4D2SF_GiveSkillExperience(subject, g_iSlotHealing, amount > health ? health : amount);
+		GiveSkillExperience(client, g_iSlotHealing, amount > health ? amount : health);
+		GiveSkillExperience(subject, g_iSlotHealing, amount > health ? health : amount);
 	}
 }
 
@@ -302,13 +344,13 @@ public void Event_DefibrillatorUsed(Event event, const char[] eventName, bool do
 	if(client != subject)
 	{
 		int amount = RoundFloat(50 * g_fRateHeal);
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, amount > 50 ? amount : 50);
-		L4D2SF_GiveSkillExperience(subject, g_iSlotHealing, amount > 50 ? 50 : amount);
+		GiveSkillExperience(client, g_iSlotHealing, amount > 50 ? amount : 50);
+		GiveSkillExperience(subject, g_iSlotHealing, amount > 50 ? 50 : amount);
 	}
 	else
 	{
 		// 这不可能
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(50 * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotHealing, RoundFloat(50 * g_fRateHeal));
 	}
 }
 
@@ -323,13 +365,13 @@ public void Event_ReviveSuccess(Event event, const char[] eventName, bool dontBr
 	if(client != subject)
 	{
 		int amount = RoundFloat(30 * g_fRateHeal);
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, amount > 30 ? amount : 30);
-		L4D2SF_GiveSkillExperience(subject, g_iSlotHealing, amount > 30 ? 30 : amount);
+		GiveSkillExperience(client, g_iSlotHealing, amount > 30 ? amount : 30);
+		GiveSkillExperience(subject, g_iSlotHealing, amount > 30 ? 30 : amount);
 	}
 	else
 	{
 		// 这不可能
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(30 * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotHealing, RoundFloat(30 * g_fRateHeal));
 	}
 }
 
@@ -348,31 +390,31 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	
 	if(IsShotgun(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 5));
 	}
 	else if(IsRifle(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 5));
 	}
 	else if(IsSniper(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 5));
 	}
 	else if(IsMelee(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
 	}
 	else if(IsPistol(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotPistol, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotPistol, GetRandomInt(1, 5));
 	}
 	else if(IsMelee(classname) || IsClaw(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
 	}
 	else
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotSpecial, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotSpecial, GetRandomInt(1, 5));
 	}
 }
 
@@ -391,31 +433,31 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool dontBro
 	
 	if(IsShotgun(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 5));
 	}
 	else if(IsRifle(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 5));
 	}
 	else if(IsSniper(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 5));
 	}
 	else if(IsMelee(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
 	}
 	else if(IsPistol(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotPistol, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotPistol, GetRandomInt(1, 5));
 	}
 	else if(IsMelee(classname) || IsClaw(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
 	}
 	else
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotSpecial, GetRandomInt(1, 5));
+		GiveSkillExperience(client, g_iSlotSpecial, GetRandomInt(1, 5));
 	}
 }
 
@@ -432,47 +474,47 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	if(award == 67)
 	{
 		// 保护队友
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(10 * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotHealing, RoundFloat(10 * g_fRateHeal));
 		
 		if(IsValidClient(subject))
-			L4D2SF_GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(3 * g_fRateHeal));
+			GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(3 * g_fRateHeal));
 	}
 	else if(award == 68)
 	{
 		// 给队友递药
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(20 * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotHealing, RoundFloat(20 * g_fRateHeal));
 		
 		if(IsValidClient(subject))
-			L4D2SF_GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(5 * g_fRateHeal));
+			GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(5 * g_fRateHeal));
 	}
 	else if(award == 69)
 	{
 		// 给队友递针
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(15 * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotHealing, RoundFloat(15 * g_fRateHeal));
 		
 		if(IsValidClient(subject))
-			L4D2SF_GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(5 * g_fRateHeal));
+			GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(5 * g_fRateHeal));
 	}
 	else if(award == 76)
 	{
 		// 把队友从特感的控制中救出
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(10 * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotHealing, RoundFloat(10 * g_fRateHeal));
 		
 		if(IsValidClient(subject))
-			L4D2SF_GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(2 * g_fRateHeal));
+			GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(2 * g_fRateHeal));
 	}
 	else if(award == 80)
 	{
 		// 开门复活队友
-		L4D2SF_GiveSkillExperience(client, g_iSlotHealing, RoundFloat(10 * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotHealing, RoundFloat(10 * g_fRateHeal));
 		
 		if(IsValidClient(subject))
-			L4D2SF_GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(2 * g_fRateHeal));
+			GiveSkillExperience(subject, g_iSlotHealing, RoundFloat(2 * g_fRateHeal));
 	}
 	else if(award == 81)
 	{
 		// 克局过后没有死亡
-		L4D2SF_GiveSkillExperience(client, g_iSlotSurvival, RoundFloat(10 * g_fRateHeal));
+		GiveSkillExperience(client, g_iSlotSurvival, RoundFloat(10 * g_fRateHeal));
 	}
 }
 
@@ -491,31 +533,31 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	
 	if(IsShotgun(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 10));
+		GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 10));
 	}
 	else if(IsRifle(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 10));
+		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 10));
 	}
 	else if(IsSniper(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 10));
+		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 10));
 	}
 	else if(IsMelee(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 10));
+		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 10));
 	}
 	else if(IsPistol(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotPistol, GetRandomInt(1, 10));
+		GiveSkillExperience(client, g_iSlotPistol, GetRandomInt(1, 10));
 	}
 	else if(IsMelee(classname) || IsClaw(classname))
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 10));
+		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 10));
 	}
 	else
 	{
-		L4D2SF_GiveSkillExperience(client, g_iSlotSpecial, GetRandomInt(1, 10));
+		GiveSkillExperience(client, g_iSlotSpecial, GetRandomInt(1, 10));
 	}
 }
 
@@ -533,11 +575,11 @@ public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool don
 	
 	if(teamAttacker == 2)
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotSpecial, RoundFloat(20 * g_fRateSpecial));
+		GiveSkillExperience(attacker, g_iSlotSpecial, RoundFloat(20 * g_fRateSpecial));
 	}
 	else if(teamAttacker == 3)
 	{
-		L4D2SF_GiveSkillExperience(attacker, g_iSlotAbility, RoundFloat(20 * g_fRateAbility));
+		GiveSkillExperience(attacker, g_iSlotAbility, RoundFloat(20 * g_fRateAbility));
 	}
 }
 
@@ -554,7 +596,7 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 	if(teamAttacker != 2 || teamVictim != 3)
 		return;
 	
-	L4D2SF_GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(20 * g_fRateMelee));
+	GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(20 * g_fRateMelee));
 }
 
 public void Event_PlayerGrabbed(Event event, const char[] event_name, bool dontBroadcast)
@@ -570,7 +612,7 @@ public void Event_PlayerGrabbed(Event event, const char[] event_name, bool dontB
 	if(teamAttacker != 3 || teamVictim != 2)
 		return;
 	
-	L4D2SF_GiveSkillExperience(attacker, g_iSlotAbility, RoundFloat(30 * g_fRateAbility));
+	GiveSkillExperience(attacker, g_iSlotAbility, RoundFloat(30 * g_fRateAbility));
 }
 
 public void Event_AbilityUsed(Event event, const char[] event_name, bool dontBroadcast)
@@ -579,7 +621,7 @@ public void Event_AbilityUsed(Event event, const char[] event_name, bool dontBro
 	if(!IsValidClient(client))
 		return;
 	
-	L4D2SF_GiveSkillExperience(client, g_iSlotAbility, RoundFloat(10 * g_fRateAbility));
+	GiveSkillExperience(client, g_iSlotAbility, RoundFloat(10 * g_fRateAbility));
 }
 
 /*
@@ -619,4 +661,9 @@ bool IsMelee(const char[] weapon)
 bool IsClaw(const char[] weapon)
 {
 	return StrContains(weapon, "claw") > -1;
+}
+
+void GiveSkillExperience(int client, int slotId, int amount)
+{
+	L4D2SF_GiveSkillExperience(client, slotId, RoundFloat(amount * g_fFacDiff));
 }

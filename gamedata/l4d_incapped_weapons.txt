@@ -34,7 +34,7 @@
 			"CanDeploy_Offset"
 			{
 				"windows"		"18"
-				"linux"			"19"
+				"linux"			"20"
 			}
 			"CanDeploy_Byte"
 			{
@@ -50,7 +50,7 @@
 			"OnIncap_Offset"
 			{
 				"windows"		"0"
-				"linux"			"816"
+				"linux"			"837"
 			}
 			"OnIncap_Byte"
 			{
@@ -83,6 +83,10 @@
 				"linux"			"@_ZN13CTerrorPlayer25OnIncapacitatedAsSurvivorERK15CTakeDamageInfo"
 				"windows"		"\x6A\x00\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x84\x2A\x75\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x6A\x01\x8B\x2A\xFF\x2A\x8B\x2A\x85\x2A\x74\x2A\x57"
 				/* 6A 00 8B ? E8 ? ? ? ? 84 ? 75 ? 8B ? 8B ? ? ? ? ? 6A 01 8B ? FF ? 8B ? 85 ? 74 ? 57 */
+
+				// This points to the function start, where the other above points directly to the patch. In future could possibly make more of an advanced patch to search from function start for our target.. Better with E8 calls though.
+				// "windows"		"\x53\x8B\x2A\x83\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33"
+				// /* 53 8B ? 83 ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 81 ? ? ? ? ? A1 ? ? ? ? 33 */
 				/* Search: "PainLevel:Critical" */
 			}
 		}

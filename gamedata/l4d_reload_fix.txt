@@ -71,8 +71,8 @@
 				"library"		"server"
 				"linux"			"@_ZN12CBaseShotgun6ReloadEv"
 				"windows"		"\x2A\x2A\x2A\x2A\x2A\x2A\x56\x57\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x8B\xF8\x85\xFF\x0F\x84\x2A\x2A\x2A\x2A\x8B\x87\xD4\x1C\x00\x00"
-				/* ? ? ? ? ? ? 56 57 8B F1 E8 ? ? ? ? 8B F8 85 FF 0F 84 ? ? ? ? 8B 87 D4 1C 00 00 */
-				/* Signature provided by Lux */
+				/* ? ? ? ? ? ? 56 57 8B F1 E8 ? ? ? ? 8B F8 85 FF 0F 84 ? ? ? ? 8B 87 B4 1C 00 00 */
+				/* Signature provided by "Lux" and fixed for 2.2.1.3 update by "Crasher_3637" */
 			}
 		}
 	}

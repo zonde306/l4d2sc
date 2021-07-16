@@ -17,28 +17,29 @@ public Plugin myinfo =
 };
 
 int g_iSlotSurvival, g_iSlotHealing, g_iSlotPistol, g_iSlotShotgun, g_iSlotRifle, g_iSlotSniper, g_iSlotSpecial, g_iSlotAbility, g_iSlotMelee;
-ConVar g_cvHurtRate, g_cvHealRate, g_cvPistolRate, g_cvShotgunRate, g_cvRifleRate, g_cvSniperRate, g_cvSpecialRate, g_cvAbilityRate, g_cvMeleeRate;
+ConVar g_cvHurtRate, g_cvHealRate, g_cvPistolRate, g_cvShotgunRate, g_cvRifleRate, g_cvSniperRate, g_cvSpecialRate, g_cvAbilityRate, g_cvMeleeRate, g_cvKillRate;
 ConVar g_cvEasy, g_cvNormal, g_cvHard, g_cvExpert, g_cvRealism;
 ConVar g_hDiff, g_hMode;
 
 public OnPluginStart()
 {
 	InitPlugin("sfgb");
-	g_cvHurtRate = CreateConVar("l4d2sf_hurt_rate", "1.0", "受伤经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvHealRate = CreateConVar("l4d2sf_cure_rate", "1.0", "治疗经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvPistolRate = CreateConVar("l4d2sf_pistol_rate", "1.0", "手枪经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvShotgunRate = CreateConVar("l4d2sf_shotgun_rate", "1.0", "霰弹枪经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvRifleRate = CreateConVar("l4d2sf_rifle_rate", "1.0", "步枪经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvSniperRate = CreateConVar("l4d2sf_sniper_rate", "1.0", "狙击枪经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvSpecialRate = CreateConVar("l4d2sf_special_rate", "1.0", "特殊武器经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvAbilityRate = CreateConVar("l4d2sf_ability_rate", "1.0", "特感能力经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvMeleeRate = CreateConVar("l4d2sf_melee_rate", "1.0", "近战武器经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvEasy = CreateConVar("l4d2sf_difficulty_easy", "0.8", "简单难度经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvNormal = CreateConVar("l4d2sf_difficulty_normal", "1.0", "普通难度经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvHard = CreateConVar("l4d2sf_difficulty_hard", "1.2", "困难难度经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvExpert = CreateConVar("l4d2sf_difficulty_expert", "1.5", "专家难度经验乘数", CVAR_FLAGS, true, 0.0);
-	g_cvRealism = CreateConVar("l4d2sf_difficulty_realism", "1.25", "写实难度经验乘数", CVAR_FLAGS, true, 0.0);
-	AutoExecConfig(true, "l4d2sf_gamebase");
+	g_cvHurtRate = CreateConVar("l4d2_sfgb_hurt_rate", "1.0", "受伤经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvHealRate = CreateConVar("l4d2_sfgb_cure_rate", "1.0", "治疗经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvPistolRate = CreateConVar("l4d2_sfgb_pistol_rate", "1.0", "手枪经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvShotgunRate = CreateConVar("l4d2_sfgb_shotgun_rate", "1.0", "霰弹枪经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvRifleRate = CreateConVar("l4d2_sfgb_rifle_rate", "1.0", "步枪经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvSniperRate = CreateConVar("l4d2_sfgb_sniper_rate", "1.0", "狙击枪经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvSpecialRate = CreateConVar("l4d2_sfgb_special_rate", "1.0", "特殊武器经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvAbilityRate = CreateConVar("l4d2_sfgb_ability_rate", "1.0", "特感能力经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvMeleeRate = CreateConVar("l4d2_sfgb_melee_rate", "1.0", "近战武器经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvKillRate = CreateConVar("l4d2_sfgb_kill_rate", "1.0", "击杀经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvEasy = CreateConVar("l4d2_sfgb_difficulty_easy", "0.8", "简单难度经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvNormal = CreateConVar("l4d2_sfgb_difficulty_normal", "1.0", "普通难度经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvHard = CreateConVar("l4d2_sfgb_difficulty_hard", "1.2", "困难难度经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvExpert = CreateConVar("l4d2_sfgb_difficulty_expert", "1.5", "专家难度经验乘数", CVAR_FLAGS, true, 0.0);
+	g_cvRealism = CreateConVar("l4d2_sfgb_difficulty_realism", "1.25", "写实难度经验乘数", CVAR_FLAGS, true, 0.0);
+	AutoExecConfig(true, "l4d2_sfgb");
 	
 	g_hDiff = FindConVar("z_difficulty");
 	g_hMode = FindConVar("mp_gamemode");
@@ -73,33 +74,33 @@ public OnPluginStart()
 	g_iSlotMelee = L4D2SF_RegSlot("melee");
 	
 	HookEvent("player_hurt", Event_PlayerHurt);
-	// HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("infected_hurt", Event_InfectedHurt);
-	// HookEvent("infected_death", Event_InfectedDeath);
 	HookEvent("pills_used", Event_PillsUsed);
 	HookEvent("adrenaline_used", Event_AdrenalineUsed);
 	HookEvent("heal_success", Event_HealSuccess);
-	// HookEvent("player_incapacitated", Event_PlayerIncapacitated);
 	HookEvent("defibrillator_used", Event_DefibrillatorUsed);
 	HookEvent("revive_success", Event_ReviveSuccess);
-	HookEvent("weapon_fire", Event_WeaponFire);
-	HookEvent("weapon_reload", Event_WeaponReload);
+	// HookEvent("weapon_fire", Event_WeaponFire);
+	// HookEvent("weapon_reload", Event_WeaponReload);
 	HookEvent("award_earned", Event_AwardEarned);
-	// HookEvent("survivor_rescued", Event_SurvivorRescued);
 	HookEvent("upgrade_pack_added", Event_UpgradePickup);
 	HookEvent("player_now_it", Event_PlayerHitByVomit);
 	HookEvent("player_shoved", Event_PlayerShoved);
-	// HookEvent("survival_at_30min", Event_SurvivalAt30Min, EventHookMode_PostNoCopy);
-	// HookEvent("survival_at_10min", Event_SurvivalAt10Min, EventHookMode_PostNoCopy);
 	HookEvent("tongue_grab", Event_PlayerGrabbed);
 	HookEvent("lunge_pounce", Event_PlayerGrabbed);
 	HookEvent("jockey_ride", Event_PlayerGrabbed);
 	HookEvent("charger_pummel_start", Event_PlayerGrabbed);
 	HookEvent("charger_carry_start", Event_PlayerGrabbed);
 	HookEvent("ability_use", Event_AbilityUsed);
+	HookEvent("player_death", Event_PlayerDeath);
+	// HookEvent("infected_death", Event_InfectedDeath);
+	HookEvent("player_incapacitated", Event_PlayerIncapacitated);
+	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("player_first_spawn", Event_PlayerSpawn);
+	HookEvent("witch_spawn", Event_WitchSpawn);
 }
 
-float g_fRateHurt, g_fRateHeal, g_fRatePistol, g_fRateShotgun, g_fRateRifle, g_fRateSniper, g_fRateSpecial, g_fRateAbility, g_fRateMelee, g_fFacDiff;
+float g_fRateHurt, g_fRateHeal, g_fRatePistol, g_fRateShotgun, g_fRateRifle, g_fRateSniper, g_fRateSpecial, g_fRateAbility, g_fRateMelee, g_fFacDiff, g_fRateKill;
 
 public void OnCvarChanged_UpdateCache(ConVar cvar, const char[] ov, const char[] nv)
 {
@@ -112,6 +113,7 @@ public void OnCvarChanged_UpdateCache(ConVar cvar, const char[] ov, const char[]
 	g_fRateSpecial = g_cvSpecialRate.FloatValue;
 	g_fRateAbility = g_cvAbilityRate.FloatValue;
 	g_fRateMelee = g_cvMeleeRate.FloatValue;
+	g_fRateKill = g_cvKillRate.FloatValue;
 	OnCvarChanged_UpdateDifficulty(null, "", "");
 }
 
@@ -165,6 +167,8 @@ public Action L4D2SF_OnGetSlotName(int client, int slotId, char[] result, int ma
 *                 事件处理                 *
 ********************************************
 */
+
+int g_iDamageDone[4096][MAXPLAYERS+1];
 
 public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
@@ -233,6 +237,8 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		{
 			GiveSkillExperience(victim, g_iSlotSurvival, RoundFloat(damage * g_fRateHurt));
 		}
+		
+		g_iDamageDone[victim][attacker] += damage;
 	}
 	else
 	{
@@ -294,6 +300,8 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	{
 		GiveSkillExperience(attacker, g_iSlotSpecial, RoundFloat(damage * g_fRateSpecial));
 	}
+	
+	g_iDamageDone[victim][attacker] += damage;
 }
 
 public void Event_PillsUsed(Event event, const char[] eventName, bool dontBroadcast)
@@ -375,6 +383,7 @@ public void Event_ReviveSuccess(Event event, const char[] eventName, bool dontBr
 	}
 }
 
+/*
 public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -460,6 +469,7 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool dontBro
 		GiveSkillExperience(client, g_iSlotSpecial, GetRandomInt(1, 5));
 	}
 }
+*/
 
 public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroadcast)
 {
@@ -624,6 +634,114 @@ public void Event_AbilityUsed(Event event, const char[] event_name, bool dontBro
 	GiveSkillExperience(client, g_iSlotAbility, RoundFloat(10 * g_fRateAbility));
 }
 
+public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	int victim = GetClientOfUserId(event.GetInt("userid"));
+	
+	if(!IsValidClient(attacker))
+		return;
+	
+	int teamVictim = 0;
+	int teamAttacker = GetClientTeam(attacker);
+	
+	if(IsValidClient(victim))
+	{
+		teamVictim = GetClientTeam(victim);
+	}
+	else
+	{
+		victim = event.GetInt("entityid");
+		if(!IsValidEdict(victim))
+			return;
+		
+		teamVictim = GetEntProp(victim, Prop_Data, "m_iTeamNum");
+	}
+	
+	if(teamAttacker == teamVictim)
+		return;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(IsValidClient(i) && g_iDamageDone[victim][i] > 0)
+			GiveExperience(i, RoundFloat(g_iDamageDone[victim][i] * g_fRateKill));
+		g_iDamageDone[victim][i] = 0;
+	}
+}
+
+/*
+public void Event_InfectedDeath(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	int victim = event.GetInt("infected_id");
+	
+	if(!IsValidClient(attacker) || !IsValidEdict(victim))
+		return;
+	
+	int teamAttacker = GetClientTeam(attacker);
+	int teamVictim = GetEntProp(victim, Prop_Data, "m_iTeamNum");
+	if(teamAttacker == teamVictim)
+		return;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(IsValidClient(i) && g_iDamageDone[victim][i] > 0)
+			GiveExperience(i, RoundFloat(g_iDamageDone[victim][i] * g_fRateKill));
+		g_iDamageDone[victim][i] = 0;
+	}
+}
+*/
+
+public void Event_PlayerIncapacitated(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(event.GetInt("userid"));
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	
+	if(!IsValidClient(attacker) || !IsValidClient(victim))
+		return;
+	
+	int teamAttacker = GetClientTeam(attacker);
+	int teamVictim = GetClientTeam(victim);
+	if(teamAttacker == teamVictim)
+		return;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(IsValidClient(i) && g_iDamageDone[victim][i] > 0)
+			GiveExperience(i, RoundFloat(g_iDamageDone[victim][i] * g_fRateKill));
+		g_iDamageDone[victim][i] = 0;
+	}
+}
+
+public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(client))
+		return;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		g_iDamageDone[client][i] = 0;
+}
+
+public void Event_WitchSpawn(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int witch = event.GetInt("witchid");
+	if(!IsValidEdict(witch))
+		return;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		g_iDamageDone[witch][i] = 0;
+}
+
+public void OnEntityCreated(int entity, const char[] classname)
+{
+	if(!strcmp(classname, "infected", false))
+	{
+		for(int i = 1; i <= MaxClients; ++i)
+			g_iDamageDone[entity][i] = 0;
+	}
+}
+
 /*
 ********************************************
 *                   杂项                   *
@@ -666,4 +784,9 @@ bool IsClaw(const char[] weapon)
 void GiveSkillExperience(int client, int slotId, int amount)
 {
 	L4D2SF_GiveSkillExperience(client, slotId, RoundFloat(amount * g_fFacDiff));
+}
+
+void GiveExperience(int client, int amount)
+{
+	L4D2SF_GiveExperience(client, RoundFloat(amount * g_fFacDiff));
 }

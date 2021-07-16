@@ -1,4 +1,24 @@
-#define PLUGIN_VERSION 		"1.2"
+/*
+*	Console Spam Patches
+*	Copyright (C) 2021 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+
+#define PLUGIN_VERSION 		"1.3"
 
 /*======================================================================================
 	Plugin Info:
@@ -11,6 +31,10 @@
 
 ========================================================================================
 	Change Log:
+
+1.3 (06-Jul-2021)
+	- Added a "MAX_PATCHES" define to the source to fix L4D1 not reading all entries on failure to find one.
+	- Added some more lines to remove to the gamedata file.
 
 1.2 (10-May-2020)
 	- Added better error log message when gamedata file is missing.
@@ -31,12 +55,13 @@
 #include <sourcemod>
 
 #define GAMEDATA			"l4d_console_spam"
+#define MAX_PATCHES			50
 
 
 
 public Plugin myinfo =
 {
-	name = "控制台垃圾信息过滤",
+	name = "[L4D & L4D2] Console Spam Patches",
 	author = "SilverShot",
 	description = "Prevents certain errors/warnings from being displayed in the server console.",
 	version = PLUGIN_VERSION,
@@ -70,8 +95,9 @@ public void OnPluginStart()
 		Address patchAddr;
 		char sTemp[32];
 		int loop = 1;
+		int done = 0;
 
-		while( loop )
+		while( loop <= MAX_PATCHES )
 		{
 			Format(sTemp, sizeof(sTemp), "SpamPatch_Sig%d", loop);
 			patchAddr = GameConfGetAddress(hGameData, sTemp);
@@ -79,12 +105,13 @@ public void OnPluginStart()
 			if( patchAddr )
 			{
 				StoreToAddress(patchAddr, 0x00, NumberType_Int8);
-				loop++;
-			} else {
-				PrintToServer("[Console Spam] patched %d entries.", loop - 1);
-				loop = 0;
+				done++;
 			}
+
+			loop++;
 		}
+
+		PrintToServer("[Console Spam] patched %d entries.", done);
 	}
 
 	delete hGameData;

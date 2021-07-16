@@ -54,6 +54,16 @@ public OnPluginStart()
 		OnMapStart();
 	
 	RegConsoleCmd("sm_skill", Cmd_SkillMenu, "");
+	
+	HookEventEx("player_spawn", Event_PlayerSpawn);
+	HookEventEx("player_first_spawn", Event_PlayerSpawn);
+	HookEventEx("player_death", Event_PlayerDeath);
+	HookEventEx("server_shutdown", Event_ServerShutdown, EventHookMode_PostNoCopy);
+}
+
+public void OnPluginEnd()
+{
+	OnMapEnd();
 }
 
 int g_iExpP, g_iExpB, g_iExpM, g_iMaxLevel, g_iMaxSkill, g_iSkillPoint;
@@ -1204,10 +1214,17 @@ public int MenuHandler_PerkMenu(Menu menu, MenuAction action, int client, int se
 ********************************************
 */
 
+int g_iUserId[MAXPLAYERS+1];
+StringMap g_UserSlotId[MAXPLAYERS+1], g_UserPerkId[MAXPLAYERS+1];
+
 void LoadPlayerData(int client)
 {
 	if(!IsValidClient(client) || IsFakeClient(client))
 		return;
+	
+	g_iUserId[client] = 0;
+	g_UserSlotId[client] = CreateTrie();
+	g_UserPerkId[client] = CreateTrie();
 	
 	char sid[20];
 	if(!GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true))
@@ -1241,54 +1258,126 @@ void SavePlayerData(int client)
 	char ident[8];
 	g_Database.Driver.GetIdentifier(ident, sizeof(ident));
 	
-	Transaction trans = SQL_CreateTransaction();
+	int uid = 0;
 	int level = g_PlayerData[client].level;
 	int experience = g_PlayerData[client].experience;
 	int prevCap = g_PlayerData[client].prevCap;
 	int points = g_PlayerData[client].points;
 	
+	if(!g_iUserId[client])
+	{
+		DBResultSet results = null;
+		if(ident[0] == 'm')
+		{
+			SQL_Query(g_Database, tr("INSERT IGNORE INTO l4d2sf_info (sid) VALUES ('%s')", sid));
+			results = SQL_Query(g_Database, tr("SELECT id FROM l4d2sf_info WHERE sid = '%s'", sid));
+		}
+		else if(ident[0] == 's')
+		{
+			SQL_Query(g_Database, tr("INSERT OR IGNORE INTO l4d2sf_info (sid) VALUES ('%s')", sid));
+			results = SQL_Query(g_Database, tr("SELECT id FROM l4d2sf_info WHERE sid = '%s'", sid));
+		}
+		
+		if(results == null || results.RowCount <= 0 || results.FieldCount <= 0 || !results.FetchRow())
+		{
+			LogError("[l4d2_skill_framework] 无法获取玩家 %N (%s) 的 uid。", client, sid);
+			return;
+		}
+		
+		uid = g_iUserId[client] = results.FetchInt(0);
+	}
+	else
+	{
+		uid = g_iUserId[client];
+	}
+	
+	Transaction trans = SQL_CreateTransaction();
+	
 	if(ident[0] == 'm')
 	{
-		trans.AddQuery(tr("INSERT INTO l4d2sf_info (sid, level, experience, prevCap, points) VALUES ('%s', %d, %d, %d, %d) ON DUPLICATE KEY UPDATE level = %d, experience = %d, prevCap = %d, points = %d", sid, level, experience, prevCap, points, level, experience, prevCap, points), client);
+		trans.AddQuery(tr("UPDATE l4d2sf_info SET level = %d, experience = %d, prevCap = %d, points = %d WHERE id = %d", level, experience, prevCap, points, uid));
 	}
 	else if(ident[0] == 's')
-	{
-		trans.AddQuery(tr("REPLACE INTO l4d2sf_info (sid, level, experience, prevCap, points) VALUES ('%s', %d, %d, %d, %d)", sid, level, experience, prevCap, points), client);
+	{	
+		trans.AddQuery(tr("UPDATE l4d2sf_info SET level = %d, experience = %d, prevCap = %d, points = %d WHERE id = %d", level, experience, prevCap, points, uid));
 	}
 	
 	char name[64];
-	StringMapSnapshot slots = g_PlayerData[client].lvSkills.Snapshot();
-	for(int i = 0; i < slots.Length; ++i)
+	StringMapSnapshot iter = g_PlayerData[client].lvSkills.Snapshot();
+	for(int i = 0; i < iter.Length; ++i)
 	{
-		slots.GetKey(i, name, sizeof(name));
-		if(!g_PlayerData[client].lvSkills.GetValue(name, level) || !g_PlayerData[client].expSkills.GetValue(name, experience))
+		iter.GetKey(i, name, sizeof(name));
+		
+		int lv = 0, exp = 0;
+		if(!g_PlayerData[client].lvSkills.GetValue(name, lv) || !g_PlayerData[client].expSkills.GetValue(name, exp))
 			continue;
 		
-		g_Database.Escape(name, name, sizeof(name));
-		if(ident[0] == 'm')
+		if(!lv)
+			continue;
+		
+		int id = 0;
+		if(g_UserSlotId[client] && g_UserSlotId[client].GetValue(name, id) && id)
 		{
-			trans.AddQuery(tr("INSERT INTO l4d2sf_slots (uid, name, level, experience) VALUES ((SELECT id FROM l4d2sf_info WHERE sid = '%s'), '%s', %d, %d) ON DUPLICATE KEY UPDATE level = %d, experience = %d", sid, name, level, experience, level, experience));
+			if(ident[0] == 'm')
+			{
+				trans.AddQuery(tr("UPDATE l4d2sf_slots SET level = %d, experience = %d WHERE id = %d", lv, exp, id));
+			}
+			else if(ident[0] == 's')
+			{
+				trans.AddQuery(tr("UPDATE l4d2sf_slots SET level = %d, experience = %d WHERE id = %d", lv, exp, id));
+			}
 		}
-		else if(ident[0] == 's')
+		else
 		{
-			trans.AddQuery(tr("REPLACE INTO l4d2sf_slots (uid, name, level, experience) VALUES ((SELECT id FROM l4d2sf_info WHERE sid = '%s'), '%s', %d, %d)", sid, name, level, experience));
+			g_Database.Escape(name, name, sizeof(name));
+			
+			if(ident[0] == 'm')
+			{
+				trans.AddQuery(tr("INSERT IGNORE INTO l4d2sf_slots (uid, name, level, experience) VALUES (%d, '%s', %d, %d)", uid, name, lv, exp));
+			}
+			else if(ident[0] == 's')
+			{
+				trans.AddQuery(tr("INSERT OR IGNORE INTO l4d2sf_slots (uid, name, level, experience) VALUES (%d, '%s', %d, %d)", uid, name, lv, exp));
+			}
 		}
 	}
 	
-	StringMapSnapshot perks = g_PlayerData[client].perks.Snapshot();
-	for(int i = 0; i < perks.Length; ++i)
+	iter = g_PlayerData[client].perks.Snapshot();
+	for(int i = 0; i < iter.Length; ++i)
 	{
-		perks.GetKey(i, name, sizeof(name));
-		if(!g_PlayerData[client].perks.GetValue(name, level))
+		iter.GetKey(i, name, sizeof(name));
 		
-		g_Database.Escape(name, name, sizeof(name));
-		if(ident[0] == 'm')
+		int lv = 0;
+		if(!g_PlayerData[client].perks.GetValue(name, lv))
+			continue;
+		
+		if(!lv)
+			continue;
+		
+		int id = 0;
+		if(g_UserPerkId[client] && g_UserPerkId[client].GetValue(name, id) && id)
 		{
-			trans.AddQuery(tr("INSERT INTO l4d2sf_perks (uid, name, level) VALUES ((SELECT id FROM l4d2sf_info WHERE sid = '%s'), '%s', %d) ON DUPLICATE KEY UPDATE level = %d", sid, name, level, level));
+			if(ident[0] == 'm')
+			{
+				trans.AddQuery(tr("UPDATE l4d2sf_perks SET level = %d WHERE id = %d", lv, id));
+			}
+			else if(ident[0] == 's')
+			{
+				trans.AddQuery(tr("UPDATE l4d2sf_perks SET level = %d WHERE id = %d", lv, id));
+			}
 		}
-		else if(ident[0] == 's')
+		else
 		{
-			trans.AddQuery(tr("REPLACE INTO l4d2sf_perks (uid, name, level) VALUES ((SELECT id FROM l4d2sf_info WHERE sid = '%s'), '%s', %d)", sid, name, level));
+			g_Database.Escape(name, name, sizeof(name));
+			
+			if(ident[0] == 'm')
+			{
+				trans.AddQuery(tr("INSERT IGNORE INTO l4d2sf_perks (uid, name, level) VALUES (%d, '%s', %d)", uid, name, lv));
+			}
+			else if(ident[0] == 's')
+			{
+				trans.AddQuery(tr("INSERT OR IGNORE INTO l4d2sf_perks (uid, name, level) VALUES (%d, '%s', %d)", uid, name, lv));
+			}
 		}
 	}
 	
@@ -1298,27 +1387,33 @@ void SavePlayerData(int client)
 public void QueryResult_LoadPlayerData(Database db, DBResultSet results, const char[] error, any client)
 {
 	if(results == null || results.RowCount != 1 || !results.FetchRow())
+	{
+		g_iUserId[client] = 0;
 		return;
+	}
 	
 	int id = results.FetchInt(0);
 	g_PlayerData[client].level = results.FetchInt(1);
 	g_PlayerData[client].experience = results.FetchInt(2);
 	g_PlayerData[client].prevCap = results.FetchInt(3);
 	g_PlayerData[client].points = results.FetchInt(4);
+	g_iUserId[client] = id;
 	
 	char ident[8];
 	db.Driver.GetIdentifier(ident, sizeof(ident));
 	
 	if(ident[0] == 'm')
 	{
-		db.Query(QueryResult_LoadPlayerSlots, tr("SELECT name, level, experience FROM l4d2sf_slots WHERE uid = %d", id), client);
-		db.Query(QueryResult_LoadPlayerPerks, tr("SELECT name, level FROM l4d2sf_perks WHERE uid = %d", id), client);
+		db.Query(QueryResult_LoadPlayerSlots, tr("SELECT id, name, level, experience FROM l4d2sf_slots WHERE uid = %d", id), client);
+		db.Query(QueryResult_LoadPlayerPerks, tr("SELECT id, name, level FROM l4d2sf_perks WHERE uid = %d", id), client);
 	}
 	else if(ident[0] == 's')
 	{
-		db.Query(QueryResult_LoadPlayerSlots, tr("SELECT name, level, experience FROM l4d2sf_slots WHERE uid = %d", id), client);
-		db.Query(QueryResult_LoadPlayerPerks, tr("SELECT name, level FROM l4d2sf_perks WHERE uid = %d", id), client);
+		db.Query(QueryResult_LoadPlayerSlots, tr("SELECT id, name, level, experience FROM l4d2sf_slots WHERE uid = %d", id), client);
+		db.Query(QueryResult_LoadPlayerPerks, tr("SELECT id, name, level FROM l4d2sf_perks WHERE uid = %d", id), client);
 	}
+	
+	PrintToServer("读取 %d 信息完成", client);
 }
 
 public void QueryResult_LoadPlayerSlots(Database db, DBResultSet results, const char[] error, any client)
@@ -1327,14 +1422,17 @@ public void QueryResult_LoadPlayerSlots(Database db, DBResultSet results, const 
 		return;
 	
 	char name[64];
-	results.FetchString(0, name, sizeof(name));
 	
 	do
 	{
-		g_PlayerData[client].lvSkills.SetValue(name, results.FetchInt(1));
-		g_PlayerData[client].expSkills.SetValue(name, results.FetchInt(2));
+		results.FetchString(1, name, sizeof(name));
+		g_PlayerData[client].lvSkills.SetValue(name, results.FetchInt(2));
+		g_PlayerData[client].expSkills.SetValue(name, results.FetchInt(3));
+		g_UserSlotId[client].SetValue(name, results.FetchInt(0));
 	}
-	while(results.MoreRows && results.FetchMoreResults());
+	while(results.FetchRow());
+	
+	PrintToServer("读取 %d 技能完成", client);
 }
 
 public void QueryResult_LoadPlayerPerks(Database db, DBResultSet results, const char[] error, any client)
@@ -1343,23 +1441,26 @@ public void QueryResult_LoadPlayerPerks(Database db, DBResultSet results, const 
 		return;
 	
 	char name[64];
-	results.FetchString(0, name, sizeof(name));
 	
 	do
 	{
-		g_PlayerData[client].perks.SetValue(name, results.FetchInt(1));
+		results.FetchString(1, name, sizeof(name));
+		g_PlayerData[client].perks.SetValue(name, results.FetchInt(2));
+		g_UserPerkId[client].SetValue(name, results.FetchInt(0));
 	}
-	while(results.MoreRows && results.FetchMoreResults());
+	while(results.FetchRow());
+	
+	PrintToServer("读取 %d 能力完成", client);
 }
 
 public void QueryResults_SuccessNaked(Database db, any data, int numQueries, DBResultSet[] results, any[] queryData)
 {
-	
+	PrintToServer("玩家 %d 保存完成", data);
 }
 
 public void QueryResults_FailedNaked(Database db, any data, int numQueries, const char[] error, int failIndex, any[] queryData)
 {
-	
+	PrintToServer("玩家 %d 保存失败：%s", data, error);
 }
 
 public void OnClientDisconnect(int client)
@@ -1370,6 +1471,7 @@ public void OnClientDisconnect(int client)
 
 public void OnClientPutInServer(int client)
 {
+	g_iUserId[client] = 0;
 	g_PlayerData[client].Reset();
 	LoadPlayerData(client);
 }
@@ -1389,6 +1491,31 @@ public void OnMapStart()
 }
 
 public void OnMapEnd()
+{
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidClient(i))
+			SavePlayerData(i);
+}
+
+public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(client))
+		return;
+	
+	LoadPlayerData(client);
+}
+
+public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(client))
+		return;
+	
+	SavePlayerData(client);
+}
+
+public void Event_ServerShutdown(Event event, const char[] eventName, bool dontBroadcast)
 {
 	for(int i = 1; i <= MaxClients; ++i)
 		if(IsValidClient(i))

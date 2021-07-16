@@ -85,6 +85,7 @@ public OnPluginStart()
 	HookEvent("award_earned", Event_AwardEarned);
 	HookEvent("upgrade_pack_added", Event_UpgradePickup);
 	HookEvent("player_now_it", Event_PlayerHitByVomit);
+	HookEvent("player_no_longer_it", Event_PlayerVomitEnding);
 	HookEvent("player_shoved", Event_PlayerShoved);
 	HookEvent("tongue_grab", Event_PlayerGrabbed);
 	HookEvent("lunge_pounce", Event_PlayerGrabbed);
@@ -98,6 +99,8 @@ public OnPluginStart()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_first_spawn", Event_PlayerSpawn);
 	HookEvent("witch_spawn", Event_WitchSpawn);
+	HookEvent("bot_player_replace", Event_PlayerReplaceBot);
+	HookEvent("player_bot_replace", Event_BotReplacePlayer);
 }
 
 float g_fRateHurt, g_fRateHeal, g_fRatePistol, g_fRateShotgun, g_fRateRifle, g_fRateSniper, g_fRateSpecial, g_fRateAbility, g_fRateMelee, g_fFacDiff, g_fRateKill;
@@ -169,6 +172,7 @@ public Action L4D2SF_OnGetSlotName(int client, int slotId, char[] result, int ma
 */
 
 int g_iDamageDone[4096][MAXPLAYERS+1];
+int g_iBileAttacker[MAXPLAYERS+1];
 
 public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
@@ -249,6 +253,9 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			if(teamAttacker == 3 && teamVictim == 2)
 			{
 				GiveSkillExperience(victim, g_iSlotSurvival, RoundFloat(damage * g_fRateHurt));
+				
+				if(IsValidClient(g_iBileAttacker[victim]))
+					GiveSkillExperience(g_iBileAttacker[victim], g_iSlotAbility, RoundFloat(damage * g_fRateHurt));
 			}
 		}
 	}
@@ -590,7 +597,17 @@ public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool don
 	else if(teamAttacker == 3)
 	{
 		GiveSkillExperience(attacker, g_iSlotAbility, RoundFloat(20 * g_fRateAbility));
+		g_iBileAttacker[victim] = attacker;
 	}
+}
+
+public void Event_PlayerVomitEnding(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int victim = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(victim))
+		return;
+	
+	g_iBileAttacker[victim] = 0;
 }
 
 public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBroadcast)
@@ -639,13 +656,17 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 	int attacker = GetClientOfUserId(event.GetInt("attacker"));
 	int victim = GetClientOfUserId(event.GetInt("userid"));
 	
+	bool player = IsValidClient(victim);
+	if(player && g_iBileAttacker[victim])
+		g_iBileAttacker[victim] = 0;
+	
 	if(!IsValidClient(attacker))
 		return;
 	
 	int teamVictim = 0;
 	int teamAttacker = GetClientTeam(attacker);
 	
-	if(IsValidClient(victim))
+	if(player)
 	{
 		teamVictim = GetClientTeam(victim);
 	}
@@ -739,6 +760,36 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		for(int i = 1; i <= MaxClients; ++i)
 			g_iDamageDone[entity][i] = 0;
+	}
+}
+
+public void Event_PlayerReplaceBot(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int player = GetClientOfUserId(event.GetInt("player"));
+	int bot = GetClientOfUserId(event.GetInt("bot"));
+	
+	g_iBileAttacker[player] = g_iBileAttacker[bot];
+	g_iBileAttacker[bot] = 0;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		g_iDamageDone[player][i] = g_iDamageDone[bot][i];
+		g_iDamageDone[bot][i] = 0;
+	}
+}
+
+public void Event_BotReplacePlayer(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int player = GetClientOfUserId(event.GetInt("player"));
+	int bot = GetClientOfUserId(event.GetInt("bot"));
+	
+	g_iBileAttacker[bot] = g_iBileAttacker[player];
+	g_iBileAttacker[player] = 0;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		g_iDamageDone[bot][i] = g_iDamageDone[player][i];
+		g_iDamageDone[player][i] = 0;
 	}
 }
 

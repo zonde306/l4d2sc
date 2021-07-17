@@ -4,7 +4,7 @@
 #include <adminmenu>
 #include <regex>
 
-#define PLUGIN_VERSION			"0.0.0"
+#define PLUGIN_VERSION			"0.0.1"
 #include "modules/l4d2ps.sp"
 
 public Plugin myinfo =
@@ -59,6 +59,12 @@ public OnPluginStart()
 	HookEventEx("player_first_spawn", Event_PlayerSpawn);
 	HookEventEx("player_death", Event_PlayerDeath);
 	HookEventEx("server_shutdown", Event_ServerShutdown, EventHookMode_PostNoCopy);
+	HookEventEx("round_end", Event_ServerShutdown, EventHookMode_PostNoCopy);
+	HookEventEx("map_transition", Event_ServerShutdown, EventHookMode_PostNoCopy);
+	HookEventEx("mission_lost", Event_ServerShutdown, EventHookMode_PostNoCopy);
+	// HookEventEx("round_start_pre_entity", Event_ServerShutdown, EventHookMode_PostNoCopy);
+	// HookEventEx("round_start_post_nav", Event_ServerShutdown, EventHookMode_PostNoCopy);
+	HookEventEx("finale_vehicle_leaving", Event_ServerShutdown, EventHookMode_PostNoCopy);
 }
 
 public void OnPluginEnd()
@@ -1754,7 +1760,20 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D2SF_GivePoint", Native_GivePoint);
 	// int L4D2SF_GetPoint(int client)
 	CreateNative("L4D2SF_GetPoint", Native_GetPoint);
-	// bool 
+	// StringMapSnapshot L4D2SF_GetAllSlots()
+	CreateNative("L4D2SF_GetAllSlots", Native_GetAllSlots);
+	// int L4D2SF_SlotNameToSlotId(const char[] name)
+	CreateNative("L4D2SF_SlotNameToSlotId", Native_FindSlotByName);
+	// bool L4D2SF_SlotIdToSlotName(int slotId, char[] result, int maxlen)
+	CreateNative("L4D2SF_SlotIdToSlotName", Native_FindSlotById);
+	// bool L4D2SF_GetSlotName(int client, int slotId, char[] result, int maxlen)
+	CreateNative("L4D2SF_GetSlotName", Native_GetSlotName);
+	// bool L4D2SF_GetPerkName(int client, const char[] perk, char[] result, int maxlen, int level = 0)
+	CreateNative("L4D2SF_GetPerkName", Native_GetPerkName);
+	// bool L4D2SF_GetPerkDescription(int client, const char[] perk, char[] result, int maxlen, int level = 0)
+	CreateNative("L4D2SF_GetPerkDescription", Native_GetPerkDescription);
+	// PerkPerm_t L4D2SF_GetPerkAccess(int client, const char[] perk)
+	CreateNative("L4D2SF_GetPerkAccess", Native_GetPerkAccess);
 }
 
 public any Native_RegSlot(Handle plugin, int argc)
@@ -1939,6 +1958,81 @@ public any Native_GetPoint(Handle plugin, int argc)
 	int client = GetNativeCell(1);
 	
 	return g_PlayerData[client].points;
+}
+
+public any Native_GetAllSlots(Handle plugin, int argc)
+{
+	return CloneHandle(g_SlotPerks.Snapshot(), plugin);
+}
+
+public any Native_FindSlotByName(Handle plugin, int argc)
+{
+	char name[64];
+	GetNativeString(1, name, sizeof(name));
+	return SlotClassnameToSlotId(name);
+}
+
+public any Native_FindSlotById(Handle plugin, int argc)
+{
+	int slotId = GetNativeCell(1);
+	
+	char name[64];
+	SlotIdToSlotClassname(slotId, name, sizeof(name));
+	
+	SetNativeString(2, name, GetNativeCell(3));
+	return name[0] != EOS;
+}
+
+public any Native_GetSlotName(Handle plugin, int argc)
+{
+	int client = GetNativeCell(1);
+	int slotId = GetNativeCell(2);
+	
+	char name[128];
+	GetSlotName(client, slotId, name, sizeof(name));
+	
+	SetNativeString(3, name, GetNativeCell(4), true);
+	return name[0] != EOS;
+}
+
+public any Native_GetPerkName(Handle plugin, int argc)
+{
+	int client = GetNativeCell(1);
+	int level = GetNativeCell(5);
+	
+	char name[128];
+	GetNativeString(2, name, sizeof(name));
+	GetPerkName(client, name, level, name, sizeof(name));
+	
+	SetNativeString(3, name, GetNativeCell(4), true);
+	return name[0] != EOS;
+}
+
+public any Native_GetPerkDescription(Handle plugin, int argc)
+{
+	int client = GetNativeCell(1);
+	int level = GetNativeCell(5);
+	
+	char name[128];
+	GetNativeString(2, name, sizeof(name));
+	GetPerkDescription(client, name, level, name, sizeof(name));
+	
+	SetNativeString(3, name, GetNativeCell(4), true);
+	return name[0] != EOS;
+}
+
+public any Native_GetPerkAccess(Handle plugin, int argc)
+{
+	int client = GetNativeCell(1);
+	
+	char name[64];
+	GetNativeString(2, name, sizeof(name));
+	
+	PerkData_t data;
+	if(!FindPerk(name, data))
+		return false;
+	
+	return GetPerkAccess(client, data.slot, name);
 }
 
 /*

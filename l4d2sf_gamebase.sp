@@ -4,7 +4,7 @@
 #include <sdkhooks>
 #include <l4d2_skill_framework>
 
-#define PLUGIN_VERSION			"0.0.0"
+#define PLUGIN_VERSION			"0.0.1"
 #include "modules/l4d2ps.sp"
 
 public Plugin myinfo =

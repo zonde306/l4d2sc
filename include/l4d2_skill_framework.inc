@@ -198,6 +198,83 @@ native void L4D2SF_GivePoint(int client, int amount);
 native int L4D2SF_GetPoint(int client);
 
 /**
+ * @brief 获取所有技能树列表
+ *
+ * @return						技能树列表
+ */
+native StringMapSnapshot L4D2SF_GetAllSlots();
+
+/**
+ * @brief 将技能树类名转换为技能树ID
+ * @remaining 不存在时不会创建
+ *
+ * @param name					技能树类名
+ *
+ * @return						技能树ID；失败返回 -1
+ */
+native int L4D2SF_SlotNameToSlotId(const char[] name);
+
+/**
+ * @brief 将技能树ID转换为技能树类名
+ * @remaining 不存在时不会创建
+ *
+ * @param slotId				技能树ID
+ * @param result				返回的技能树类名
+ * @param maxlen				返回的技能树类名可写入大小
+ *
+ * @return						成功返回 true；不存在返回 false
+ */
+native bool L4D2SF_SlotIdToSlotName(int slotId, char[] result, int maxlen);
+
+/**
+ * @brief 获取技能树显示名(翻译后的)
+ *
+ * @param client				玩家索引
+ * @param slotId				技能树ID
+ * @param result				返回的技能树显示名
+ * @param maxlen				返回的技能树显示名可写入大小
+ *
+ * @return						成功返回 true；否则返回 false
+ */
+native bool L4D2SF_GetSlotName(int client, int slotId, char[] result, int maxlen);
+
+/**
+ * @brief 获取技能显示名(翻译后的)
+ *
+ * @param client				玩家索引
+ * @param perk					技能类名
+ * @param result				返回的技能显示名
+ * @param maxlen				返回的技能显示名可写入大小
+ * @param level					技能等级
+ *
+ * @return						成功返回 true；否则返回 false
+ */
+native bool L4D2SF_GetPerkName(int client, const char[] perk, char[] result, int maxlen, int level = 0);
+
+/**
+ * @brief 获取技能说明(翻译后的)
+ *
+ * @param client				玩家索引
+ * @param perk					技能类名
+ * @param result				返回的技能显示名
+ * @param maxlen				返回的技能显示名可写入大小
+ * @param level					技能等级
+ *
+ * @return						成功返回 true；否则返回 false
+ */
+native bool L4D2SF_GetPerkDescription(int client, const char[] perk, char[] result, int maxlen, int level = 0);
+
+/**
+ * @brief 检查玩家是否可访问指定技能
+ *
+ * @param client				玩家索引
+ * @param perk					技能类名
+ *
+ * @return						玩家访问指定技能的权限
+ */
+native PerkPerm_t L4D2SF_GetPerkAccess(int client, const char[] perk);
+
+/**
  * @brief 当玩家获得技能(树)经验时调用
  *
  * @param client				玩家索引

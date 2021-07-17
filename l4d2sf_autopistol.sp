@@ -36,7 +36,7 @@ public OnPluginStart()
 
 public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
 {
-	if(!strcmp(name, "autopistol"))
+	if(strcmp(name, "autopistol"))
 		return Plugin_Continue;
 	
 	FormatEx(result, maxlen, "%T", "手枪连射", client, level);

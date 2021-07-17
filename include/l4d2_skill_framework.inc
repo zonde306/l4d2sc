@@ -481,5 +481,12 @@ public void __pl_skillframework_SetNTVOptional()
 	MarkNativeAsOptional("L4D2SF_GetAllPerks");
 	MarkNativeAsOptional("L4D2SF_GivePoint");
 	MarkNativeAsOptional("L4D2SF_GetPoint");
+	MarkNativeAsOptional("L4D2SF_GetAllSlots");
+	MarkNativeAsOptional("L4D2SF_SlotNameToSlotId");
+	MarkNativeAsOptional("L4D2SF_SlotIdToSlotName");
+	MarkNativeAsOptional("L4D2SF_GetSlotName");
+	MarkNativeAsOptional("L4D2SF_GetPerkName");
+	MarkNativeAsOptional("L4D2SF_GetPerkDescription");
+	MarkNativeAsOptional("L4D2SF_GetPerkAccess");
 }
 #endif // REQUIRE_PLUGIN

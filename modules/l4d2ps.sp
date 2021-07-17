@@ -17,57 +17,59 @@ Handle g_hTimerCheckGameMode;
 ConVar g_pCvarAllow, g_pCvarAllowMode, g_pCvarEnableMode, g_pCvarDisableMode;
 bool g_bAllowByPlugin, g_bAllowByMode;
 
-enum()
-{
-	Z_COMMON = 0,
-	Z_INFECTED = 0,
-	Z_SMOKER = 1,
-	Z_BOOMER = 2,
-	Z_HUNTER = 3,
-	Z_SPITTER = 4,
-	Z_JOCKEY = 5,
-	Z_CHARGER = 6,
-	Z_WITCH = 7,
-	Z_TANK = 8,
-	Z_SURVIVOR = 9,
-	Z_L4D1_SURVIVOR = 10
-};
+const int Z_COMMON = 0;
+const int Z_INFECTED = 0;
+const int Z_SMOKER = 1;
+const int Z_BOOMER = 2;
+const int Z_HUNTER = 3;
+const int Z_SPITTER = 4;
+const int Z_JOCKEY = 5;
+const int Z_CHARGER = 6;
+const int Z_WITCH = 7;
+const int Z_TANK = 8;
+const int Z_SURVIVOR = 9;
+const int Z_L4D1_SURVIVOR = 10;
 
-enum()
-{
-	AMMOTYPE_PISTOL = 1,
-	AMMOTYPE_MAGNUM = 2,
-	AMMOTYPE_ASSAULTRIFLE = 3,
-	AMMOTYPE_MINIGUN = 4,
-	AMMOTYPE_SMG = 5,
-	AMMOTYPE_M60 = 6,
-	AMMOTYPE_SHOTGUN = 7,
-	AMMOTYPE_AUTOSHOTGUN = 8,
-	AMMOTYPE_HUNTINGRIFLE = 9,
-	AMMOTYPE_SNIPERRIFLE = 10,
-	AMMOTYPE_TURRET = 11,
-	AMMOTYPE_PIPEBOMB = 12,
-	AMMOTYPE_MOLOTOV = 13,
-	AMMOTYPE_VOMITJAR = 14,
-	AMMOTYPE_PAINPILLS = 15,
-	AMMOTYPE_FIRSTAID = 16,
-	AMMOTYPE_GRENADELAUNCHER = 17,
-	AMMOTYPE_ADRENALINE = 18,
-	AMMOTYPE_CHAINSAW = 19
-}
+const int AMMOTYPE_PISTOL = 1;
+const int AMMOTYPE_MAGNUM = 2;
+const int AMMOTYPE_ASSAULTRIFLE = 3;
+const int AMMOTYPE_MINIGUN = 4;
+const int AMMOTYPE_SMG = 5;
+const int AMMOTYPE_M60 = 6;
+const int AMMOTYPE_SHOTGUN = 7;
+const int AMMOTYPE_AUTOSHOTGUN = 8;
+const int AMMOTYPE_HUNTINGRIFLE = 9;
+const int AMMOTYPE_SNIPERRIFLE = 10;
+const int AMMOTYPE_TURRET = 11;
+const int AMMOTYPE_PIPEBOMB = 12;
+const int AMMOTYPE_MOLOTOV = 13;
+const int AMMOTYPE_VOMITJAR = 14;
+const int AMMOTYPE_PAINPILLS = 15;
+const int AMMOTYPE_FIRSTAID = 16;
+const int AMMOTYPE_GRENADELAUNCHER = 17;
+const int AMMOTYPE_ADRENALINE = 18;
+const int AMMOTYPE_CHAINSAW = 19;
 
-enum()
-{
-	HITGROUP_GENERIC = 0,
-	HITGROUP_HEAD = 1,
-	HITGROUP_CHEST = 2,
-	HITGROUP_STOMACH = 3,
-	HITGROUP_LEFTARM = 4,	
-	HITGROUP_RIGHTARM = 5,
-	HITGROUP_LEFTLEG = 6,
-	HITGROUP_RIGHTLEG = 7,
-	HITGROUP_GEAR	 = 10,			// alerts NPC, but doesn't do damage or bleed (1/100th damage)
-}
+const int HITGROUP_GENERIC = 0;
+const int HITGROUP_HEAD = 1;
+const int HITGROUP_CHEST = 2;
+const int HITGROUP_STOMACH = 3;
+const int HITGROUP_LEFTARM = 4;
+const int HITGROUP_RIGHTARM = 5;
+const int HITGROUP_LEFTLEG = 6;
+const int HITGROUP_RIGHTLEG = 7;
+const int HITGROUP_GEAR = 10;		// alerts NPC; but doesn't do damage or bleed (1/100th damage)
+
+const int DMG_CHOKE = (1 << 20);
+const int DMG_MELEE = (1 << 21);
+const int DMG_STUMBLE = (1 << 25);
+const int DMG_HEADSHOT = (1 << 30);
+const int DMG_DISMEMBER = (1 << 31);
+
+const int DAMAGE_NO = 0;
+const int DAMAGE_EVENTS_ONLY = 1;
+const int DAMAGE_YES = 2;
+const int DAMAGE_AIM = 3;
 
 stock bool IsPluginAllow()
 {

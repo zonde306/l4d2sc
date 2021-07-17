@@ -239,7 +239,7 @@ public Action EntHook_OnTakeDamage(int victim, int &attacker, int &inflictor, fl
 		{
 			damage *= LevelFactor(g_iLevelPistol[attacker], g_fRatePistol);
 		}
-		else if((damageType & (DMG_SLASH|DMG_CLUB)) || IsMelee(classname))
+		else if((damageType & (DMG_SLASH|DMG_CLUB|DMG_MELEE)) || IsMelee(classname))
 		{
 			damage *= LevelFactor(g_iLevelMelee[attacker], g_fRateMelee);
 		}

@@ -1,4 +1,4 @@
-#define PLUGIN_VERSION			"1.1"
+#define PLUGIN_VERSION		"1.2"
 
 /*======================================================================================
 	Plugin Info:
@@ -6,11 +6,15 @@
 *	Name	:	[L4D2] Hud Splatter
 *	Author	:	SilverShot
 *	Descp	:	Splat effects on players screen.
-*	Link	:	http://forums.alliedmods.net/showthread.php?t=137445
-*	Plugins	:	http://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
+*	Link	:	https://forums.alliedmods.net/showthread.php?t=137445
+*	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
 ========================================================================================
 	Change Log:
+
+1.2 (10-May-2020)
+	- Added PrecacheParticle function.
+	- Various changes to tidy up code.
 
 1.1 (05-May-2018)
 	- Converted plugin source to the latest syntax utilizing methodmaps. Requires SourceMod 1.8 or newer.
@@ -24,10 +28,10 @@
 	If I have used your code and not credited you, please let me know.
 
 *	Thanks to "L. Duke" for " TF2 Particles via TempEnts" tutorial
-	http://forums.alliedmods.net/showthread.php?t=75102
+	https://forums.alliedmods.net/showthread.php?t=75102
 
 *	Thanks to "Muridias" for updating "L. Duke"s code
-	http://forums.alliedmods.net/showpost.php?p=836836&postcount=28
+	https://forums.alliedmods.net/showpost.php?p=836836&postcount=28
 
 ======================================================================================*/
 
@@ -61,7 +65,8 @@ char g_Particles[19][] =
 };
 
 ConVar g_hEnable;
-int g_iEnable, g_iType;
+bool g_bCvarAllow;
+int g_iType;
 
 
 
@@ -85,7 +90,7 @@ public Plugin myinfo =
 	author = "SilverShot",
 	description = "Splat effects on players screen.",
 	version = PLUGIN_VERSION,
-	url = "http://forums.alliedmods.net/showthread.php?t=137445"
+	url = "https://forums.alliedmods.net/showthread.php?t=137445"
 }
 
 public void OnPluginStart()
@@ -95,16 +100,24 @@ public void OnPluginStart()
 	AutoExecConfig(true, "l4d2_hud_splatter");
 
 	g_hEnable.AddChangeHook(ConVarChanged_Enable);
-	g_iEnable = g_hEnable.IntValue;
+	g_bCvarAllow = g_hEnable.BoolValue;
 
 	// Console Commands
-	RegConsoleCmd("sm_splat_menu", Command_SplatMenu, _, ADMFLAG_KICK);
+	RegConsoleCmd("sm_splat_menu", Command_SplatMenu, "Splat menu.", ADMFLAG_KICK);
 	RegConsoleCmd("sm_splat", Command_Splatter, "Usage: sm_splat [1-19]", ADMFLAG_KICK);
 }
 
 public void ConVarChanged_Enable(Handle convar, const char[] oldValue, const char[] newValue)
 {
-	g_iEnable = g_hEnable.BoolValue;
+	g_bCvarAllow = g_hEnable.BoolValue;
+}
+
+public void OnMapStart()
+{
+	for( int i = 0; i < sizeof(g_Particles); i++ )
+	{
+		PrecacheParticle(g_Particles[i]);
+	}
 }
 
 
@@ -119,27 +132,29 @@ void SplatPlayer(int client, int type)
 
 public Action Command_SplatMenu(int client, int args)
 {
-	if (g_iEnable) Menu_Select(client);
+	if( g_bCvarAllow ) Menu_Select(client);
 	return Plugin_Handled;
 }
 
 public Action Command_Splatter(int client, int args)
 {
-	if (!g_iEnable) return Plugin_Handled;
+	if( !g_bCvarAllow ) return Plugin_Handled;
 
-	char arg1[32];
+	char arg1[4];
 	int type;
 
 	GetCmdArg(1, arg1, sizeof(arg1));
 
-	if (args != 1) {
+	if( args != 1 )
+	{
 		ReplyToCommand(client, "Usage: sm_splat [1-19]");
 		return Plugin_Handled;
 	}
 
 	type = StringToInt(arg1);
-	if (type > 19) return Plugin_Handled;
+	if( type < 0 || type > 19)  return Plugin_Handled;
 	SplatPlayer(client, type -1);
+
 	return Plugin_Handled;
 }
 
@@ -165,10 +180,12 @@ void Menu_Select(int client)
 
 public int MenuHandler_Select(Menu menu, MenuAction action, int param1, int param2)
 {
-	if (action == MenuAction_End) return;
+	if( action == MenuAction_End ) return;
 
-	if (action == MenuAction_Select){
-		switch (param2){
+	if( action == MenuAction_Select )
+	{
+		switch( param2 )
+		{
 			case 0: Menu_Adren(param1);
 			case 1: Menu_Blood(param1);
 			case 2: Menu_Infected(param1);
@@ -199,11 +216,16 @@ void Menu_Adren(int client)
 
 public int MenuHandler_Adren(Menu menu, MenuAction action, int param1, int param2)
 {
-	if (action == MenuAction_End) {
+	if( action == MenuAction_End )
+	{
 		delete menu;
-	}else if (action == MenuAction_Cancel) {
+	}
+	else if( action == MenuAction_Cancel )
+	{
 		Menu_Select(param1);
-	}else if (action == MenuAction_Select){
+	}
+	else if( action == MenuAction_Select )
+	{
 		g_iType = param2;
 		Menu_Adren(param1);
 		SplatPlayer(param1, g_iType);
@@ -229,11 +251,16 @@ void Menu_Blood(int client)
 
 public int MenuHandler_Blood(Menu menu, MenuAction action, int param1, int param2)
 {
-	if (action == MenuAction_End) {
+	if( action == MenuAction_End )
+	{
 		delete menu;
-	}else if (action == MenuAction_Cancel) {
+	}
+	else if( action == MenuAction_Cancel )
+	{
 		Menu_Select(param1);
-	}else if (action == MenuAction_Select){
+	}
+	else if( action == MenuAction_Select )
+	{
 		g_iType = param2 + 4;
 		Menu_Blood(param1);
 		SplatPlayer(param1, g_iType);
@@ -246,8 +273,8 @@ void Menu_Infected(int client)
 	Menu menu = new Menu(MenuHandler_Infected);
 	menu.SetTitle("Infected");
 
-	menu.AddItem("1", "Water (Smoker fx)");
-	menu.AddItem("2", "Flakes (Smoker fx)");
+	menu.AddItem("1", "Water (Smoker FX)");
+	menu.AddItem("2", "Flakes (Smoker FX)");
 	menu.AddItem("3", "Mud Splatter 1");
 	menu.AddItem("4", "Mud Splatter 2");
 
@@ -257,11 +284,16 @@ void Menu_Infected(int client)
 
 public int MenuHandler_Infected(Menu menu, MenuAction action, int param1, int param2)
 {
-	if (action == MenuAction_End) {
+	if( action == MenuAction_End )
+	{
 		delete menu;
-	}else if (action == MenuAction_Cancel) {
+	}
+	else if( action == MenuAction_Cancel )
+	{
 		Menu_Select(param1);
-	}else if (action == MenuAction_Select){
+	}
+	else if( action == MenuAction_Select )
+	{
 		g_iType = param2 + 10;
 		Menu_Infected(param1);
 		SplatPlayer(param1, g_iType);
@@ -286,11 +318,16 @@ void Menu_Misc(int client)
 
 public int MenuHandler_Misc(Menu menu, MenuAction action, int param1, int param2)
 {
-	if (action == MenuAction_End) {
+	if( action == MenuAction_End )
+	{
 		delete menu;
-	}else if (action == MenuAction_Cancel) {
+	}
+	else if( action == MenuAction_Cancel )
+	{
 		Menu_Select(param1);
-	}else if (action == MenuAction_Select){
+	}
+	else if( action == MenuAction_Select )
+	{
 		g_iType = param2 + 14;
 		Menu_Misc(param1);
 		SplatPlayer(param1, g_iType);
@@ -306,7 +343,7 @@ void AttachParticle(int client, char[] particleType)
 {
     int entity = CreateEntityByName("info_particle_system");
 
-    if (IsValidEdict(entity))
+    if( IsValidEdict(entity) )
     {
 		DispatchKeyValue(entity, "effect_name", particleType);
 		DispatchSpawn(entity);
@@ -321,4 +358,24 @@ void AttachParticle(int client, char[] particleType)
 		AcceptEntityInput(entity, "AddOutput");
 		AcceptEntityInput(entity, "FireUser1");
     }
+}
+
+int PrecacheParticle(const char[] sEffectName)
+{
+	static int table = INVALID_STRING_TABLE;
+	if( table == INVALID_STRING_TABLE )
+	{
+		table = FindStringTable("ParticleEffectNames");
+	}
+
+	int index = FindStringIndex(table, sEffectName);
+	if( index == INVALID_STRING_INDEX )
+	{
+		bool save = LockStringTables(false);
+		AddToStringTable(table, sEffectName);
+		LockStringTables(save);
+		index = FindStringIndex(table, sEffectName);
+	}
+
+	return index;
 }

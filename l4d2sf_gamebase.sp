@@ -216,7 +216,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			{
 				GiveSkillExperience(attacker, g_iSlotPistol, RoundFloat(damage * g_fRatePistol));
 			}
-			else if((damageType & (DMG_SLASH|DMG_CLUB)) || IsMelee(weapon))
+			else if((damageType & (DMG_SLASH|DMG_CLUB|DMG_MELEE)) || IsMelee(weapon))
 			{
 				GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
 			}
@@ -295,7 +295,7 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	{
 		GiveSkillExperience(attacker, g_iSlotPistol, RoundFloat(damage * g_fRatePistol));
 	}
-	else if((damageType & (DMG_SLASH|DMG_CLUB)) && IsMelee(classname))
+	else if((damageType & (DMG_SLASH|DMG_CLUB|DMG_MELEE)) && IsMelee(classname))
 	{
 		GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
 	}

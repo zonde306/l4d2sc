@@ -7,6 +7,10 @@
 #define PLUGIN_VERSION			"0.0.1"
 #include "modules/l4d2ps.sp"
 
+#undef REQUIRE_PLUGIN
+#tryinclude <l4d2_skill_detect>
+#define REQUIRE_PLUGIN
+
 public Plugin myinfo =
 {
 	name = "技能树经验和技能",
@@ -820,4 +824,124 @@ void GiveSkillExperience(int client, int slotId, int amount)
 void GiveExperience(int client, int amount)
 {
 	L4D2SF_GiveExperience(client, RoundFloat(amount * g_fFacDiff));
+}
+
+/*
+********************************************
+*                  装B提示                 *
+********************************************
+*/
+
+public int OnSkeet( int survivor, int hunter )
+{
+	if(IsValidClient(survivor) && IsValidClient(hunter))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(GetEntProp(hunter, Prop_Data, "m_iMaxHealth") / 2 * g_fRateHeal));
+}
+
+public int OnSkeetMelee( int survivor, int hunter )
+{
+	if(IsValidClient(survivor) && IsValidClient(hunter))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(GetEntProp(hunter, Prop_Data, "m_iMaxHealth") * g_fRateHeal));
+}
+
+public int OnSkeetGL( int survivor, int hunter )
+{
+	if(IsValidClient(survivor) && IsValidClient(hunter))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(GetEntProp(hunter, Prop_Data, "m_iMaxHealth") * g_fRateHeal));
+}
+
+public int OnSkeetSniper( int survivor, int hunter )
+{
+	if(IsValidClient(survivor) && IsValidClient(hunter))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(GetEntProp(hunter, Prop_Data, "m_iMaxHealth") * g_fRateHeal));
+}
+
+public int OnSkeetHurt( int survivor, int hunter, int damage, bool isOverkill )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(damage * g_fRateHeal));
+}
+
+public int OnSkeetMeleeHurt( int survivor, int hunter, int damage, bool isOverkill )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(damage * g_fRateHeal));
+}
+
+public int OnSkeetSniperHurt( int survivor, int hunter, int damage, bool isOverkill )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(damage * g_fRateHeal));
+}
+
+public int OnHunterDeadstop( int survivor, int hunter )
+{
+	if(IsValidClient(survivor) && IsValidClient(hunter))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(GetEntProp(hunter, Prop_Data, "m_iMaxHealth") / 4 * g_fRateHeal));
+}
+
+public int OnChargerLevel( int survivor, int charger )
+{
+	if(IsValidClient(survivor) && IsValidClient(charger))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(GetEntProp(charger, Prop_Data, "m_iMaxHealth") * g_fRateHeal));
+}
+
+public int OnChargerLevelHurt( int survivor, int charger, int damage )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(damage * g_fRateHeal));
+}
+
+public int OnWitchCrown( int survivor, int damage )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(damage * g_fRateHeal));
+}
+
+public int OnWitchCrownHurt( int survivor, int damage, int chipDamage )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat((damage + chipDamage) * g_fRateHeal));
+}
+
+public int OnTongueCut( int survivor, int smoker )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(300 * g_fRateHeal));
+}
+
+public int OnSmokerSelfClear( int survivor, int smoker, bool withShove )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(200 * g_fRateHeal));
+}
+
+public int OnTankRockSkeeted( int survivor, int tank )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(100 * g_fRateHeal));
+}
+
+public int OnHunterHighPounce( int hunter, int survivor, int actualDamage, float calculatedDamage, float height, bool reportedHigh )
+{
+	if(IsValidClient(hunter))
+		GiveSkillExperience(hunter, g_iSlotHealing, RoundFloat(actualDamage * 20 * g_fRateHeal));
+}
+
+public int OnJockeyHighPounce( int jockey, int victim, float height, bool reportedHigh )
+{
+	if(IsValidClient(jockey))
+		GiveSkillExperience(jockey, g_iSlotHealing, RoundFloat(height * g_fRateHeal));
+}
+
+public int OnDeathCharge( int charger, int survivor, float height, float distance, bool wasCarried )
+{
+	if(IsValidClient(charger))
+		GiveSkillExperience(charger, g_iSlotHealing, RoundFloat(height * g_fRateHeal));
+}
+
+public int OnBoomerPopStop( int survivor, int boomer, int hits, float timeVomit )
+{
+	if(IsValidClient(survivor))
+		GiveSkillExperience(survivor, g_iSlotHealing, RoundFloat(200 * g_fRateHeal));
 }

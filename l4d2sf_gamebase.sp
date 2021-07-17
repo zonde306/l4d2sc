@@ -208,10 +208,6 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			{
 				GiveSkillExperience(attacker, g_iSlotSniper, RoundFloat(damage * g_fRateSniper));
 			}
-			else if((damageType & DMG_BULLET) && IsMelee(weapon))
-			{
-				GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
-			}
 			else if((damageType & DMG_BULLET) && IsPistol(weapon))
 			{
 				GiveSkillExperience(attacker, g_iSlotPistol, RoundFloat(damage * g_fRatePistol));
@@ -290,10 +286,6 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	else if((damageType & DMG_BULLET) && IsSniper(classname))
 	{
 		GiveSkillExperience(attacker, g_iSlotSniper, RoundFloat(damage * g_fRateSniper));
-	}
-	else if((damageType & DMG_BULLET) && IsMelee(classname))
-	{
-		GiveSkillExperience(attacker, g_iSlotMelee, RoundFloat(damage * g_fRateMelee));
 	}
 	else if((damageType & DMG_BULLET) && IsPistol(classname))
 	{
@@ -416,10 +408,6 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	{
 		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 5));
 	}
-	else if(IsMelee(classname))
-	{
-		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
-	}
 	else if(IsPistol(classname))
 	{
 		GiveSkillExperience(client, g_iSlotPistol, GetRandomInt(1, 5));
@@ -458,10 +446,6 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool dontBro
 	else if(IsSniper(classname))
 	{
 		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 5));
-	}
-	else if(IsMelee(classname))
-	{
-		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 5));
 	}
 	else if(IsPistol(classname))
 	{
@@ -559,10 +543,6 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	else if(IsSniper(classname))
 	{
 		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 10));
-	}
-	else if(IsMelee(classname))
-	{
-		GiveSkillExperience(client, g_iSlotMelee, GetRandomInt(1, 10));
 	}
 	else if(IsPistol(classname))
 	{

@@ -383,6 +383,7 @@ public int MenuHandler_GiveExperience2(Menu menu, MenuAction action, int client,
 	}
 	
 	GiveExperience(client, amount);
+	menu.Display(client, MENU_TIME_FOREVER);
 	return 0;
 }
 
@@ -497,6 +498,7 @@ public int MenuHandler_GiveSkillExperience3(Menu menu, MenuAction action, int cl
 	}
 	
 	GiveSkillExperience(client, slot, amount);
+	menu.Display(client, MENU_TIME_FOREVER);
 	return 0;
 }
 
@@ -573,6 +575,7 @@ public int MenuHandler_GiveLevel2(Menu menu, MenuAction action, int client, int 
 	}
 	
 	GiveLevel(client, amount);
+	menu.Display(client, MENU_TIME_FOREVER);
 	return 0;
 }
 
@@ -687,6 +690,7 @@ public int MenuHandler_GiveSkillLevel3(Menu menu, MenuAction action, int client,
 	}
 	
 	GiveSkillLevel(client, slot, amount);
+	menu.Display(client, MENU_TIME_FOREVER);
 	return 0;
 }
 
@@ -763,6 +767,7 @@ public int MenuHandler_GivePoint2(Menu menu, MenuAction action, int client, int 
 	}
 	
 	GivePoint(client, amount);
+	menu.Display(client, MENU_TIME_FOREVER);
 	return 0;
 }
 
@@ -913,6 +918,7 @@ public int MenuHandler_GivePerk4(Menu menu, MenuAction action, int client, int s
 	}
 	
 	GivePerk(client, name, amount);
+	menu.Display(client, MENU_TIME_FOREVER);
 	return 0;
 }
 
@@ -958,21 +964,21 @@ void RefreshAccessCache(int client, bool force = false)
 			
 			PerkPerm_t perm = NO_ACCESS;
 			int perkLevel = g_PlayerData[client].GetPerk(buffer);
-			slot.GetArray(buffer, data, sizeof(data));
-			if(data.baseLevel >= level && data.baseSkillLevel >= sklLevel[i])
+			if(slot.GetArray(buffer, data, sizeof(data)) && level >= data.baseLevel && sklLevel[i] >= data.baseSkillLevel)
 			{
 				perm |= CAN_VIEW;
+				count += 1;
 				
-				if(data.baseSkillLevel * data.levelFactor * (perkLevel + 1))
+				int nextSklLv = RoundFloat(data.baseSkillLevel + data.baseSkillLevel * data.levelFactor * perkLevel);
+				if(sklLevel[i] >= nextSklLv)
 					perm |= CAN_FETCH;
+				
+				if(perkLevel > 0)
+					used += 1;
 			}
 			
 			perm = GetPerkAccess(client, i, buffer, perm);
 			g_AccessCache[client].SetValue(buffer, perm);
-			
-			count += 1;
-			if(perkLevel)	// 或者检查 perm
-				used += 1;
 		}
 		
 		g_AccessCache[client].SetValue(tr("#%d_count", i), count);
@@ -1078,7 +1084,7 @@ void ShowSlotMenu(int client, int slotId)
 		
 		int perkLevel = g_PlayerData[client].GetPerk(buffer);
 		GetPerkName(client, buffer, perkLevel, perkName, sizeof(perkName));
-		menu.AddItem(buffer, tr("%T", "技能列表选项", client, perkName, perkLevel, data.maxLevel, (perm & (CAN_FETCH|FREE_FETCH)) ? "⭐" : ""));
+		menu.AddItem(buffer, tr("%T", "技能列表选项", client, perkName, perkLevel, data.maxLevel, (perm & (CAN_FETCH|FREE_FETCH)) && g_PlayerData[client].points > 0 ? "⭐" : ""));
 	}
 	
 	if(menu.ItemCount <= 0)
@@ -1151,7 +1157,8 @@ void ShowPerkMenu(int client, const char[] perk)
 		
 		int level = g_PlayerData[client].level;
 		int sklLevel = g_PlayerData[client].GetSklLv(data.slot);
-		menu.DrawText(tr("%T", "要求：", client, data.baseLevel, level, data.baseSkillLevel * data.levelFactor * (perkLevel + 1), sklLevel));
+		int nextSklLv = RoundFloat(data.baseSkillLevel + data.baseSkillLevel * data.levelFactor * perkLevel);
+		menu.DrawText(tr("%T", "要求：", client, data.baseLevel, level, nextSklLv, sklLevel));
 		
 		GetPerkDescription(client, perk, perkLevel + 1, perkDesc, sizeof(perkDesc));
 		menu.DrawText(perkDesc);
@@ -1162,7 +1169,7 @@ void ShowPerkMenu(int client, const char[] perk)
 	PerkPerm_t perm = NO_ACCESS;
 	g_AccessCache[client].GetValue(perk, perm);
 	
-	if((perm & (CAN_FETCH|FREE_FETCH)) && g_PlayerData[client].points > 0)
+	if((perm & (CAN_FETCH|FREE_FETCH)) && g_PlayerData[client].points > 0 && perkLevel < data.maxLevel)
 		menu.DrawItem(tr("%T", "Yes", client), ITEMDRAW_DEFAULT);
 	else
 		menu.DrawItem(tr("%T", "Yes", client), ITEMDRAW_DISABLED);
@@ -1720,7 +1727,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// void L4D2SF_PointPost(int client, int amount)
 	g_fwPointPost = CreateGlobalForward("L4D2SF_PointPost", ET_Ignore, Param_Cell, Param_Cell);
 	// Action L4D2SF_CanAccessPerk(int client, int slotId, const char[] perk, int& result)
-	g_fwCanAccessPerk = CreateGlobalForward("L4D2SF_CanAccessPerk", ET_Event, Param_Cell, Param_String, Param_CellByRef);
+	g_fwCanAccessPerk = CreateGlobalForward("L4D2SF_CanAccessPerk", ET_Event, Param_Cell, Param_Cell, Param_String, Param_CellByRef);
 	// Action L4D2SF_OnGetSlotName(int client, int slotId, char[] result, int maxlen)
 	g_fwSlotName = CreateGlobalForward("L4D2SF_OnGetSlotName", ET_Event, Param_Cell, Param_Cell, Param_String, Param_Cell);
 	// Action L4D2SF_OnPerkPre(int client, int& level, char[] perk, int maxlen)
@@ -1795,10 +1802,10 @@ public any Native_RegSlot(Handle plugin, int argc)
 		return slotId;
 	
 	slot = CreateTrie();
+	slotId = g_SlotIndexes.Length;
 	slot.SetValue("#slotId", slotId);
 	slot.SetString("#slotName", name);
 	
-	slotId = g_SlotIndexes.Length;
 	g_SlotIndexes.Push(slot);
 	g_SlotPerks.SetValue(name, slot);
 	
@@ -2269,19 +2276,24 @@ bool GetPerkDescription(int client, const char[] name, int level, char[] result,
 
 PerkPerm_t GetPerkAccess(int client, int slot, const char[] perk, PerkPerm_t perm = (CAN_FETCH | CAN_VIEW))
 {
+	int clonePerm = view_as<int>(perm);
 	Action state = Plugin_Continue;
 	
 	Call_StartForward(g_fwCanAccessPerk);
 	Call_PushCell(client);
 	Call_PushCell(slot);
 	Call_PushString(perk);
-	Call_PushCellRef(perm);
-	
-	if(Call_Finish(state) != SP_ERROR_NONE || state == Plugin_Continue)
-		return (CAN_FETCH | CAN_VIEW);
+	Call_PushCellRef(clonePerm);
+	if(Call_Finish(state) != SP_ERROR_NONE)
+		state = Plugin_Continue;
 	
 	if(state >= Plugin_Handled)
 		return NO_ACCESS;
+	
+	if(state == Plugin_Changed)
+	{
+		perm = view_as<PerkPerm_t>(clonePerm);
+	}
 	
 	return perm;
 }

@@ -35,6 +35,7 @@ enum PerkPerm_t
 
 /**
  * @brief 注册一个技能树(技能类型)
+ * @remarks name 必须是唯一的；无法重复注册
  *
  * @param name					技能树类名，只允许使用英文字母和数字
  *
@@ -46,13 +47,14 @@ native int L4D2SF_RegSlot(const char[] name);
 
 /**
  * @brief 注册一个技能树
+ * @remaining name 必须是唯一的；无法重复注册
  *
  * @param slotId				技能树ID
  * @param name					技能类名，只允许使用英文字母和数字
  * @param maxLevel				技能有多少个级别
  * @param baseSkillLevel		选取该技能最少需要技能树达到多少级(L4D2SF_GetSkillLevel)
  * @param baseLevel				选取该技能最少需要达到多少级(L4D2SF_GetLevel)
- * @param factor				提升技能级别需要的槽位等级倍率(下一级=baseSkillLevel*factor*(L4D2SF_GetLevel+1))
+ * @param factor				提升技能级别需要的槽位等级倍率(下一级要求=baseSkillLevel+baseSkillLevel*factor*当前等级)
  *
  * @see							L4D2SF_OnGetPerkName
  * @see							L4D2SF_OnGetPerkDescription

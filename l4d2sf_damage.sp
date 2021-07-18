@@ -278,7 +278,7 @@ bool IsShotgun(const char[] weapon)
 
 bool IsRifle(const char[] weapon, bool withSMG = true)
 {
-	if(StrContains(weapon, "rifle") > -1)
+	if(StrContains(weapon, "rifle") > -1 && StrContains(weapon, "hunting") == -1)
 		return true;
 	
 	return withSMG && StrContains(weapon, "smg") > -1;

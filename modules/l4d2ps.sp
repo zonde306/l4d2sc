@@ -16,6 +16,7 @@ GameMode_t g_iGameModeFlags;
 Handle g_hTimerCheckGameMode;
 ConVar g_pCvarAllow, g_pCvarAllowMode, g_pCvarEnableMode, g_pCvarDisableMode;
 bool g_bAllowByPlugin, g_bAllowByMode;
+StringMap g_tWeaponID;
 
 const int Z_COMMON = 0;
 const int Z_INFECTED = 0;
@@ -71,6 +72,66 @@ const int DAMAGE_EVENTS_ONLY = 1;
 const int DAMAGE_YES = 2;
 const int DAMAGE_AIM = 3;
 
+static char L4D2WeaponName[56][64] =
+{
+	"weapon_none",                      // 0
+	"weapon_pistol",                    // 1
+	"weapon_smg",                       // 2
+	"weapon_pumpshotgun",               // 3
+	"weapon_autoshotgun",               // 4
+	"weapon_rifle",                     // 5
+	"weapon_hunting_rifle",             // 6
+	"weapon_smg_silenced",              // 7
+	"weapon_shotgun_chrome",            // 8
+	"weapon_rifle_desert",              // 9
+	"weapon_sniper_military",           // 10
+	"weapon_shotgun_spas",              // 11
+	"weapon_first_aid_kit",             // 12
+	"weapon_molotov",                   // 13
+	"weapon_pipe_bomb",                 // 14
+	"weapon_pain_pills",                // 15
+	"weapon_gascan",                    // 16
+	"weapon_propanetank",               // 17
+	"weapon_oxygentank",                // 18
+	"weapon_melee",                     // 19
+	"weapon_chainsaw",                  // 20
+	"weapon_grenade_launcher",          // 21
+	"weapon_ammo_pack",                 // 22
+	"weapon_adrenaline",                // 23
+	"weapon_defibrillator",             // 24
+	"weapon_vomitjar",                  // 25
+	"weapon_rifle_ak47",                // 26
+	"weapon_gnome",                     // 27
+	"weapon_cola_bottles",              // 28
+	"weapon_fireworkcrate",             // 29
+	"weapon_upgradepack_incendiary",    // 30
+	"weapon_upgradepack_explosive",     // 31
+	"weapon_pistol_magnum",             // 32
+	"weapon_smg_mp5",                   // 33
+	"weapon_rifle_sg552",               // 34
+	"weapon_sniper_awp",                // 35
+	"weapon_sniper_scout",              // 36
+	"weapon_rifle_m60",                 // 37
+	"weapon_tank_claw",                 // 38
+	"weapon_hunter_claw",               // 39
+	"weapon_charger_claw",              // 40
+	"weapon_boomer_claw",               // 41
+	"weapon_smoker_claw",               // 42
+	"weapon_spitter_claw",              // 43
+	"weapon_jockey_claw",               // 44
+	"weapon_machinegun",                // 45
+	"vomit",                            // 46
+	"splat",                            // 47
+	"pounce",                           // 48
+	"lounge",                           // 49
+	"pull",                             // 50
+	"choke",                            // 51
+	"rock",                             // 52
+	"physics",                          // 53
+	"weapon_ammo",                      // 54
+	"upgrade_item"                      // 55
+};
+
 stock bool IsPluginAllow()
 {
 	if(!g_bAllowByPlugin || !g_bAllowByMode)
@@ -100,6 +161,10 @@ stock void InitPlugin(const char[] prefix)
 	ConVar gamemode = FindConVar("mp_gamemode");
 	if(gamemode)
 		gamemode.AddChangeHook(ConVarHooked_psOnGameModeUpdate);
+	
+	g_tWeaponID = CreateTrie();
+	for(int i = 0; i < sizeof(L4D2WeaponName); ++i)
+		g_tWeaponID.SetValue(L4D2WeaponName[i], i);
 }
 
 stock char tr(const char[] text, any ...)
@@ -257,4 +322,11 @@ stock bool CheatCommandEx(int client = 0, const char[] command, const char[] arg
 	SetCommandFlags(command, cmdFlags);
 
 	return true;
+}
+
+stock int L4D2_GetWeaponId(const char[] weaponName)
+{
+	int value = -1;
+	g_tWeaponID.GetValue(weaponName, value);
+	return value;
 }

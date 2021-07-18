@@ -29,7 +29,7 @@ public OnPluginStart()
 {
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_first_spawn", Event_PlayerSpawn);
-	// HookEvent("player_death", Event_PlayerDeath);
+	HookEvent("player_death", Event_PlayerDeath);
 	
 	g_cvDiffFac[0] = FindConVar("z_non_head_damage_factor_easy");
 	g_cvDiffFac[1] = FindConVar("z_non_head_damage_factor_normal");

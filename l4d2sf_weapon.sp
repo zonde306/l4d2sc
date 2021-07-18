@@ -624,6 +624,11 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 			int clip = GetEntProp(weaponId, Prop_Send, "m_iClip1");
 			int clipSize = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_ClipSize);
 			int maxClipSize = GetPlayerClipSize(client, classname);
+			if(HasEntProp(weaponId, Prop_Send, "m_hasDualWeapons") && GetEntProp(weaponId, Prop_Send, "m_hasDualWeapons"))
+			{
+				clipSize *= 2;
+				maxClipSize *= 2;
+			}
 			
 			if(clip >= maxClipSize)
 			{
@@ -1123,8 +1128,14 @@ public void EntHook_PlayerPreThinkPost(int client)
 		char classname[64];
 		GetEdictClassname(weapon, classname, sizeof(classname));
 		
+		int maxClip = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_ClipSize);
+		if(HasEntProp(weapon, Prop_Send, "m_hasDualWeapons") && GetEntProp(weapon, Prop_Send, "m_hasDualWeapons"))
+		{
+			maxClip *= 2;
+		}
+		
 		// 检查是否真的完成了（未被中断）
-		if(ammo == 0 || clip == L4D2_GetIntWeaponAttribute(classname, L4D2IWA_ClipSize))
+		if(ammo <= 0 || clip == maxClip)
 		{
 			int newClip = 0;
 			if(g_iLevelPistolClip[client] > 0 && IsPistol(classname))
@@ -1213,6 +1224,9 @@ public void UpdateWeaponAmmo(any data)
 	if(fullClip && !GetEntProp(weapon, Prop_Send, "m_bInReload"))
 	{
 		int maxClip = GetPlayerClipSize(client, classname);
+		if(HasEntProp(weapon, Prop_Send, "m_hasDualWeapons") && GetEntProp(weapon, Prop_Send, "m_hasDualWeapons"))
+			maxClip *= 2;
+		
 		if(maxClip > 0)
 			SetEntProp(weapon, Prop_Send, "m_iClip1", maxClip);
 	}

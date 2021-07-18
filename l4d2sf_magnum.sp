@@ -32,6 +32,8 @@ public OnPluginStart()
 	HookEvent("revive_success", Event_ReviveSuccess);
 	HookEvent("bot_player_replace", Event_PlayerReplaceBot);
 	HookEvent("player_bot_replace", Event_BotReplacePlayer);
+	HookEvent("defibrillator_used", Event_DefibrillatorUsed);
+	HookEvent("survivor_rescued", Event_SurvivorRescued);
 	
 	LoadTranslations("l4d2sf_magnum.phrases.txt");
 	
@@ -84,7 +86,12 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 		return;
 	
 	g_iLevelMagnum[client] = L4D2SF_GetClientPerk(client, "incap_magnum");
-	RestoreWeapon(client);
+	
+	if(g_iLevelMagnum[client] >= 1)
+	{
+		// RestoreWeapon(client);
+		RequestFrame(RestoreWeapon, client);
+	}
 }
 
 public void Event_PlayerIncapacitatedStart(Event event, const char[] eventName, bool dontBroadcast)
@@ -119,6 +126,8 @@ public void Event_PlayerIncapacitatedStart(Event event, const char[] eventName, 
 		g_eWeaponType[client] = WEAPON_CHAINSAW;
 		g_iChainsawClip[client] = GetEntProp(weapon, Prop_Send, "m_iClip1");
 	}
+	
+	PrintToServer("player %N incap, weapon %d", client, g_eWeaponType[client]);
 }
 
 public void Event_PlayerIncapacitated(Event event, const char[] eventName, bool dontBroadcast)
@@ -166,7 +175,27 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 	g_szMeleeWeapon[bot] = g_szMeleeWeapon[player];
 }
 
-void RestoreWeapon(int client)
+public void Event_DefibrillatorUsed(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("subject"));
+	if(!IsValidClient(client) || GetClientTeam(client) != 2 || g_iLevelMagnum[client] <= 0)
+		return;
+	
+	// RestoreWeapon(client);
+	RequestFrame(RestoreWeapon, client);
+}
+
+public void Event_SurvivorRescued(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("victim"));
+	if(!IsValidClient(client) || GetClientTeam(client) != 2 || g_iLevelMagnum[client] <= 0)
+		return;
+	
+	// RestoreWeapon(client);
+	RequestFrame(RestoreWeapon, client);
+}
+
+public void RestoreWeapon(any client)
 {
 	if(g_eWeaponType[client] == WEAPON_UNKNOWN)
 		return;
@@ -184,6 +213,7 @@ void RestoreWeapon(int client)
 		case WEAPON_DOUBLE:
 		{
 			CheatCommand(client, "give", "pistol");
+			CheatCommand(client, "give", "pistol");
 		}
 		case WEAPON_MELEE:
 		{
@@ -200,6 +230,7 @@ void RestoreWeapon(int client)
 		}
 	}
 	
+	PrintToServer("player %N restore weapon %d", client, g_eWeaponType[client]);
 	g_eWeaponType[client] = WEAPON_UNKNOWN;
 }
 

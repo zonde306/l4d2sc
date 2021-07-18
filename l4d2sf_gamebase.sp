@@ -204,13 +204,13 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			{
 				GiveSkillExperience(attacker, g_iSlotShotgun, RoundFloat(damage * g_fRateShotgun));
 			}
-			else if((damageType & DMG_BULLET) && IsRifle(weapon))
-			{
-				GiveSkillExperience(attacker, g_iSlotRifle, RoundFloat(damage * g_fRateRifle));
-			}
 			else if((damageType & DMG_BULLET) && IsSniper(weapon))
 			{
 				GiveSkillExperience(attacker, g_iSlotSniper, RoundFloat(damage * g_fRateSniper));
+			}
+			else if((damageType & DMG_BULLET) && IsRifle(weapon))
+			{
+				GiveSkillExperience(attacker, g_iSlotRifle, RoundFloat(damage * g_fRateRifle));
 			}
 			else if((damageType & DMG_BULLET) && IsPistol(weapon))
 			{
@@ -283,13 +283,13 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	{
 		GiveSkillExperience(attacker, g_iSlotShotgun, RoundFloat(damage * g_fRateShotgun));
 	}
-	else if((damageType & DMG_BULLET) && IsRifle(classname))
-	{
-		GiveSkillExperience(attacker, g_iSlotRifle, RoundFloat(damage * g_fRateRifle));
-	}
 	else if((damageType & DMG_BULLET) && IsSniper(classname))
 	{
 		GiveSkillExperience(attacker, g_iSlotSniper, RoundFloat(damage * g_fRateSniper));
+	}
+	else if((damageType & DMG_BULLET) && IsRifle(classname))
+	{
+		GiveSkillExperience(attacker, g_iSlotRifle, RoundFloat(damage * g_fRateRifle));
 	}
 	else if((damageType & DMG_BULLET) && IsPistol(classname))
 	{
@@ -404,13 +404,13 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	{
 		GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 5));
 	}
-	else if(IsRifle(classname))
-	{
-		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 5));
-	}
 	else if(IsSniper(classname))
 	{
 		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 5));
+	}
+	else if(IsRifle(classname))
+	{
+		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 5));
 	}
 	else if(IsPistol(classname))
 	{
@@ -443,13 +443,13 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool dontBro
 	{
 		GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 5));
 	}
-	else if(IsRifle(classname))
-	{
-		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 5));
-	}
 	else if(IsSniper(classname))
 	{
 		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 5));
+	}
+	else if(IsRifle(classname))
+	{
+		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 5));
 	}
 	else if(IsPistol(classname))
 	{
@@ -540,13 +540,13 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	{
 		GiveSkillExperience(client, g_iSlotShotgun, GetRandomInt(1, 10));
 	}
-	else if(IsRifle(classname))
-	{
-		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 10));
-	}
 	else if(IsSniper(classname))
 	{
 		GiveSkillExperience(client, g_iSlotSniper, GetRandomInt(1, 10));
+	}
+	else if(IsRifle(classname))
+	{
+		GiveSkillExperience(client, g_iSlotRifle, GetRandomInt(1, 10));
 	}
 	else if(IsPistol(classname))
 	{
@@ -803,7 +803,7 @@ bool IsPistol(const char[] weapon)
 
 bool IsSniper(const char[] weapon)
 {
-	return StrContains(weapon, "sniper") > -1;
+	return StrContains(weapon, "sniper") > -1 || !strcmp(weapon, "weapon_hunting_rifle");
 }
 
 bool IsMelee(const char[] weapon)

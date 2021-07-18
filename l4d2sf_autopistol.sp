@@ -36,31 +36,26 @@ public OnPluginStart()
 
 public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
 {
-	if(strcmp(name, "autopistol"))
+	if(!strcmp(name, "autopistol"))
+		FormatEx(result, maxlen, "%T", "手枪连射", client, level);
+	else
 		return Plugin_Continue;
-	
-	FormatEx(result, maxlen, "%T", "手枪连射", client, level);
 	return Plugin_Changed;
 }
 
 public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int level, char[] result, int maxlen)
 {
-	if(level <= 0 || level > g_iMaxLevel)
+	if(!strcmp(name, "autopistol"))
+		FormatEx(result, maxlen, "%T", tr("手枪连射%d", IntBound(level, 1, g_iMaxLevel)), client, level);
+	else
 		return Plugin_Continue;
-	
-	if(strcmp(name, "autopistol"))
-		return Plugin_Continue;
-	
-	FormatEx(result, maxlen, "%T", tr("手枪连射%d", level));
 	return Plugin_Changed;
 }
 
 public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 {
-	if(strcmp(perk, "autopistol"))
-		return;
-	
-	g_iLevelAutoPistol[client] = level;
+	if(!strcmp(perk, "autopistol"))
+		g_iLevelAutoPistol[client] = level;
 }
 
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
@@ -75,6 +70,9 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float vel[3], const float angles[3], int weapon,
 	int subtype, int cmdnum, int tickcount, int seed, const int mouse[2])
 {
+	if(weapon < MaxClients)
+		weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	
 	if(g_iLevelAutoPistol[client] <= 0 || !(buttons & IN_ATTACK) || !IsValidEdict(weapon))
 		return;
 	
@@ -87,7 +85,7 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 		if(IsPistol(classname))
 			SetEntProp(weapon, Prop_Send, "m_isHoldingFireButton", 0, 1);
 	}
-	else if(g_iLevelAutoPistol[client] > 1)
+	else if(g_iLevelAutoPistol[client] >= 2)
 	{
 		if(IsPistol(classname) || IsShotgun(classname) || IsSniper(classname))
 			SetEntProp(weapon, Prop_Send, "m_isHoldingFireButton", 0, 1);
@@ -106,5 +104,14 @@ bool IsPistol(const char[] weapon)
 
 bool IsSniper(const char[] weapon)
 {
-	return StrContains(weapon, "sniper") > -1;
+	return StrContains(weapon, "sniper") > -1 || !strcmp(weapon, "weapon_hunting_rifle");
+}
+
+int IntBound(int v, int min, int max)
+{
+	if(v < min)
+		v = min;
+	if(v > max)
+		v = max;
+	return v;
 }

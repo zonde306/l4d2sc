@@ -227,13 +227,13 @@ public Action EntHook_OnTakeDamage(int victim, int &attacker, int &inflictor, fl
 		{
 			damage *= LevelFactor(g_iLevelShotgun[attacker], g_fRateShotgun);
 		}
-		else if((damageType & DMG_BULLET) && IsRifle(classname))
-		{
-			damage *= LevelFactor(g_iLevelRifle[attacker], g_fRateRifle);
-		}
 		else if((damageType & DMG_BULLET) && IsSniper(classname))
 		{
 			damage *= LevelFactor(g_iLevelSniper[attacker], g_fRateSniper);
+		}
+		else if((damageType & DMG_BULLET) && IsRifle(classname))
+		{
+			damage *= LevelFactor(g_iLevelRifle[attacker], g_fRateRifle);
 		}
 		else if((damageType & DMG_BULLET) && IsPistol(classname))
 		{
@@ -291,7 +291,7 @@ bool IsPistol(const char[] weapon)
 
 bool IsSniper(const char[] weapon)
 {
-	return StrContains(weapon, "sniper") > -1;
+	return StrContains(weapon, "sniper") > -1 || !strcmp(weapon, "weapon_hunting_rifle");
 }
 
 bool IsMelee(const char[] weapon)

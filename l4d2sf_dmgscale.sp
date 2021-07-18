@@ -17,8 +17,8 @@ public Plugin myinfo =
 };
 
 const int g_iMaxLevel = 3;
-const int g_iMinLevel = 1;
-const int g_iMinSkillLevel = 10;
+const int g_iMinLevel = 20;
+const int g_iMinSkillLevel = 30;
 const float g_fLevelFactor = 1.0;
 
 int g_iSlotSurvival;
@@ -219,9 +219,9 @@ public Action EntHook_OnTakeDamage(int victim, int &attacker, int &inflictor, fl
 	else if(teamAttacker == 2 && teamVictim == 3 && victim > MaxClients && IsValidClient(attacker))
 	{
 		// 生还者攻击普感(普感+萌妹)
-		if(g_iLevelOutScale[victim] > 0)
+		if(g_iLevelOutScale[attacker] > 0)
 		{
-			damage *= g_fScaleOut[g_iLevelInScale[victim] - 1];
+			damage *= g_fScaleOut[g_iLevelInScale[attacker] - 1];
 			return Plugin_Changed;
 		}
 	}

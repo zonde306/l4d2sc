@@ -20,8 +20,8 @@ public Plugin myinfo =
 };
 
 const int g_iMaxLevel = 4;
-const int g_iMinLevel = 1;
-const int g_iMinSkillLevel = 10;
+const int g_iMinLevel = 10;
+const int g_iMinSkillLevel = 30;
 const float g_fLevelFactor = 1.0;
 const int g_iMaxClip = 254;					// 游戏所允许的最大弹匣数量 8bit，但是 255 会被显示为 0，超过会溢出
 const int g_iMaxAmmo = 1023;				// 游戏所允许的最大子弹数量 10bit，超过会溢出
@@ -251,14 +251,14 @@ public OnPluginStart()
 	L4D2SF_RegPerk(g_iSlotRifle, "rifle_ammo", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotRifle, "rifle_fire", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotRifle, "rifle_reload", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
-	L4D2SF_RegPerk(g_iSlotRifle, "rifle_keep", 1, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
+	L4D2SF_RegPerk(g_iSlotRifle, "rifle_keep", 2, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotRifle, "rifle_recoil", 2, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	
 	L4D2SF_RegPerk(g_iSlotSniper, "sniper_clip", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotSniper, "sniper_ammo", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotSniper, "sniper_fire", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotSniper, "sniper_reload", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
-	L4D2SF_RegPerk(g_iSlotSniper, "sniper_keep", 1, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
+	L4D2SF_RegPerk(g_iSlotSniper, "sniper_keep", 2, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotSniper, "sniper_recoil", 2, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	
 	L4D2SF_RegPerk(g_iSlotMelee, "melee_range", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
@@ -500,7 +500,7 @@ public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int lev
 	else if(!strcmp(name, "rifle_reload"))
 		FormatEx(result, maxlen, "%T", tr("步枪装速%d", IntBound(level, 1, g_iMaxLevel)), client, level, g_fRifleReload[IntBound(level, 1, g_iMaxLevel)] * 100 - 100);
 	else if(!strcmp(name, "rifle_keep"))
-		FormatEx(result, maxlen, "%T", tr("步枪中断%d", IntBound(level, 1, 1)), client, level);
+		FormatEx(result, maxlen, "%T", tr("步枪中断%d", IntBound(level, 1, 2)), client, level);
 	else if(!strcmp(name, "rifle_recoil"))
 		FormatEx(result, maxlen, "%T", tr("步枪后座%d", IntBound(level, 1, 2)), client, level);
 	
@@ -513,7 +513,7 @@ public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int lev
 	else if(!strcmp(name, "sniper_reload"))
 		FormatEx(result, maxlen, "%T", tr("狙击枪装速%d", IntBound(level, 1, g_iMaxLevel)), client, level, g_fSniperReload[IntBound(level, 1, g_iMaxLevel)] * 100 - 100);
 	else if(!strcmp(name, "sniper_keep"))
-		FormatEx(result, maxlen, "%T", tr("狙击枪中断%d", IntBound(level, 1, 1)), client, level);
+		FormatEx(result, maxlen, "%T", tr("狙击枪中断%d", IntBound(level, 1, 2)), client, level);
 	else if(!strcmp(name, "sniper_recoil"))
 		FormatEx(result, maxlen, "%T", tr("狙击枪后座%d", IntBound(level, 1, 2)), client, level);
 	
@@ -801,6 +801,15 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool dontBro
 		// 现在已经进入填装状态，进行还原弹匣
 		SetEntProp(weapon, Prop_Send, "m_iClip1", g_iPreClip[client]);
 		g_iPreClip[client] = 0;
+		
+		if((g_iLevelSniperKeep[client] >= 2 && IsSniper(classname)) ||
+			(g_iLevelRifleKeep[client] >= 2 && IsRifle(classname)))
+		{
+			float time = GetGameTime();
+			SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time + 0.1);
+			SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time + 0.1);
+			SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time + 0.1);
+		}
 	}
 	
 	if(g_iExtraAmmo[client] > 0 && weapon == GetPlayerWeaponSlot(client, 0))
@@ -1296,7 +1305,7 @@ public MRESReturn TestMeleeSwingCollisionPre(int pThis, Handle hReturn)
 
 public MRESReturn TestMeleeSwingCollisionPost(int pThis, Handle hReturn)
 {
-	if( g_iOldMeleeRange >= -1 )
+	if( g_iOldMeleeRange > -1 )
 	{
 		g_hCvarMeleeRange.IntValue = g_iOldMeleeRange;
 		g_iOldMeleeRange = -1;

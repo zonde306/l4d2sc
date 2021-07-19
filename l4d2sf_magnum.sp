@@ -144,6 +144,7 @@ public void Event_PlayerIncapacitated(Event event, const char[] eventName, bool 
 		RemoveEdict(weapon);
 	
 	CheatCommand(client, "give", "pistol_magnum");
+	CreateTimer(0.25, Timer_CheckPistol, client);
 }
 
 public void Event_ReviveSuccess(Event event, const char[] eventName, bool dontBroadcast)
@@ -242,6 +243,16 @@ public Action Timer_SetClip(Handle timer, any client)
 	int weapon = GetPlayerWeaponSlot(client, 1);
 	if(weapon > MaxClients && IsValidEdict(weapon))
 		SetEntProp(weapon, Prop_Send, "m_iClip1", g_iChainsawClip[client]);
+}
+
+public Action Timer_CheckPistol(Handle timer, any client)
+{
+	if(!IsValidClient(client))
+		return;
+	
+	int weapon = GetPlayerWeaponSlot(client, 1);
+	if(weapon < MaxClients)
+		CheatCommand(client, "give", "pistol_magnum");
 }
 
 int IntBound(int v, int min, int max)

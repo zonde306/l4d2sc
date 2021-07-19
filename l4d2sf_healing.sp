@@ -20,7 +20,8 @@ const int g_iMinLevel = 5;
 const float g_fLevelFactor = 1.0;
 
 int g_iSlotHealing;
-int g_iLevelPills[MAXPLAYERS+1], g_iLevelAdrenaline[MAXPLAYERS+1], g_iLevelMedical[MAXPLAYERS+1], g_iLevelDefib[MAXPLAYERS+1], g_iLevelPass[MAXPLAYERS+1];
+int g_iLevelPills[MAXPLAYERS+1], g_iLevelAdrenaline[MAXPLAYERS+1], g_iLevelMedical[MAXPLAYERS+1], g_iLevelDefib[MAXPLAYERS+1],
+	g_iLevelPass[MAXPLAYERS+1], g_iLevelHealth[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -31,6 +32,19 @@ public OnPluginStart()
 	HookEvent("heal_success", Event_HealSuccess);
 	HookEvent("defibrillator_used", Event_DefibrillatorUsed);
 	HookEvent("weapon_given", Event_WeaponGiven);
+	HookEvent("map_transition", Event_MapEnd, EventHookMode_PostNoCopy);
+	HookEvent("player_left_start_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("survival_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("scavenge_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("player_left_safe_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("start_holdout", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("versus_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
+	HookEvent("round_end", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("map_transition", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("mission_lost", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("round_start_pre_entity", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("round_start_post_nav", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("finale_vehicle_leaving", Event_RoundEnd, EventHookMode_PostNoCopy);
 	
 	LoadTranslations("l4d2sf_healing.phrases.txt");
 	
@@ -40,6 +54,7 @@ public OnPluginStart()
 	L4D2SF_RegPerk(g_iSlotHealing, "moremedical", 2, 15, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotHealing, "moredefib", 3, 15, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotHealing, "pillspassfix", 1, 5, g_iMinLevel, g_fLevelFactor);
+	L4D2SF_RegPerk(g_iSlotHealing, "fullhealth", 1, 25, g_iMinLevel, g_fLevelFactor);
 }
 
 public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
@@ -54,6 +69,8 @@ public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, cha
 		FormatEx(result, maxlen, "%T", "电击强化", client, level);
 	else if(!strcmp(name, "pillspassfix"))
 		FormatEx(result, maxlen, "%T", "递药保护", client, level);
+	else if(!strcmp(name, "fullhealth"))
+		FormatEx(result, maxlen, "%T", "开局回血", client, level);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -71,6 +88,8 @@ public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int lev
 		FormatEx(result, maxlen, "%T", tr("电击强化%d", IntBound(level, 1, 3)), client, level);
 	else if(!strcmp(name, "pillspassfix"))
 		FormatEx(result, maxlen, "%T", tr("递药保护%d", IntBound(level, 1, 1)), client, level);
+	else if(!strcmp(name, "fullhealth"))
+		FormatEx(result, maxlen, "%T", tr("开局回血%d", IntBound(level, 1, 1)), client, level);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -88,7 +107,11 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelDefib[client] = level;
 	else if(!strcmp(perk, "pillspassfix"))
 		g_iLevelPass[client] = level;
+	else if(!strcmp(perk, "fullhealth"))
+		g_iLevelHealth[client] = level;
 }
+
+bool g_bGameStarted = false;
 
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
@@ -101,6 +124,11 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	g_iLevelMedical[client] = L4D2SF_GetClientPerk(client, "moremedical");
 	g_iLevelDefib[client] = L4D2SF_GetClientPerk(client, "moredefib");
 	g_iLevelPass[client] = L4D2SF_GetClientPerk(client, "pillspassfix");
+	g_iLevelHealth[client] = L4D2SF_GetClientPerk(client, "fullhealth");
+	
+	if(!g_bGameStarted)
+		if(g_iLevelHealth[client] >= 1)
+			RequestFrame(GiveHealth, client);
 }
 
 public void Event_PillsUsed(Event event, const char[] eventName, bool dontBroadcast)
@@ -259,6 +287,33 @@ public void Event_WeaponGiven(Event event, const char[] name, bool dontBroadcast
 		SDKHook(receiver, SDKHook_WeaponSwitch, EntHook_OnWeaponSwitch);
 }
 
+public void Event_MapEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	for(int i = 1; i <= MaxClients; ++i)
+		if(g_iLevelHealth[i] >= 1 && IsValidAliveClient(i) && GetClientTeam(i) == 2)
+			GiveHealth(i);
+}
+
+public void Event_PlayerLeftStartArea(Event event, const char[] name, bool dontBroadcast)
+{
+	g_bGameStarted = true;
+}
+
+public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
+{
+	g_bGameStarted = false;
+}
+
+public void OnMapEnd()
+{
+	g_bGameStarted = false;
+}
+
+public void OnMapStart()
+{
+	g_bGameStarted = false;
+}
+
 public Action EntHook_OnWeaponSwitch(int client, int weapon)
 {
 	if(!IsValidClient(client) || !IsValidEdict(weapon))
@@ -339,4 +394,13 @@ public void DelayUseAdrenaline(any pack)
 	int duration = data.ReadCell();
 	
 	L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), duration);
+}
+
+public void GiveHealth(any client)
+{
+	SetEntProp(client, Prop_Data, "m_iHealth", GetEntProp(client, Prop_Data, "m_iMaxHealth"));
+	SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
+	SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
+	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
+	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 }

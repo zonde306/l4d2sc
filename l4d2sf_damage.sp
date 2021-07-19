@@ -213,7 +213,7 @@ public Action EntHook_OnTakeDamage(int victim, int &attacker, int &inflictor, fl
 	if(teamAttacker == teamVictim)
 		return Plugin_Continue;
 	
-	char classname[64];
+	static char classname[64];
 	if(weapon > MaxClients && IsValidEdict(weapon))
 		GetEdictClassname(weapon, classname, sizeof(classname));
 	else if(inflictor > MaxClients && IsValidEdict(inflictor))

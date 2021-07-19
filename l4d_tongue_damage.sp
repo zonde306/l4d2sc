@@ -53,7 +53,7 @@ Handle g_hTimers[MAXPLAYERS+1];
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Tongue Damage",
+	name = "舌头拉人伤害",
 	author = "SilverShot",
 	description = "Control the Smokers tongue damage when pulling a Survivor.",
 	version = PLUGIN_VERSION,

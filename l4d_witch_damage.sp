@@ -1,16 +1,31 @@
-#define PLUGIN_VERSION 		"1.0"
+#define PLUGIN_VERSION 		"1.5"
 
-/*=======================================================================================
+/*======================================================================================
 	Plugin Info:
 
 *	Name	:	[L4D & L4D2] Witch Damage - Block Insta-Kill
 *	Author	:	SilverShot
 *	Descrp	:	Prevents the Witch from insta-killing survivors and set her damage scaled to game difficulty.
 *	Link	:	https://forums.alliedmods.net/showthread.php?t=318712
-*	Plugins	:	http://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
+*	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
 ========================================================================================
 	Change Log:
+
+1.5 (15-May-2020)
+	- Replaced "point_hurt" entity with "SDKHooks_TakeDamage" function.
+
+1.4 (10-May-2020)
+	- Extra checks to prevent "IsAllowedGameMode" throwing errors.
+
+1.3 (01-Apr-2020)
+	- Fixed "IsAllowedGameMode" from throwing errors when the "_tog" cvar was changed before MapStart.
+
+1.2 (16-Feb-2020)
+	- Fixed not doing damage due to wrong string size mistake.
+
+1.1 (17-Sep-2019)
+	- Fixed not working in all cases. - Thanks to "cacaopea" for reporting.
 
 1.0 (16-Sep-2019)
 	- Initial release.
@@ -26,8 +41,9 @@
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
 
+
 ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarZDiff, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarDamage, g_hCvarIncap, g_hCvarScale;
-bool g_bCvarAllow;
+bool g_bCvarAllow, g_bMapStarted;
 float g_fCvarDamage, g_fCvarIncapped;
 
 
@@ -37,7 +53,7 @@ float g_fCvarDamage, g_fCvarIncapped;
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "萌妹伤害",
+	name = "[L4D & L4D2] Witch Damage - Block Insta-Kill",
 	author = "SilverShot",
 	description = "Prevents the Witch from insta-killing survivors and set her damage scaled to game difficulty.",
 	version = PLUGIN_VERSION,
@@ -66,7 +82,7 @@ public void OnPluginStart()
 	g_hCvarModes = CreateConVar(	"l4d_witch_damage_modes",			"",						"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
 	g_hCvarModesOff = CreateConVar(	"l4d_witch_damage_modes_off",		"",						"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
 	g_hCvarModesTog = CreateConVar(	"l4d_witch_damage_modes_tog",		"0",					"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
-	CreateConVar(					"l4d_witch_damage_version",			PLUGIN_VERSION,			"Witch Damage plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
+	CreateConVar(					"l4d_witch_damage_version",			PLUGIN_VERSION,			"Witch Damage plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,			"l4d_witch_damage");
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
@@ -90,6 +106,16 @@ public void OnPluginStart()
 // ====================================================================================================
 //					CVARS
 // ====================================================================================================
+public void OnMapStart()
+{
+	g_bMapStarted = true;
+}
+
+public void OnMapEnd()
+{
+	g_bMapStarted = false;
+}
+
 public void OnConfigsExecuted()
 {
 	IsAllowed();
@@ -112,12 +138,12 @@ void GetCvars()
 	g_fCvarIncapped = g_hCvarIncap.FloatValue;
 
 	// Read scale cvar array
-	char buff[32], buffers[4][4];
-	g_hCvarScale.GetString(buff, sizeof buff);
-	ExplodeString(buff, ",", buffers, 4, 4);
+	char buff[16], buffers[4][4];
+	g_hCvarScale.GetString(buff, sizeof(buff));
+	ExplodeString(buff, ",", buffers, sizeof(buffers), sizeof(buffers[]));
 
 	// Check game difficulty
-	g_hCvarZDiff.GetString(buff, sizeof buff);
+	g_hCvarZDiff.GetString(buff, sizeof(buff));
 	int index;
 
 	switch( CharToLower(buff[0]) )
@@ -163,17 +189,24 @@ bool IsAllowedGameMode()
 	int iCvarModesTog = g_hCvarModesTog.IntValue;
 	if( iCvarModesTog != 0 )
 	{
+		if( g_bMapStarted == false )
+			return false;
+
 		g_iCurrentMode = 0;
 
 		int entity = CreateEntityByName("info_gamemode");
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		AcceptEntityInput(entity, "Kill");
+		if( IsValidEntity(entity) )
+		{
+			DispatchSpawn(entity);
+			HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+			ActivateEntity(entity);
+			AcceptEntityInput(entity, "PostSpawnActivate");
+			if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+				RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+		}
 
 		if( g_iCurrentMode == 0 )
 			return false;
@@ -187,7 +220,7 @@ bool IsAllowedGameMode()
 	Format(sGameMode, sizeof(sGameMode), ",%s,", sGameMode);
 
 	g_hCvarModes.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) == -1 )
@@ -195,7 +228,7 @@ bool IsAllowedGameMode()
 	}
 
 	g_hCvarModesOff.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) != -1 )
@@ -251,10 +284,10 @@ void UnhookClients()
 
 public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
-	if( attacker > MaxClients && damagetype == DMG_SLASH && GetClientTeam(victim) == 2 )
+	if( attacker > MaxClients && (damagetype == DMG_SLASH || damagetype == DMG_SLASH + DMG_PARALYZE) && GetClientTeam(victim) == 2 )
 	{
-		char class[8];
-		GetEdictClassname(attacker, class, sizeof class);
+		char class[6];
+		GetEdictClassname(attacker, class, sizeof(class));
 
 		if( strcmp(class, "witch") == 0 )
 		{
@@ -270,7 +303,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 				{
 					// Incap them instead.
 					SetEntityHealth(victim, 1);
-					HurtEntity(victim, attacker);
+					HurtEntity(victim);
 					damage = 0.0;
 				}
 			}
@@ -282,16 +315,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 	return Plugin_Continue;
 }
 
-void HurtEntity(int target, int client)
+void HurtEntity(int target)
 {
-	char sTemp[16];
-	int entity = CreateEntityByName("point_hurt");
-	Format(sTemp, sizeof(sTemp), "ext%d%d", EntIndexToEntRef(entity), client);
-	DispatchKeyValue(target, "targetname", sTemp);
-	DispatchKeyValue(entity, "DamageTarget", sTemp);
-	DispatchKeyValue(entity, "Damage", "100");
-	DispatchKeyValue(entity, "DamageType", "0");
-	DispatchSpawn(entity);
-	AcceptEntityInput(entity, "Hurt", target);
-	RemoveEdict(entity);
+	SDKHooks_TakeDamage(target, 0, 0, 100.0, DMG_GENERIC);
 }

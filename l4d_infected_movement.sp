@@ -93,7 +93,7 @@ enum
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Special Infected Ability Movement",
+	name = "特感能力可移动",
 	author = "SilverShot",
 	description = "Continue normal movement speed while spitting/smoking/tank throwing rocks.",
 	version = PLUGIN_VERSION,
@@ -124,7 +124,7 @@ public void OnPluginStart()
 	g_hSpeedTank =		CreateConVar(	"l4d_infected_movement_speed_tank",		"250",			"How fast can Tanks move while using their ability.", CVAR_FLAGS );
 	if( g_bLeft4Dead2 )
 		g_hSpeedSpit =	CreateConVar(	"l4d_infected_movement_speed_spitter",	"250",			"How fast can Spitters move while using their ability.", CVAR_FLAGS );
-	g_hCvarType =		CreateConVar(	"l4d_infected_movement_type",			"7",			"These Special Infected can use: 1=Smoker, 2=Spitter, 4=Tank, 7=All.", CVAR_FLAGS );
+	g_hCvarType =		CreateConVar(	"l4d_infected_movement_type",			"7",			"These Special Infected can use: 1=Smoker, 2=Spitter, 4=Tank, 8=Boomer, 16=All.", CVAR_FLAGS );
 	CreateConVar(						"l4d_infected_movement_version",		PLUGIN_VERSION, "Ability Movement plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,				"l4d_infected_movement");
 
@@ -343,6 +343,7 @@ public void Event_Use(Event event, const char[] name, bool dontBroadcast)
 	switch( class )
 	{
 		case 1: class = 0;
+		case 2: class = 4;
 		case 4: class = 1;
 		case 8: class = 2;
 		default: class = 99;

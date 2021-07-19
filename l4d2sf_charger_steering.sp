@@ -80,9 +80,11 @@
 
 #include <sourcemod>
 #include <sdktools>
+#include <l4d2_skill_framework>
+#include "modules/l4d2ps.sp"
 
 #define CVAR_FLAGS			FCVAR_NOTIFY
-#define CHAT_TAG			"\x05[Charger Steering] \x01"
+#define CHAT_TAG			"\x05[冲锋拐弯] \x01"
 
 
 ConVar g_hCvarAllow, g_hCvarBots, g_hCvarHint, g_hCvarHints, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarStrafe;
@@ -115,13 +117,16 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	return APLRes_Success;
 }
 
+int g_iSlotAbility;
+int g_iLevelSteering[MAXPLAYERS+1];
+
 public void OnPluginStart()
 {
 	LoadTranslations("chargersteering.phrases");
 
 	g_hCvarAllow =		CreateConVar(	"l4d2_charger_steering_allow",		"3",			"0=Plugin off, 1=Allow steering with mouse, 2=Allow strafing, 3=Both.", CVAR_FLAGS );
-	g_hCvarBots =		CreateConVar(	"l4d2_charger_steering_bots",		"2",			"Who can steer with the mouse. 0=Humans Only, 1=AI only, 2=Humans and AI.", CVAR_FLAGS );
-	g_hCvarHint =		CreateConVar(	"l4d2_charger_steering_hint",		"2",			"Display hint when charging? 0=Off, 1=Chat text, 2=Hint box.", CVAR_FLAGS);
+	g_hCvarBots =		CreateConVar(	"l4d2_charger_steering_bots",		"1",			"Who can steer with the mouse. 0=Humans Only, 1=AI only, 2=Humans and AI.", CVAR_FLAGS );
+	g_hCvarHint =		CreateConVar(	"l4d2_charger_steering_hint",		"0",			"Display hint when charging? 0=Off, 1=Chat text, 2=Hint box.", CVAR_FLAGS);
 	g_hCvarHints =		CreateConVar(	"l4d2_charger_steering_hints",		"2",			"How many times to display hints, count is reset each map/chapter.", CVAR_FLAGS);
 	g_hCvarStrafe =		CreateConVar(	"l4d2_charger_steering_strafe",		"50.0",			"0.0=Off. Other value sets the amount humans strafe to the side.", CVAR_FLAGS );
 	g_hCvarModes =		CreateConVar(	"l4d2_charger_steering_modes",		"",				"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
@@ -131,6 +136,7 @@ public void OnPluginStart()
 	AutoExecConfig(true,				"l4d2_charger_steering");
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
+	IsAllowed();
 	g_hCvarMPGameMode.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarAllow.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarModes.AddChangeHook(ConVarChanged_Allow);
@@ -140,6 +146,11 @@ public void OnPluginStart()
 	g_hCvarHint.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarHints.AddChangeHook(ConVarChanged_Cvars);
 	g_hCvarStrafe.AddChangeHook(ConVarChanged_Cvars);
+	
+	LoadTranslations("l4d2sf_charger_steering.phrases.txt");
+	
+	g_iSlotAbility = L4D2SF_RegSlot("ability");
+	L4D2SF_RegPerk(g_iSlotAbility, "charger_steering", 1, 25, 5, 2.0);
 }
 
 public void OnClientPutInServer(int client)
@@ -147,7 +158,29 @@ public void OnClientPutInServer(int client)
 	g_iDisplayed[client] = 0;
 }
 
+public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
+{
+	if(!strcmp(name, "charger_steering"))
+		FormatEx(result, maxlen, "%T", "冲锋拐弯", client, level);
+	else
+		return Plugin_Continue;
+	return Plugin_Changed;
+}
 
+public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int level, char[] result, int maxlen)
+{
+	if(!strcmp(name, "charger_steering"))
+		FormatEx(result, maxlen, "%T", tr("冲锋拐弯%d", IntBound(level, 1, 2)), client, level);
+	else
+		return Plugin_Continue;
+	return Plugin_Changed;
+}
+
+public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
+{
+	if(!strcmp(perk, "charger_steering"))
+		g_iLevelSteering[client] = level;
+}
 
 // ====================================================================================================
 //					CVARS
@@ -162,10 +195,12 @@ public void OnMapEnd()
 	g_bMapStarted = false;
 }
 
+/*
 public void OnConfigsExecuted()
 {
 	IsAllowed();
 }
+*/
 
 public void ConVarChanged_Allow(Handle convar, const char[] oldValue, const char[] newValue)
 {
@@ -289,6 +324,9 @@ public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	g_bIsCharging[client] = false;
+	
+	if(IsValidClient(client))
+		g_iLevelSteering[client] = L4D2SF_GetClientPerk(client, "charger_steering");
 }
 
 public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
@@ -301,6 +339,9 @@ public void Event_ChargeStart(Event event, const char[] name, bool dontBroadcast
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	g_bIsCharging[client] = false;
+	
+	if(IsValidClient(client) && g_iLevelSteering[client] <= 0)
+		return;
 
 	if( g_iCvarAllow >= 2 )
 		g_bIsCharging[client] = true;
@@ -367,6 +408,9 @@ public void Event_ChargeEnd(Event event, const char[] name, bool dontBroadcast)
 
 public Action OnPlayerRunCmd(int client, int &buttons)
 {
+	if(g_iLevelSteering[client] <= 0)
+		return Plugin_Continue;
+	
 	if( g_bCvarAllow && g_fCvarStrafe && (buttons & IN_MOVELEFT || buttons & IN_MOVERIGHT) && g_bIsCharging[client] && GetEntProp(client, Prop_Send, "m_fFlags") & FL_ONGROUND )
 	{
 		float vVel[3], vVec[3], vAng[3];
@@ -384,4 +428,13 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, vVel);
 	}
 	return Plugin_Continue;
+}
+
+int IntBound(int v, int min, int max)
+{
+	if(v < min)
+		v = min;
+	if(v > max)
+		v = max;
+	return v;
 }

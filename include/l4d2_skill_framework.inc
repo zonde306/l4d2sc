@@ -61,7 +61,7 @@ native int L4D2SF_RegSlot(const char[] name);
  *
  * @return						技能树ID；不存在时创建，存在时直接返回现有的。
  */
-native bool L4D2SF_RegPerk(int slotId, const char[] name, int maxLevel, int baseSkillLevel, int baseLevel, float factor);
+native bool L4D2SF_RegPerk(int slotId, const char[] name, int maxLevel, int baseSkillLevel, int baseLevel, float factor = 1.0);
 
 /**
  * @brief 根据技能类名获取技能数据

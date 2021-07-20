@@ -264,7 +264,7 @@ public OnPluginStart()
 	L4D2SF_RegPerk(g_iSlotMelee, "melee_range", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotMelee, "melee_fire", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotMelee, "shove_range", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
-	// L4D2SF_RegPerk(g_iSlotMelee, "shove_count", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
+	L4D2SF_RegPerk(g_iSlotMelee, "shove_count", 1, 20, 70, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotMelee, "shove_charger", 1, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 }
 
@@ -524,7 +524,7 @@ public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int lev
 	else if(!strcmp(name, "shove_range"))
 		FormatEx(result, maxlen, "%T", tr("推范围%d", IntBound(level, 1, g_iMaxLevel)), client, level, g_fShoveRange[IntBound(level, 1, g_iMaxLevel)] * 100 - 100);
 	else if(!strcmp(name, "shove_count"))
-		FormatEx(result, maxlen, "%T", tr("推次数%d", IntBound(level, 1, g_iMaxLevel)), client, level, g_fShoveCount[IntBound(level, 1, g_iMaxLevel)] * 100 - 100);
+		FormatEx(result, maxlen, "%T", tr("推次数%d", IntBound(level, 1, 1)), client, level, g_fShoveCount[IntBound(level, 1, g_iMaxLevel)] * 100 - 100);
 	else if(!strcmp(name, "shove_charger"))
 		FormatEx(result, maxlen, "%T", tr("推牛%d", IntBound(level, 1, 1)), client, level);
 	
@@ -709,6 +709,14 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 					}
 				}
 			}
+		}
+	}
+	
+	if(buttons & IN_ATTACK2)
+	{
+		if(g_iLevelShoveCount[client] >= 1)
+		{
+			SetEntProp(client, Prop_Send, "m_iShovePenalty", 0);
 		}
 	}
 	

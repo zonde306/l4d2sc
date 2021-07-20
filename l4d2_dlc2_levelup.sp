@@ -5941,7 +5941,33 @@ stock int GetRandomSurvivor()
 stock int SpawnCommand(int spawnner, int zClass)
 {
 	L4D2_RunScript(
-		"local a={'cm_DominatorLimit':null,'cm_MaxSpecials':null,'MaxSpecials':null,'SmokerLimit':null,'BoomerLimit':null,'HunterLimit':null,'SpitterLimit':null,'JockeyLimit':null,'ChargerLimit':null,'WitchLimit':null,'cm_WitchLimit':null,'TankLimit':null,'cm_TankLimit':null};foreach(k,v in a){if(k in SessionOptions&&SessionOptions[k]!=null)a[key]=v;SessionOptions[k]<-99;}ZSpawn({'type':%d});foreach(k,v in a){if(v!=null)SessionOptions[k]<-v;else delete SessionOptions[k];}",
+		"local a={"
+			..."'cm_DominatorLimit':null,"
+			..."'cm_MaxSpecials':null,"
+			..."'MaxSpecials':null,"
+			..."'SmokerLimit':null,"
+			..."'BoomerLimit':null,"
+			..."'HunterLimit':null,"
+			..."'SpitterLimit':null,"
+			..."'JockeyLimit':null,"
+			..."'ChargerLimit':null,"
+			..."'WitchLimit':null,"
+			..."'cm_WitchLimit':null,"
+			..."'TankLimit':null,"
+			..."'cm_TankLimit':null,"
+		..."};"
+		..."foreach(k,v in a){"
+			..."if(k in SessionOptions&&SessionOptions[k]!=null)"
+				..."a[key]=v;"
+			..."SessionOptions[k]<-99;"
+		..."}"
+		..."ZSpawn({'type':%d});"
+		..."foreach(k,v in a){"
+			..."if(v!=null)"
+				..."SessionOptions[k]<-v;"
+			..."else "
+				..."delete SessionOptions[k];"
+		..."}",
 		zClass
 	);
 	

@@ -94,7 +94,7 @@ public OnPluginStart()
 	HookEvent("player_first_spawn", Event_PlayerSpawn);
 	
 	g_iSlotAbility = L4D2SF_RegSlot("ability");
-	L4D2SF_RegPerk(g_iSlotAbility, "jockey_jump", 2, 25, 5, 2.0);
+	L4D2SF_RegPerk(g_iSlotAbility, "jockey_jump", 1, 25, 5, 2.0);
 }
 
 
@@ -110,7 +110,7 @@ public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, cha
 public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int level, char[] result, int maxlen)
 {
 	if(!strcmp(name, "jockey_jump"))
-		FormatEx(result, maxlen, "%T", tr("猴子起跳%d", IntBound(level, 1, 2)), client, level);
+		FormatEx(result, maxlen, "%T", tr("猴子起跳%d", IntBound(level, 1, 1)), client, level);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;

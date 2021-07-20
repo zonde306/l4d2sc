@@ -24,7 +24,7 @@ public OnPluginStart()
 {
 	InitPlugin("sfth");
 	g_cvHurtDelay = CreateConVar("l4d2_sfth_hurt_delay", "5.0", "受伤暂停时间", CVAR_FLAGS, true, 0.0);
-	g_cvConvInterval = CreateConVar("l4d2_sfth_interval", "0.29", "转换间隔", CVAR_FLAGS, true, 0.0);
+	g_cvConvInterval = CreateConVar("l4d2_sfth_interval", "3.7", "转换间隔", CVAR_FLAGS, true, 0.0);
 	AutoExecConfig(true, "l4d2_sfth");
 	
 	LoadTranslations("l4d2sf_temp_health.phrases.txt");
@@ -39,8 +39,8 @@ public OnPluginStart()
 	HookEvent("revive_success", Event_ReviveSuccess);
 	
 	g_iSlotHealing = L4D2SF_RegSlot("healing");
-	L4D2SF_RegPerk(g_iSlotHealing, "temp_damage", 5, 40, 5, 1.0);
-	L4D2SF_RegPerk(g_iSlotHealing, "temp_conv", 5, 80, 5, 1.0);
+	L4D2SF_RegPerk(g_iSlotHealing, "temp_damage", 1, 40, 5, 1.0);
+	L4D2SF_RegPerk(g_iSlotHealing, "temp_conv", 2, 80, 5, 1.0);
 }
 
 public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
@@ -59,7 +59,7 @@ public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int lev
 	if(!strcmp(name, "temp_damage"))
 		FormatEx(result, maxlen, "%T", tr("虚血承担%d", IntBound(level, 1, 1)), client, level);
 	else if(!strcmp(name, "temp_conv"))
-		FormatEx(result, maxlen, "%T", tr("虚血转换%d", IntBound(level, 1, 1)), client, level, g_cvHurtDelay.FloatValue);
+		FormatEx(result, maxlen, "%T", tr("虚血转换%d", IntBound(level, 1, 2)), client, level, g_cvHurtDelay.FloatValue);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -88,9 +88,13 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	SDKHook(client, SDKHook_OnTakeDamageAlive, EntHook_OnTakeDamage);
 	SDKHook(client, SDKHook_OnTakeDamageAlivePost, EntHook_OnTakeDamagePost);
 	
+	/*
 	if(g_hConvTimer[client] != null)
 		KillTimer(g_hConvTimer[client]);
 	g_hConvTimer[client] = CreateTimer(g_cvConvInterval.FloatValue, Timer_ConvHealth, client, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+	*/
+	
+	g_fNextConv[client] = GetEngineTime() + g_cvHurtDelay.FloatValue;
 }
 
 public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroadcast)
@@ -125,6 +129,7 @@ public void Event_PlayerReplaceBot(Event event, const char[] eventName, bool don
 	int player = GetClientOfUserId(event.GetInt("player"));
 	int bot = GetClientOfUserId(event.GetInt("bot"));
 	
+	/*
 	if(g_hConvTimer[bot] != null)
 	{
 		KillTimer(g_hConvTimer[bot]);
@@ -135,6 +140,14 @@ public void Event_PlayerReplaceBot(Event event, const char[] eventName, bool don
 		KillTimer(g_hConvTimer[player]);
 	if(IsValidAliveClient(player) || IsValidAliveClient(bot))
 		g_hConvTimer[player] = CreateTimer(g_cvConvInterval.FloatValue, Timer_ConvHealth, player, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+	*/
+	
+	g_fNextConv[player] = GetEngineTime() + g_cvHurtDelay.FloatValue;
+	
+	SDKUnhook(bot, SDKHook_OnTakeDamageAlive, EntHook_OnTakeDamage);
+	SDKUnhook(bot, SDKHook_OnTakeDamageAlivePost, EntHook_OnTakeDamagePost);
+	SDKHook(player, SDKHook_OnTakeDamageAlive, EntHook_OnTakeDamage);
+	SDKHook(player, SDKHook_OnTakeDamageAlivePost, EntHook_OnTakeDamagePost);
 }
 
 public void Event_BotReplacePlayer(Event event, const char[] eventName, bool dontBroadcast)
@@ -142,6 +155,7 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 	int player = GetClientOfUserId(event.GetInt("player"));
 	int bot = GetClientOfUserId(event.GetInt("bot"));
 	
+	/*
 	if(g_hConvTimer[player] != null)
 	{
 		KillTimer(g_hConvTimer[player]);
@@ -152,6 +166,14 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 		KillTimer(g_hConvTimer[bot]);
 	if(IsValidAliveClient(player) || IsValidAliveClient(bot))
 		g_hConvTimer[bot] = CreateTimer(g_cvConvInterval.FloatValue, Timer_ConvHealth, bot, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+	*/
+	
+	g_fNextConv[bot] = GetEngineTime() + g_cvHurtDelay.FloatValue;
+	
+	SDKUnhook(player, SDKHook_OnTakeDamageAlive, EntHook_OnTakeDamage);
+	SDKUnhook(player, SDKHook_OnTakeDamageAlivePost, EntHook_OnTakeDamagePost);
+	SDKHook(bot, SDKHook_OnTakeDamageAlive, EntHook_OnTakeDamage);
+	SDKHook(bot, SDKHook_OnTakeDamageAlivePost, EntHook_OnTakeDamagePost);
 }
 
 public void Event_PlayerIncapacitated(Event event, const char[] eventName, bool dontBroadcast)
@@ -160,9 +182,13 @@ public void Event_PlayerIncapacitated(Event event, const char[] eventName, bool 
 	if(!IsValidClient(client))
 		return;
 	
+	/*
 	if(g_hConvTimer[client] != null)
 		KillTimer(g_hConvTimer[client]);
 	g_hConvTimer[client] = null;
+	*/
+	
+	g_fNextConv[client] = GetEngineTime() + g_cvHurtDelay.FloatValue;
 }
 
 public void Event_ReviveSuccess(Event event, const char[] eventName, bool dontBroadcast)
@@ -171,9 +197,12 @@ public void Event_ReviveSuccess(Event event, const char[] eventName, bool dontBr
 	if(!IsValidClient(client))
 		return;
 	
+	/*
 	if(g_hConvTimer[client] != null)
 		KillTimer(g_hConvTimer[client]);
 	g_hConvTimer[client] = CreateTimer(g_cvConvInterval.FloatValue, Timer_ConvHealth, client, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT);
+	*/
+	
 	g_fNextConv[client] = GetEngineTime() + g_cvHurtDelay.FloatValue;
 }
 
@@ -190,7 +219,7 @@ public Action EntHook_OnTakeDamage(int victim, int &attacker, int &inflictor, fl
 public void EntHook_OnTakeDamagePost(int victim, int attacker, int inflictor, float damage, int damagetype, int weapon,
 	const float damageForce[3], const float damagePosition[3], int damagecustom)
 {
-	if(g_iLevelTemp[victim] <= 0)
+	if(g_iLevelTemp[victim] <= 0 || GetClientTeam(victim) != 2)
 		return;
 	
 	int health = GetEntProp(victim, Prop_Data, "m_iHealth");
@@ -206,7 +235,7 @@ public void EntHook_OnTakeDamagePost(int victim, int attacker, int inflictor, fl
 	}
 	
 	SetEntProp(victim, Prop_Data, "m_iHealth", newHealth);
-	SetEntPropFloat(victim, Prop_Data, "m_healthBuffer", float(newBuffer));
+	SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", float(newBuffer));
 	SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
 }
 
@@ -234,9 +263,57 @@ public Action Timer_ConvHealth(Handle timer, any client)
 	if(buffer <= 0)
 		return Plugin_Continue;
 	
+	int health = GetEntProp(client, Prop_Data, "m_iHealth");
+	int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
+	if(health >= maxHealth)
+		return Plugin_Continue;
+	
+	SetEntProp(client, Prop_Data, "m_iHealth", health + 1);
 	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", float(buffer - 1));
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
 	return Plugin_Continue;
+}
+
+#define IsSurvivorHeld(%1)		(GetEntPropEnt(%1, Prop_Send, "m_jockeyAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pummelAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pounceAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_tongueOwner") > 0 || GetEntPropEnt(%1, Prop_Send, "m_carryAttacker") > 0)
+int g_iLastBuffer[MAXPLAYERS+1];
+
+public void OnGameFrame()
+{
+	float time = GetEngineTime();
+	float gt = GetGameTime();
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(g_iLevelConv[i] >= 1 && g_fNextConv[i] < time &&
+			IsValidAliveClient(i) && GetClientTeam(i) == 2 &&
+			!GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) &&
+			!GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1) &&
+			!IsSurvivorHeld(i))
+		{
+			int buffer = GetPlayerTempHealth(i, 0);
+			if(buffer <= 0)
+				continue;
+			
+			if(g_iLevelConv[i] >= 2)
+			{
+				if(g_iLastBuffer[i] == buffer)
+					continue;
+				
+				int health = GetEntProp(i, Prop_Data, "m_iHealth");
+				int maxHealth = GetEntProp(i, Prop_Data, "m_iMaxHealth");
+				
+				// 推迟且尽快转换
+				if(health >= maxHealth)
+					continue;
+				
+				SetEntProp(i, Prop_Data, "m_iHealth", health + 1);
+				g_iLastBuffer[i] = buffer;
+			}
+			else if(g_iLevelConv[i] >= 1)
+			{
+				SetEntPropFloat(i, Prop_Send, "m_healthBufferTime", gt);
+			}
+		}
+	}
 }
 
 int IntBound(int v, int min, int max)
@@ -248,7 +325,7 @@ int IntBound(int v, int min, int max)
 	return v;
 }
 
-int GetPlayerTempHealth(int client)
+int GetPlayerTempHealth(int client, int sub = 1)
 {
 	if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1))
 		return 0;
@@ -260,7 +337,7 @@ int GetPlayerTempHealth(int client)
 	int tempHealth = RoundToCeil(
 		GetEntPropFloat(client, Prop_Send, "m_healthBuffer") -
 		((GetGameTime() - GetEntPropFloat(client, Prop_Send, "m_healthBufferTime")) *
-		painPillsDecayCvar.FloatValue)) - 1;
+		painPillsDecayCvar.FloatValue)) - sub;
 	
 	return tempHealth < 0 ? 0 : tempHealth;
 }

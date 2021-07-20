@@ -1672,7 +1672,9 @@ public Action: Timer_ChargeCarryEnd( Handle:timer, any:client )
 public Action: Timer_ChargeCheck( Handle:timer, any:client )
 {
 	// if something went wrong with the survivor or it was too long ago, forget about it
-	if ( !IS_VALID_SURVIVOR(client) || !g_iVictimCharger[client] || g_fChargeTime[client] == 0.0 || FloatSub( GetGameTime(), g_fChargeTime[client]) > MAX_CHARGE_TIME )
+	if ( !IS_VALID_SURVIVOR(client) || !IS_VALID_INFECTED(g_iVictimCharger[client]) ||
+		g_fChargeTime[client] == 0.0 || FloatSub( GetGameTime(), g_fChargeTime[client]) > MAX_CHARGE_TIME ||
+		GetEntProp(g_iVictimCharger[client], Prop_Send, "m_zombieClass") != ZC_CHARGER )
 	{
 		return Plugin_Stop;
 	}

@@ -98,8 +98,8 @@
 				"linux"			"@_ZN13CTerrorWeapon18TestSwingCollisionERK6Vector"
 				"mac"			"@__ZN13CTerrorWeapon18TestSwingCollisionERK6Vector"
 				
-				/* 53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 81 EC ? ? ? ? A1 ? ? ? ? 33 C5 89 45 FC 8B 43 08 56 57 8B F1 89 45 88 E8 ? ? ? ? 8B F8 89 7D 84 85 FF 0F 84 ? ? ? ? 8B 17 */
-				"windows"		"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC****\xA1****\x33\xC5\x89\x45\xFC\x8B\x43\x08\x56\x57\x8B\xF1\x89\x45\x88\xE8****\x8B\xF8\x89\x7D\x84\x85\xFF\x0F\x84****\x8B\x17"
+				/* 53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 81 EC ? ? ? ? A1 ? ? ? ? 33 C5 89 45 FC 56 57 8B 7B 08 89 4D 98 89 7D 80 E8 ? ? ? ? 8B F0 89 75 84 85 F6 */
+				"windows"		"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC****\xA1****\x33\xC5\x89\x45\xFC\x56\x57\x8B\x7B\x08\x89\x4D\x98\x89\x7D\x80\xE8****\x8B\xF0\x89\x75\x84\x85\xF6"
 			}
 			
 			/*

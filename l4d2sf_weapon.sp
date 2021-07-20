@@ -33,6 +33,7 @@ ConVar g_cvPistolClip[g_iMaxLevel+1], g_cvPistolAmmo[g_iMaxLevel+1], g_cvPistolS
 	g_cvSniperClip[g_iMaxLevel+1], g_cvSniperAmmo[g_iMaxLevel+1], g_cvSniperShot[g_iMaxLevel+1], g_cvSniperReload[g_iMaxLevel+1],
 	g_cvMeleeRange[g_iMaxLevel+1], g_cvShoveRange[g_iMaxLevel+1], g_cvMeleeSwing[g_iMaxLevel+1], g_cvShoveCount[g_iMaxLevel+1];
 ConVar g_hCvarShovRange, g_hCvarMeleeRange, g_hCvarChargerShove;
+StringMap g_tFireSound, g_tFireSoundBurn;
 
 public OnPluginStart()
 {
@@ -266,6 +267,58 @@ public OnPluginStart()
 	L4D2SF_RegPerk(g_iSlotMelee, "shove_range", g_iMaxLevel, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotMelee, "shove_count", 1, 20, 70, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotMelee, "shove_charger", 1, g_iMinSkillLevel, g_iMinLevel, g_fLevelFactor);
+	
+	g_tFireSound = CreateTrie();
+	g_tFireSound.SetString("weapon_pistol", ")weapons/pistol/gunfire/pistol_fire.wav");
+	g_tFireSound.SetString("weapon_pistol_magnum", ")weapons/magnum/gunfire/magnum_shoot.wav");
+	g_tFireSound.SetString("weapon_sniper_awp", ")weapons/awp/gunfire/awp1.wav");
+	g_tFireSound.SetString("weapon_hunting_rifle", ")weapons/hunting_rifle/gunfire/hunting_rifle_fire_1.wav");
+	g_tFireSound.SetString("weapon_rifle", ")weapons/rifle/gunfire/rifle_fire_1.wav");
+	g_tFireSound.SetString("weapon_rifle_ak47", ")weapons/rifle_ak47/gunfire/rifle_fire_1.wav");
+	g_tFireSound.SetString("weapon_rifle_desert", ")weapons/rifle_desert/gunfire/rifle_fire_1.wav");
+	g_tFireSound.SetString("weapon_sniper_scout", ")weapons/scout/gunfire/scout_fire-1.wav");
+	g_tFireSound.SetString("weapon_rifle_sg552", ")weapons/sg552/gunfire/sg552-1.wav");
+	g_tFireSound.SetString("weapon_smg", ")weapons/smg/gunfire/smg_fire_1.wav");
+	g_tFireSound.SetString("weapon_smg_silenced", ")weapons/smg_silenced/gunfire/smg_fire_1.wav");
+	g_tFireSound.SetString("weapon_smg_mp5", ")weapons/mp5navy/gunfire/mp5-1.wav");
+	g_tFireSound.SetString("weapon_sniper_military", ")weapons/sniper_military/gunfire/sniper_military_fire_1.wav");
+	
+	g_tFireSoundBurn = CreateTrie();
+	g_tFireSoundBurn.SetString("weapon_pistol", ")weapons/pistol/gunfire/pistol_fire.wav");
+	g_tFireSoundBurn.SetString("weapon_pistol_magnum", ")weapons/magnum/gunfire/magnum_shoot.wav");
+	g_tFireSoundBurn.SetString("weapon_sniper_awp", ")weapons/awp/gunfire/awp1.wav");
+	g_tFireSoundBurn.SetString("weapon_hunting_rifle", ")weapons/hunting_rifle/gunfire/hunting_rifle_fire_1_incendiary.wav");
+	g_tFireSoundBurn.SetString("weapon_rifle", ")weapons/rifle/gunfire/rifle_fire_1_incendiary.wav");
+	g_tFireSoundBurn.SetString("weapon_rifle_ak47", ")weapons/rifle_ak47/gunfire/rifle_fire_1_incendiary.wav");
+	g_tFireSoundBurn.SetString("weapon_rifle_desert", ")weapons/rifle_desert/gunfire/rifle_fire_1_incendiary.wav");
+	g_tFireSoundBurn.SetString("weapon_sniper_scout", ")weapons/scout/gunfire/scout_fire-1.wav");
+	g_tFireSoundBurn.SetString("weapon_rifle_sg552", ")weapons/sg552/gunfire/sg552-1.wav");
+	g_tFireSoundBurn.SetString("weapon_smg", ")weapons/smg/gunfire/smg_fire_1_incendiary.wav");
+	g_tFireSoundBurn.SetString("weapon_smg_silenced", ")weapons/smg_silenced/gunfire/smg_fire_1_incendiary.wav");
+	g_tFireSoundBurn.SetString("weapon_smg_mp5", ")weapons/mp5navy/gunfire/mp5-1.wav");
+	g_tFireSoundBurn.SetString("weapon_sniper_military", ")weapons/sniper_military/gunfire/sniper_military_fire_1_incendiary.wav");
+}
+
+public void OnMapStart()
+{
+	char key[64], buffer[PLATFORM_MAX_PATH];
+	StringMapSnapshot snap = g_tFireSound.Snapshot();
+	for(int i = 0; i < snap.Length; ++i)
+	{
+		snap.GetKey(i, key, sizeof(key));
+		if(g_tFireSound.GetString(key, buffer, sizeof(buffer)))
+		{
+			Format(buffer, sizeof(buffer), "sound/%s", buffer[1]);
+			if(FileExists(buffer))
+				PrecacheSound(buffer);
+		}
+		if(g_tFireSoundBurn.GetString(key, buffer, sizeof(buffer)))
+		{
+			Format(buffer, sizeof(buffer), "sound/%s", buffer[1]);
+			if(FileExists(buffer))
+				PrecacheSound(buffer);
+		}
+	}
 }
 
 Handle g_pfnFindUseEntity = null;
@@ -286,6 +339,8 @@ void InitSwingHook()
 				DHookEnableDetour(g_hDetourTestMeleeSwingCollision, false, TestMeleeSwingCollisionPre);
 				DHookEnableDetour(g_hDetourTestMeleeSwingCollision, true, TestMeleeSwingCollisionPost);
 			}
+			else
+				LogError("CTerrorMeleeWeapon::TestMeleeSwingCollision Not Found");
 			
 			g_hDetourTestSwingCollision = DHookCreateFromConf(hGameData, "CTerrorWeapon::TestSwingCollision");
 			if(g_hDetourTestSwingCollision != null)
@@ -293,6 +348,8 @@ void InitSwingHook()
 				DHookEnableDetour(g_hDetourTestSwingCollision, false, TestSwingCollisionPre);
 				DHookEnableDetour(g_hDetourTestSwingCollision, true, TestSwingCollisionPost);
 			}
+			else
+				LogError("CTerrorMeleeWeapon::TestSwingCollision Not Found");
 			
 			StartPrepSDKCall(SDKCall_Player);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::FindUseEntity"))
@@ -657,6 +714,13 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 					// 保留弹匣
 					g_iPreClip[client] = clip;
 				}
+				
+				if(clip == clipSize && clip < maxClipSize && !IsShotgun(classname))
+				{
+					// 修复无法启动填装
+					SetEntProp(weaponId, Prop_Send, "m_iClip1", 0);
+					AddAmmo(client, clip, GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType"));
+				}
 			}
 		}
 	}
@@ -698,7 +762,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 						data.WriteString(classname);
 						data.WriteCell(isSpawnner);
 						
-						// AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
+						// AddAmmo(client, 999, GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType"));
 						RequestFrame(UpdateWeaponAmmo, data);
 					}
 					else if(!strcmp(targetname, "upgrade_ammo_explosive", false) || !strcmp(targetname, "upgrade_ammo_incendiary", false))
@@ -717,6 +781,31 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 		if(g_iLevelShoveCount[client] >= 1)
 		{
 			SetEntProp(client, Prop_Send, "m_iShovePenalty", 0);
+		}
+	}
+	
+	if(buttons & IN_ATTACK)
+	{
+		int weaponId = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+		if(weaponId > MaxClients && IsValidEdict(weaponId) && GetEntProp(weaponId, Prop_Send, "m_bInReload", 1) &&
+			GetEntProp(weaponId, Prop_Send, "m_iClip1") >= 1)
+		{
+			static char classname[64];
+			GetEdictClassname(weaponId, classname, sizeof(classname));
+			if((g_iLevelSniperKeep[client] >= 2 && IsSniper(classname)) ||
+				(g_iLevelRifleKeep[client] >= 2 && IsRifle(classname)))
+			{
+				float time = GetGameTime();
+				SetEntProp(weaponId, Prop_Send, "m_bInReload", 0);
+				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
+				// SetEntPropFloat(weaponId, Prop_Send, "m_flTimeWeaponIdle", time);
+				SetEntPropFloat(weaponId, Prop_Send, "m_flNextPrimaryAttack", time);
+				
+				static char sound[PLATFORM_MAX_PATH];
+				bool burn = !!(GetEntProp(weaponId, Prop_Send, "m_upgradeBitVec") & 1);
+				if((burn && g_tFireSoundBurn.GetString(classname, sound, sizeof(sound))) || (!burn && g_tFireSound.GetString(classname, sound, sizeof(sound))))
+					EmitSoundToClient(client, sound, client, SNDCHAN_WEAPON, SNDLEVEL_MINIBIKE);
+			}
 		}
 	}
 	
@@ -813,16 +902,26 @@ public void Event_WeaponReload(Event event, const char[] eventName, bool dontBro
 	{
 		// 现在已经进入填装状态，进行还原弹匣
 		SetEntProp(weapon, Prop_Send, "m_iClip1", g_iPreClip[client]);
+		
+		if(!IsShotgun(classname))
+		{
+			// 修复子弹变多
+			int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+			SetEntProp(client, Prop_Send, "m_iAmmo", GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) - g_iPreClip[client], _, ammoType);
+		}
+		
 		g_iPreClip[client] = 0;
 		
+		/*
 		if((g_iLevelSniperKeep[client] >= 2 && IsSniper(classname)) ||
 			(g_iLevelRifleKeep[client] >= 2 && IsRifle(classname)))
 		{
 			float time = GetGameTime();
 			SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time + 0.1);
-			SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time + 0.1);
+			// SetEntPropFloat(weapon, Prop_Send, "m_flTimeWeaponIdle", time + 0.1);
 			SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time + 0.1);
 		}
+		*/
 	}
 	
 	if(g_iExtraAmmo[client] > 0 && weapon == GetPlayerWeaponSlot(client, 0))
@@ -1033,6 +1132,9 @@ public Action EntHook_PlayerCanUse(int client, int weapon)
 		return Plugin_Continue;
 	
 	int ammoType = GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType");
+	if(ammoType == -1)
+		return Plugin_Continue;
+	
 	int currentAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
 	
 	if(isSpawnner)
@@ -1143,7 +1245,7 @@ public void EntHook_PlayerPreThinkPost(int client)
 		}
 		
 		// 检查是否真的完成了（未被中断）
-		if(ammo <= 0 || clip == maxClip)
+		if(ammo <= 0 || clip == maxClip || ((GetClientButtons(client) & IN_ATTACK) && clip - 1 == maxClip))
 		{
 			int newClip = 0;
 			if(g_iLevelPistolClip[client] > 0 && IsPistol(classname))
@@ -1354,6 +1456,8 @@ public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
 				g_iOldShoveCharger = g_hCvarChargerShove.IntValue;
 				g_hCvarChargerShove.IntValue = 1;
 			}
+			
+			// PrintCenterText(owner, "swing");
 		}
 	}
 	

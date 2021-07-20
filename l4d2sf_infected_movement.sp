@@ -134,7 +134,6 @@ public void OnPluginStart()
 	AutoExecConfig(true,				"l4d_infected_movement");
 
 	g_hCvarMPGameMode = FindConVar("mp_gamemode");
-	IsAllowed();
 	g_hCvarMPGameMode.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarAllow.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarModes.AddChangeHook(ConVarChanged_Allow);
@@ -159,6 +158,7 @@ public void OnPluginStart()
 	}
 
 	g_iClassTank = g_bLeft4Dead2 ? 8 : 5;
+	IsAllowed();
 	
 	LoadTranslations("l4d2sf_infected_movement.phrases.txt");
 	
@@ -381,19 +381,42 @@ public void Event_Use(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if( !client || !IsClientInGame(client) ) return;
-
-
+	
 	// Class check
 	// Smoker = 1; Spitter = 4; Tank = 8
 	int class = GetEntProp(client, Prop_Send, "m_zombieClass");
 	if( !g_bLeft4Dead2 && class == 5 ) class = 8;
 	switch( class )
 	{
-		case 1: class = 0;
-		case 2: class = 4;
-		case 4: class = 1;
-		case 8: class = 2;
-		default: class = 99;
+		case Z_SMOKER:
+		{
+			class = 0;
+			if(g_iLevelMovement[client] < 2)
+				return;
+		}
+		case Z_BOOMER:
+		{
+			class = 4;
+			if(g_iLevelMovement[client] < 1)
+				return;
+		}
+		case Z_SPITTER:
+		{
+			class = 1;
+			if(g_iLevelMovement[client] < 1)
+				return;
+		}
+		case Z_TANK:
+		{
+			class = 2;
+			if(g_iLevelMovement[client] < 2)
+				return;
+		}
+		default:
+		{
+			class = 99;
+			return;
+		}
 	}
 	if( !(g_iCvarType & (1 << class)) ) return;
 	
@@ -405,10 +428,6 @@ public void Event_Use(Event event, const char[] name, bool dontBroadcast)
 		if( g_iCvarAllow == 2 && !fake ) return;
 	}
 	
-	if(!((g_iLevelMovement[client] >= 1 && (class & (2 | 8))) ||
-		(g_iLevelMovement[client] >= 2 && (class & (1 | 4)))))
-		return;
-
 	// Event check
 	char sUse[16];
 	event.GetString("ability", sUse, sizeof(sUse));

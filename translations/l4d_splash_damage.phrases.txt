@@ -1,0 +1,8 @@
+"Phrases"
+{
+	"splash_dmg"
+	{
+		"en"			"You've taken damage from a Boomer Splash!"
+		"es"			"La bilis del Boomer te ha quitado salud!"
+	}
+}

@@ -124,7 +124,7 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 		if(g_eOldMoveType[client] != MOVETYPE_LADDER)
 			return Plugin_Continue;
 		
-		if(IsMoving(client))
+		if(IsMoving(client) || (buttons & IN_JUMP))
 			SetEntityMoveType(client, MOVETYPE_LADDER);
 		
 		return Plugin_Continue;

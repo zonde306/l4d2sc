@@ -91,9 +91,8 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelDouble[client] = level;
 }
 
-bool g_bCanJump[MAXPLAYERS+1], g_bStopJump[MAXPLAYERS+1], g_bClam[MAXPLAYERS+1];
-int g_iCountBHop[MAXPLAYERS+1], g_iCountJump[MAXPLAYERS+1];
-float g_fNextCalmTime[MAXPLAYERS+1];
+bool g_bJumpReleased[MAXPLAYERS+1], g_bFirstJump[MAXPLAYERS+1];
+int g_iCountBHop[MAXPLAYERS+1], g_iCountMulJmp[MAXPLAYERS+1];
 
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
@@ -105,22 +104,31 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	g_iLevelDouble[client] = L4D2SF_GetClientPerk(client, "doublejump");
 }
 
-public void Event_PlayerJumpApex(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsValidAliveClient(client))
-		return;
-	
-	g_bCanJump[client] = true;
-}
-
 public void Event_PlayerJump(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidAliveClient(client))
 		return;
 	
-	g_bCanJump[client] = false;
+	// 此时即将起跳(但是还在地面上)
+	g_bFirstJump[client] = true;
+	g_bJumpReleased[client] = false;
+	g_iCountBHop[client] = 0;
+	g_iCountMulJmp[client] = 0;
+	
+	// PrintToChat(client, "player_jump");
+}
+
+public void Event_PlayerJumpApex(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(client))
+		return;
+	
+	// 此时达到最高点
+	g_bFirstJump[client] = false;
+	
+	// PrintToChat(client, "player_jump_apex");
 }
 
 int IntBound(int v, int min, int max)
@@ -143,21 +151,23 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 	
 	bool inWalk = (GetEntityMoveType(client) == MOVETYPE_WALK);
 	bool inWater = (GetEntProp(client, Prop_Data, "m_nWaterLevel") > 1);
-	bool inGround = (GetEntPropEnt(client, Prop_Send, "m_hGroundEntity") <= -1);
+	bool inGround = (GetEntPropEnt(client, Prop_Send, "m_hGroundEntity") > -1);
 	bool canJump = (inWalk && !inWater);
 	
 	if(!inGround && !(buttons & IN_JUMP))
 	{
 		// 在空中放开了跳跃键，准备进行多重跳
-		g_bStopJump[client] = true;
+		g_bJumpReleased[client] = true;
+		
+		// PrintToChat(client, "JumpReleased");
 	}
 	
 	// 多重跳
-	if(!inGround && canJump && (buttons & IN_JUMP) && g_bCanJump[client] && g_bStopJump[client] && g_iCountJump[client] < g_iLevelDouble[client])
+	else if(!inGround && canJump && (buttons & IN_JUMP) && g_bJumpReleased[client] && g_iCountMulJmp[client] < g_iLevelDouble[client])
 	{
 		float velocity[3];
-		// GetEntDataVector(client, g_iOffVelocity, velocity);
-		velocity[0] = vel[0]; velocity[1] = vel[1]; velocity[2] = vel[2];
+		GetEntDataVector(client, g_iOffVelocity, velocity);
+		// velocity[0] = vel[0]; velocity[1] = vel[1]; velocity[2] = vel[2];
 		
 		float upVel = CaclJumpVelocity(client);
 		if(velocity[2] < upVel)
@@ -165,23 +175,18 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 		
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 		
-		g_bCanJump[client] = false;
-		g_bStopJump[client] = false;
-		g_iCountJump[client] += 1;
-	}
-	else if(inGround)
-	{
-		g_iCountJump[client] = 0;
-		g_bCanJump[client] = false;
-		g_bStopJump[client] = false;
+		g_bJumpReleased[client] = false;
+		g_iCountMulJmp[client] += 1;
+		
+		// PrintToChat(client, "DoubleJump");
 	}
 	
 	// 连跳
-	if(inGround && canJump && (buttons & IN_JUMP) && g_iCountBHop[client] < g_iLevelBHop[client] && !g_bClam[client])
+	else if(inGround && canJump && (buttons & IN_JUMP) && !g_bFirstJump[client] && g_iCountBHop[client] < g_iLevelBHop[client])
 	{
 		float velocity[3];
-		// GetEntDataVector(client, g_iOffVelocity, velocity);
-		velocity[0] = vel[0]; velocity[1] = vel[1]; velocity[2] = vel[2];
+		GetEntDataVector(client, g_iOffVelocity, velocity);
+		// velocity[0] = vel[0]; velocity[1] = vel[1]; velocity[2] = vel[2];
 		
 		float upVel = CaclJumpVelocity(client);
 		if(velocity[2] < upVel)
@@ -192,32 +197,15 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 		SetEntPropEnt(client, Prop_Send, "m_hGroundEntity", -1);
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 		
-		g_bCanJump[client] = false;
-		g_bStopJump[client] = false;
+		g_bJumpReleased[client] = false;
 		g_iCountBHop[client] += 1;
+		
+		// PrintToChat(client, "BunnyHop");
 	}
 	
-	float time = GetEngineTime();
-	if(inGround && canJump && !(buttons & IN_JUMP) && vel[2] == 0.0)
+	if(inGround && canJump)
 	{
-		if(g_fNextCalmTime[client] <= 0.0)
-		{
-			g_fNextCalmTime[client] = time + g_fCalmTime;
-		}
-		else if(g_fNextCalmTime[client] <= time)
-		{
-			g_iCountBHop[client] = 0;
-			g_iCountJump[client] = 0;
-			g_bCanJump[client] = false;
-			g_bStopJump[client] = false;
-			g_fNextCalmTime[client] = 99999.3;
-			g_bClam[client] = true;
-		}
-	}
-	else if(!inGround || vel[2] != 0.0 || !canJump)
-	{
-		g_fNextCalmTime[client] = 0.0;
-		g_bClam[client] = false;
+		g_iCountMulJmp[client] = 0;
 	}
 }
 

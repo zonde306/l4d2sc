@@ -81,7 +81,7 @@ float g_fCvarCooldown, g_fCvarPenalty;
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Incapped Shove",
+	name = "倒地可以推",
 	author = "SilverShot",
 	description = "Allows Survivors to shove common and special infected while incapacitated.",
 	version = PLUGIN_VERSION,

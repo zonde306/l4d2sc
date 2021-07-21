@@ -54,6 +54,7 @@ public OnPluginStart()
 		OnMapStart();
 	
 	RegConsoleCmd("sm_skill", Cmd_SkillMenu, "");
+	RegConsoleCmd("sm_rpg", Cmd_SkillMenu, "");
 	
 	HookEventEx("player_spawn", Event_PlayerSpawn);
 	HookEventEx("player_first_spawn", Event_PlayerSpawn);
@@ -1004,7 +1005,7 @@ void ShowMainMenu(int client)
 	
 	Menu menu = CreateMenu(MenuHandler_MainMenu);
 	int level = g_PlayerData[client].level;
-	int levelCap = g_iExpM * g_PlayerData[client].prevCap + g_iExpB * level;
+	int levelCap = g_iExpM * RoundFloat(Pow(level - 1.0, 3.0)) + g_iExpB * level;
 	
 	menu.SetTitle("%T", "主菜单", client,
 		level,
@@ -1581,7 +1582,7 @@ bool GiveSkillLevel(int client, int slot, int level, int remaining = 0)
 bool GiveExperience(int client, int amount)
 {
 	int level = g_PlayerData[client].level;
-	int levelCap = g_iExpM * g_PlayerData[client].prevCap + g_iExpB * level;
+	int levelCap = g_iExpM * RoundFloat(Pow(level - 1.0, 3.0)) + g_iExpB * level;
 	// int levelCap = RoundFloat(g_iExpM * Pow(float(level), float(g_iExpP)) + g_iExpB);
 	if(!NotifyExperiencePre(client, amount, levelCap))
 		return false;

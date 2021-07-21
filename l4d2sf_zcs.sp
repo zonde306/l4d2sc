@@ -464,6 +464,11 @@ public Action Event_PlayerTeam(Handle hEvent, const char[] name, bool dontBroadc
 	return Plugin_Continue;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelSelect[client] = L4D2SF_GetClientPerk(client, "zombie_select");
+}
+
 public Action Event_PlayerSpawn(Handle hEvent, const char[] name, bool dontBroadcast)
 {
 	int Client = GetClientOfUserId(GetEventInt(hEvent, "userid"));

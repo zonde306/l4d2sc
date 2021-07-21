@@ -812,6 +812,37 @@ public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3
 	return result;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelPistolClip[client] = L4D2SF_GetClientPerk(client, "pistol_clip");
+	g_iLevelPistolAmmo[client] = L4D2SF_GetClientPerk(client, "pistol_ammo");
+	g_iLevelPistolShot[client] = L4D2SF_GetClientPerk(client, "pistol_fire");
+	g_iLevelPistolReload[client] = L4D2SF_GetClientPerk(client, "pistol_reload");
+	g_iLevelPistolRecoil[client] = L4D2SF_GetClientPerk(client, "pistol_recoil");
+	g_iLevelShotgunClip[client] = L4D2SF_GetClientPerk(client, "shotgun_clip");
+	g_iLevelShotgunAmmo[client] = L4D2SF_GetClientPerk(client, "shotgun_ammo");
+	g_iLevelShotgunShot[client] = L4D2SF_GetClientPerk(client, "shotgun_fire");
+	g_iLevelShotgunReload[client] = L4D2SF_GetClientPerk(client, "shotgun_reload");
+	g_iLevelShotgunRecoil[client] = L4D2SF_GetClientPerk(client, "shotgun_recoil");
+	g_iLevelRifleClip[client] = L4D2SF_GetClientPerk(client, "rifle_clip");
+	g_iLevelRifleAmmo[client] = L4D2SF_GetClientPerk(client, "rifle_ammo");
+	g_iLevelRifleShot[client] = L4D2SF_GetClientPerk(client, "rifle_fire");
+	g_iLevelRifleReload[client] = L4D2SF_GetClientPerk(client, "rifle_reload");
+	g_iLevelRifleKeep[client] = L4D2SF_GetClientPerk(client, "rifle_keep");
+	g_iLevelRifleRecoil[client] = L4D2SF_GetClientPerk(client, "rifle_recoil");
+	g_iLevelSniperClip[client] = L4D2SF_GetClientPerk(client, "sniper_clip");
+	g_iLevelSniperAmmo[client] = L4D2SF_GetClientPerk(client, "sniper_ammo");
+	g_iLevelSniperShot[client] = L4D2SF_GetClientPerk(client, "sniper_fire");
+	g_iLevelSniperReload[client] = L4D2SF_GetClientPerk(client, "sniper_reload");
+	g_iLevelSniperKeep[client] = L4D2SF_GetClientPerk(client, "sniper_keep");
+	g_iLevelSniperRecoil[client] = L4D2SF_GetClientPerk(client, "sniper_recoil");
+	g_iLevelMeleeRange[client] = L4D2SF_GetClientPerk(client, "melee_range");
+	g_iLevelMeleeSwing[client] = L4D2SF_GetClientPerk(client, "melee_fire");
+	g_iLevelShoveRange[client] = L4D2SF_GetClientPerk(client, "shove_range");
+	g_iLevelShoveCount[client] = L4D2SF_GetClientPerk(client, "shove_count");
+	g_iLevelShoveCharger[client] = L4D2SF_GetClientPerk(client, "shove_charger");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

@@ -58,6 +58,11 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelAutoPistol[client] = level;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelAutoPistol[client] = L4D2SF_GetClientPerk(client, "autopistol");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -87,7 +92,7 @@ public void OnPlayerRunCmdPost(int client, int buttons, int impulse, const float
 	}
 	else if(g_iLevelAutoPistol[client] >= 2)
 	{
-		if(IsPistol(classname) || IsShotgun(classname) || IsSniper(classname))
+		if(HasEntProp(weapon, Prop_Send, "m_isHoldingFireButton"))
 			SetEntProp(weapon, Prop_Send, "m_isHoldingFireButton", 0, 1);
 	}
 }

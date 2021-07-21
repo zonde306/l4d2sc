@@ -89,6 +89,12 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelAwp[client] = level;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelScout[client] = L4D2SF_GetClientPerk(client, "scout_dmg");
+	g_iLevelAwp[client] = L4D2SF_GetClientPerk(client, "awp_dmg");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

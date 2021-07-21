@@ -320,6 +320,11 @@ public void OnGamemode(const char[] output, int caller, int activator, float del
 // ====================================================================================================
 //					EVENTS
 // ====================================================================================================
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelSteering[client] = L4D2SF_GetClientPerk(client, "charger_steering");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

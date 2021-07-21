@@ -162,6 +162,16 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelMelee[client] = level;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelPistol[client] = L4D2SF_GetClientPerk(client, "pistol_dmg");
+	g_iLevelShotgun[client] = L4D2SF_GetClientPerk(client, "shotgun_dmg");
+	g_iLevelRifle[client] = L4D2SF_GetClientPerk(client, "rifle_dmg");
+	g_iLevelSniper[client] = L4D2SF_GetClientPerk(client, "sniper_dmg");
+	g_iLevelSpecial[client] = L4D2SF_GetClientPerk(client, "special_dmg");
+	g_iLevelMelee[client] = L4D2SF_GetClientPerk(client, "melee_dmg");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

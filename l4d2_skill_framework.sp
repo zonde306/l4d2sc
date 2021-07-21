@@ -56,8 +56,8 @@ public OnPluginStart()
 	RegConsoleCmd("sm_skill", Cmd_SkillMenu, "");
 	RegConsoleCmd("sm_rpg", Cmd_SkillMenu, "");
 	
-	HookEventEx("player_spawn", Event_PlayerSpawn);
-	HookEventEx("player_first_spawn", Event_PlayerSpawn);
+	// HookEventEx("player_spawn", Event_PlayerSpawn);
+	// HookEventEx("player_first_spawn", Event_PlayerSpawn);
 	HookEventEx("player_death", Event_PlayerDeath);
 	HookEventEx("server_shutdown", Event_ServerShutdown, EventHookMode_PostNoCopy);
 	HookEventEx("round_end", Event_ServerShutdown, EventHookMode_PostNoCopy);
@@ -66,6 +66,8 @@ public OnPluginStart()
 	// HookEventEx("round_start_pre_entity", Event_ServerShutdown, EventHookMode_PostNoCopy);
 	// HookEventEx("round_start_post_nav", Event_ServerShutdown, EventHookMode_PostNoCopy);
 	HookEventEx("finale_vehicle_leaving", Event_ServerShutdown, EventHookMode_PostNoCopy);
+	HookEventEx("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
+	HookEventEx("player_team", Event_PlayerTeam);
 }
 
 public void OnPluginEnd()
@@ -1230,6 +1232,8 @@ public int MenuHandler_PerkMenu(Menu menu, MenuAction action, int client, int se
 
 int g_iUserId[MAXPLAYERS+1];
 StringMap g_UserSlotId[MAXPLAYERS+1], g_UserPerkId[MAXPLAYERS+1];
+GlobalForward g_fwOnLoad, g_fwOnSave;
+bool g_bFirstLoaded[MAXPLAYERS+1];
 
 void LoadPlayerData(int client)
 {
@@ -1239,6 +1243,7 @@ void LoadPlayerData(int client)
 	g_iUserId[client] = 0;
 	g_UserSlotId[client] = CreateTrie();
 	g_UserPerkId[client] = CreateTrie();
+	g_bFirstLoaded[client] = false;
 	
 	char sid[20];
 	if(!GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true))
@@ -1271,6 +1276,10 @@ void SavePlayerData(int client)
 	
 	char ident[8];
 	g_Database.Driver.GetIdentifier(ident, sizeof(ident));
+	
+	Call_StartForward(g_fwOnSave);
+	Call_PushCell(client);
+	Call_Finish();
 	
 	int uid = 0;
 	int level = g_PlayerData[client].level;
@@ -1447,6 +1456,17 @@ public void QueryResult_LoadPlayerSlots(Database db, DBResultSet results, const 
 	while(results.FetchRow());
 	
 	PrintToServer("读取 %d 技能完成", client);
+	
+	if(g_bFirstLoaded[client])
+	{
+		Call_StartForward(g_fwOnLoad);
+		Call_PushCell(client);
+		Call_Finish();
+	}
+	else
+	{
+		g_bFirstLoaded[client] = true;
+	}
 }
 
 public void QueryResult_LoadPlayerPerks(Database db, DBResultSet results, const char[] error, any client)
@@ -1465,6 +1485,17 @@ public void QueryResult_LoadPlayerPerks(Database db, DBResultSet results, const 
 	while(results.FetchRow());
 	
 	PrintToServer("读取 %d 能力完成", client);
+	
+	if(g_bFirstLoaded[client])
+	{
+		Call_StartForward(g_fwOnLoad);
+		Call_PushCell(client);
+		Call_Finish();
+	}
+	else
+	{
+		g_bFirstLoaded[client] = true;
+	}
 }
 
 public void QueryResults_SuccessNaked(Database db, any data, int numQueries, DBResultSet[] results, any[] queryData)
@@ -1511,6 +1542,30 @@ public void OnMapEnd()
 			SavePlayerData(i);
 }
 
+public void Event_RoundStart(Event event, const char[] eventName, bool dontBroadcast)
+{
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidClient(i))
+			LoadPlayerData(i);
+}
+
+public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	int disconnect = event.GetInt("disconnect");
+	bool bot = event.GetBool("isbot");
+	if(!IsValidClient(client) || bot || disconnect)
+		return;
+	
+	int newTeam = event.GetInt("team");
+	int oldTeam = event.GetInt("oldteam");
+	
+	// 加入游戏时提前读取
+	if(oldTeam <= 0 && newTeam >= 1)
+		LoadPlayerData(client);
+}
+
+/*
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -1519,6 +1574,7 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	
 	LoadPlayerData(client);
 }
+*/
 
 public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroadcast)
 {
@@ -1735,6 +1791,10 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_fwPerkPre = CreateGlobalForward("L4D2SF_OnPerkPre", ET_Hook, Param_Cell, Param_Cell, Param_String, Param_Cell);
 	// void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 	g_fwPerkPost = CreateGlobalForward("L4D2SF_OnPerkPost", ET_Ignore, Param_Cell, Param_Cell, Param_String);
+	// void L4D2SF_OnLoad(int client);
+	g_fwOnLoad = CreateGlobalForward("L4D2SF_OnLoad", ET_Ignore, Param_Cell);
+	// void L4D2SF_OnSave(int client);
+	g_fwOnSave = CreateGlobalForward("L4D2SF_OnSave", ET_Ignore, Param_Cell);
 	
 	// int L4D2SF_RegSlot(const char[] name)
 	CreateNative("L4D2SF_RegSlot", Native_RegSlot);

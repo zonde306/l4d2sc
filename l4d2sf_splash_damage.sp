@@ -115,6 +115,11 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelSplash[client] = level;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelSplash[client] = L4D2SF_GetClientPerk(client, "splash_damage");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

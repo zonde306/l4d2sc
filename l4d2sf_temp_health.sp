@@ -76,6 +76,12 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 float g_fNextConv[MAXPLAYERS+1];
 Handle g_hConvTimer[MAXPLAYERS+1];
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelTemp[client] = L4D2SF_GetClientPerk(client, "temp_damage");
+	g_iLevelConv[client] = L4D2SF_GetClientPerk(client, "temp_conv");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

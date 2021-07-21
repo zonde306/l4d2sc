@@ -130,6 +130,11 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelIdle[client] = level;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelIdle[client] = L4D2SF_GetClientPerk(client, "idle");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -428,14 +433,17 @@ public void EntityHook_OnGrenadeThrown(int entity)
 		g_fGrenadeExplodeTimer[client] = GetEngineTime() + g_ConVar_GrenadeDuration.FloatValue;
 }
 
+bool g_bForcePass = false;
+
 public Action Command_Away(int client, const char[] command, int argc)
 {
 	if(client <= 0 || client > MaxClients || !IsClientInGame(client) || IsFakeClient(client) ||
 		!IsPlayerAlive(client) || GetClientTeam(client) != 2)
 		return Plugin_Continue;
 	
-	if(g_iLevelIdle[client] >= 3)
+	if(g_bForcePass || g_iLevelIdle[client] >= 3)
 	{
+		g_bForcePass = false;
 		return Plugin_Continue;
 	}
 	
@@ -479,7 +487,12 @@ public Action Timer_GoIdle(Handle timer, any client)
 	if(g_iLevelIdle[client] < 2 && !CheckIdleCond(client))
 		return Plugin_Continue;
 	
-	L4D_ReplaceWithBot(client);
+	// L4D_ReplaceWithBot(client);
+	
+	g_bForcePass = true;
+	FakeClientCommand(client, "go_away_from_keyboard");
+	g_bForcePass = false;
+	
 	return Plugin_Continue;
 }
 

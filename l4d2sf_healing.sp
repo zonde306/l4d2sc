@@ -145,6 +145,20 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 bool g_bGameStarted = false;
 int g_iCureUsed[MAXPLAYERS+1], g_iIncapUsed[MAXPLAYERS+1];
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelPills[client] = L4D2SF_GetClientPerk(client, "morepills");
+	g_iLevelAdrenaline[client] = L4D2SF_GetClientPerk(client, "moreadrenaline");
+	g_iLevelMedical[client] = L4D2SF_GetClientPerk(client, "moremedical");
+	g_iLevelDefib[client] = L4D2SF_GetClientPerk(client, "moredefib");
+	g_iLevelPass[client] = L4D2SF_GetClientPerk(client, "pillspassfix");
+	g_iLevelHealth[client] = L4D2SF_GetClientPerk(client, "fullhealth");
+	g_iLevelCure[client] = L4D2SF_GetClientPerk(client, "curedying");
+	g_iLevelIncapCount[client] = L4D2SF_GetClientPerk(client, "moreincap");
+	g_iLevelRevive[client] = L4D2SF_GetClientPerk(client, "morerevive");
+	g_iLevelIncapHealth[client] = L4D2SF_GetClientPerk(client, "moreincaphealth");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

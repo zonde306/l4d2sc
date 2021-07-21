@@ -112,6 +112,14 @@ public Action L4D2_OnStagger(int target, int source)
 	return Plugin_Continue;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelCharge[client] = L4D2SF_GetClientPerk(client, "charging_dmg");
+	g_iLevelSkeet[client] = L4D2SF_GetClientPerk(client, "skeet_dmg");
+	g_iLevelStagging[client] = L4D2SF_GetClientPerk(client, "stagging_hurt");
+	g_iLevelGettingUP[client] = L4D2SF_GetClientPerk(client, "gettingup_hurt");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

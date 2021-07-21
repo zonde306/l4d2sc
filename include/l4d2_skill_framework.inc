@@ -441,7 +441,7 @@ forward Action L4D2SF_CanAccessPerk(int client, int slotId, const char[] perk, P
 forward Action L4D2SF_OnGetSlotName(int client, int slotId, char[] result, int maxlen);
 
 /**
- * @brief 但玩家获得技能时触发
+ * @brief 玩家获得技能时触发
  * @remarks 失去技能也会触发
  *
  * @param client				玩家索引
@@ -462,6 +462,20 @@ forward Action L4D2SF_OnPerkPre(int client, int& level, char[] perk, int maxlen)
  * @param perk					技能类名
  */
 forward void L4D2SF_OnPerkPost(int client, int level, const char[] perk);
+
+/**
+ * @brief 玩家加载完成后触发
+ *
+ * @param client				玩家索引
+ */
+forward void L4D2SF_OnLoad(int client);
+
+/**
+ * @brief 玩家准备保存时触发
+ *
+ * @param client				玩家索引
+ */
+forward void L4D2SF_OnSave(int client);
 
 #if !defined REQUIRE_PLUGIN
 public void __pl_skillframework_SetNTVOptional()

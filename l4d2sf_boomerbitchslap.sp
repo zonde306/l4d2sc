@@ -100,6 +100,11 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelSlap[client] = level;
 }
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelSlap[client] = L4D2SF_GetClientPerk(client, "claw_slap");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

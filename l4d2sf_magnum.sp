@@ -79,6 +79,11 @@ char g_szMeleeWeapon[MAXPLAYERS+1][32];
 int g_iChainsawClip[MAXPLAYERS+1];
 WeaponType_t g_eWeaponType[MAXPLAYERS+1];
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelMagnum[client] = L4D2SF_GetClientPerk(client, "incap_magnum");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

@@ -94,6 +94,12 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 bool g_bJumpReleased[MAXPLAYERS+1], g_bFirstJump[MAXPLAYERS+1];
 int g_iCountBHop[MAXPLAYERS+1], g_iCountMulJmp[MAXPLAYERS+1];
 
+public void L4D2SF_OnLoad(int client)
+{
+	g_iLevelBHop[client] = L4D2SF_GetClientPerk(client, "bunnyhop");
+	g_iLevelDouble[client] = L4D2SF_GetClientPerk(client, "doublejump");
+}
+
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));

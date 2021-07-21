@@ -21,7 +21,8 @@ const float g_fLevelFactor = 1.0;
 
 int g_iSlotHealing;
 int g_iLevelPills[MAXPLAYERS+1], g_iLevelAdrenaline[MAXPLAYERS+1], g_iLevelMedical[MAXPLAYERS+1], g_iLevelDefib[MAXPLAYERS+1],
-	g_iLevelPass[MAXPLAYERS+1], g_iLevelHealth[MAXPLAYERS+1];
+	g_iLevelPass[MAXPLAYERS+1], g_iLevelHealth[MAXPLAYERS+1], g_iLevelCure[MAXPLAYERS+1], g_iLevelIncapCount[MAXPLAYERS+1],
+	g_iLevelRevive[MAXPLAYERS+1], g_iLevelIncapHealth[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -45,6 +46,8 @@ public OnPluginStart()
 	HookEvent("round_start_pre_entity", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_start_post_nav", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("finale_vehicle_leaving", Event_RoundEnd, EventHookMode_PostNoCopy);
+	HookEvent("revive_success", Event_ReviveSuccess);
+	HookEvent("player_incapacitated", Event_PlayerIncapacitated);
 	
 	LoadTranslations("l4d2sf_healing.phrases.txt");
 	
@@ -55,6 +58,10 @@ public OnPluginStart()
 	L4D2SF_RegPerk(g_iSlotHealing, "moredefib", 3, 15, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotHealing, "pillspassfix", 1, 5, g_iMinLevel, g_fLevelFactor);
 	L4D2SF_RegPerk(g_iSlotHealing, "fullhealth", 1, 25, g_iMinLevel, g_fLevelFactor);
+	L4D2SF_RegPerk(g_iSlotHealing, "curedying", 2, 50, g_iMinLevel, g_fLevelFactor);
+	L4D2SF_RegPerk(g_iSlotHealing, "moreincap", 2, 40, g_iMinLevel, g_fLevelFactor);
+	L4D2SF_RegPerk(g_iSlotHealing, "morerevive", 4, 30, g_iMinLevel, g_fLevelFactor);
+	L4D2SF_RegPerk(g_iSlotHealing, "moreincaphealth", 4, 30, g_iMinLevel, g_fLevelFactor);
 }
 
 public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, char[] result, int maxlen)
@@ -71,6 +78,14 @@ public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, cha
 		FormatEx(result, maxlen, "%T", "递药保护", client, level);
 	else if(!strcmp(name, "fullhealth"))
 		FormatEx(result, maxlen, "%T", "开局回血", client, level);
+	else if(!strcmp(name, "curedying"))
+		FormatEx(result, maxlen, "%T", "治疗黑白", client, level);
+	else if(!strcmp(name, "moreincap"))
+		FormatEx(result, maxlen, "%T", "倒地次数", client, level);
+	else if(!strcmp(name, "morerevive"))
+		FormatEx(result, maxlen, "%T", "救起血量", client, level);
+	else if(!strcmp(name, "moreincaphealth"))
+		FormatEx(result, maxlen, "%T", "倒地血量", client, level);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -90,6 +105,14 @@ public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int lev
 		FormatEx(result, maxlen, "%T", tr("递药保护%d", IntBound(level, 1, 1)), client, level);
 	else if(!strcmp(name, "fullhealth"))
 		FormatEx(result, maxlen, "%T", tr("开局回血%d", IntBound(level, 1, 1)), client, level);
+	else if(!strcmp(name, "curedying"))
+		FormatEx(result, maxlen, "%T", tr("治疗黑白%d", IntBound(level, 1, 2)), client, level);
+	else if(!strcmp(name, "moreincap"))
+		FormatEx(result, maxlen, "%T", tr("倒地次数%d", IntBound(level, 1, 2)), client, level);
+	else if(!strcmp(name, "morerevive"))
+		FormatEx(result, maxlen, "%T", tr("救起血量%d", IntBound(level, 1, 4)), client, level);
+	else if(!strcmp(name, "moreincaphealth"))
+		FormatEx(result, maxlen, "%T", tr("倒地血量%d", IntBound(level, 1, 4)), client, level);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -109,9 +132,18 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelPass[client] = level;
 	else if(!strcmp(perk, "fullhealth"))
 		g_iLevelHealth[client] = level;
+	else if(!strcmp(perk, "curedying"))
+		g_iLevelCure[client] = level;
+	else if(!strcmp(perk, "moreincap"))
+		g_iLevelIncapCount[client] = level;
+	else if(!strcmp(perk, "morerevive"))
+		g_iLevelRevive[client] = level;
+	else if(!strcmp(perk, "moreincaphealth"))
+		g_iLevelIncapHealth[client] = level;
 }
 
 bool g_bGameStarted = false;
+int g_iCureUsed[MAXPLAYERS+1], g_iIncapUsed[MAXPLAYERS+1];
 
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
 {
@@ -125,6 +157,10 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	g_iLevelDefib[client] = L4D2SF_GetClientPerk(client, "moredefib");
 	g_iLevelPass[client] = L4D2SF_GetClientPerk(client, "pillspassfix");
 	g_iLevelHealth[client] = L4D2SF_GetClientPerk(client, "fullhealth");
+	g_iLevelCure[client] = L4D2SF_GetClientPerk(client, "curedying");
+	g_iLevelIncapCount[client] = L4D2SF_GetClientPerk(client, "moreincap");
+	g_iLevelRevive[client] = L4D2SF_GetClientPerk(client, "morerevive");
+	g_iLevelIncapHealth[client] = L4D2SF_GetClientPerk(client, "moreincaphealth");
 	
 	if(!g_bGameStarted)
 		if(g_iLevelHealth[client] >= 1)
@@ -151,7 +187,7 @@ public void Event_PillsUsed(Event event, const char[] eventName, bool dontBroadc
 	}
 	if(g_iLevelPills[client] >= 3)
 	{
-		UseAdrenaline(client, 5 * g_iLevelPills[client] - 2);
+		UseAdrenaline(client, 5 * (g_iLevelPills[client] - 2));
 	}
 	
 	if(buffer + health > maxHealth)
@@ -159,8 +195,17 @@ public void Event_PillsUsed(Event event, const char[] eventName, bool dontBroadc
 	
 	if(g_iLevelPills[client] > 0 && buffer > 0)
 	{
-		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", float(buffer));
-		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		SetHealthBuffer(client, buffer);
+	}
+	
+	if(g_iLevelCure[client] >= 2 && g_iCureUsed[client] < g_iLevelCure[client] && GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1))
+	{
+		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0, 1);
+		int incap = GetEntProp(client, Prop_Send, "m_currentReviveCount");
+		if(incap > 0)
+			SetEntProp(client, Prop_Send, "m_currentReviveCount", incap - 1);
+		
+		g_iCureUsed[client] += 1;
 	}
 }
 
@@ -200,8 +245,7 @@ public void Event_AdrenalineUsed(Event event, const char[] eventName, bool dontB
 	
 	if(g_iLevelAdrenaline[client] > 0 && buffer > 0)
 	{
-		SetEntPropFloat(client, Prop_Send, "m_healthBuffer", float(buffer));
-		SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+		SetHealthBuffer(client, buffer);
 	}
 	
 	if(g_iLevelAdrenaline[client] > 0 && duration > 0)
@@ -211,6 +255,16 @@ public void Event_AdrenalineUsed(Event event, const char[] eventName, bool dontB
 			adrenaline_duration = FindConVar("adrenaline_duration");
 		
 		UseAdrenaline(client, adrenaline_duration.IntValue + duration);
+	}
+	
+	if(g_iLevelCure[client] >= 1 && g_iCureUsed[client] < g_iLevelCure[client] && GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1))
+	{
+		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0, 1);
+		int incap = GetEntProp(client, Prop_Send, "m_currentReviveCount");
+		if(incap > 0)
+			SetEntProp(client, Prop_Send, "m_currentReviveCount", incap - 1);
+		
+		g_iCureUsed[client] += 1;
 	}
 }
 
@@ -228,11 +282,11 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	
 	if(g_iLevelMedical[subject] >= 2)
 	{
-		UseAdrenaline(subject, g_iLevelMedical[subject] - 1);
+		UseAdrenaline(subject, 5 * (g_iLevelMedical[subject] - 1));
 	}
 	if(g_iLevelMedical[client] >= 2)
 	{
-		UseAdrenaline(client, g_iLevelMedical[client] - 1);
+		UseAdrenaline(client, 5 * (g_iLevelMedical[client] - 1));
 	}
 }
 
@@ -262,11 +316,11 @@ public void Event_DefibrillatorUsed(Event event, const char[] eventName, bool do
 	
 	if(g_iLevelDefib[subject] >= 3)
 	{
-		UseAdrenaline(subject, g_iLevelDefib[subject] - 2);
+		UseAdrenaline(subject, 5 * (g_iLevelDefib[subject] - 2));
 	}
 	if(g_iLevelDefib[client] >= 3)
 	{
-		UseAdrenaline(client, g_iLevelDefib[client] - 2);
+		UseAdrenaline(client, 5 * (g_iLevelDefib[client] - 2));
 	}
 }
 
@@ -297,11 +351,72 @@ public void Event_MapEnd(Event event, const char[] name, bool dontBroadcast)
 public void Event_PlayerLeftStartArea(Event event, const char[] name, bool dontBroadcast)
 {
 	g_bGameStarted = true;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		g_iCureUsed[i] = g_iIncapUsed[i] = 0;
 }
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
 {
 	g_bGameStarted = false;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		g_iCureUsed[i] = g_iIncapUsed[i] = 0;
+}
+
+public void Event_ReviveSuccess(Event event, const char[] name, bool dontBroadcast)
+{
+	// int reviver = GetClientOfUserId(event.GetInt("userid"));
+	int revivee = GetClientOfUserId(event.GetInt("subject"));
+	bool hanging = event.GetBool("ledge_hang");
+	bool dying = event.GetBool("lastlife");
+	if(hanging || !IsValidAliveClient(revivee))
+		return;
+	
+	int buffer = GetPlayerTempHealth(revivee);
+	if(g_iLevelRevive[revivee] >= 1)
+	{
+		buffer += 20;
+	}
+	if(g_iLevelRevive[revivee] >= 2)
+	{
+		buffer += 30;
+	}
+	if(g_iLevelRevive[revivee] >= 3)
+	{
+		buffer += 20;
+	}
+	if(g_iLevelRevive[revivee] >= 4)
+	{
+		UseAdrenaline(revivee, 5 * (g_iLevelRevive[revivee] - 3));
+	}
+	
+	if(g_iLevelRevive[revivee] >= 1 && buffer > 0)
+	{
+		SetHealthBuffer(revivee, buffer);
+	}
+	
+	if(dying && g_iLevelIncapCount[revivee] >= 1 && g_iIncapUsed[revivee] < g_iLevelIncapCount[revivee])
+	{
+		SetEntProp(revivee, Prop_Send, "m_bIsOnThirdStrike", 0, 1);
+		int incap = GetEntProp(revivee, Prop_Send, "m_currentReviveCount");
+		if(incap > 0)
+			SetEntProp(revivee, Prop_Send, "m_currentReviveCount", incap - 1);
+		
+		g_iIncapUsed[revivee] += 1;
+	}
+}
+
+public void Event_PlayerIncapacitated(Event event, const char[] name, bool dontBroadcast)
+{
+	// int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	int victim = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidAliveClient(victim))
+		return;
+	
+	// 为了和坦克拍倒幸存者时可以拍飞兼容
+	if(g_iLevelIncapHealth[victim] >= 1)
+		RequestFrame(OnPlayerIncapEnded, victim);
 }
 
 public void OnMapEnd()
@@ -401,6 +516,53 @@ public void GiveHealth(any client)
 	SetEntProp(client, Prop_Data, "m_iHealth", GetEntProp(client, Prop_Data, "m_iMaxHealth"));
 	SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
 	SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
-	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 0.0);
+	SetHealthBuffer(client, 0);
+}
+
+void SetHealthBuffer(int client, int amount)
+{
+	SetEntPropFloat(client, Prop_Send, "m_healthBuffer", amount > 0.0 ? float(amount) : 0.0);
 	SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
+}
+
+public void OnPlayerIncapEnded(any client)
+{
+	if(!IsValidAliveClient(client) || g_iLevelIncapHealth[client] < 1)
+		return;
+	
+	if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
+	{
+		int health = GetEntProp(client, Prop_Data, "m_iHealth");
+		// int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
+		int amount = 50 * g_iLevelIncapHealth[client];
+		SetEntProp(client, Prop_Data, "m_iHealth", health + amount);
+		// SetEntProp(client, Prop_Data, "m_iMaxHealth", maxHealth + amount);
+		// PrintToChat(client, "incap health %d", health + amount);
+	}
+	else
+	{
+		CreateTimer(0.25, Timer_PlayerIncapEnded, client, TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+public Action Timer_PlayerIncapEnded(Handle timer, any client)
+{
+	if(!IsValidAliveClient(client) || g_iLevelIncapHealth[client] < 1)
+		return Plugin_Continue;
+	
+	if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
+	{
+		int health = GetEntProp(client, Prop_Data, "m_iHealth");
+		// int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
+		int amount = 50 * g_iLevelIncapHealth[client];
+		SetEntProp(client, Prop_Data, "m_iHealth", health + amount);
+		// SetEntProp(client, Prop_Data, "m_iMaxHealth", maxHealth + amount);
+		// PrintToChat(client, "incap2 health %d", health + amount);
+	}
+	else
+	{
+		PrintToServer("无法为 %N 设置倒地血量，因为他没有倒地。", client);
+	}
+	
+	return Plugin_Continue;
 }

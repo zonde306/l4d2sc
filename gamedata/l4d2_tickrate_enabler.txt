@@ -1,0 +1,178 @@
+"Games"
+{
+	"left4dead2"
+	{		
+		"Offsets"
+		{
+			"OS" /* nya */
+			{
+				"linux" "9"
+				"windows" "12"
+			}
+		}
+		
+		"MemPatches"
+		{
+			"clamp_client_rate"
+			{
+				"signature" "clamp_client_rate"
+				
+				"linux"
+				{
+					"offset"	"13h"
+					"verify"	"\x75"
+					"patch"		"\xEB"
+				}
+				
+				"windows"     
+				{
+					"offset"	"34h"
+					"verify"	"\x3D\x30\x75\x00\x00\x7E\x11"
+					"patch"		"\x90\x90\x90\x90\x90\xEB\x11"
+				}
+			}
+			
+			"set_data_rate"
+			{
+				"signature" "set_data_rate"
+				
+				"windows"               
+				{
+					"offset"	"39h"
+					"verify"	"\x85\xC9\x7E\x06\x3B\xC1\x7F\x02"
+					"patch"		"\x90\x90\x8B\xC1\x90\x90\xEB\x1C"
+				}
+			}
+			
+			"net_channel_rate"
+			{
+				"signature" "CNetChan::SetDataRate"
+				
+				"linux"
+				{
+					"offset"	"18h"
+					"verify"	"\x72\x0C"
+					"patch"		"\x90\x90"
+				}
+				
+				"windows"               
+				{
+					"offset"	"15h"
+					"verify"	"\x0F\x28\xC1"
+					"patch"		"\x90\x90\x90"
+				}
+			}
+		}
+		
+		"Addresses" 
+		{
+			"CVomit::UpdateAbility"
+			{
+				"signature" "CVomit::UpdateAbility"
+			}
+			
+			"interval_per_tick"
+			{
+				"signature" "interval_per_tick"
+				
+				"windows"
+				{
+					"read" "578"
+				}
+				
+				"linux"
+				{
+					"read" "4"
+				}
+			}
+			
+			"sv_tick"
+			{
+				"signature" "sv_tick"
+				
+				"windows"
+				{
+					"read" "816"
+				}
+				
+				"offset" "268"
+			}
+			
+			"test1"
+			{
+				"signature" "test1"
+				"read" "242"
+			}
+		}
+		
+		"Signatures" 
+		{
+			"CNetChan::SetDataRate"
+			{
+				/* 55 8B EC F3 0F 10 45 08 F3 0F 10 0D ? ? ? ? 0F 2F C1 ? ? ? ? ? ? ? ? ? 89 81 B0 00 00 00 */
+				/* very bad */
+				
+				"library" "engine"
+	
+				"windows"    "\x55\x8B\xEC\xF3\x0F\x10\x45\x08\xF3\x0F\x10\x0D\x2A\x2A\x2A\x2A\x0F\x2F\xC1\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x89\x81\xB0\x00\x00\x00"
+				"linux"	"@_ZN8CNetChan11SetDataRateEf"
+			}
+			
+			"set_data_rate"
+			{
+				/* 55 8B EC A1 ? ? ? ? 8B 40 30 85 C0 */
+				
+				"library" "engine"
+				
+				"windows"    "\x55\x8B\xEC\xA1\x2A\x2A\x2A\x2A\x8B\x40\x30\x85\xC0"
+				"linux"	"@_ZN6CVomit13UpdateAbilityEv"
+			}
+			
+			"clamp_client_rate"
+			{
+				/* 55 8B EC 8B 45 08 53 8B 5D 0C 84 DB 75 */
+				
+				"library" "engine"
+				
+				"windows"    "\x55\x8B\xEC\x8B\x45\x08\x53\x8B\x5D\x0C\x84\xDB\x75"
+				"linux"	"@_ZN11CGameClient7SetRateEib"
+			}
+			
+			"interval_per_tick"
+			{
+				/* 57 8B 3D ? ? ? ? 68 ? ? ? ? FF D7 83 C4 04 E8 ? ? ? ? 80 3D ? ? ? ? 00 */
+				
+				"library" "engine"
+				
+				"windows"    "\x57\x8B\x3D\x2A\x2A\x2A\x2A\x68\x2A\x2A\x2A\x2A\xFF\xD7\x83\xC4\x04\xE8\x2A\x2A\x2A\x2A\x80\x3D\x2A\x2A\x2A\x2A\x00"
+				"linux"	"@_ZN11CGameClient9PacketEndEv"
+			}
+			
+			"sv_tick"
+			{
+				/* 55 8B EC 81 EC 2C 01 00 00 A1 ? ? ? ? 33 C5 89 45 FC 53 8B 5D 10 */
+				
+				"library" "engine"
+				
+				"windows"    "\x55\x8B\xEC\x81\xEC\x2C\x01\x00\x00\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x53\x8B\x5D\x10"
+				"linux"	"@sv"
+			}
+			
+			"test1"
+			{		
+				"library" "engine"
+				"linux"	"@_Z8SV_Frameb"
+			}
+			
+			"CVomit::UpdateAbility"
+			{
+				/* 55 8B EC 81 EC FC 00 00 00 A1 ? ? ? ? 33 C5 89 45 FC 53 56 */
+				
+				"library" "server"
+				
+				"windows"    "\x55\x8B\xEC\x81\xEC\xFC\x00\x00\x00\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x45\xFC\x53\x56"
+				"linux"	"@_ZN6CVomit13UpdateAbilityEv"
+			}
+		}
+	}
+}

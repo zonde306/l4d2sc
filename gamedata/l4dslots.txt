@@ -1,0 +1,288 @@
+"Games"
+{
+	"#default"
+	{
+		"Addresses"
+		{
+			//CBaseServer::GetMaxHumanPlayers(void)const
+			//fuction is in engine.so
+			"friends_lobby"
+			{
+				"signature"	"friends_lobby"
+			}
+
+			//CBaseServer::ConnectClient(netadr_s &, int, int, int, char  const*, char  const*, char  const*, int, CUtlVector<CLC_SplitPlayerConnect, CUtlMemory<CLC_SplitPlayerConnect, int>> &, bool)
+			//fuction is in engine.so, loc jz/jnz, above #Valve_Reject_Hidden_Game
+			"lobby_sux"
+			{
+				"windows"
+				{
+					"signature"	"max_players"
+				}
+				"linux"
+				{
+					"signature"	"lobby_sux"
+				}
+			}
+
+			//CBaseServer::ConnectClient(netadr_s &, int, int, int, char  const*, char  const*, char  const*, int, CUtlVector<CLC_SplitPlayerConnect, CUtlMemory<CLC_SplitPlayerConnect, int>> &, bool)
+			//fuction is in engine.so, above #Valve_Reject_Server_Full
+			"max_players"
+			{
+				"signature"	"max_players"
+			}
+
+			//CServerGameClients::GetMaxHumanPlayers(void)
+			//fuction is in server.so
+			"server_bplayers"
+			{
+				"signature"	"server_bplayers"
+			}
+
+			//CTerrorGameRules::ClientConnected(edict_t *, char  const*, char  const*, char *, int)
+			//fuction is in server.so
+			"human_limit"
+			{
+				"signature"	"human_limit"
+			}
+
+			//CBaseServer::SetReservationCookie(unsigned long long, char  const*, ...)
+			//function in engine.so
+			"unreserved"
+			{
+				"signature"	"unreserved"
+			}
+
+			//CMatchTitle::GetTotalNumPlayersSupported(void)
+			//function in matchmaking_ds.so
+			"lobby_match"
+			{
+				"signature"	"lobby_match"
+			}
+		}
+		"Offsets"
+		{
+			"Platform"
+			{
+				"linux"		"0"
+				"windows"		"1"
+			}
+		}
+	}
+	"left4dead"
+	{
+		"Addresses"
+		{
+			"server_bplayers"
+			{
+				"windows"
+				{
+					"signature"	"server_bplayers_win"
+				}
+				"linux"
+				{
+					"signature"	"server_bplayers"
+				}
+			}
+		}
+		"Offsets"
+		{
+			"friends_lobby"
+			{
+				"windows"		"0"
+				"linux"		"0"
+			}
+			"lobby_sux"
+			{
+				"windows"		"7"
+				"linux"		"0"
+			}
+			"max_players"
+			{
+				"windows"		"38"
+				"linux"		"7"
+			}
+			"server_bplayers"
+			{
+				"windows"		"26"
+				"linux"		"0"
+			}
+			"human_limit"
+			{
+				"windows"		"14"
+				"linux"		"17"
+			}
+			"unreserved"
+			{
+				"windows"		"0"
+				"linux"		"0"
+			}
+			"lobby_match"
+			{
+				"windows"		"1"
+				"linux"		"2"
+			}
+		}
+		"Signatures"
+		{
+			"friends_lobby"
+			{
+				"library"		"engine"
+				"windows"		"\x56\x8B\xF1\x8B\x0D\x2A\x2A\x2A\x2A\x85\xC9\x74\x2A\x8B\x01\x8B\x50\x48"
+				"linux"		"\x56\x53\x83\xEC\x2A\xE8\x2A\x2A\x2A\x2A\x81\x2A\x2A\x2A\x2A\x2A\x8B\x74\x2A\x2A\x8B\x83"
+			}
+			"lobby_sux"
+			{
+				"library"		"engine"
+				"linux"		"\x8B\x86\x78\x01\x00\x00\x85\xC0\x0F\x85"
+			}
+			"max_players"
+			{
+				"library"		"engine"
+				"windows"		"\x83\xBE\x2A\x2A\x00\x00\x00\x74\x2A\x8B\x54\x2A\x2A\x8B\x06\x8B\x7A\x2A\x8B\x50\x10\x8B\xCE\xFF\xD2\x2B\xF8\x8B\x06\x8B\x50\x08\x8B\xCE\xFF\xD2\x03\xC7\x3B\x86"
+				"linux"		"\xFF\x50\x2A\x29\xC7\x01\xEF\x3B\x2A\x2A\x2A\x00\x00\x0F\x8E"
+			}
+			"server_bplayers"
+			{
+				"library"		"server"
+				"linux"		"\x53\x83\xEC\x2A\xE8\x2A\x2A\x2A\x2A\x81\x2A\x2A\x2A\x2A\x2A\x8B\x83\x2A\x2A\x2A\x2A\x8B\x00\x85\xC0\x74\x10\x8B\x10\x89\x04"
+			}
+			"server_bplayers_win"
+			{
+				"library"		"engine"
+				"windows"		"\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x8B\x4C\x24\x08\x89\x01\x8B\x0D\x2A\x2A\x2A\x2A\x85\xC9\x74\x2A\x8B\x11\x8B\x42\x48"
+			}
+			"human_limit"
+			{
+				"library"		"server"
+				"windows"		"\x8B\x13\x8B\x82\x2A\x2A\x00\x00\x8B\xCB\xFF\xD0\x3B\xF8\x7C\x2A\x8B\x2A\x2A\x2A\x8B"
+				"linux"		"\x8B\x54\x2A\x2A\x8B\x02\x89\x14\x2A\xFF\x90\x2A\x02\x00\x00\x39\xF8\x7E"
+			}
+			"unreserved"
+			{
+				"library"		"engine"
+				"windows"		"\x81\xEC\x2A\x2A\x00\x00\x55\x8B\xAC\x2A\x2A\x2A\x00\x00\x56\x8B\xB4\x2A\x2A\x2A\x00\x00\x57\x8B\xBC\x2A\x2A\x2A\x00\x00"
+				"linux"		"\x55\x57\x56\x53\x81\xEC\x2A\x2A\x00\x00\xE8\x2A\x2A\x2A\x2A\x81\x2A\x2A\x2A\x2A\x2A\x8B\xB4\x24\x60\x01\x00\x00\x8B\xAC\x24"
+			}
+			"lobby_match"
+			{
+				"library"		"matchmaking_ds"
+				"windows"		"\xB8\x08\x00\x00\x00\x2A"
+				"linux"		"\xB8\x08\x00\x00\x00\x2A"
+			}
+		}
+		"Keys"
+		{
+			"friends_lobby_len"		"6"
+			"friends_lobby_new"		"\xB8\x3C\x00\x00\x00\xC3"
+
+			"lobby_sux_len_l"		"6"
+			"lobby_sux_new_w"		"2"
+			"lobby_sux_new_l"		"\xB8\x01\x00\x00\x00\x90"
+			"lobby_sux_new_w"		"\x90\x90"
+
+			"max_players_len"		"6"
+			"max_players_new_l"		"\x83\xFF\x3C\x90\x90\x90"
+			"max_players_new_w"		"\x83\xF8\x3C\x90\x90\x90"
+
+			"server_bplayers_len_l"	"6"
+			"server_bplayers_new_w"	"5"
+			"server_bplayers_new_l"	"\xB8\x3C\x00\x00\x00\xC3"
+			"server_bplayers_new_w"	"\xB8\x3C\x00\x00\x00"
+
+			"human_limit_len_l"		"2"
+			"human_limit_new_w"		"1"
+			"human_limit_new_l"		"\x90\x90"
+			"human_limit_new_w"		"\xEB"
+
+			"unreserved_len"		"1"
+			"unreserved_new"		"\xC3"
+
+			"lobby_match_len"		"1"
+			"lobby_match_new"		"\xC3"
+		}
+	}
+	"left4dead2"
+	{
+		"Offsets"
+		{
+			"lobby_sux"
+			{
+				"windows"		"7"
+				"linux"		"11"
+			}
+			"max_players"
+			{
+				"windows"		"37"
+				"linux"		"14"
+			}
+			"server_bplayers"
+			{
+				"windows"		"0"
+				"linux"		"0"
+			}
+			"unreserved"
+			{
+				"windows"		"0"
+				"linux"		"0"
+			}
+			"lobby_match"
+			{
+				"windows"		"1"
+				"linux"		"2"
+			}
+		}
+		"Signatures"
+		{
+			"lobby_sux"
+			{
+				"library"		"engine"
+				"linux"		"\xFF\x50\x2A\x84\xC0\x0F\x84\x2A\x2A\x2A\x2A\x8B\x87\x2A\x01\x00\x00\x85\xC0"
+			}
+			"max_players"
+			{
+				"library"		"engine"
+				"windows"		"\x83\xBE\x2A\x2A\x00\x00\x00\x74\x2A\x8B\x2A\x2A\x8B\x06\x8B\x7A\x2A\x8B\x50\x10\x8B\xCE\xFF\xD2\x2B\xF8\x8B\x06\x8B\x50\x08\x8B\xCE\xFF\xD2\x03\xC7\x3B\x86"
+				"linux"		"\x89\xC6\x8B\x07\x89\x3C\x24\xFF\x50\x2A\x29\xC6\x01\xF3\x3B\x9F\x2A\x01\x00\x00\x0F"
+			}
+			"server_bplayers"
+			{
+				"library"		"server"
+				"windows"		"\xF7\x05\x2A\x2A\x2A\x2A\x00\x10\x00\x00\x74\x07\xB8\x2A\x2A\x2A\x2A\xEB\x11\xA1\x2A\x2A\x2A\x2A\x8B\x40\x24\x85\xC0\x75\x05\xB8\x2A\x2A\x2A\x2A\x8B\x0D\x2A\x2A\x2A\x2A\x8B\x11\x50\x8B\x42\x10\xFF\xD0\x85\xC0\x74\x17"
+				"linux"		"\x55\x89\xE5\x83\xEC\x08\xE8\x2A\x2A\x2A\x2A\xC9\x3C\x01\x19\xC0\x83\xE0\xFC\x83\xC0\x08"
+			}
+			"unreserved"
+			{
+				"library"		"engine"
+				"windows"		"\x55\x8B\xEC\x81\xEC\x2A\x2A\x00\x00\xA1\x2A\x2A\x2A\x2A\x33\xC5\x89\x2A\x2A\x53\x8B\x2A\x2A\x56\x8B\x2A\x2A\x57\x8B\x2A\x2A\x3B\xBE"
+				"linux"		"\x55\x89\xE5\x57\x56\x53\x81\xEC\x3C\x01\x00\x00\x8B\x5D\x08"
+			}
+			"lobby_match"
+			{
+				"library"		"matchmaking_ds"
+				"windows"		"\xB8\x08\x00\x00\x00\x2A"
+				"linux"		"\x55\xB8\x08\x00\x00\x00\x89\xE5\x5D\x2A"
+			}
+		}
+		"Keys"
+		{
+			"lobby_sux_len_l"		"6"
+			"lobby_sux_len_w"		"2"
+			"lobby_sux_new_l"		"\xBE\x01\x00\x00\x00\x90"
+			"lobby_sux_new_w"		"\x90\x90"
+
+			"max_players_len"		"6"
+			"max_players_new_l"		"\x83\xFB\x3C\x90\x90\x90"
+			"max_players_new_w"		"\x83\xF8\x3C\x90\x90\x90"
+
+			"server_bplayers_len"		"6"
+			"server_bplayers_new"		"\xB8\x3C\x00\x00\x00\xC3"
+
+			"unreserved_len"		"1"
+			"unreserved_new"		"\xC3"
+
+			"lobby_match_len"		"1"
+			"lobby_match_new"		"\xC3"
+		}
+	}
+}

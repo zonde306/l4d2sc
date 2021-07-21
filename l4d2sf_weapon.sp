@@ -1701,3 +1701,21 @@ int FindUseEntity(int client, float radius = 0.0)
 	
 	return SDKCall(g_pfnFindUseEntity, client, (radius > 0.0 ? radius : cvUseRadius.FloatValue), 0.0, 0.0, 0, false);
 }
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	CreateNative("L4D2SF_GetClientClipSize", Native_GetClientClipSize);
+}
+
+public any Native_GetClientClipSize(Handle plugin, int argc)
+{
+	if(argc < 2)
+		return -1;
+	
+	int client = GetNativeCell(1);
+	
+	char classname[64];
+	GetNativeString(2, classname, sizeof(classname));
+	
+	return GetPlayerClipSize(client, classname);
+}

@@ -455,7 +455,7 @@ void DoTraceHit(int client)
 	char sTemp[16];
 	Handle trace;
 	int target;
-	int range = g_iCvarRange + g_iLevelShove[client] * 10;
+	int range = g_iCvarRange + (g_iLevelShove[client] - 1) * 10;
 
 	// Divide degree by traces
 	vAng[1] += (MAX_DEGREE / 2);

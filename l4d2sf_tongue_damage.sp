@@ -1,4 +1,25 @@
-#define PLUGIN_VERSION 		"1.4"
+/*
+*	Tongue Damage
+*	Copyright (C) 2021 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+
+#define PLUGIN_VERSION 		"1.6"
+
 
 /*======================================================================================
 	Plugin Info:
@@ -11,6 +32,12 @@
 
 ========================================================================================
 	Change Log:
+
+1.6 (21-Jul-2021)
+	- Better more optimized method to prevent timer errors happening.
+
+1.5 (20-Jul-2021)
+	- Fixed rare error when clients die during a tongue drag. Thanks to "asherkin" and "Dysphie" for finding the issue.
 
 1.4 (15-May-2020)
 	- Replaced "point_hurt" entity with "SDKHooks_TakeDamage" function.
@@ -45,7 +72,7 @@
 
 ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarDamage, g_hCvarTime;
 bool g_bCvarAllow, g_bMapStarted;
-bool g_bChoking[MAXPLAYERS+1];
+bool g_bChoking[MAXPLAYERS+1], g_bBlockReset[MAXPLAYERS+1];
 Handle g_hTimers[MAXPLAYERS+1];
 
 
@@ -271,6 +298,7 @@ void ResetPlugin()
 	for( int i = 1; i <= MaxClients; i++ )
 	{
 		delete g_hTimers[i];
+		g_bBlockReset[i] = false;
 	}
 }
 
@@ -288,6 +316,7 @@ public void OnMapEnd()
 public void OnClientDisconnect(int client)
 {
 	delete g_hTimers[client];
+	g_bBlockReset[client] = false;
 }
 
 public void Event_RoundEnd(Event event, const char[] name, bool dontBroadcast)
@@ -321,7 +350,7 @@ public void Event_GrabStart(Event event, const char[] name, bool dontBroadcast)
 		if( g_bCvarAllow )
 		{
 			delete g_hTimers[client];
-			g_hTimers[client] = CreateTimer(g_hCvarTime.FloatValue, tmrDamage, userid, TIMER_REPEAT);
+			g_hTimers[client] = CreateTimer(g_hCvarTime.FloatValue, TimerDamage, userid, TIMER_REPEAT);
 		}
 	}
 }
@@ -332,11 +361,17 @@ public void Event_GrabStop(Event event, const char[] name, bool dontBroadcast)
 	int client = GetClientOfUserId(userid);
 	if( client && IsClientInGame(client) )
 	{
-		delete g_hTimers[client];
+		// Don't kill timer if events called from timer
+		if( g_bBlockReset[client] )
+		{
+			g_bBlockReset[client] = false;
+		} else {
+			delete g_hTimers[client];
+		}
 	}
 }
 
-public Action tmrDamage(Handle timer, any client)
+public Action TimerDamage(Handle timer, any client)
 {
 	client = GetClientOfUserId(client);
 	if( client && IsClientInGame(client) && IsPlayerAlive(client) )
@@ -349,7 +384,23 @@ public Action tmrDamage(Handle timer, any client)
 			int attacker = GetEntPropEnt(client, Prop_Send, "m_tongueOwner");
 			if( attacker > 0 && attacker <= MaxClients && IsClientInGame(attacker) )
 			{
+				// Prevent errors when clients die from HurtEntity during timer callback triggering the "tongue_release" event and delete timer.
+				// Thanks to "asherkin" and "Dysphie" for finding the issue.
+
+				// Error log:
+				// Plugin "l4d_tongue_damage.smx" encountered error 23: Native detected error
+				// Invalid timer handle e745136f (error 1) during timer end, displayed function is timer callback, not the stack trace
+				// Unable to call function "TimerDamage" due to above error(s).
+
+				g_bBlockReset[client] = true;
 				HurtEntity(client, attacker, g_hCvarDamage.FloatValue);
+				if( g_bBlockReset[client] == false )
+				{
+					g_hTimers[client] = null;
+					return Plugin_Stop;
+				}
+
+				g_bBlockReset[client] = false;
 				return Plugin_Continue;
 			}
 		}

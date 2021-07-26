@@ -70,6 +70,12 @@ public void OnPluginStart()
 	
 	AddCommandListener(Command_Away, "go_away_from_keyboard");
 	AddCommandListener(Command_Away, "jointeam");
+	RegConsoleCmd("away", Cmd_Away);
+	RegConsoleCmd("join", Cmd_JoinSurvivor);
+	RegConsoleCmd("joingame", Cmd_JoinSurvivor);
+	RegConsoleCmd("jg", Cmd_JoinSurvivor);
+	RegConsoleCmd("jr", Cmd_JoinSurvivor);
+	RegConsoleCmd("jiaru", Cmd_JoinSurvivor);
 	
 	gascanArray = CreateArray();
 	hitterArray = CreateArray();
@@ -433,17 +439,47 @@ public void EntityHook_OnGrenadeThrown(int entity)
 		g_fGrenadeExplodeTimer[client] = GetEngineTime() + g_ConVar_GrenadeDuration.FloatValue;
 }
 
-bool g_bForcePass = false;
-
 public Action Command_Away(int client, const char[] command, int argc)
 {
-	if(client <= 0 || client > MaxClients || !IsClientInGame(client) || IsFakeClient(client) ||
-		!IsPlayerAlive(client) || GetClientTeam(client) != 2)
+	if(!IsValidClient(client) || IsFakeClient(client))
 		return Plugin_Continue;
 	
-	if(g_bForcePass || g_iLevelIdle[client] >= 3)
+	int team = GetClientTeam(client);
+	int targetTeam = 1;
+	if(argc >= 1)
 	{
-		g_bForcePass = false;
+		char buffer[8];
+		GetCmdArg(1, buffer, sizeof(buffer));
+		targetTeam = StringToInt(buffer);
+		if(targetTeam < 1)
+			targetTeam = 1;
+	}
+	
+	if(team > 1 && targetTeam == 1)
+		return Cmd_Away(client, argc);
+	
+	if(targetTeam == 2 || targetTeam == 3 && argc > 1)
+	{
+		// 删除第二个参数，避免多一个生还者的 bug
+		FakeClientCommandEx(client, "jointeam %d", targetTeam);
+		return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action Cmd_Away(int client, int argc)
+{
+	if(!IsValidClient(client) || IsFakeClient(client))
+		return Plugin_Continue;
+	
+	int team = GetClientTeam(client);
+	if(team != 2 && team != 3)
+		return Plugin_Continue;
+	
+	if(g_iLevelIdle[client] >= 3)
+	{
+		ChangeClientTeam(client, 1);
 		return Plugin_Continue;
 	}
 	
@@ -473,6 +509,23 @@ public Action Command_Away(int client, const char[] command, int argc)
 		return Plugin_Handled;
 	}
 	
+	ChangeClientTeam(client, 1);
+	return Plugin_Continue;
+}
+
+public Action Cmd_JoinSurvivor(int client, int argc)
+{
+	if(!IsValidClient(client) || IsFakeClient(client) || GetClientTeam(client) == 2)
+		return Plugin_Continue;
+	
+	ChangeClientTeam(client, 0);
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidClient(i) && IsFakeClient(i) && GetClientTeam(i) == 2 && L4D_SetHumanSpec(i, client) && L4D_TakeOverBot(client))
+			return Plugin_Continue;
+	
+	// 失败时回到观察者队伍
+	ChangeClientTeam(client, 1);
 	return Plugin_Continue;
 }
 
@@ -487,12 +540,10 @@ public Action Timer_GoIdle(Handle timer, any client)
 	if(g_iLevelIdle[client] < 2 && !CheckIdleCond(client))
 		return Plugin_Continue;
 	
+	// 这玩意会导致多一个生还者
 	// L4D_ReplaceWithBot(client);
 	
-	g_bForcePass = true;
-	FakeClientCommand(client, "go_away_from_keyboard");
-	g_bForcePass = false;
-	
+	ChangeClientTeam(client, 1);
 	return Plugin_Continue;
 }
 

@@ -1793,7 +1793,7 @@ public void QTeamHook(Handle event, const char[] name, bool dontBroadcast)
 				AssignModel(client, g_model, g_IdentityFix);
 			}
 		}
-
+		
 		if (onteam <= 1)	// cycling requires 0.2 or higher?
 		{
 			CreateTimer(0.2, QTeamHookTimer, client);

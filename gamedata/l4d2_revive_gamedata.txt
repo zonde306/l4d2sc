@@ -13,13 +13,13 @@
 		{
 			"PatchAddr"
 			{
-				"windows" "2215‬"
-				"linux"	"2334‬‬"
+				"windows" "2346‬"
+				"linux"	"2790‬‬"
 			}
 			
 			"PatchCount"
 			{
-				"windows" "14"
+				"windows" "8"
 				"linux"	"4‬"
 			}
 		}

@@ -441,24 +441,24 @@ forward Action L4D2SF_CanAccessPerk(int client, int slotId, const char[] perk, P
 forward Action L4D2SF_OnGetSlotName(int client, int slotId, char[] result, int maxlen);
 
 /**
- * @brief 玩家获得技能时触发
- * @remarks 失去技能也会触发
+ * @brief 玩家技能等级改变时触发
+ * @remarks 失去和获得都会触发
  *
  * @param client				玩家索引
- * @param level					技能等级
+ * @param level					新的技能等级
  * @param perk					技能类名
  * @param maxlen				技能类名字符上限
  *
- * @return						Plugin_Continue 不做任何事情；Plugin_Changed 修改参数；Plugin_Handled 阻止等级提升
+ * @return						Plugin_Continue 不做任何事情；Plugin_Changed 修改参数；Plugin_Handled 阻止等级改变
  */
 forward Action L4D2SF_OnPerkPre(int client, int& level, char[] perk, int maxlen);
 
 /**
- * @brief 但玩家获得技能后触发
- * @remarks 失去技能也会触发
+ * @brief 玩家技能等级改变时触发
+ * @remarks 失去和获得都会触发
  *
  * @param client				玩家索引
- * @param level					技能等级
+ * @param level					新的技能等级
  * @param perk					技能类名
  */
 forward void L4D2SF_OnPerkPost(int client, int level, const char[] perk);

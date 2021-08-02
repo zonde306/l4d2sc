@@ -1688,11 +1688,13 @@ bool GivePerk(int client, const char[] perk, int level)
 {
 	char buffer[64];
 	strcopy(buffer, sizeof(buffer), perk);
+	
+	level += g_PlayerData[client].GetPerk(buffer);
 	if(!NotifyPerkPre(client, level, buffer, sizeof(buffer)))
 		return false;
 	
 	// PrintToChat(client, "skill %s, lv %d", buffer, level);
-	bool result = g_PlayerData[client].SetPerk(buffer, g_PlayerData[client].GetPerk(buffer) + level);
+	bool result = g_PlayerData[client].SetPerk(buffer, level);
 	
 	NotifyPerkPost(client, level, buffer);
 	

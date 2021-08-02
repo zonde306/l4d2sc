@@ -17,8 +17,11 @@ public Plugin myinfo =
 	url = "https://forums.alliedmods.net/",
 };
 
+const float g_fHighJumpFactor = 0.25;
+const float g_fLongJumpFactor = 0.25;
+
 int g_iSlotAbility;
-int g_iLevelBHop[MAXPLAYERS+1], g_iLevelDouble[MAXPLAYERS+1];
+int g_iLevelBHop[MAXPLAYERS+1], g_iLevelDouble[MAXPLAYERS+1], g_iLevelHigh[MAXPLAYERS+1], g_iLevelFar[MAXPLAYERS+1];
 ConVar g_hCvarGravity, g_pCvarJumpHeight, g_pCvarDuckHeight, g_pCvarCalmTime;
 int g_iOffVelocity;
 
@@ -47,8 +50,10 @@ public OnPluginStart()
 	HookEvent("player_jump_apex", Event_PlayerJumpApex);
 	
 	g_iSlotAbility = L4D2SF_RegSlot("ability");
-	L4D2SF_RegPerk(g_iSlotAbility, "bunnyhop", 3, 70, 5, 0.1);
-	L4D2SF_RegPerk(g_iSlotAbility, "doublejump", 1, 80, 5, 0.1);
+	L4D2SF_RegPerk(g_iSlotAbility, "bunnyhop", 5, 70, 5, 0.1);
+	L4D2SF_RegPerk(g_iSlotAbility, "doublejump", 2, 80, 5, 0.1);
+	L4D2SF_RegPerk(g_iSlotAbility, "highjump", 4, 50, 5, 0.1);
+	L4D2SF_RegPerk(g_iSlotAbility, "longjump", 4, 60, 5, 0.1);
 }
 
 float g_fGravity, g_fJumpHeight, g_fDuckHeight, g_fCalmTime;
@@ -67,6 +72,10 @@ public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, cha
 		FormatEx(result, maxlen, "%T", "连跳", client, level);
 	else if(!strcmp(name, "doublejump"))
 		FormatEx(result, maxlen, "%T", "多重跳", client, level);
+	else if(!strcmp(name, "highjump"))
+		FormatEx(result, maxlen, "%T", "跳高", client, level);
+	else if(!strcmp(name, "longjump"))
+		FormatEx(result, maxlen, "%T", "跳远", client, level);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -75,9 +84,13 @@ public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, cha
 public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int level, char[] result, int maxlen)
 {
 	if(!strcmp(name, "bunnyhop"))
-		FormatEx(result, maxlen, "%T", tr("连跳%d", IntBound(level, 1, 3)), client, level);
+		FormatEx(result, maxlen, "%T", tr("连跳%d", IntBound(level, 1, 5)), client, level);
 	else if(!strcmp(name, "doublejump"))
-		FormatEx(result, maxlen, "%T", tr("多重跳%d", IntBound(level, 1, 1)), client, level);
+		FormatEx(result, maxlen, "%T", tr("多重跳%d", IntBound(level, 1, 2)), client, level);
+	else if(!strcmp(name, "highjump"))
+		FormatEx(result, maxlen, "%T", tr("跳高%d", IntBound(level, 1, 4)), client, level, g_fHighJumpFactor * IntBound(level, 1, 4) * 100);
+	else if(!strcmp(name, "longjump"))
+		FormatEx(result, maxlen, "%T", tr("跳远%d", IntBound(level, 1, 4)), client, level, g_fLongJumpFactor * IntBound(level, 1, 4) * 100);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -89,6 +102,10 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelBHop[client] = level;
 	else if(!strcmp(perk, "doublejump"))
 		g_iLevelDouble[client] = level;
+	else if(!strcmp(perk, "highjump"))
+		g_iLevelHigh[client] = level;
+	else if(!strcmp(perk, "longjump"))
+		g_iLevelFar[client] = level;
 }
 
 bool g_bJumpReleased[MAXPLAYERS+1], g_bFirstJump[MAXPLAYERS+1];
@@ -98,6 +115,8 @@ public void L4D2SF_OnLoad(int client)
 {
 	g_iLevelBHop[client] = L4D2SF_GetClientPerk(client, "bunnyhop");
 	g_iLevelDouble[client] = L4D2SF_GetClientPerk(client, "doublejump");
+	g_iLevelHigh[client] = L4D2SF_GetClientPerk(client, "highjump");
+	g_iLevelFar[client] = L4D2SF_GetClientPerk(client, "longjump");
 }
 
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
@@ -108,6 +127,8 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	
 	g_iLevelBHop[client] = L4D2SF_GetClientPerk(client, "bunnyhop");
 	g_iLevelDouble[client] = L4D2SF_GetClientPerk(client, "doublejump");
+	g_iLevelHigh[client] = L4D2SF_GetClientPerk(client, "highjump");
+	g_iLevelFar[client] = L4D2SF_GetClientPerk(client, "longjump");
 }
 
 public void Event_PlayerJump(Event event, const char[] eventName, bool dontBroadcast)
@@ -122,6 +143,8 @@ public void Event_PlayerJump(Event event, const char[] eventName, bool dontBroad
 	g_iCountBHop[client] = 0;
 	g_iCountMulJmp[client] = 0;
 	
+	RequestFrame(OnJumpPost, client);
+	
 	// PrintToChat(client, "player_jump");
 }
 
@@ -135,6 +158,34 @@ public void Event_PlayerJumpApex(Event event, const char[] eventName, bool dontB
 	g_bFirstJump[client] = false;
 	
 	// PrintToChat(client, "player_jump_apex");
+}
+
+public void OnJumpPost(any client)
+{
+	if(!IsValidAliveClient(client))
+		return;
+	
+	float velocity[3];
+	bool changed = false;
+	GetEntDataVector(client, g_iOffVelocity, velocity);
+	
+	if(g_iLevelFar[client] > 0)
+	{
+		float factor = 1.0 + (g_iLevelFar[client] * g_fLongJumpFactor);
+		velocity[0] *= factor;
+		velocity[1] *= factor;
+		changed = true;
+	}
+	
+	if(g_iLevelHigh[client] > 0)
+	{
+		float factor = 1.0 + (g_iLevelHigh[client] * g_fHighJumpFactor);
+		velocity[2] *= factor;
+		changed = true;
+	}
+	
+	if(changed)
+		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 }
 
 int IntBound(int v, int min, int max)

@@ -17,11 +17,12 @@ public Plugin myinfo =
 	url = "https://forums.alliedmods.net/",
 };
 
-const float g_fHighJumpFactor = 0.25;
-const float g_fLongJumpFactor = 0.25;
+const float g_fHighJumpFactor = 0.0625;
+const float g_fLongJumpFactor = 0.0625;
+const float g_fSpeedFactor = 0.01;
 
 int g_iSlotAbility;
-int g_iLevelBHop[MAXPLAYERS+1], g_iLevelDouble[MAXPLAYERS+1], g_iLevelHigh[MAXPLAYERS+1], g_iLevelFar[MAXPLAYERS+1];
+int g_iLevelBHop[MAXPLAYERS+1], g_iLevelDouble[MAXPLAYERS+1], g_iLevelHigh[MAXPLAYERS+1], g_iLevelFar[MAXPLAYERS+1], g_iLevelSpeed[MAXPLAYERS+1];
 ConVar g_hCvarGravity, g_pCvarJumpHeight, g_pCvarDuckHeight, g_pCvarCalmTime;
 int g_iOffVelocity;
 
@@ -46,6 +47,7 @@ public OnPluginStart()
 	
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("player_first_spawn", Event_PlayerSpawn);
+	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("player_jump", Event_PlayerJump);
 	HookEvent("player_jump_apex", Event_PlayerJumpApex);
 	
@@ -54,6 +56,7 @@ public OnPluginStart()
 	L4D2SF_RegPerk(g_iSlotAbility, "doublejump", 2, 80, 5, 0.1);
 	L4D2SF_RegPerk(g_iSlotAbility, "highjump", 4, 50, 5, 0.1);
 	L4D2SF_RegPerk(g_iSlotAbility, "longjump", 4, 60, 5, 0.1);
+	L4D2SF_RegPerk(g_iSlotAbility, "movespeed", 5, 90, 5, 0.1);
 }
 
 float g_fGravity, g_fJumpHeight, g_fDuckHeight, g_fCalmTime;
@@ -76,6 +79,8 @@ public Action L4D2SF_OnGetPerkName(int client, const char[] name, int level, cha
 		FormatEx(result, maxlen, "%T", "跳高", client, level);
 	else if(!strcmp(name, "longjump"))
 		FormatEx(result, maxlen, "%T", "跳远", client, level);
+	else if(!strcmp(name, "movespeed"))
+		FormatEx(result, maxlen, "%T", "地速", client, level);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -91,6 +96,8 @@ public Action L4D2SF_OnGetPerkDescription(int client, const char[] name, int lev
 		FormatEx(result, maxlen, "%T", tr("跳高%d", IntBound(level, 1, 4)), client, level, g_fHighJumpFactor * IntBound(level, 1, 4) * 100);
 	else if(!strcmp(name, "longjump"))
 		FormatEx(result, maxlen, "%T", tr("跳远%d", IntBound(level, 1, 4)), client, level, g_fLongJumpFactor * IntBound(level, 1, 4) * 100);
+	else if(!strcmp(name, "movespeed"))
+		FormatEx(result, maxlen, "%T", tr("地速%d", IntBound(level, 1, 5)), client, level, g_fSpeedFactor * IntBound(level, 1, 5) * 100);
 	else
 		return Plugin_Continue;
 	return Plugin_Changed;
@@ -106,6 +113,8 @@ public void L4D2SF_OnPerkPost(int client, int level, const char[] perk)
 		g_iLevelHigh[client] = level;
 	else if(!strcmp(perk, "longjump"))
 		g_iLevelFar[client] = level;
+	else if(!strcmp(perk, "movespeed"))
+		g_iLevelSpeed[client] = level;
 }
 
 bool g_bJumpReleased[MAXPLAYERS+1], g_bFirstJump[MAXPLAYERS+1];
@@ -117,6 +126,7 @@ public void L4D2SF_OnLoad(int client)
 	g_iLevelDouble[client] = L4D2SF_GetClientPerk(client, "doublejump");
 	g_iLevelHigh[client] = L4D2SF_GetClientPerk(client, "highjump");
 	g_iLevelFar[client] = L4D2SF_GetClientPerk(client, "longjump");
+	g_iLevelSpeed[client] = L4D2SF_GetClientPerk(client, "movespeed");
 }
 
 public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
@@ -129,6 +139,19 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	g_iLevelDouble[client] = L4D2SF_GetClientPerk(client, "doublejump");
 	g_iLevelHigh[client] = L4D2SF_GetClientPerk(client, "highjump");
 	g_iLevelFar[client] = L4D2SF_GetClientPerk(client, "longjump");
+	g_iLevelSpeed[client] = L4D2SF_GetClientPerk(client, "movespeed");
+	
+	SDKUnhook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
+	SDKHook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
+}
+
+public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!IsValidClient(client))
+		return;
+	
+	SDKUnhook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
 }
 
 public void Event_PlayerJump(Event event, const char[] eventName, bool dontBroadcast)
@@ -186,6 +209,16 @@ public void OnJumpPost(any client)
 	
 	if(changed)
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
+}
+
+public void EntHook_PreThinkPost(int client)
+{
+	if(!IsValidAliveClient(client) || g_iLevelSpeed[client] < 1)
+		return;
+	
+	float factor = 1.0 + (g_fSpeedFactor * g_iLevelSpeed[client]);
+	float maxspeed = GetEntPropFloat(client, Prop_Send, "m_flMaxspeed");
+	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", maxspeed * factor);
 }
 
 int IntBound(int v, int min, int max)

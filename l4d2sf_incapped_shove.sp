@@ -597,5 +597,5 @@ public Action tTimer (Handle timer, DataPack dPack)
 		return;
 	
 	SDKHooks_TakeDamage(entity, client, client, g_iCvarDamage / 2.0, DMG_BLAST, -1, NULL_VECTOR, vPos);
-	SDKHooks_TakeDamage(entity, client, client, g_iCvarDamage * 0.5, DMG_BUCKSHOT, -1, NULL_VECTOR, vPos);
+	SDKHooks_TakeDamage(entity, client, client, g_iCvarDamage * 0.5, DMG_BUCKSHOT|DMG_AIRBOAT, -1, NULL_VECTOR, vPos);
 }

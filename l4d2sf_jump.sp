@@ -141,8 +141,8 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	g_iLevelFar[client] = L4D2SF_GetClientPerk(client, "longjump");
 	g_iLevelSpeed[client] = L4D2SF_GetClientPerk(client, "movespeed");
 	
-	SDKUnhook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
-	SDKHook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
+	// SDKUnhook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
+	// SDKHook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
 }
 
 public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroadcast)
@@ -151,7 +151,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 	if(!IsValidClient(client))
 		return;
 	
-	SDKUnhook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
+	// SDKUnhook(client, SDKHook_PreThinkPost, EntHook_PreThinkPost);
 }
 
 public void Event_PlayerJump(Event event, const char[] eventName, bool dontBroadcast)
@@ -219,6 +219,26 @@ public void EntHook_PreThinkPost(int client)
 	float factor = 1.0 + (g_fSpeedFactor * g_iLevelSpeed[client]);
 	float maxspeed = GetEntPropFloat(client, Prop_Send, "m_flMaxspeed");
 	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", maxspeed * factor);
+}
+
+public Action L4D_OnGetRunTopSpeed(int client, float& speed)
+{
+	if(g_iLevelSpeed[client] < 1)
+		return Plugin_Continue;
+	
+	float factor = 1.0 + (g_fSpeedFactor * g_iLevelSpeed[client]);
+	speed *= factor;
+	return Plugin_Handled;
+}
+
+public Action L4D_OnGetWalkTopSpeed(int client, float& speed)
+{
+	return L4D_OnGetRunTopSpeed(client, speed);
+}
+
+public Action L4D_OnGetCrouchTopSpeed(int client, float& speed)
+{
+	return L4D_OnGetRunTopSpeed(client, speed);
 }
 
 int IntBound(int v, int min, int max)

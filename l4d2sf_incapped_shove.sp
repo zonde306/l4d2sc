@@ -67,7 +67,7 @@
 
 
 ConVar g_hCvarAllow, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog, g_hCvarCooldown, g_hCvarDamage, g_hCvarHurt, g_hCvarPenalty, g_hCvarPounce, g_hCvarRange, g_hCvarTypes;
-Handle g_hSDK_OnSwingStart, g_hSDK_StaggerClient;
+Handle g_hSDK_OnSwingStart, g_hSDK_StaggerClient, g_hReset;
 bool g_bCvarAllow, g_bMapStarted, g_bLeft4Dead2;
 float g_fTimeout[MAXPLAYERS + 1];
 int g_iIgnore[MAX_TRACES + 1];
@@ -169,7 +169,16 @@ public void OnPluginStart()
 
 	delete hGameData;
 
-
+	hGameData = LoadGameConfigFile("l4d2_shove_fix");
+	
+	StartPrepSDKCall(SDKCall_Entity);
+	if(!PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "ResetEntityState"))
+		SetFailState("Could not load the 'NextBotCombatCharacter::ResetEntityState' gamedata signature.");
+	g_hReset = EndPrepSDKCall();		
+	if(g_hReset == null)
+		SetFailState("Could not prep the 'NextBotCombatCharacter::ResetEntityState' function.");
+	
+	delete hGameData;
 
 	// EVENTS
 	HookEvent("round_start", Event_RoundStart, EventHookMode_PostNoCopy);
@@ -524,7 +533,7 @@ void DoTraceHit(int client)
 						continue;
 
 					// Damage
-					SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), DMG_GENERIC);
+					SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), g_bLeft4Dead2 ? DMG_AIRBOAT : DMG_BUCKSHOT);
 
 					// Range check
 					GetClientEyePosition(target, vLoc);
@@ -554,7 +563,19 @@ void DoTraceHit(int client)
 
 void PushCommonInfected(int client, int target, float vPos[3])
 {
-	SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), g_bLeft4Dead2 ? DMG_AIRBOAT : DMG_BUCKSHOT, -1, NULL_VECTOR, vPos); // Common L4D2 / L4D1
+	// SDKHooks_TakeDamage(target, client, client, float(g_iCvarDamage), g_bLeft4Dead2 ? DMG_AIRBOAT : DMG_BUCKSHOT, -1, NULL_VECTOR, vPos); // Common L4D2 / L4D1
+	
+	SDKCall(g_hReset, target);
+	SetEntProp(target, Prop_Send, "m_nSequence", 1);
+	SetEntPropFloat(target, Prop_Data, "m_flCycle", 1.0);
+	
+	DataPack dPack;
+	CreateDataTimer(0.08099996692352168753182763521876539546387561293452167352197635123678125317623518549426, tTimer, dPack, TIMER_DATA_HNDL_CLOSE);
+	dPack.WriteCell(GetClientUserId(client));
+	dPack.WriteCell(EntIndexToEntRef(target));
+	dPack.WriteFloat(vPos[0]);
+	dPack.WriteFloat(vPos[1]);
+	dPack.WriteFloat(vPos[2]);
 }
 
 public bool FilterExcludeSelf(int entity, int contentsMask, any client)
@@ -562,4 +583,19 @@ public bool FilterExcludeSelf(int entity, int contentsMask, any client)
 	if( entity == client )
 		return false;
 	return true;
+}
+
+public Action tTimer (Handle timer, DataPack dPack)
+{
+	dPack.Reset();
+	
+	float vPos[3];
+	int client = GetClientOfUserId(dPack.ReadCell()), entity = EntRefToEntIndex(dPack.ReadCell());
+	vPos[0] = dPack.ReadFloat(), vPos[1] = dPack.ReadFloat(), vPos[2] = dPack.ReadFloat();
+	
+	if (client <= 0 || entity <= MaxClients || !IsClientInGame(client))
+		return;
+	
+	SDKHooks_TakeDamage(entity, client, client, g_iCvarDamage / 2.0, DMG_BLAST, -1, NULL_VECTOR, vPos);
+	SDKHooks_TakeDamage(entity, client, client, g_iCvarDamage * 0.5, DMG_BUCKSHOT, -1, NULL_VECTOR, vPos);
 }

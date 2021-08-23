@@ -1,5 +1,131 @@
 "Games"
 {
+	"left4dead"
+	{
+		"MemPatches"
+		{
+			"vomit"
+			{
+				"signature" "CVomit::IsAbilityReadyToFire"
+				
+				"linux"
+				{
+					"offset"	"7Fh"
+					"verify"	"\x74\xBF"
+					"patch"		"\x90\x90"
+				}
+				
+				"windows"
+				{
+					"offset"	"67h"
+					"verify"	"\x74\xC9"
+					"patch"		"\x90\x90"
+				}
+			}
+			
+			"tongue_update_attach_state"
+			{
+				"signature" "CTongue::OnUpdateAttachedToTargetState"
+				
+				"linux"
+				{
+					"offset"	"14Fh"
+					"verify"	"\x0F\x84\x73\x01\x00\x00"
+					"patch"		"\x90\x90\x90\x90\x90\x90"
+				}
+
+				"windows"
+				{
+					"offset"	"FBh"
+					"verify"	"\x6A\x04\x8B\xCE\xE8\x2C\xE6\xFF\xFF"
+					"patch"		"\x90\x90\x90\x90\x90\x90\x90\x90\x90"
+					// cravenge's method to avoid "tongue_broke_bent" event spam
+					// Note: the "tongue_broke_bent" string is nowhere to be found in the function
+					// but the event exists according to AM wiki page: https://wiki.alliedmods.net/Left_4_Dead_Events
+					//"offset"	"E5h"
+					//"verify"	"\x75"
+					//"patch"		"\xEB"
+				}
+			}
+			
+			"tongue_ability"
+			{
+				"signature" "CTongue::IsAbilityReadyToFire"
+				
+				"linux"
+				{
+					"offset"	"72h"
+					"verify"	"\x74\xCC"
+					"patch"		"\x90\x90"
+				}
+
+				"windows"
+				{
+					"offset"	"52h"
+					"verify"	"\x74\x31"
+					"patch"		"\x90\x90"
+				}
+			}
+			
+			"zoom"
+			{
+				"signature" "CTerrorGun::ShouldUnzoom"
+				
+				"linux"
+				{
+					"offset"	"35h"
+					"verify"	"\x74\x63"
+					"patch"		"\x90\x90"
+				}
+
+				"windows"
+				{
+					"offset"	"1Dh"
+					"verify"	"\x75"
+					"patch"		"\xEB"
+				}
+			}
+		}
+		
+		"Signatures" 
+		{
+			"CVomit::IsAbilityReadyToFire"
+			{
+				/* 56 57 8B ? 8B 87 ? ? ? ? 83 ? ? 74 ? 8B 15 ? ? ? ? 8B ? 81 E1 ? ? ? ? C1 ? ? 8D ? ? ? C1 ? ? 39 ? ? 75 ? 8B ? 85 ? 75 ? 5F */
+				/* Thanks Crasher */
+				
+				"windows"	"\x56\x57\x8B\x2A\x8B\x87\x2A\x2A\x2A\x2A\x83\x2A\x2A\x74\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\x2A\x81\xE1\x2A\x2A\x2A\x2A\xC1\x2A\x2A\x8D\x2A\x2A\x2A\xC1\x2A\x2A\x39\x2A\x2A\x75\x2A\x8B\x2A\x85\x2A\x75\x2A\x5F"
+				"linux"	"@_ZNK6CVomit20IsAbilityReadyToFireEv"
+			}
+			
+			"CTongue::OnUpdateAttachedToTargetState"
+			{
+				/* 56 8B ? 8B 86 ? ? ? ? 83 ? ? 0F 84 ? ? ? ? 8B 15 ? ? ? ? 8B ? 81 E1 ? ? ? ? C1 ? ? 8D ? ? ? C1 ? ? 39 ? ? 0F 85 ? ? ? ? 57 8B ? 85 ? 0F 84 ? ? ? ? A1 */
+				/* Thanks Crasher */
+				
+				"windows"	"\x56\x8B\x2A\x8B\x86\x2A\x2A\x2A\x2A\x83\x2A\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\x2A\x81\xE1\x2A\x2A\x2A\x2A\xC1\x2A\x2A\x8D\x2A\x2A\x2A\xC1\x2A\x2A\x39\x2A\x2A\x0F\x85\x2A\x2A\x2A\x2A\x57\x8B\x2A\x85\x2A\x0F\x84\x2A\x2A\x2A\x2A\xA1"
+				"linux"	"@_ZN7CTongue29OnUpdateAttachedToTargetStateEv"
+			}
+			
+			"CTongue::IsAbilityReadyToFire"
+			{
+				/* 56 57 8B ? 8B 87 ? ? ? ? 83 ? ? 74 ? 8B 15 ? ? ? ? 8B ? 81 E1 ? ? ? ? C1 ? ? 8D ? ? ? C1 ? ? 39 ? ? 75 ? 8B ? 85 ? 74 ? 83 */
+				/* Thanks Crasher */
+				
+				"windows"	"\x56\x57\x8B\x2A\x8B\x87\x2A\x2A\x2A\x2A\x83\x2A\x2A\x74\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\x2A\x81\xE1\x2A\x2A\x2A\x2A\xC1\x2A\x2A\x8D\x2A\x2A\x2A\xC1\x2A\x2A\x39\x2A\x2A\x75\x2A\x8B\x2A\x85\x2A\x74\x2A\x83"
+				"linux"	"@_ZNK7CTongue20IsAbilityReadyToFireEv"
+			}
+			
+			"CTerrorGun::ShouldUnzoom"
+			{
+				/* 56 57 8B ? E8 ? ? ? ? 8B ? 85 ? 75 ? 5F 32 ? 5E C3 8B ? E8 */
+				/* Thanks Crasher */
+
+				"windows"	"\x56\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x2A\x85\x2A\x75\x2A\x5F\x32\x2A\x5E\xC3\x8B\x2A\xE8"
+				"linux"	"@_ZNK10CTerrorGun12ShouldUnzoomEv"
+			}
+		}
+	}
 	"left4dead2"
 	{
 		"MemPatches"
@@ -32,13 +158,17 @@
 					"offset"	"115h"
 					"verify"	"\x0F\x84\x9D\x01\x00\x00"
 					"patch"		"\x90\x90\x90\x90\x90\x90"
-				}       
+				}
 
 				"windows"
 				{
-					"offset"	"10Ah"
-					"verify"	"\x75"
-					"patch"		"\xEB"
+					"offset"	"2D5h"
+					"verify"	"\x6A\x04\x8B\xCE\xE8\xD2\xE1\xFF\xFF"
+					"patch"		"\x90\x90\x90\x90\x90\x90\x90\x90\x90"
+					// cravenge's method to avoid "tongue_broke_bent" event spam
+					//"offset"	"10Ah"
+					//"verify"	"\x75"
+					//"patch"		"\xEB"
 				}
 			}
 			
@@ -51,7 +181,7 @@
 					"offset"	"6Fh"
 					"verify"	"\x74\xC7"
 					"patch"		"\x90\x90"
-				}       
+				}
 
 				"windows"
 				{
@@ -70,7 +200,7 @@
 					"offset"	"99h"
 					"verify"	"\x0F\x84\x11\x01\x00\x00"
 					"patch"		"\x90\x90\x90\x90\x90\x90"
-				}       
+				}
 
 				"windows"
 				{
@@ -89,7 +219,7 @@
 					"offset"	"2Ah"
 					"verify"	"\x0F\x84\xA7\x00\x00\x00"
 					"patch"		"\x90\x90\x90\x90\x90\x90"
-				}       
+				}
 
 				"windows"
 				{
@@ -107,21 +237,23 @@
 				/* 56 57 8B ? 8B 87 ? ? ? ? 83 ? ? 74 ? 8B 15 ? ? ? ? 8B ? 81 E1 ? ? ? ? 03 ? 8D ? ? ? 85 ? 74 ? C1 ? ? 39 ? ? 75 ? 8B ? 85 ? 75 ? 5F 32 ? 5E C3 8B ? 8B 90 ? ? ? ? 8B ? FF ? 84 ? 75 ? F7 */
 				/* Thanks Crasher */
 				
-				"windows"    "\x56\x57\x8B\x2A\x8B\x87\x2A\x2A\x2A\x2A\x83\x2A\x2A\x74\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\x2A\x81\xE1\x2A\x2A\x2A\x2A\x03\x2A\x8D\x2A\x2A\x2A\x85\x2A\x74\x2A\xC1\x2A\x2A\x39\x2A\x2A\x75\x2A\x8B\x2A\x85\x2A\x75\x2A\x5F\x32\x2A\x5E\xC3\x8B\x2A\x8B\x90\x2A\x2A\x2A\x2A\x8B\x2A\xFF\x2A\x84\x2A\x75\x2A\xF7"
+				"windows"	"\x56\x57\x8B\x2A\x8B\x87\x2A\x2A\x2A\x2A\x83\x2A\x2A\x74\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\x2A\x81\xE1\x2A\x2A\x2A\x2A\x03\x2A\x8D\x2A\x2A\x2A\x85\x2A\x74\x2A\xC1\x2A\x2A\x39\x2A\x2A\x75\x2A\x8B\x2A\x85\x2A\x75\x2A\x5F\x32\x2A\x5E\xC3\x8B\x2A\x8B\x90\x2A\x2A\x2A\x2A\x8B\x2A\xFF\x2A\x84\x2A\x75\x2A\xF7"
 				"linux"	"@_ZNK6CVomit20IsAbilityReadyToFireEv"
 			}
 			
 			"CTongue::OnUpdateAttachedToTargetState"
 			{
 				/* 55 8B ? 83 ? ? 56 8B ? 8B 86 ? ? ? ? 83 ? ? 0F 84 ? ? ? ? 8B 15 ? ? ? ? 8B ? 81 E1 ? ? ? ? 03 ? 8D ? ? ? 85 ? 0F 84 ? ? ? ? C1 ? ? 39 ? ? 0F 85 ? ? ? ? 57 */
+				/* Thanks Crasher */
 				
-				"linux"	"@_ZN7CTongue29OnUpdateAttachedToTargetStateEv"
 				"windows"	"\x55\x8B\x2A\x83\x2A\x2A\x56\x8B\x2A\x8B\x86\x2A\x2A\x2A\x2A\x83\x2A\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\x2A\x81\xE1\x2A\x2A\x2A\x2A\x03\x2A\x8D\x2A\x2A\x2A\x85\x2A\x0F\x84\x2A\x2A\x2A\x2A\xC1\x2A\x2A\x39\x2A\x2A\x0F\x85\x2A\x2A\x2A\x2A\x57"
+				"linux"	"@_ZN7CTongue29OnUpdateAttachedToTargetStateEv"
 			}
 			
 			"CTongue::IsAbilityReadyToFire"
 			{
 				/* 56 57 8B ? 8B 87 ? ? ? ? 83 ? ? 74 ? 8B 15 ? ? ? ? 8B ? 81 E1 ? ? ? ? 03 ? 8D ? ? ? 85 ? 74 ? C1 ? ? 39 ? ? 75 ? 8B ? 85 ? 74 ? 83 */
+				/* Thanks Crasher */
 				
 				"windows"	"\x56\x57\x8B\x2A\x8B\x87\x2A\x2A\x2A\x2A\x83\x2A\x2A\x74\x2A\x8B\x15\x2A\x2A\x2A\x2A\x8B\x2A\x81\xE1\x2A\x2A\x2A\x2A\x03\x2A\x8D\x2A\x2A\x2A\x85\x2A\x74\x2A\xC1\x2A\x2A\x39\x2A\x2A\x75\x2A\x8B\x2A\x85\x2A\x74\x2A\x83"
 				"linux"	"@_ZNK7CTongue20IsAbilityReadyToFireEv"
@@ -130,6 +262,7 @@
 			"CCharge::ActivateAbility"
 			{
 				/* 57 8B ? 8B ? 8B 90 ? ? ? ? FF ? 84 ? 0F 84 ? ? ? ? 8B 87 ? ? ? ? 53 */
+				/* Thanks Crasher */
 				
 				"windows"	"\x57\x8B\x2A\x8B\x2A\x8B\x90\x2A\x2A\x2A\x2A\xFF\x2A\x84\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B\x87\x2A\x2A\x2A\x2A\x53"
 				"linux"	"@_ZN7CCharge15ActivateAbilityEv"
@@ -138,6 +271,7 @@
 			"CTerrorGun::ShouldUnzoom"
 			{
 				/* 56 57 8B ? E8 ? ? ? ? 8B ? 85 ? 75 ? 5F 32 ? 5E C3 8B ? E8 */
+				/* Thanks Crasher */
 
 				"windows"	"\x56\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x2A\x85\x2A\x75\x2A\x5F\x32\x2A\x5E\xC3\x8B\x2A\xE8"
 				"linux"	"@_ZNK10CTerrorGun12ShouldUnzoomEv"

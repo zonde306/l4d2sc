@@ -137,6 +137,8 @@ public void __pl_l4dh_SetNTVOptional()
 	MarkNativeAsOptional("L4D2_SpawnWitch");
 	MarkNativeAsOptional("L4D2_GetTankCount");
 	MarkNativeAsOptional("L4D2_GetWitchCount");
+	MarkNativeAsOptional("L4D_GetCurrentChapter");
+	MarkNativeAsOptional("L4D_GetMaxChapters");
 
 	MarkNativeAsOptional("L4D_ScavengeBeginRoundSetupTime");
 	MarkNativeAsOptional("L4D_ResetMobTimer");
@@ -1461,7 +1463,6 @@ native int L4D_RestartScenarioFromVote(const char[] map);
  *
  * @return			The map's max completion distance (map distance score)
  */
-// L4D2 only.
 native int L4D_GetVersusMaxCompletionScore();
 
 /**
@@ -1471,7 +1472,6 @@ native int L4D_GetVersusMaxCompletionScore();
  *
  * @param score		The versus max completion score to set for the round
  */
-// L4D2 only.
 native int L4D_SetVersusMaxCompletionScore(int score);
 
 /**
@@ -1674,6 +1674,20 @@ native int L4D2_GetTankCount();
  * @return			Current Witch count
  */
 native int L4D2_GetWitchCount();
+
+/**
+ * @brief Returns the current map chapter number of the campaign
+ *
+ * @return			Map chapter
+ */
+native int L4D_GetCurrentChapter();
+
+/**
+ * @brief Returns the maximum number of chapters for the current game mode
+ *
+ * @return			Max chapters
+ */
+native int L4D_GetMaxChapters();
 
 /**
  * @brief Gets the campaign scores stored in the Versus Director

@@ -822,6 +822,11 @@
 				"windows"	"1816"
 				"linux"		"1812"
 			}
+			"VersusMaxCompletionScore"
+			{
+				"windows"	"952" // Found via "m_iVersusMapScoreMax" string
+				"linux"		"944"
+			}
 			"m_fMapMaxFlowDistance"
 			{
 				"windows"	"1444"
@@ -831,6 +836,11 @@
 			{
 				"windows"	"340"
 				"linux"		"348"
+			}
+			"m_chapter"
+			{
+				"windows"	"1652"
+				"linux"		"1648"
 			}
 
 
@@ -896,6 +906,16 @@
 				"library"	"server"
 				"windows"	"\x81\x2A\x2A\x2A\x2A\x2A\x57\x8B\x2A\x2A\x2A\x2A\x2A\x2A\x85\x2A\x75\x2A\x32\x2A\x5F"
 				/* 81 ? ? ? ? ? 57 8B ? ? ? ? ? ? 85 ? 75 ? 32 ? 5F */ // Found by SilverShot.
+			}
+
+			/* L4D1 signatures found by SilverShot */
+			"CTerrorGameRules::GetMissionInfo"
+			{
+				"library"		"server"
+				"linux"			"@_ZN16CTerrorGameRules14GetMissionInfoEv"
+				"windows"		"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x8B\x2A\x8B\x2A\x2A\x56\xFF\x2A\x8B\x2A\x8B\x2A\x8B\x2A\x2A\x6A\x2A\xFF\x2A\x8B\x2A\x85\x2A\x75\x2A\x5E"
+				/* ? ? ? ? ? ? ? 8B ? 8B ? ? 56 FF ? 8B ? 8B ? 8B ? ? 6A ? FF ? 8B ? 85 ? 75 ? 5E */
+				/* Search: "finale_start" - sub call below is GetMissionInfo. */
 			}
 
 			/*
@@ -1309,8 +1329,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN6CThrow15ActivateAbilityEv"
-				"windows"	"\x83\x2A\x2A\x55\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x83\x2A\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\xC1\x2A\x2A\x8D\x2A\x2A\x2A\xC1\x2A\x2A\x39\x2A\x2A\x0F\x85\x2A\x2A\x2A\x2A\x56"
-				/* 83 ? ? 55 8B ? 8B ? ? ? ? ? 83 ? ? 0F 84 ? ? ? ? 8B ? ? ? ? ? 8B ? 81 ? ? ? ? ? C1 ? ? 8D ? ? ? C1 ? ? 39 ? ? 0F 85 ? ? ? ? 56 */
+				"windows"	"\x83\x2A\x2A\x55\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x83\x2A\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\xC1\x2A\x2A\x8D\x2A\x2A\x2A\x85\x2A\x0F\x84\x2A\x2A\x2A\x2A\xC1\x2A\x2A\x39\x2A\x2A\x0F\x85\x2A\x2A\x2A\x2A\x53"
+				/* 83 ? ? 55 8B ? 8B ? ? ? ? ? 83 ? ? 0F 84 ? ? ? ? 8B ? ? ? ? ? 8B ? 81 ? ? ? ? ? C1 ? ? 8D ? ? ? 85 ? 0F 84 ? ? ? ? C1 ? ? 39 ? ? 0F 85 ? ? ? ? 53 */
 			}
 
 			/*

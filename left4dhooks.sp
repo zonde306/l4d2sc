@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.50"
+#define PLUGIN_VERSION		"1.51"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -41,6 +41,13 @@
 
 ========================================================================================
 	Change Log:
+
+1.51 (10-Aug-2021)
+	- Added natives "L4D_GetCurrentChapter" and "L4D_GetMaxChapters" to get the current and max chapters count. Thanks to "Psyk0tik" for help.
+	- L4D1: added natives "L4D_GetVersusMaxCompletionScore" and "L4D_SetVersusMaxCompletionScore" to get/set Versus max score. Thanks to "BHaType" for offsets.
+	- L4D1: Fixed broken "CThrowActivate" signature due to the 1.0.4.0 update. Thank to "matrixmark" for reporting.
+
+	- GameData files, include file and plugins updated.
 
 1.50 (22-Jul-2021)
 	- Fixed "Native was not found" errors in L4D1. Thanks to "xerox8521" for reporting.
@@ -681,7 +688,8 @@ Handle g_hSDK_Call_FindRandomSpot;
 Handle g_hSDK_Call_HasAnySurvivorLeftSafeArea;
 Handle g_hSDK_Call_IsAnySurvivorInCheckpoint;
 Handle g_hSDK_Call_IsAnySurvivorInStartArea;
-Handle SDK_KV_GetString;
+Handle g_hSDK_Call_GetMaxChapters;
+Handle g_hSDK_Call_KV_GetString;
 
 // left4downtown.inc
 Handle g_hSDK_Call_GetTeamScore;
@@ -703,6 +711,7 @@ Handle g_hSDK_Call_SpawnWitch;
 Handle g_hSDK_Call_SpawnWitchBride;
 Handle g_hSDK_Call_GetWeaponInfo;
 Handle g_hSDK_Call_GetMeleeInfo;
+Handle g_hSDK_Call_GetMissionInfo;
 Handle g_hSDK_Call_TryOfferingTankBot;
 Handle g_hSDK_Call_GetNavArea;
 Handle g_hSDK_Call_GetFlowDistance;
@@ -781,6 +790,7 @@ int m_maxFlames;
 int m_flow;
 int m_PendingMobCount;
 int m_fMapMaxFlowDistance;
+int m_chapter;
 // int m_iClrRender; // NULL PTR - METHOD (kept for demonstration)
 
 // l4d2timers.inc
@@ -808,6 +818,7 @@ Address g_pWeaponInfoDatabase;
 
 
 // Other
+int g_iMaxChapters;
 int g_iClassTank;
 bool g_bCheckpoint[MAXPLAYERS+1];
 bool g_bRoundEnded;
@@ -819,6 +830,7 @@ ConVar g_hCvarAddonsEclipse;
 ConVar g_hCvarRescueDeadTime;
 ConVar g_hDecayDecay;
 ConVar g_hPillsHealth;
+ConVar g_hMPGameMode;
 
 #if DEBUG
 bool g_bLateLoad;
@@ -934,8 +946,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 	// ====================================================================================================
 	//									NATIVES
-	// L4D1 = 12 [left4downtown] + 43 - 0 (deprecated) [l4d_direct] + 15 [l4d2addresses] + 15 [silvers - mine!] + 4 [anim] = 94
-	// L4D2 = 52 [left4downtown] + 62 - 1 (deprecated) [l4d_direct] + 26 [l4d2addresses] + 37 [silvers - mine!] + 4 [anim] = 185
+	// L4D1 = 12 [left4downtown] + 43 - 0 (deprecated) [l4d_direct] + 15 [l4d2addresses] + 17 [silvers - mine!] + 4 [anim] = 96
+	// L4D2 = 52 [left4downtown] + 62 - 1 (deprecated) [l4d_direct] + 26 [l4d2addresses] + 39 [silvers - mine!] + 4 [anim] = 187
 	// ====================================================================================================
 	// ANIMATION HOOK
 	CreateNative("AnimHookEnable",		 							Native_AnimHookEnable);
@@ -1017,13 +1029,15 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D2_SpawnWitch",									Native_SpawnWitch);
 	CreateNative("L4D2_GetTankCount",								Native_GetTankCount);
 	CreateNative("L4D2_GetWitchCount",								Native_GetWitchCount);
+	CreateNative("L4D_GetCurrentChapter",							Native_GetCurrentChapter);
+	CreateNative("L4D_GetMaxChapters",								Native_GetMaxChapters);
+	CreateNative("L4D_GetVersusMaxCompletionScore",					Native_GetVersusMaxCompletionScore);
+	CreateNative("L4D_SetVersusMaxCompletionScore",					Native_SetVersusMaxCompletionScore);
 
 	// L4D2 only:
 	CreateNative("L4D_ScavengeBeginRoundSetupTime", 				Native_ScavengeBeginRoundSetupTime);
 	CreateNative("L4D_ResetMobTimer",								Native_ResetMobTimer);
 	CreateNative("L4D_GetPlayerSpawnTime",							Native_GetPlayerSpawnTime);
-	CreateNative("L4D_GetVersusMaxCompletionScore",					Native_GetVersusMaxCompletionScore);
-	CreateNative("L4D_SetVersusMaxCompletionScore",					Native_SetVersusMaxCompletionScore);
 	CreateNative("L4D_GetTeamScore",								Native_GetTeamScore);
 	CreateNative("L4D_GetMobSpawnTimerRemaining",					Native_GetMobSpawnTimerRemaining);
 	CreateNative("L4D_GetMobSpawnTimerDuration",					Native_GetMobSpawnTimerDuration);
@@ -1371,6 +1385,9 @@ public void OnPluginStart()
 
 		g_hDecayDecay = FindConVar("pain_pills_decay_rate");
 		g_hPillsHealth = FindConVar("pain_pills_health_value");
+	} else {
+		g_hMPGameMode = FindConVar("mp_gamemode");
+		g_hMPGameMode.AddChangeHook(ConVarChanged_Mode);
 	}
 
 	g_hCvarRescueDeadTime = FindConVar("rescue_min_dead_time");
@@ -1418,6 +1435,7 @@ public void Event_RoundStart(Event event, const char[] name, bool dontBroadcast)
 public void OnMapEnd()
 {
 	g_bMapStarted = false;
+	g_iMaxChapters = 0;
 
 	// Reset hooks
 	g_iHookedClients.Clear();
@@ -1928,7 +1946,7 @@ void MatchZombie(Handle clients, int zombieClass)
 
 
 // ====================================================================================================
-//										DISABLE ADDONS
+//										CLEAN UP
 // ====================================================================================================
 public void OnPluginEnd()
 {
@@ -1989,6 +2007,17 @@ public void OnConfigsExecuted()
 		ConVarChanged_Cvars(null, "", "");
 }
 
+public void ConVarChanged_Mode(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	// Want to rescan max chapters on mode change
+	g_iMaxChapters = 0;
+}
+
+
+
+// ====================================================================================================
+//										DISABLE ADDONS
+// ====================================================================================================
 bool g_bAddonsPatched;
 
 public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
@@ -2572,6 +2601,17 @@ void LoadGameData()
 		}
 	}
 
+	StartPrepSDKCall(SDKCall_Static);
+	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorGameRules::GetMissionInfo") == false )
+	{
+		LogError("Failed to find signature: CTerrorGameRules::GetMissionInfo");
+	} else {
+		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+		g_hSDK_Call_GetMissionInfo = EndPrepSDKCall();
+		if( g_hSDK_Call_GetMissionInfo == null )
+			LogError("Failed to create SDKCall: CTerrorGameRules::GetMissionInfo");
+	}
+
 
 
 	// =========================
@@ -2951,9 +2991,20 @@ void LoadGameData()
 		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
 		PrepSDKCall_SetReturnInfo(SDKType_String, SDKPass_Pointer);
-		SDK_KV_GetString = EndPrepSDKCall();
-		if( SDK_KV_GetString == null )
+		g_hSDK_Call_KV_GetString = EndPrepSDKCall();
+		if( g_hSDK_Call_KV_GetString == null )
 			SetFailState("Could not prep the \"KeyValues::GetString\" function.");
+	}
+
+	if( g_bLeft4Dead2 )
+	{
+		StartPrepSDKCall(SDKCall_GameRules);
+		if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "GetNumChaptersForMissionAndMode") == false )
+			SetFailState("Could not load the \"GetNumChaptersForMissionAndMode\" gamedata signature.");
+		PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+		g_hSDK_Call_GetMaxChapters = EndPrepSDKCall();
+		if( g_hSDK_Call_GetMaxChapters == null )
+			SetFailState("Could not prep the \"GetNumChaptersForMissionAndMode\" function.");
 	}
 
 	StartPrepSDKCall(SDKCall_GameRules);
@@ -3767,6 +3818,9 @@ void LoadGameData()
 	m_flow = hGameData.GetOffset("m_flow");
 	ValidateOffset(m_flow, "m_flow");
 
+	m_chapter = hGameData.GetOffset("m_chapter");
+	ValidateOffset(m_chapter, "m_chapter");
+
 	m_PendingMobCount = hGameData.GetOffset("m_PendingMobCount");
 	ValidateOffset(m_PendingMobCount, "m_PendingMobCount");
 
@@ -3775,6 +3829,9 @@ void LoadGameData()
 
 	m_rescueCheckTimer = hGameData.GetOffset("m_rescueCheckTimer");
 	ValidateOffset(m_rescueCheckTimer, "m_rescueCheckTimer");
+
+	VersusMaxCompletionScore = hGameData.GetOffset("VersusMaxCompletionScore");
+	ValidateOffset(VersusMaxCompletionScore, "VersusMaxCompletionScore");
 
 
 
@@ -3793,9 +3850,6 @@ void LoadGameData()
 
 		OnBeginRoundSetupTime = hGameData.GetOffset("OnBeginRoundSetupTime");
 		ValidateOffset(OnBeginRoundSetupTime, "OnBeginRoundSetupTime");
-
-		VersusMaxCompletionScore = hGameData.GetOffset("VersusMaxCompletionScore");
-		ValidateOffset(VersusMaxCompletionScore, "VersusMaxCompletionScore");
 
 		m_iTankCount = hGameData.GetOffset("m_iTankCount");
 		ValidateOffset(m_iTankCount, "m_iTankCount");
@@ -3886,9 +3940,11 @@ void LoadGameData()
 	PrintToServer("InvulnerabilityTimer = %d", InvulnerabilityTimer);
 	PrintToServer("m_iTankTickets = %d", m_iTankTickets);
 	PrintToServer("m_flow = %d", m_flow);
+	PrintToServer("m_chapter = %d", m_chapter);
 	PrintToServer("m_PendingMobCount = %d", m_PendingMobCount);
 	PrintToServer("m_fMapMaxFlowDistance = %d", m_fMapMaxFlowDistance);
 	PrintToServer("m_rescueCheckTimer = %d", m_rescueCheckTimer);
+	PrintToServer("VersusMaxCompletionScore = %d", VersusMaxCompletionScore);
 
 	if( g_bLeft4Dead2 )
 	{
@@ -3897,7 +3953,6 @@ void LoadGameData()
 		PrintToServer("SpawnTimer = %d", SpawnTimer);
 		PrintToServer("MobSpawnTimer = %d", MobSpawnTimer);
 		PrintToServer("OnBeginRoundSetupTime = %d", OnBeginRoundSetupTime);
-		PrintToServer("VersusMaxCompletionScore = %d", VersusMaxCompletionScore);
 		PrintToServer("m_iTankCount = %d", m_iTankCount);
 		PrintToServer("m_iWitchCount = %d", m_iWitchCount);
 		PrintToServer("OvertimeGraceTimer = %d", OvertimeGraceTimer);
@@ -4458,23 +4513,41 @@ public int Native_RestartScenarioFromVote(Handle plugin, int numParams)
 
 public int Native_GetVersusMaxCompletionScore(Handle plugin, int numParams)
 {
-	if( !g_bLeft4Dead2 ) ThrowNativeError(SP_ERROR_NOT_RUNNABLE, "\n==========\nThis Native is only supported in L4D2.\nPlease fix the code to avoid calling this native from L4D1.\n==========");
-
 	ValidateAddress(g_pGameRules, "g_pGameRules");
 	ValidateAddress(VersusMaxCompletionScore, "VersusMaxCompletionScore");
 
-	return LoadFromAddress(g_pGameRules + view_as<Address>(VersusMaxCompletionScore), NumberType_Int32);
+	if( g_bLeft4Dead2 )
+	{
+		return LoadFromAddress(g_pGameRules + view_as<Address>(VersusMaxCompletionScore), NumberType_Int32);
+	}
+	else
+	{
+		ValidateAddress(m_chapter, "m_chapter");
+
+		int chapter = LoadFromAddress(g_pDirector + view_as<Address>(m_chapter), NumberType_Int32);
+		return LoadFromAddress(g_pGameRules + view_as<Address>(chapter * 4 + VersusMaxCompletionScore), NumberType_Int32);
+	}
 }
 
 public int Native_SetVersusMaxCompletionScore(Handle plugin, int numParams)
 {
-	if( !g_bLeft4Dead2 ) ThrowNativeError(SP_ERROR_NOT_RUNNABLE, "\n==========\nThis Native is only supported in L4D2.\nPlease fix the code to avoid calling this native from L4D1.\n==========");
-
 	ValidateAddress(g_pGameRules, "g_pGameRules");
 	ValidateAddress(VersusMaxCompletionScore, "VersusMaxCompletionScore");
 
 	int value = GetNativeCell(1);
-	StoreToAddress(g_pGameRules + view_as<Address>(VersusMaxCompletionScore), value, NumberType_Int32);
+
+	if( g_bLeft4Dead2 )
+	{
+		StoreToAddress(g_pGameRules + view_as<Address>(VersusMaxCompletionScore), value, NumberType_Int32);
+	}
+	else
+	{
+		ValidateAddress(m_chapter, "m_chapter");
+
+		int chapter = LoadFromAddress(g_pDirector + view_as<Address>(m_chapter), NumberType_Int32);
+		StoreToAddress(g_pGameRules + view_as<Address>(chapter * 4 + VersusMaxCompletionScore), value, NumberType_Int32);
+	}
+
 	return 0;
 }
 
@@ -4529,7 +4602,7 @@ public int Native_IsFirstMapInScenario(Handle plugin, int numParams)
 
 	if( !g_bLeft4Dead2 )
 	{
-		ValidateNatives(SDK_KV_GetString, "SDK_KV_GetString");
+		ValidateNatives(g_hSDK_Call_KV_GetString, "g_hSDK_Call_KV_GetString");
 		static char sMap[64], check[64];
 
 		/*
@@ -4577,8 +4650,8 @@ public int Native_IsFirstMapInScenario(Handle plugin, int numParams)
 
 		if( keyvalue )
 		{
-			//PrintToServer("#### CALL SDK_KV_GetString");
-			SDKCall(SDK_KV_GetString, keyvalue, check, sizeof(check), "map", "N/A");
+			//PrintToServer("#### CALL g_hSDK_Call_KV_GetString");
+			SDKCall(g_hSDK_Call_KV_GetString, keyvalue, check, sizeof(check), "map", "N/A");
 
 			GetCurrentMap(sMap, sizeof(sMap));
 			return strcmp(sMap, check) == 0;
@@ -5296,11 +5369,65 @@ public int Native_GetWitchCount(Handle plugin, int numParams)
 	return val;
 }
 
+public int Native_GetCurrentChapter(Handle plugin, int numParams)
+{
+	ValidateAddress(m_chapter, "m_chapter");
+
+	return LoadFromAddress(g_pDirector + view_as<Address>(m_chapter), NumberType_Int32) + 1;
+}
+
+public int Native_GetMaxChapters(Handle plugin, int numParams)
+{
+	if( g_bLeft4Dead2 )
+	{
+		ValidateNatives(g_hSDK_Call_GetMaxChapters, "g_hSDK_Call_GetMaxChapters");
+
+		//PrintToServer("#### CALL g_hSDK_Call_GetMaxChapters");
+		return SDKCall(g_hSDK_Call_GetMaxChapters);
+	} else {
+		if( g_iMaxChapters == 0 )
+		{
+			ValidateNatives(g_hSDK_Call_KV_GetString, "g_hSDK_Call_KV_GetString");
+			ValidateNatives(g_hSDK_Call_GetMissionInfo, "g_hSDK_Call_GetMissionInfo");
+
+			//PrintToServer("#### CALL g_hSDK_Call_GetMissionInfo");
+			int infoPointer = SDKCall(g_hSDK_Call_GetMissionInfo);
+
+			char sMode[64];
+			char sTemp[64];
+			char sRet[64];
+			g_hMPGameMode.GetString(sMode, sizeof(sMode));
+
+			int index = 1;
+			while( index < 20 )
+			{
+				Format(sTemp, sizeof(sTemp), "modes/%s/%d/Map", sMode, index);
+
+				// PrintToServer("#### CALL g_hSDK_Call_KV_GetString");
+				SDKCall(g_hSDK_Call_KV_GetString, infoPointer, sRet, sizeof(sRet), sTemp, "");
+
+				if( strcmp(sRet, "") == 0 )
+				{
+					g_iMaxChapters = index - 1;
+					return g_iMaxChapters;
+				}
+
+				index++;
+			}
+		} else {
+			return g_iMaxChapters;
+		}
+	}
+
+	return 0;
+}
+
 public int Native_IsFinaleEscapeInProgress(Handle plugin, int numParams)
 {
 	ValidateNatives(g_hSDK_Call_IsFinaleEscapeInProgress, "g_hSDK_Call_IsFinaleEscapeInProgress");
 	ValidateAddress(g_pDirector, "g_pDirector");
 
+	//PrintToServer("#### CALL g_hSDK_Call_IsFinaleEscapeInProgress");
 	return SDKCall(g_hSDK_Call_IsFinaleEscapeInProgress, g_pDirector);
 }
 
@@ -5311,6 +5438,7 @@ public int Native_SetHumanSpec(Handle plugin, int numParams)
 	int bot = GetNativeCell(1);
 	int client = GetNativeCell(2);
 
+	//PrintToServer("#### CALL g_hSDK_Call_SetHumanSpec");
 	return SDKCall(g_hSDK_Call_SetHumanSpec, bot, client);
 }
 
@@ -5320,6 +5448,7 @@ public int Native_TakeOverBot(Handle plugin, int numParams)
 
 	int client = GetNativeCell(1);
 
+	//PrintToServer("#### CALL g_hSDK_Call_TakeOverBot");
 	return SDKCall(g_hSDK_Call_TakeOverBot, client, true);
 }
 
@@ -5329,6 +5458,7 @@ public int Native_CanBecomeGhost(Handle plugin, int numParams)
 
 	int client = GetNativeCell(1);
 
+	//PrintToServer("#### CALL g_hSDK_Call_CanBecomeGhost");
 	return SDKCall(g_hSDK_Call_CanBecomeGhost, client, true);
 }
 
@@ -5339,6 +5469,7 @@ public int Native_AreWanderersAllowed(Handle plugin, int numParams)
 	ValidateNatives(g_hSDK_Call_AreWanderersAllowed, "g_hSDK_Call_AreWanderersAllowed");
 	ValidateAddress(g_pDirector, "g_pDirector");
 
+	//PrintToServer("#### CALL g_hSDK_Call_AreWanderersAllowed");
 	return SDKCall(g_hSDK_Call_AreWanderersAllowed, g_pDirector);
 }
 

@@ -1,11 +1,14 @@
 #pragma semicolon 1
 #include <sourcemod>
 #include <sdktools>
+#include <sdkhooks>
 #include <adminmenu>
 #include <regex>
 
 #define PLUGIN_VERSION			"0.0.1"
-#include "modules/l4d2ps.sp"
+#define CVAR_FLAGS				FCVAR_NONE
+#define IsValidClient(%1) 		((1 <= %1 <= MaxClients) && IsClientInGame(%1))
+#define IsValidAliveClient(%1)	(IsValidClient(%1) && IsPlayerAlive(%1))
 
 public Plugin myinfo =
 {
@@ -22,7 +25,6 @@ ConVar g_cvExpP, g_cvExpB, g_cvExpM, g_cvMaxLevel, g_cvMaxSklLevel, g_cvPoint, g
 
 public OnPluginStart()
 {
-	InitPlugin("sf");
 	g_cvExpP = CreateConVar("l4d2_sf_exp_p", "1.95", "等级参数P(技能升级经验=M*技能等级^P+B)", CVAR_FLAGS, true, 0.0, true, 5.0);
 	g_cvExpB = CreateConVar("l4d2_sf_exp_b", "75", "等级参数B(升级经验=M*上一级经验+B+M*等级)", CVAR_FLAGS, true, 0.0, true, 500.0);
 	g_cvExpM = CreateConVar("l4d2_sf_exp_m", "25", "等级参数M(升级经验=M*上一级经验+B+M*等级)", CVAR_FLAGS, true, 0.0, true, 250.0);
@@ -55,6 +57,7 @@ public OnPluginStart()
 	
 	RegConsoleCmd("sm_skill", Cmd_SkillMenu, "");
 	RegConsoleCmd("sm_rpg", Cmd_SkillMenu, "");
+	RegConsoleCmd("sm_lv", Cmd_SkillMenu, "");
 	
 	// HookEventEx("player_spawn", Event_PlayerSpawn);
 	// HookEventEx("player_first_spawn", Event_PlayerSpawn);
@@ -104,6 +107,63 @@ public void OnConVarChanged_ConnectDatabase(ConVar cvar, const char[] oldValue, 
 	*/
 	
 	Database.Connect(ConnectResult_Init, newValue);
+}
+
+stock char tr(const char[] text, any ...)
+{
+	char buffer[255];
+	VFormat(buffer, 255, text, 2);
+	return buffer;
+}
+
+stock bool CheatCommand(int client = 0, const char[] command, const char[] arguments = "", any ...)
+{
+	char fmt[1024];
+	VFormat(fmt, 1024, arguments, 4);
+
+	int cmdFlags = GetCommandFlags(command);
+	SetCommandFlags(command, cmdFlags & ~FCVAR_CHEAT);
+
+	if(IsValidClient(client))
+	{
+		int adminFlags = GetUserFlagBits(client);
+		SetUserFlagBits(client, ADMFLAG_ROOT);
+		FakeClientCommand(client, "%s \"%s\"", command, fmt);
+		SetUserFlagBits(client, adminFlags);
+	}
+	else
+	{
+		ServerCommand("%s \"%s\"", command, fmt);
+	}
+
+	SetCommandFlags(command, cmdFlags);
+
+	return true;
+}
+
+stock bool CheatCommandEx(int client = 0, const char[] command, const char[] arguments = "", any ...)
+{
+	char fmt[1024];
+	VFormat(fmt, 1024, arguments, 4);
+
+	int cmdFlags = GetCommandFlags(command);
+	SetCommandFlags(command, cmdFlags & ~FCVAR_CHEAT);
+
+	if(IsValidClient(client))
+	{
+		int adminFlags = GetUserFlagBits(client);
+		SetUserFlagBits(client, ADMFLAG_ROOT);
+		FakeClientCommand(client, "%s %s", command, fmt);
+		SetUserFlagBits(client, adminFlags);
+	}
+	else
+	{
+		ServerCommand("%s %s", command, fmt);
+	}
+
+	SetCommandFlags(command, cmdFlags);
+
+	return true;
 }
 
 public void ConnectResult_Init(Database db, const char[] error, any data)

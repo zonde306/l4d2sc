@@ -577,7 +577,7 @@ SelectImprovedTarget()
 	
 	if (!g_hEnabled || !LeftSafeRoom) return; // Select targets when left the safe area.
 	
-	EmitSoundToAll(SOUND_SELECT, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 0.5); // Selected Sound
+	// EmitSoundToAll(SOUND_SELECT, SOUND_FROM_PLAYER, SNDCHAN_AUTO, SNDLEVEL_NORMAL, SND_NOFLAGS, 0.5); // Selected Sound
 	
 	decl String:bufferChat[512];
 	decl String:bufferHintText[512];
@@ -636,8 +636,8 @@ SelectImprovedTarget()
 		}
 	}
 	
-	PrintToChatAll(bufferChat);
-	PrintHintTextToAll(bufferHintText);
+	// PrintToChatAll(bufferChat);
+	// PrintHintTextToAll(bufferHintText);
 }
 
 public Action:Timer_ShoveChance(Handle:Timer)

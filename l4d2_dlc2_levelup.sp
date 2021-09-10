@@ -117,88 +117,89 @@ int g_clSkill_1[MAXPLAYERS+1], g_clSkill_2[MAXPLAYERS+1], g_clSkill_3[MAXPLAYERS
 
 enum()
 {
-	SKL_1_MaxHealth = 1,
-	SKL_1_Movement = 2,
-	SKL_1_ReviveHealth = 4,
-	SKL_1_DmgExtra = 8,
-	SKL_1_MagnumInf = 16,
-	SKL_1_Gravity = 32,
-	SKL_1_Firendly = 64,
-	SKL_1_RapidFire = 128,
-	SKL_1_Armor = 256,
-	SKL_1_NoRecoil = 512,
-	SKL_1_KeepClip = 1024,
-	SKL_1_ReviveBlock = 2048,
-	SKL_1_DisplayHealth = 4096,
-	SKL_1_MultiUpgrade = 8192,
-	SKL_1_Button = 16384,
+	SKL_1_MaxHealth = (1 << 0),
+	SKL_1_Movement = (1 << 1),
+	SKL_1_ReviveHealth = (1 << 2),
+	SKL_1_DmgExtra = (1 << 3),
+	SKL_1_MagnumInf = (1 << 4),
+	SKL_1_Gravity = (1 << 5),
+	SKL_1_Firendly = (1 << 6),
+	SKL_1_RapidFire = (1 << 7),
+	SKL_1_Armor = (1 << 8),
+	SKL_1_NoRecoil = (1 << 9),
+	SKL_1_KeepClip = (1 << 10),
+	SKL_1_ReviveBlock = (1 << 11),
+	SKL_1_DisplayHealth = (1 << 12),
+	SKL_1_MultiUpgrade = (1 << 13),
+	SKL_1_Button = (1 << 14),
+	SKL_1_GettingUP = (1 << 15),
 
-	SKL_2_Chainsaw = 1,
-	SKL_2_Excited = 2,
-	SKL_2_PainPills = 4,
-	SKL_2_FullHealth = 8,
-	SKL_2_Defibrillator = 16,
-	SKL_2_HealBouns = 32,
-	SKL_2_PipeBomb = 64,
-	SKL_2_SelfHelp = 128,
-	SKL_2_Defensive = 256,
-	SKL_2_DoubleJump = 512,
-	SKL_2_ProtectiveSuit = 1024,
-	SKL_2_Magnum = 2048,
-	SKL_2_LadderRambos = 4096,
-	SKL_2_IncapCrawling = 8192,
-	SKL_2_ShoveFatigue = 16384,
+	SKL_2_Chainsaw = (1 << 0),
+	SKL_2_Excited = (1 << 1),
+	SKL_2_PainPills = (1 << 2),
+	SKL_2_FullHealth = (1 << 3),
+	SKL_2_Defibrillator = (1 << 4),
+	SKL_2_HealBouns = (1 << 5),
+	SKL_2_PipeBomb = (1 << 6),
+	SKL_2_SelfHelp = (1 << 7),
+	SKL_2_Defensive = (1 << 8),
+	SKL_2_DoubleJump = (1 << 9),
+	SKL_2_ProtectiveSuit = (1 << 10),
+	SKL_2_Magnum = (1 << 11),
+	SKL_2_LadderRambos = (1 << 12),
+	SKL_2_IncapCrawling = (1 << 13),
+	SKL_2_ShoveFatigue = (1 << 14),
 
-	SKL_3_Sacrifice = 1,
-	SKL_3_Respawn = 2,
-	SKL_3_IncapFire = 4,
-	SKL_3_ReviveBonus = 8,
-	SKL_3_Freeze = 16,
-	SKL_3_Kickback = 32,
-	SKL_3_GodMode = 64,
-	SKL_3_SelfHeal = 128,
-	SKL_3_BunnyHop = 256,
-	SKL_3_Parachute = 512,
-	SKL_3_MoreAmmo = 1024,
-	SKL_3_TempSanctuary = 2048,
-	SKL_3_Ricochet = 4096,
-	SKL_3_Accurate = 8192,
-	SKL_3_Cure = 16384,
-	SKL_3_Minigun = 32768,
+	SKL_3_Sacrifice = (1 << 0),
+	SKL_3_Respawn = (1 << 1),
+	SKL_3_IncapFire = (1 << 2),
+	SKL_3_ReviveBonus = (1 << 3),
+	SKL_3_Freeze = (1 << 4),
+	SKL_3_Kickback = (1 << 5),
+	SKL_3_GodMode = (1 << 6),
+	SKL_3_SelfHeal = (1 << 7),
+	SKL_3_BunnyHop = (1 << 8),
+	SKL_3_Parachute = (1 << 9),
+	SKL_3_MoreAmmo = (1 << 10),
+	SKL_3_TempSanctuary = (1 << 11),
+	SKL_3_Ricochet = (1 << 12),
+	SKL_3_Accurate = (1 << 13),
+	SKL_3_Cure = (1 << 14),
+	SKL_3_Minigun = (1 << 15),
 
-	SKL_4_ClawHeal = 1,
-	SKL_4_DmgExtra = 2,
-	SKL_4_DuckShover = 4,
-	SKL_4_FastFired = 8,
-	SKL_4_SniperExtra = 16,
-	SKL_4_FastReload = 32,
-	SKL_4_MachStrafe = 64,
-	SKL_4_MoreDmgExtra = 128,
-	SKL_4_Defensive = 256,
-	SKL_4_ClipSize = 512,
-	SKL_4_Shove = 1024,
-	SKL_4_TempRespite = 2048,
-	SKL_4_Terror = 4096,
-	SKL_4_ReviveCount = 8192,
-	SKL_4_MeleeExtra = 16384,
+	SKL_4_ClawHeal = (1 << 0),
+	SKL_4_DmgExtra = (1 << 1),
+	SKL_4_DuckShover = (1 << 2),
+	SKL_4_FastFired = (1 << 3),
+	SKL_4_SniperExtra = (1 << 4),
+	SKL_4_FastReload = (1 << 5),
+	SKL_4_MachStrafe = (1 << 6),
+	SKL_4_MoreDmgExtra = (1 << 7),
+	SKL_4_Defensive = (1 << 8),
+	SKL_4_ClipSize = (1 << 9),
+	SKL_4_Shove = (1 << 10),
+	SKL_4_TempRespite = (1 << 11),
+	SKL_4_Terror = (1 << 12),
+	SKL_4_ReviveCount = (1 << 13),
+	SKL_4_MeleeExtra = (1 << 14),
 
-	SKL_5_FireBullet = 1,
-	SKL_5_ExpBullet = 2,
-	SKL_5_RetardBullet = 4,
-	SKL_5_DmgExtra = 8,
-	SKL_5_Vampire = 16,
-	SKL_5_InfAmmo = 32,
-	SKL_5_Overkill = 64,
-	SKL_5_RocketDude = 128,
-	SKL_5_ClipHold = 256,
-	SKL_5_Sneak = 512,
-	SKL_5_MeleeRange = 1024,
-	SKL_5_ShoveRange = 2048,
-	SKL_5_TempRegen = 4096,
-	SKL_5_Resurrect = 8192,
-	SKL_5_Lethal = 16384,	// 
-	SKL_5_Machine = 32768,	// 
-	SKL_5_Robot = 65536,	// 
+	SKL_5_FireBullet = (1 << 0),
+	SKL_5_ExpBullet = (1 << 1),
+	SKL_5_RetardBullet = (1 << 2),
+	SKL_5_DmgExtra = (1 << 3),
+	SKL_5_Vampire = (1 << 4),
+	SKL_5_InfAmmo = (1 << 5),
+	SKL_5_Overkill = (1 << 6),
+	SKL_5_RocketDude = (1 << 7),
+	SKL_5_ClipHold = (1 << 8),
+	SKL_5_Sneak = (1 << 9),
+	SKL_5_MeleeRange = (1 << 10),
+	SKL_5_ShoveRange = (1 << 11),
+	SKL_5_TempRegen = (1 << 12),
+	SKL_5_Resurrect = (1 << 13),
+	SKL_5_Lethal = (1 << 14),
+	SKL_5_Machine = (1 << 15),
+	SKL_5_Robot = (1 << 16),
 };
 
 new g_ttTankKilled		= 0;
@@ -4152,6 +4153,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("「察觉」显示血量/伤害",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_MultiUpgrade), mps("「耐用」弹药包叠加/补充子弹",(g_clSkill_1[client]&SKL_1_MultiUpgrade)));
 	menu.AddItem(tr("1_%d",SKL_1_Button), mps("「巨力」开机关时间减少2/3",(g_clSkill_1[client]&SKL_1_Button)));
+	menu.AddItem(tr("1_%d",SKL_1_GettingUP), mps("「复苏」起身/失衡时免疫伤害",(g_clSkill_1[client]&SKL_1_GettingUP)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6523,6 +6525,15 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 			EmitAmbientSound(SOUND_STEEL, damagePosition, victim, SNDLEVEL_HOME);
 		*/
 		
+		damage = 0.0;
+		return Plugin_Changed;
+	}
+	
+	if((g_clSkill_1[victim] & SKL_1_GettingUP) && GetClientTeam(victim) == 2 &&
+		!GetEntProp(victim, Prop_Send, "m_isIncapacitated") &&
+		!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge") &&
+		GetCurrentAttacker(victim) == -1 && (IsGettingUp(victim) || IsStaggering(victim)))
+	{
 		damage = 0.0;
 		return Plugin_Changed;
 	}
@@ -16229,6 +16240,20 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 	SetVariantString("OnUser1 !self:Kill::1:1");
 	AcceptEntityInput(entity, "AddOutput", attacker, entity);
 	AcceptEntityInput(entity, "FireUser1", attacker, entity);
+}
+
+stock bool IsGettingUp(int client)
+{
+	char result[64];
+	L4D2_GetVScriptOutput(tr("PlayerInstanceFromIndex(%d).IsGettingUp()", client), result, sizeof(result));
+	return !strcmp(result, "true");
+}
+
+stock bool IsStaggering(int client)
+{
+	char result[64];
+	L4D2_GetVScriptOutput(tr("PlayerInstanceFromIndex(%d).IsStaggering()", client), result, sizeof(result));
+	return !strcmp(result, "true");
 }
 
 stock int GetPlayerTempHealth(int client)

@@ -1334,39 +1334,45 @@ public void ConVarChaged_Concept(ConVar cvar, const char[] oldValue, const char[
 		int state = StringToInt(buffer[1]);
 		if(cvar == g_pCvarInCombat)
 		{
-			if(g_iIsInCombat[client] != state)
+			/*
+			if(g_iIsInCombat[client] != state && g_pCvarAllow.BoolValue)
 			{
 				if(state)
 					PrintCenterText(client, "***进入战斗状态***");
 				else
 					PrintCenterText(client, "***离开战斗状态***");
 			}
+			*/
 			
 			g_iIsInCombat[client] = state;
 			// PrintToServer("client %N state incombat is %d", client, state);
 		}
 		else if(cvar == g_pCvarSneaking)
 		{
-			if(g_iIsSneaking[client] != state)
+			/*
+			if(g_iIsSneaking[client] != state && g_pCvarAllow.BoolValue)
 			{
 				if(state)
 					PrintCenterText(client, "***进入潜行状态***");
 				else
 					PrintCenterText(client, "***离开潜行状态***");
 			}
+			*/
 			
 			g_iIsSneaking[client] = state;
 			// PrintToServer("client %N state sneaking is %d", client, state);
 		}
 		else if(cvar == g_pCvarInBattlefield)
 		{
-			if(g_iIsInBattlefield[client] != state)
+			/*
+			if(g_iIsInBattlefield[client] != state && g_pCvarAllow.BoolValue)
 			{
 				if(state)
 					PrintCenterText(client, "***进入战场***");
 				else
 					PrintCenterText(client, "***离开战场***");
 			}
+			*/
 			
 			g_iIsInBattlefield[client] = state;
 			// PrintToServer("client %N state inbattlefield is %d", client, state);

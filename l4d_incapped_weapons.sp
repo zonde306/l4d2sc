@@ -113,7 +113,7 @@ StringMap g_aWeaponIDs;
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Incapped Weapons Patch",
+	name = "倒地切换武器",
 	author = "SilverShot",
 	description = "Patches the game to allow using Weapons while Incapped, instead of changing weapons scripts.",
 	version = PLUGIN_VERSION,
@@ -133,7 +133,25 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	}
 
 	g_bLateLoad = late;
+	
+	RegPluginLibrary("incapweapon_helpers");
+	CreateNative("IncapWeapon_SetAllowedClient", Native_IncapWeapon_SetAllowedClient);
+	
 	return APLRes_Success;
+}
+
+bool g_bAllowedClient[MAXPLAYERS+1];
+
+public int Native_IncapWeapon_SetAllowedClient(Handle plugin, int numParams)
+{
+	if(numParams < 2)
+		ThrowNativeError(SP_ERROR_PARAM, "Invalid numParams");
+	
+	int client = GetNativeCell(1);
+	bool allow = GetNativeCell(2);
+	bool old = g_bAllowedClient[client];
+	g_bAllowedClient[client] = allow;
+	return view_as<int>(old);
 }
 
 public void OnAllPluginsLoaded()
@@ -218,9 +236,9 @@ public void OnPluginStart()
 	g_hCvarModesTog =	CreateConVar(	"l4d_incapped_weapons_modes_tog",		"0",					"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
 	if( g_bLeft4Dead2 )
 	{
-		g_hCvarMelee =	CreateConVar(	"l4d_incapped_weapons_melee",			"0",					"L4D2 only: 0=No friendly fire. 1=Allow friendly fire. When using Melee weapons should they hurt other Survivors.", CVAR_FLAGS);
-		g_hCvarPist =	CreateConVar(	"l4d_incapped_weapons_pistol",			"0",					"L4D2 only: 0=Don't give pistol (allows Melee weapons to be used). 1=Give pistol (game default).", CVAR_FLAGS);
-		g_hCvarRest =	CreateConVar(	"l4d_incapped_weapons_restrict",		"12,15,23,24,30,31",	"Empty string to allow all. Prevent these weapon/item IDs from being used while incapped. See plugin post for details.", CVAR_FLAGS);
+		g_hCvarMelee =	CreateConVar(	"l4d_incapped_weapons_melee",			"0",					"倒地后是否能攻击队友", CVAR_FLAGS);
+		g_hCvarPist =	CreateConVar(	"l4d_incapped_weapons_pistol",			"1",					"倒地后是否把近战换成手枪", CVAR_FLAGS);
+		g_hCvarRest =	CreateConVar(	"l4d_incapped_weapons_restrict",		"12,15,23,24,30,31",	"倒地禁止使用的武器,具体看帖子", CVAR_FLAGS);
 	} else {
 		g_hCvarRest =	CreateConVar(	"l4d_incapped_weapons_restrict",		"8,12",					"Empty string to allow all. Prevent these weapon/item IDs from being used while incapped. See plugin post for details.", CVAR_FLAGS);
 	}
@@ -543,6 +561,48 @@ public void Event_Incapped(Event event, const char[] name, bool dontBroadcast)
 	}
 }
 
+public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon,
+	int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
+{
+	if(!g_bAllowedClient[client] && GetClientTeam(client) == 2 && GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
+	{
+		// 强制使用副武器
+		int slot = GetPlayerWeaponSlot(client, 1);
+		if(slot > MaxClients && weapon != slot)
+		{
+			weapon = slot;
+			return Plugin_Changed;
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
+stock bool CheatCommand(int client, const char[] command, const char[] arguments = "", any ...)
+{
+	char fmt[1024];
+	VFormat(fmt, 1024, arguments, 4);
+
+	int cmdFlags = GetCommandFlags(command);
+	SetCommandFlags(command, cmdFlags & ~FCVAR_CHEAT);
+
+	if(IsClientInGame(client))
+	{
+		int adminFlags = GetUserFlagBits(client);
+		SetUserFlagBits(client, ADMFLAG_ROOT);
+		FakeClientCommand(client, "%s \"%s\"", command, fmt);
+		SetUserFlagBits(client, adminFlags);
+	}
+	else
+	{
+		ServerCommand("%s \"%s\"", command, fmt);
+	}
+
+	SetCommandFlags(command, cmdFlags);
+
+	return true;
+}
+
 bool ValidateWeapon(int client, int weapon)
 {
 	static char classname[32];
@@ -669,6 +729,10 @@ Action CanSwitchTo(int client, int weapon)
 
 	if( index == 0 || g_aRestrict.FindValue(index) != -1 )
 		return Plugin_Handled;
+	
+	if(!g_bAllowedClient[client] && StrContains(classname, "pistol", false) == -1)
+		return Plugin_Handled;
+	
 	return Plugin_Continue;
 }
 

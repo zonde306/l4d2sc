@@ -472,6 +472,7 @@ enum struct EquipData_t {
 	int gravity;			// 跳跃高度加成
 	int crit;				// 暴击率加成
 	int effect;				// 装备附魔效果，参考 RebuildEquipStr 里的定义
+	int ID;					// 数据库使用的ID，存档用
 	
 	// 字符串(仅显示用)
 	// 一个utf8字符大概需要4字节，末尾还要加一个字节存放\0
@@ -547,6 +548,9 @@ float g_fWeaponSpeedUpdate[MAXPLAYERS+1];
 int g_iWeaponSpeedTotal = 0;
 bool g_bIsPluginCrawling = false;
 
+Database g_Database = null;
+int g_iUserID[MAXPLAYERS+1];
+
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
 	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath, g_pCvarReimburse,
 	g_pCvarSurvivorBot, g_pCvarInfectedBot, g_pCvarEquipment, g_pCvarGiveEquipment;
@@ -562,7 +566,7 @@ ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hC
 int g_iCommonHealth = 50;
 bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS,
-	g_pCvarSaveStatus, g_pCvarBotRP, g_pCvarBotBuy;
+	g_pCvarSaveStats, g_pCvarBotRP, g_pCvarBotBuy;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
 Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null;
 GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
@@ -808,7 +812,7 @@ public OnPluginStart()
 	g_pCvarRE = CreateConVar("lv_enable_re", "1", "是否开启天启功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarAS = CreateConVar("lv_enable_as", "1", "是否开启怒气技功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_pCvarSaveStatus = CreateConVar("lv_save_status", "0", "保存奖励计数(进度)", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarSaveStats = CreateConVar("lv_save_stats", "0", "保存奖励计数(进度)", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarEquipment = CreateConVar("lv_enable_eq", "1", "是否开启装备功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "1", "是否为生还者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
 	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "1", "是否为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
@@ -1253,6 +1257,7 @@ public void OnConfigsExecuted()
 	// 检测倒地爬行插件
 	ConVar l4d2_crawling = FindConVar("l4d2_crawling");
 	g_bIsPluginCrawling = (l4d2_crawling != null && l4d2_crawling.BoolValue);
+	Database.Connect(ConnectResult_Init, "storage-local");
 }
 
 public void OnPluginEnd()
@@ -1527,7 +1532,7 @@ public OnMapStart()
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileLoad(i, g_pCvarSaveStatus.BoolValue);
+		ClientSaveToFileLoad(i, g_pCvarSaveStats.BoolValue);
 		
 		if(IsValidAliveClient(i))
 			RegPlayerHook(i, false);
@@ -1650,7 +1655,7 @@ public OnMapEnd()
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
+		ClientSaveToFileSave(i, g_pCvarSaveStats.BoolValue);
 		OnEntityDestroyed(i);
 	}
 }
@@ -1666,7 +1671,7 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 	
 	for(new i = 1; i <= MaxClients; i++)
 	{
-		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
+		ClientSaveToFileSave(i, g_pCvarSaveStats.BoolValue);
 		// Initialization(i);
 		g_bHasFirstJoin[i] = false;
 		// g_bHasJumping[i] = false;
@@ -1764,7 +1769,7 @@ public void Event_FinaleVehicleLeaving(Event event, const char[] eventName, bool
 	for(int i = 1; i <= MaxClients; ++i)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
+		ClientSaveToFileSave(i, g_pCvarSaveStats.BoolValue);
 
 		if(IsValidAliveClient(i) && !GetEntProp(i, Prop_Send, "m_isIncapacitated") && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge"))
 		{
@@ -1785,7 +1790,7 @@ public Action:Event_MissionLost(Handle:event, String:event_name[], bool:dontBroa
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
-		ClientSaveToFileSave(i, g_pCvarSaveStatus.BoolValue);
+		ClientSaveToFileSave(i, g_pCvarSaveStats.BoolValue);
 	}
 	
 	RestoreConVar();
@@ -2362,6 +2367,7 @@ void Initialization(int client, bool invalid = false)
 	g_iIsInBattlefield[client] = 0;
 	g_iIsInCombat[client] = 0;
 	g_iIsSneaking[client] = 0;
+	g_iUserID[client] = 0;
 	Handle toDelete4 = g_hTimerMinigun[client];
 	g_hTimerMinigun[client] = null;
 	// g_bIgnorePreventStagger[client] = false;
@@ -2412,160 +2418,379 @@ void Initialization(int client, bool invalid = false)
 		KillTimer(toDelete4);
 }
 
-//读档
+public void QueryResult_Naked(Database db, DBResultSet results, const char[] error, any data)
+{
+	if(error[0] != EOS)
+	{
+		LogError("[l4d2_dlc2_levelup] 执行语句错误：%s", error);
+	}
+}
+
+public void ConnectResult_Init(Database db, const char[] error, any data)
+{
+	if(db != null)
+	{
+		char ident[8];
+		db.Driver.GetIdentifier(ident, sizeof(ident));
+		if(ident[0] == 'm')
+		{
+			// MySQL
+			db.SetCharset("utf8mb4");
+			db.Query(QueryResult_Naked,
+				"CREATE TABLE IF NOT EXISTS l4d2lv_core ("
+					..."id integer NOT NULL AUTO_INCREMENT,"
+					..."sid varchar(20) NOT NULL,"
+					..."power integer NOT NULL DEFAULT 0,"
+					..."deadline integer NOT NULL DEFAULT 0,"
+					..."points integer NOT NULL DEFAULT 0,"
+					..."skill_1 integer NOT NULL DEFAULT 0,"
+					..."skill_2 integer NOT NULL DEFAULT 0,"
+					..."skill_3 integer NOT NULL DEFAULT 0,"
+					..."skill_4 integer NOT NULL DEFAULT 0,"
+					..."skill_5 integer NOT NULL DEFAULT 0,"
+					..."angry_mode integer NOT NULL DEFAULT 0,"
+					..."valid tinyint UNSIGNED NOT NULL DEFAULT 0,"
+					..."eqm_0 integer DEFAULT NULL,"
+					..."eqm_1 integer DEFAULT NULL,"
+					..."eqm_2 integer DEFAULT NULL,"
+					..."eqm_3 integer DEFAULT NULL,"
+					..."PRIMARY KEY (id),"
+					..."UNIQUE INDEX steamid (sid) USING HASH"
+				...")"
+			);
+			db.Query(QueryResult_Naked,
+				"CREATE TABLE IF NOT EXISTS l4d2lv_inventory ("
+					..."id integer NOT NULL AUTO_INCREMENT,"
+					..."uid integer NOT NULL,"
+					..."prefix integer NOT NULL DEFAULT 0,"
+					..."parts integer NOT NULL DEFAULT 0,"
+					..."damage integer NOT NULL DEFAULT 0,"
+					..."health integer NOT NULL DEFAULT 0,"
+					..."speed integer NOT NULL DEFAULT 0,"
+					..."gravity integer NOT NULL DEFAULT 0,"
+					..."crit integer NOT NULL DEFAULT 0,"
+					..."effect integer NOT NULL DEFAULT 0,"
+					..."hashId integer NOT NULL DEFAULT 0,"
+					..."PRIMARY KEY (id),"
+					..."INDEX hashindex (hashId) USING BTREE,"
+					..."CONSTRAINT userid FOREIGN KEY (uid) REFERENCES l4d2lv_core (id) ON DELETE CASCADE ON UPDATE CASCADE"
+				...")"
+			);
+			db.Query(QueryResult_Naked,
+				"CREATE TABLE IF NOT EXISTS l4d2lv_stats ("
+					..."id integer NOT NULL AUTO_INCREMENT,"
+					..."uid integer NOT NULL,"
+					..."angry_point integer NOT NULL DEFAULT 0,"
+					..."defib_used integer NOT NULL DEFAULT 0,"
+					..."revived_count integer NOT NULL DEFAULT 0,"
+					..."si_killed integer NOT NULL DEFAULT 0,"
+					..."ci_killed integer NOT NULL DEFAULT 0,"
+					..."pills_given integer NOT NULL DEFAULT 0,"
+					..."team_protected integer NOT NULL DEFAULT 0,"
+					..."zone_cleared integer NOT NULL DEFAULT 0,"
+					..."painc_holdout integer NOT NULL DEFAULT 0,"
+					..."rescued_count integer NOT NULL DEFAULT 0,"
+					..."PRIMARY KEY (id),"
+					..."CONSTRAINT userid2 FOREIGN KEY (uid) REFERENCES l4d2lv_core (id) ON DELETE CASCADE ON UPDATE CASCADE"
+				...")"
+			);
+		}
+		else if(ident[0] == 's')
+		{
+			// SQLite
+			db.SetCharset("utf8");
+			db.Query(QueryResult_Naked,
+				"CREATE TABLE IF NOT EXISTS l4d2lv_core ("
+					..."id integer NOT NULL PRIMARY KEY AUTOINCREMENT,"
+					..."sid varchar(20) NOT NULL,"
+					..."power integer NOT NULL DEFAULT 0,"
+					..."deadline integer NOT NULL DEFAULT 0,"
+					..."points integer NOT NULL DEFAULT 0,"
+					..."skill_1 integer NOT NULL DEFAULT 0,"
+					..."skill_2 integer NOT NULL DEFAULT 0,"
+					..."skill_3 integer NOT NULL DEFAULT 0,"
+					..."skill_4 integer NOT NULL DEFAULT 0,"
+					..."skill_5 integer NOT NULL DEFAULT 0,"
+					..."angry_mode integer NOT NULL DEFAULT 0,"
+					..."valid integer NOT NULL DEFAULT 0,"
+					..."eqm_0 integer DEFAULT NULL,"
+					..."eqm_1 integer DEFAULT NULL,"
+					..."eqm_2 integer DEFAULT NULL,"
+					..."eqm_3 integer DEFAULT NULL"
+				...")"
+			);
+			db.Query(QueryResult_Naked,
+				"CREATE UNIQUE INDEX IF NOT EXISTS steamid ON l4d2lv_core (sid)"
+			);
+			db.Query(QueryResult_Naked,
+				"CREATE TABLE IF NOT EXISTS l4d2lv_inventory ("
+					..."id integer NOT NULL PRIMARY KEY AUTOINCREMENT,"
+					..."uid integer NOT NULL,"
+					..."prefix integer NOT NULL DEFAULT 0,"
+					..."parts integer NOT NULL DEFAULT 0,"
+					..."damage integer NOT NULL DEFAULT 0,"
+					..."health integer NOT NULL DEFAULT 0,"
+					..."speed integer NOT NULL DEFAULT 0,"
+					..."gravity integer NOT NULL DEFAULT 0,"
+					..."crit integer NOT NULL DEFAULT 0,"
+					..."effect integer NOT NULL DEFAULT 0,"
+					..."hashId integer NOT NULL DEFAULT 0,"
+					..."CONSTRAINT userid FOREIGN KEY (uid) REFERENCES l4d2lv_core (id) ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED"
+				...")"
+			);
+			db.Query(QueryResult_Naked,
+				"CREATE INDEX IF NOT EXISTS hashindex ON l4d2lv_inventory (hashId)"
+			);
+			db.Query(QueryResult_Naked,
+				"CREATE TABLE IF NOT EXISTS l4d2lv_stats ("
+					..."id integer NOT NULL PRIMARY KEY AUTOINCREMENT,"
+					..."uid integer NOT NULL,"
+					..."angry_point integer NOT NULL DEFAULT 0,"
+					..."defib_used integer NOT NULL DEFAULT 0,"
+					..."revived_count integer NOT NULL DEFAULT 0,"
+					..."si_killed integer NOT NULL DEFAULT 0,"
+					..."ci_killed integer NOT NULL DEFAULT 0,"
+					..."pills_given integer NOT NULL DEFAULT 0,"
+					..."team_protected integer NOT NULL DEFAULT 0,"
+					..."zone_cleared integer NOT NULL DEFAULT 0,"
+					..."painc_holdout integer NOT NULL DEFAULT 0,"
+					..."rescued_count integer NOT NULL DEFAULT 0,"
+					..."CONSTRAINT userid FOREIGN KEY (uid) REFERENCES l4d2lv_core (id) ON DELETE CASCADE ON UPDATE CASCADE DEFERRABLE INITIALLY DEFERRED"
+				...")"
+			);
+		}
+		
+		g_Database = db;
+	}
+	else if(error[0] != EOS)
+	{
+		LogError("[l4d2_dlc2_levelup] 连接数据库失败：%s", error);
+	}
+	else
+	{
+		LogError("[l4d2_dlc2_levelup] 连接数据库失败，无错误信息。");
+	}
+}
+
+// 读档
 bool ClientSaveToFileLoad(int client, bool remember = false)
 {
 	if(!IsValidClient(client) || IsFakeClient(client))
 		return false;
 	
-	char steamId[64];
-	GetClientAuthId(client, AuthId_SteamID64, steamId, 64, false);
+	char sid[20];
+	bool valid = GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true);
+	if(!valid)
+		GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
 	
-	if(steamId[0] == EOS || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
-		StrEqual(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || StrEqual(steamId, "STEAM_1:0:0", false))
+	if(sid[0] == EOS || !strcmp(sid, "BOT", false) || !strcmp(sid, "STEAM_ID_PENDING", false) ||
+		!strcmp(sid, "STEAM_ID_STOP_IGNORING_RETVALS", false) || !strcmp(sid, "STEAM_1:0:0", false))
 	{
-		Initialization(client, true);
+		LogError("[l4d2_dlc2_levelup] 尝试读取 %N 的 SteamID 失败 %s", client, sid);
 		return false;
 	}
+	
+	g_Database.Escape(sid, sid, sizeof(sid));
+	g_Database.Query(QueryResult_Load, tr(
+		"SELECT id, power, deadline, points, skill_1, skill_2, skill_3, skill_4, skill_5, angry_mode, eqm_0, eqm_1, eqm_2, eqm_3 FROM l4d2lv_core WHERE sid = '%s'",
+		sid
+	), client);
+	
+	g_bIsVerified[client] = true;
+	return true;
+}
 
-	if(g_kvSavePlayer[client] == null)
+public void QueryResult_Load(Database db, DBResultSet results, const char[] error, any client)
+{
+	if(!IsValidClient(client) || IsFakeClient(client))
+		return;
+	
+	char sid[20];
+	bool valid = GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true);
+	if(!valid)
+		GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
+	g_Database.Escape(sid, sid, sizeof(sid));
+	
+	int points = g_pCvarStartPoints.IntValue;
+	if(results == null || results.RowCount != 1 || !results.FetchRow())
 	{
-		g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
-		// FileToKeyValues(g_kvSavePlayer[client], tr("%s/%s.txt", g_szSavePath, steamId));
-		g_kvSavePlayer[client].ImportFromFile(tr("%s/%s.txt", g_szSavePath, steamId));
+		// 处理新增
+		db.Query(QueryResult_LoadInit, tr("INSERT INTO l4d2lv_core (sid, points) VALUES ('%s', '%d')", sid, points), client);
+		return;
 	}
 	
-	int power = g_kvSavePlayer[client].GetNum("power", 0);
+	// 检查并处理过期
+	int uid = results.FetchInt(0);
 	int deadline = g_pCvarValidity.IntValue;
 	if(deadline > 0)
 	{
 		int current = GetTime();
-		int prev = g_kvSavePlayer[client].GetNum("deadline", 0);
-		if(prev + deadline < current)
+		int prev = results.FetchInt(2);
+		if(prev > 0 && prev + deadline < current)
 		{
-			delete g_kvSavePlayer[client];
-			g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
+			LogMessage("[l4d2_dlc2_levelup] 玩家 %N 存档过期了 %d < %d", client, prev + deadline, current);
+			g_bDeadlineHint[client] = true;
 			
-			if(prev > 0)
-			{
-				PrintToServer("玩家 %N 的存档过期了", client);
-				g_bDeadlineHint[client] = true;
-			}
+			int power = results.FetchInt(1);
+			if(g_pCvarReimburse.IntValue > 0 && power > 0 && g_bDeadlineHint[client])
+				points += power / g_pCvarReimburse.IntValue;
+			
+			Transaction trans = SQL_CreateTransaction();
+			trans.AddQuery(tr("DELETE FROM l4d2lv_core WHERE id = %d", uid));
+			trans.AddQuery(tr("INSERT INTO l4d2lv_core (sid, points) VALUES ('%s', '%d')", sid, points));
+			db.Execute(trans, QueryResult_LoadInitPlus, QueryResults_FailedNaked, client);
+			return;
 		}
 	}
 	
-	int points = g_pCvarStartPoints.IntValue;
-	if(g_pCvarReimburse.IntValue > 0 && power > 0 && g_bDeadlineHint[client])
-		points += power / g_pCvarReimburse.IntValue;
-	
-	char name[MAX_NAME_LENGTH], ip[16], country[32], code[3];
-	GetClientName(client, name, MAX_NAME_LENGTH);
-	GetClientIP(client, ip, 16, true);
-	GeoipCountry(ip, country, 32);
-	GeoipCode2(ip, code);
-
-	// 玩家信息
-	g_kvSavePlayer[client].SetString("name", name);
-	g_kvSavePlayer[client].SetString("ip", ip);
-	g_kvSavePlayer[client].SetString("country", country);
-	g_kvSavePlayer[client].SetString("country_code", code);
-	
-	char steamId2[32], steamId3[32];
-	GetClientAuthId(client, AuthId_Steam2, steamId2, 64, false);
-	GetClientAuthId(client, AuthId_Steam3, steamId3, 64, false);
-
-	g_kvSavePlayer[client].SetString("steamId_64", steamId);
-	g_kvSavePlayer[client].SetString("steamId_2", steamId2);
-	g_kvSavePlayer[client].SetString("steamId_3", steamId3);
-
-	// 技能和属性
-	g_clSkillPoint[client] = g_kvSavePlayer[client].GetNum("skill_point", points);
-	g_clSkill_1[client] = g_kvSavePlayer[client].GetNum("skill_1", 0);
-	g_clSkill_2[client] = g_kvSavePlayer[client].GetNum("skill_2", 0);
-	g_clSkill_3[client] = g_kvSavePlayer[client].GetNum("skill_3", 0);
-	g_clSkill_4[client] = g_kvSavePlayer[client].GetNum("skill_4", 0);
-	g_clSkill_5[client] = g_kvSavePlayer[client].GetNum("skill_5", 0);
+	// 正常读取
+	g_clSkillPoint[client] = results.FetchInt(3);
+	g_clSkill_1[client] = results.FetchInt(4);
+	g_clSkill_2[client] = results.FetchInt(5);
+	g_clSkill_3[client] = results.FetchInt(6);
+	g_clSkill_4[client] = results.FetchInt(7);
+	g_clSkill_5[client] = results.FetchInt(8);
 	
 	if(g_pCvarAllow.BoolValue)
-		g_clAngryMode[client] = g_kvSavePlayer[client].GetNum("angry_mode", 0);
+		g_clAngryMode[client] = results.FetchInt(9);
 	
-	if(remember)
-	{
-		g_clAngryPoint[client] = g_kvSavePlayer[client].GetNum("angry_point", 0);
-		g_ttDefibUsed[client] = g_kvSavePlayer[client].GetNum("defib_used", 0);
-		g_ttOtherRevived[client] = g_kvSavePlayer[client].GetNum("revived_count", 0);
-		g_ttSpecialKilled[client] = g_kvSavePlayer[client].GetNum("si_killed", 0);
-		g_ttCommonKilled[client] = g_kvSavePlayer[client].GetNum("ci_killed", 0);
-		g_ttGivePills[client] = g_kvSavePlayer[client].GetNum("pills_given", 0);
-		g_ttProtected[client] = g_kvSavePlayer[client].GetNum("team_protected", 0);
-		g_ttCleared[client] = g_kvSavePlayer[client].GetNum("zone_cleared", 0);
-		g_ttPaincEvent[client] = g_kvSavePlayer[client].GetNum("painc_holdout", 0);
-		g_ttRescued[client] = g_kvSavePlayer[client].GetNum("rescued_count", 0);
-	}
-	/*
-	else
-	{
-		g_ttCommonKilled[client] = g_ttDefibUsed[client] = g_ttGivePills[client] = g_ttOtherRevived[client] =
-			g_ttProtected[client] = g_ttSpecialKilled[client] = g_csSlapCount[client] = g_ttCleared[client] =
-			g_ttPaincEvent[client] = g_ttRescued[client] = g_clAngryPoint[client] = 0;
-	}
-	*/
+	g_clCurEquip[client][0] = results.IsFieldNull(10) ? -1 : results.FetchInt(10);
+	g_clCurEquip[client][1] = results.IsFieldNull(11) ? -1 : results.FetchInt(11);
+	g_clCurEquip[client][2] = results.IsFieldNull(12) ? -1 : results.FetchInt(12);
+	g_clCurEquip[client][3] = results.IsFieldNull(13) ? -1 : results.FetchInt(13);
 	
-	// 装备相关
-	if(g_kvSavePlayer[client].JumpToKey("equipment", false))
+	db.Query(QueryResult_LoadBags, tr(
+		"SELECT prefix, parts, damage, health, speed, gravity, crit, effect, hashId, id FROM l4d2lv_inventory WHERE uid = %d",
+		uid
+	), client);
+	
+	if(g_pCvarSaveStats.BoolValue)
 	{
-		for(int i = 0; i < 4; ++i)
-		{
-			g_clCurEquip[client][i] = g_kvSavePlayer[client].GetNum(tr("eqm_%d", i), -1);
-		}
-		g_kvSavePlayer[client].GoBack();
+		db.Query(QueryResult_LoadStats, tr(
+			"SELECT angry_point, defib_used, revived_count, si_killed, ci_killed, pills_given, team_protected, zone_cleared, painc_holdout, rescued_count FROM l4d2lv_stats WHERE uid = %d",
+			uid
+		), client);
+	}
+	
+	g_iUserID[client] = uid;
+	LogMessage("[l4d2_dlc2_levelup] 读取了玩家 %N(%s) 基础数据", client, sid);
+}
+
+public void QueryResult_LoadBags(Database db, DBResultSet results, const char[] error, any client)
+{
+	if(!IsValidClient(client) || IsFakeClient(client))
+		return;
+	
+	if(results == null || results.RowCount < 1)
+	{
+		if(g_mEquipData[client] == null)
+			g_mEquipData[client] = CreateTrie();
+		
+		LogMessage("[l4d2_dlc2_levelup] 读取了玩家 %N 空的库存装备", client);
+		return;
 	}
 	
 	if(g_mEquipData[client] == null)
 		g_mEquipData[client] = CreateTrie();
+	else
+		g_mEquipData[client].Clear();
 	
-	// 背包里的装备
-	if(g_kvSavePlayer[client].JumpToKey("bage", false))
+	while(results.FetchRow())
 	{
-		if(g_mEquipData[client] == null)
-			g_mEquipData[client] = CreateTrie();
-		else
-			g_mEquipData[client].Clear();
+		static EquipData_t data;
+		data.valid = true;
+		data.prefix = view_as<EquipPrefix_t>(results.FetchInt(0));
+		data.parts = view_as<EquipPart_t>(results.FetchInt(1));
+		data.damage = results.FetchInt(2);
+		data.health = results.FetchInt(3);
+		data.speed = results.FetchInt(4);
+		data.gravity = results.FetchInt(5);
+		data.crit = results.FetchInt(6);
+		data.effect = results.FetchInt(7);
+		data.hashID = results.FetchInt(8);
+		data.ID = results.FetchInt(9);
 		
-		int size = g_kvSavePlayer[client].GetNum("bage_items", 0);
-		for(int i = 0; i < size; ++i)
-		{
-			if(!g_kvSavePlayer[client].JumpToKey(tr("item_%d", i), false))
-				continue;
-			
-			static EquipData_t data;
-			data.valid = view_as<bool>(g_kvSavePlayer[client].GetNum("valid", 0));
-			data.prefix = view_as<EquipPrefix_t>(g_kvSavePlayer[client].GetNum("prefix", 0));
-			data.parts = view_as<EquipPart_t>(g_kvSavePlayer[client].GetNum("parts", 0));
-			data.damage = g_kvSavePlayer[client].GetNum("damage", 0);
-			data.health = g_kvSavePlayer[client].GetNum("health", 0);
-			data.speed = g_kvSavePlayer[client].GetNum("speed", 0);
-			data.gravity = g_kvSavePlayer[client].GetNum("gravity", 0);
-			data.crit = g_kvSavePlayer[client].GetNum("crit", 0);
-			data.effect = g_kvSavePlayer[client].GetNum("effect", 0);
-			data.hashID = g_kvSavePlayer[client].GetNum("hashId", 0);
-			
-			if(data.valid && data.hashID)
-			{
-				static char key[16];
-				IntToString(data.hashID, key, sizeof(key));
-				RebuildEquipStr(data);
-				g_mEquipData[client].SetArray(key, data, sizeof(data));
-			}
-			
-			g_kvSavePlayer[client].GoBack();
-		}
-		
-		g_kvSavePlayer[client].GoBack();
+		static char key[16];
+		IntToString(data.hashID, key, sizeof(key));
+		RebuildEquipStr(data);
+		g_mEquipData[client].SetArray(key, data, sizeof(data));
 	}
 	
-	g_bIsVerified[client] = true;
-	return true;
+	LogMessage("[l4d2_dlc2_levelup] 读取了玩家 %N 库存装备 %d 件", client, g_mEquipData[client].Size);
+}
+
+public void QueryResult_LoadStats(Database db, DBResultSet results, const char[] error, any client)
+{
+	if(!IsValidClient(client) || IsFakeClient(client))
+		return;
+	
+	if(results == null || results.RowCount != 1 || !results.FetchRow())
+	{
+		char sid[20];
+		bool valid = GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true);
+		if(!valid)
+			GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
+		
+		// 处理新增
+		db.Query(QueryResult_Naked, tr("INSERT INTO l4d2lv_stats (sid) VALUES ('%s')", sid), client);
+		LogMessage("[l4d2_dlc2_levelup] 读取了玩家 %N 空的统计数据", client);
+		return;
+	}
+	
+	g_clAngryPoint[client] = results.FetchInt(0);
+	g_ttDefibUsed[client] = results.FetchInt(1);
+	g_ttOtherRevived[client] = results.FetchInt(2);
+	g_ttSpecialKilled[client] = results.FetchInt(3);
+	g_ttCommonKilled[client] = results.FetchInt(4);
+	g_ttGivePills[client] = results.FetchInt(5);
+	g_ttProtected[client] = results.FetchInt(6);
+	g_ttCleared[client] = results.FetchInt(7);
+	g_ttPaincEvent[client] = results.FetchInt(8);
+	g_ttRescued[client] = results.FetchInt(9);
+	
+	LogMessage("[l4d2_dlc2_levelup] 读取了玩家 %N 统计数据", client);
+}
+
+public void QueryResult_LoadInit(Database db, DBResultSet results, const char[] error, any client)
+{
+	if(!IsValidClient(client) || IsFakeClient(client))
+		return;
+	
+	char sid[20];
+	bool valid = GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true);
+	if(!valid)
+		GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
+	db.Escape(sid, sid, sizeof(sid));
+	db.Query(QueryResult_Load, tr(
+		"SELECT id, power, deadline, points, skill_1, skill_2, skill_3, skill_4, skill_5, angry_mode, eqm_0, eqm_1, eqm_2, eqm_3 FROM l4d2lv_core WHERE sid = '%s'",
+		sid
+	), client);
+	
+	LogMessage("[l4d2_dlc2_levelup] 新玩家 %N(%s) 加入了游戏", client, sid);
+}
+
+public void QueryResult_LoadInitPlus(Database db, any client, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	if(!IsValidClient(client) || IsFakeClient(client))
+		return;
+	
+	char sid[20];
+	bool valid = GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true);
+	if(!valid)
+		GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
+	db.Escape(sid, sid, sizeof(sid));
+	db.Query(QueryResult_Load, tr(
+		"SELECT id, power, deadline, points, skill_1, skill_2, skill_3, skill_4, skill_5, angry_mode, eqm_0, eqm_1, eqm_2, eqm_3 FROM l4d2lv_core WHERE sid = '%s'",
+		sid
+	), client);
+	
+	LogMessage("[l4d2_dlc2_levelup] 旧玩家 %N(%s) 加入了游戏", client, sid);
+}
+
+public void QueryResults_FailedNaked(Database db, any client, int numQueries, const char[] error, int failIndex, any[] queryData)
+{
+	if(error[0] != EOS)
+		LogError("执行语句错误：%s", error);
 }
 
 //存档
@@ -2574,120 +2799,216 @@ bool ClientSaveToFileSave(int client, bool remember = false)
 	if(client > 0 && client <= MaxClients && !g_bIsVerified[client])
 		return false;
 	
-	char steamId[64];
-	steamId[0] = EOS;
+	char sid[20];
+	bool valid = GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true);
+	if(!valid)
+		GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
 	
-	if(IsValidClient(client))
-		GetClientAuthId(client, AuthId_SteamID64, steamId, 64, false);
-	else if(g_kvSavePlayer[client] != null)
-		g_kvSavePlayer[client].GetString("steamId_64", steamId, 64, "");
-	else
+	if(sid[0] == EOS || !strcmp(sid, "BOT", false) || !strcmp(sid, "STEAM_ID_PENDING", false) ||
+		!strcmp(sid, "STEAM_ID_STOP_IGNORING_RETVALS", false) || !strcmp(sid, "STEAM_1:0:0", false))
+	{
+		LogError("[l4d2_dlc2_levelup] 尝试读取 %N 的 SteamID 失败 %s", client, sid);
 		return false;
-
-	if(steamId[0] == EOS || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
-		StrEqual(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || StrEqual(steamId, "STEAM_1:0:0", false))
-		return false;
-
-	if(g_kvSavePlayer[client] == null)
-		g_kvSavePlayer[client] = CreateKeyValues(tr("%s", steamId));
+	}
+	
 	if(g_mEquipData[client] == null)
 		g_mEquipData[client] = CreateTrie();
 	
-	char name[MAX_NAME_LENGTH], ip[16], country[32], code[3];
-	GetClientName(client, name, MAX_NAME_LENGTH);
-	GetClientIP(client, ip, 16, true);
-	GeoipCountry(ip, country, 32);
-	GeoipCode2(ip, code);
-
-	// 玩家信息
-	g_kvSavePlayer[client].SetString("name", name);
-	g_kvSavePlayer[client].SetString("ip", ip);
-	g_kvSavePlayer[client].SetString("country", country);
-	g_kvSavePlayer[client].SetString("country_code", code);
-	g_kvSavePlayer[client].SetNum("deadline", GetTime());
-	g_kvSavePlayer[client].SetNum("power", CalcPlayerPower(client));
-
-	// 技能和属性
-	g_kvSavePlayer[client].SetNum("skill_point", g_clSkillPoint[client]);
-	g_kvSavePlayer[client].SetNum("angry_mode", g_clAngryMode[client]);
-	g_kvSavePlayer[client].SetNum("skill_1", g_clSkill_1[client]);
-	g_kvSavePlayer[client].SetNum("skill_2", g_clSkill_2[client]);
-	g_kvSavePlayer[client].SetNum("skill_3", g_clSkill_3[client]);
-	g_kvSavePlayer[client].SetNum("skill_4", g_clSkill_4[client]);
-	g_kvSavePlayer[client].SetNum("skill_5", g_clSkill_5[client]);
-	
-	// 统计信息
-	if(remember)
+	bool insert = false;
+	if(g_iUserID[client] <= 0)
 	{
-		g_kvSavePlayer[client].SetNum("angry_point", g_clAngryPoint[client]);
-		g_kvSavePlayer[client].SetNum("defib_used", g_ttDefibUsed[client]);
-		g_kvSavePlayer[client].SetNum("revived_count", g_ttOtherRevived[client]);
-		g_kvSavePlayer[client].SetNum("si_killed", g_ttSpecialKilled[client]);
-		g_kvSavePlayer[client].SetNum("ci_killed", g_ttCommonKilled[client]);
-		g_kvSavePlayer[client].SetNum("pills_given", g_ttGivePills[client]);
-		g_kvSavePlayer[client].SetNum("team_protected", g_ttProtected[client]);
-		g_kvSavePlayer[client].SetNum("zone_cleared", g_ttCleared[client]);
-		g_kvSavePlayer[client].SetNum("painc_holdout", g_ttPaincEvent[client]);
-		g_kvSavePlayer[client].SetNum("rescued_count", g_ttRescued[client]);
-	}
-	else
-	{
-		g_kvSavePlayer[client].SetNum("angry_point", 0);
-		g_kvSavePlayer[client].SetNum("defib_used", 0);
-		g_kvSavePlayer[client].SetNum("revived_count", 0);
-		g_kvSavePlayer[client].SetNum("si_killed", 0);
-		g_kvSavePlayer[client].SetNum("ci_killed", 0);
-		g_kvSavePlayer[client].SetNum("pills_given", 0);
-		g_kvSavePlayer[client].SetNum("team_protected", 0);
-		g_kvSavePlayer[client].SetNum("zone_cleared", 0);
-		g_kvSavePlayer[client].SetNum("painc_holdout", 0);
-		g_kvSavePlayer[client].SetNum("rescued_count", 0);
+		LogError("尝试保存 %N(%s) 时未事先获取到 uid", client, sid);
+		
+		// 这里可能会卡住游戏
+		DBResultSet results = SQL_Query(g_Database, tr("SELECT id FROM l4d2lv_core WHERE sid = '%s'", sid));
+		if(results == null || results.RowCount != 1 || !results.FetchRow())
+		{
+			LogError("尝试立即获取 %N(%s) 的 uid 失败，尝试立即创建", client, sid);
+			
+			results = SQL_Query(g_Database, tr("INSERT INTO l4d2lv_core (sid) VALUES ('%s')", sid));
+			if(results == null)
+			{
+				LogError("尝试立即创建 %N(%s) 的 uid 失败，存档失败", client, sid);
+				return false;
+			}
+			
+			results = SQL_Query(g_Database, tr("SELECT id FROM l4d2lv_core WHERE sid = '%s'", sid));
+			if(results == null || results.RowCount != 1 || !results.FetchRow())
+			{
+				LogError("尝试第二次立即获取 %N(%s) 的 uid 失败，存档失败", client, sid);
+				return false;
+			}
+			else
+			{
+				g_iUserID[client] = results.FetchInt(0);
+				insert = true;
+			}
+		}
+		else
+		{
+			g_iUserID[client] = results.FetchInt(0);
+		}
 	}
 	
-	// 装备相关
-	g_kvSavePlayer[client].JumpToKey("equipment", true);
-	for(int i = 0; i < 4; ++i)
-		g_kvSavePlayer[client].SetNum(tr("eqm_%d", i), g_clCurEquip[client][i]);
-	g_kvSavePlayer[client].GoBack();
-
-	// 背包里的装备
-	g_kvSavePlayer[client].JumpToKey("bage", true);
+	Transaction trans = SQL_CreateTransaction();
 	
+	// 基础数据
+	trans.AddQuery(tr(
+		"UPDATE l4d2lv_core SET deadline = %d, points = %d, angry_mode = %d, power = %d,"
+		..." skill_1 = %d, skill_2 = %d, skill_3 = %d, skill_4 = %d, skill_5 = %d,"
+		..." eqm_0 = %d, eqm_1 = %d, eqm_2 = %d, eqm_3 = %d, valid = %d"
+		..." WHERE id = %d",
+		GetTime(), g_clSkillPoint[client], g_clAngryMode[client], CalcPlayerPower(client),
+		g_clSkill_1[client], g_clSkill_2[client], g_clSkill_3[client], g_clSkill_4[client], g_clSkill_5[client],
+		g_clCurEquip[client][0], g_clCurEquip[client][1], g_clCurEquip[client][2], g_clCurEquip[client][3],
+		valid, g_iUserID[client]
+	));
+	
+	// 装备数据
 	StringMapSnapshot iterator = g_mEquipData[client].Snapshot();
 	int size = iterator.Length;
-	g_kvSavePlayer[client].SetNum("bage_items", size);
-	
+	char toBeDelete[255];
 	for(int i = 0; i < size; ++i)
 	{
 		static char key[16];
 		static EquipData_t data;
 		if(!iterator.GetKey(i, key, sizeof(key)) || !g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
-		{
-			g_kvSavePlayer[client].DeleteKey(tr("item_%d", i));
 			continue;
+		
+		if(data.ID > 0 && !insert)
+		{
+			trans.AddQuery(tr(
+				"UPDATE l4d2lv_inventory SET prefix = %d, parts = %d, damage = %d, health = %d, speed = %d, gravity = %d, crit = %d, effect = %d"
+				..." WHERE id = %d AND uid = %d",
+				data.prefix, data.parts, data.damage, data.health, data.speed, data.gravity, data.crit, data.effect,
+				data.ID, g_iUserID[client]
+			));
+		}
+		else
+		{
+			trans.AddQuery(tr(
+				"INSERT INTO l4d2lv_inventory (prefix, parts, damage, health, speed, gravity, crit, effect, hashId, uid) VALUES"
+				..." (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
+				data.prefix, data.parts, data.damage, data.health, data.speed, data.gravity, data.crit, data.effect,
+				data.hashID, g_iUserID[client]
+			));
 		}
 		
-		g_kvSavePlayer[client].JumpToKey(tr("item_%d", i), true);
-		
-		g_kvSavePlayer[client].SetNum("hashId", data.hashID);
-		g_kvSavePlayer[client].SetNum("valid", data.valid);
-		g_kvSavePlayer[client].SetNum("prefix", view_as<int>(data.prefix));
-		g_kvSavePlayer[client].SetNum("parts", view_as<int>(data.parts));
-		g_kvSavePlayer[client].SetNum("damage", data.damage);
-		g_kvSavePlayer[client].SetNum("health", data.health);
-		g_kvSavePlayer[client].SetNum("speed", data.speed);
-		g_kvSavePlayer[client].SetNum("gravity", data.gravity);
-		g_kvSavePlayer[client].SetNum("crit", data.crit);
-		g_kvSavePlayer[client].SetNum("effect", data.effect);
-		
-		g_kvSavePlayer[client].GoBack();
+		if(i <= 0)
+			FormatEx(toBeDelete, sizeof(toBeDelete), "%d", data.hashID);
+		else
+			Format(toBeDelete, sizeof(toBeDelete), "%s, %d", toBeDelete, data.hashID);
+	}
+	if(size > 0 && !insert)
+	{
+		// 清理失去的装备
+		trans.AddQuery(tr("DELETE FROM l4d2lv_inventory WHERE uid = %d AND hashId NOT IN (%s)", g_iUserID[client], toBeDelete));
 	}
 	
-	// 保存到文件
-	g_kvSavePlayer[client].Rewind();
-	g_kvSavePlayer[client].ExportToFile(tr("%s/%s.txt", g_szSavePath, steamId));
-
+	if(g_pCvarSaveStats.BoolValue)
+	{
+		if(insert)
+		{
+			trans.AddQuery(tr(
+				"INSERT INTO l4d2lv_stats"
+				..." (angry_point, defib_used, revived_count, si_killed, ci_killed, pills_given, team_protected, zone_cleared, painc_holdout, rescued_count, uid) VALUES"
+				..." (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
+				g_clAngryPoint[client], g_ttDefibUsed[client], g_ttOtherRevived[client], g_ttSpecialKilled[client],
+				g_ttCommonKilled[client], g_ttGivePills[client], g_ttProtected[client], g_ttCleared[client],
+				g_ttPaincEvent[client], g_ttRescued[client], g_iUserID[client]
+			));
+		}
+		else
+		{
+			trans.AddQuery(tr(
+				"UPDATE l4d2lv_stats SET"
+				..." angry_point = %d, defib_used = %d, revived_count = %d, si_killed = %d,"
+				..." ci_killed = %d, pills_given = %d, team_protected = %d, zone_cleared = %d,"
+				..." painc_holdout = %d, rescued_count = %d WHERE uid = %d",
+				g_clAngryPoint[client], g_ttDefibUsed[client], g_ttOtherRevived[client], g_ttSpecialKilled[client],
+				g_ttCommonKilled[client], g_ttGivePills[client], g_ttProtected[client], g_ttCleared[client],
+				g_ttPaincEvent[client], g_ttRescued[client], g_iUserID[client]
+			));
+		}
+	}
+	else
+	{
+		trans.AddQuery(tr(
+			"UPDATE l4d2lv_stats SET"
+			..." angry_point = 0, defib_used = 0, revived_count = 0, si_killed = 0,"
+			..." ci_killed = 0, pills_given = 0, team_protected = 0, zone_cleared = 0,"
+			..." painc_holdout = 0, rescued_count = 0 WHERE uid = %d",
+			g_iUserID[client]
+		));
+	}
+	
+	g_Database.Execute(trans, QueryResult_SuccessNaked, QueryResults_FailedNaked, client);
 	return true;
+}
+
+public void QueryResult_SuccessNaked(Database db, any client, int numQueries, DBResultSet[] results, any[] queryData)
+{
+	if(IsValidClient(client))
+	{
+		LogMessage("[l4d2_dlc2_levelup] 保存玩家 %N 成功", client);
+	}
+	else
+	{
+		LogMessage("[l4d2_dlc2_levelup] 保存玩家 %d 成功", client);
+	}
+}
+
+void FlushEquipID(int client, const char[] key)
+{
+	if(!IsValidClient(client) || IsFakeClient(client) || g_mEquipData[client] == null)
+		return;
+	
+	EquipData_t data;
+	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid || data.ID > 0)
+		return;
+	
+	DataPack pack = CreateDataPack();
+	pack.WriteCell(client);
+	pack.WriteCell(data.hashID);
+	pack.WriteString(key);
+	g_Database.Query(QueryResult_SaveEquipID, tr("INSERT INTO l4d2lv_inventory (uid, hashId) VALUES (%d, %d)", g_iUserID[client], data.hashID), pack);
+}
+
+public void QueryResult_SaveEquipID(Database db, DBResultSet results, const char[] error, any hdl)
+{
+	DataPack pack = view_as<DataPack>(hdl);
+	pack.Reset();
+	int client = pack.ReadCell();
+	int hashID = pack.ReadCell();
+	if(!IsValidClient(client) || IsFakeClient(client) || g_mEquipData[client] == null)
+		return;
+	
+	g_Database.Query(QueryResult_LoadEquipID, tr("SELECT id FROM l4d2lv_inventory WHERE uid = %d AND hashId = %d", g_iUserID[client], hashID), hdl);
+}
+
+public void QueryResult_LoadEquipID(Database db, DBResultSet results, const char[] error, any hdl)
+{
+	if(results == null || results.RowCount != 1 || !results.FetchRow())
+		return;
+	
+	DataPack pack = view_as<DataPack>(hdl);
+	pack.Reset();
+	int client = pack.ReadCell();
+	int hashID = pack.ReadCell();
+	
+	char key[11];
+	pack.ReadString(key, sizeof(key));
+	
+	if(!IsValidClient(client) || IsFakeClient(client) || g_mEquipData[client] == null)
+		return;
+	
+	EquipData_t data;
+	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid || data.ID > 0)
+		return;
+	
+	data.ID = results.FetchInt(0);
+	g_mEquipData[client].SetArray(key, data, sizeof(data));
+	LogMessage("[l4d2_dlc2_levelup] 玩家 %N 的装备 %d 注册完成 %d", client, data.hashID, data.ID);
 }
 
 /*
@@ -3762,7 +4083,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.SetTitle(tr("一级天赋(1硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
 	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("「强身」血量上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+10%",(g_clSkill_1[client]&SKL_1_Movement)));
+	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+1%",(g_clSkill_1[client]&SKL_1_Movement)));
 	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("「自愈」倒地救起血量+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("「凶狠」暴击率+5‰",(g_clSkill_1[client]&SKL_1_DmgExtra)));
 	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
@@ -7879,7 +8200,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 		}
 		
 		// Initialization(victim);
-		ClientSaveToFileSave(victim, g_pCvarSaveStatus.BoolValue);
+		ClientSaveToFileSave(victim, g_pCvarSaveStats.BoolValue);
 		
 		// 去除光圈
 		PerformGlow(victim, 0, 0, 0);
@@ -10772,7 +11093,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	{
 		if(oldTeam <= 1 && newTeam >= 2)
 		{
-			// ClientSaveToFileLoad(client, g_pCvarSaveStatus.BoolValue);
+			// ClientSaveToFileLoad(client, g_pCvarSaveStats.BoolValue);
 			// RegPlayerHook(client, false);
 			CreateTimer(0.6, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 			// PrintToServer("读取 %N 的数据，原因：加入队伍");
@@ -10784,7 +11105,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 		}
 		else if(oldTeam >= 2 && newTeam == 1)
 		{
-			ClientSaveToFileSave(client, g_pCvarSaveStatus.BoolValue);
+			ClientSaveToFileSave(client, g_pCvarSaveStats.BoolValue);
 		}
 	}
 	else if(newTeam == 2 && g_pCvarSurvivorBot.BoolValue)
@@ -10854,7 +11175,7 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 	if(!IsValidClient(client))
 		return;
 	
-	ClientSaveToFileSave(client, g_pCvarSaveStatus.BoolValue);
+	ClientSaveToFileSave(client, g_pCvarSaveStats.BoolValue);
 	
 	int bot = GetClientOfUserId(event.GetInt("bot"));
 	if(!IsValidClient(bot))
@@ -16069,7 +16390,8 @@ stock int GiveEquipment(int client, int parts = -1)
 	data.parts = view_as<EquipPart_t>(0 <= parts <= 3 ? parts : GetRandomInt(0, 3));
 	data.crit = (GetRandomInt(0, 1) ? GetRandomInt(0, 5) : 0);
 	data.effect = (!GetRandomInt(0, 2) ? GetRandomInt(0, g_iMaxEqmEffects) : 0);
-	data.hashID = GetSysTickCount() + GetGameTickCount() + client + parts;
+	data.hashID = GetSysTickCount() + GetGameTickCount() ^ client ^ parts & 0x7FFFFFFF;
+	data.ID = 0;
 	
 	SetRandomSeed(GetSysTickCount() + client);
 	
@@ -16129,6 +16451,7 @@ stock int GiveEquipment(int client, int parts = -1)
 	IntToString(data.hashID, key, sizeof(key));
 	RebuildEquipStr(data);
 	g_mEquipData[client].SetArray(key, data, sizeof(data));
+	FlushEquipID(client, key);
 	
 	return data.hashID;
 }
@@ -16359,7 +16682,7 @@ stock void CalcPlayerAttr(int client, int& damage = 0, int& health = 0, int& spe
 		if(g_clSkill_1[client] & SKL_1_MaxHealth)
 			health += 50;
 		if(g_clSkill_1[client] & SKL_1_Movement)
-			speed += 10;
+			speed += 1;
 		if(g_clSkill_1[client] & SKL_1_Gravity)
 			gravity += 20;
 		if(g_clSkill_5[client] & SKL_5_DmgExtra)

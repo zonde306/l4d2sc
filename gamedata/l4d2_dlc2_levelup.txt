@@ -113,8 +113,8 @@
 				"linux"			"@_ZN7CCharge9EndChargeEv"
 				"mac"			"@__ZN7CCharge9EndChargeEv"
 				
-				/* 55 8B EC 51 A1 ? ? ? ? F3 0F 10 40 ? 57 8B F9 8B 87 ? ? ? ? F3 0F 11 45 ? 83 F8 FF 0F 84 ? ? ? ? 8B 15 ? ? ? ? 8B C8 81 E1 ? ? ? ? 03 C9 */
-				"windows"		"\x55\x8B\xEC\x51\xA1****\xF3\x0F\x10\x40*\x57\x8B\xF9\x8B\x87****\xF3\x0F\x11\x45*\x83\xF8\xFF\x0F\x84****\x8B\x15****\x8B\xC8\x81\xE1****\x03\xC9"
+				/* 55 8B EC 51 A1 ? ? ? ? F3 0F 10 40 ? 57 8B F9 */
+				"windows"		"\x55\x8B\xEC\x51\xA1****\xF3\x0F\x10\x40*\x57\x8B\xF9"
 			}
 			
 			/*
@@ -127,8 +127,8 @@
 				"linux"			"@_ZN13CTerrorPlayer12OnCarryEndedEbbb"
 				"mac"			"@__ZN13CTerrorPlayer12OnCarryEndedEbbb"
 				
-				/* 55 8B EC 56 8B F1 8B 86 ? ? ? ? 57 8B 3D ? ? ? ? 83 F8 FF 0F 84 ? ? ? ? 8B C8 81 E1 ? ? ? ? 03 C9 8D 4C CF 04 C1 E8 0C 39 41 04 0F 85 ? ? ? ? 83 39 00 0F 84 ? ? ? ? 53 8B 5D 0C 84 DB */
-				"windows"		"\x55\x8B\xEC\x56\x8B\xF1\x8B\x86****\x57\x8B\x3D****\x83\xF8\xFF\x0F\x84****\x8B\xC8\x81\xE1****\x03\xC9\x8D\x4C\xCF\x04\xC1\xE8\x0C\x39\x41\x04\x0F\x85****\x83\x39\x00\x0F\x84****\x53\x8B\x5D\x0C\x84\xDB"
+				/* 55 8B EC 53 56 8B 35 ? ? ? ? 57 8B F9 */
+				"windows"		"\x55\x8B\xEC\x53\x56\x8B\x35****\x57\x8B\xF9"
 			}
 			
 			/*

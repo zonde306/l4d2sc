@@ -65,7 +65,7 @@ public void OnMapStart()
 public Action OnPlayerRunCmd(int client, int& buttons, int& impulse, float vel[3], float angles[3],
 	int& weapon, int& subtype, int& cmdnum, int& tickcount, int& seed, int mouse[2])
 {
-	if(!IsValidAliveClient(client) || GetClientTeam(client) != 2 || weapon <= MaxClients)
+	if(!IsValidAliveClient(client) || GetClientTeam(client) != 2 || weapon <= MaxClients || !IsFakeClient(client))
 		return Plugin_Continue;
 	
 	static char classname[64];

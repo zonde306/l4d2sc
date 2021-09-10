@@ -23,6 +23,22 @@
 #define PARTICLE_BLOOD				"blood_impact_infected_01"
 #define SOUND_GIFT_PICKUP			"ui/gift_pickup.wav"
 
+#define SOUND_AWARD_BIG				"ui/pickup_secret01.wav"
+#define SOUND_AWARD_LITTLE			"ui/littlereward.wav"
+#define SOUND_STUN					"plats/churchbell_end.wav"
+#define SOUND_ANGRY					"ui/survival_teamrec.wav"
+#define SOUND_BELL					"level/bell_normal.wav"
+#define SOUND_REGULAR				"level/scoreregular.wav"
+#define SOUND_CLICK					"level/timer_bell.wav"
+#define SOUND_PUCK					"level/puck_fail.wav"
+#define SOUND_FLYING				"level/loud/climber.wav"
+#define SOUND_CRASH					"level/loud/adrenaline_impact.wav"
+#define SOUND_RESURRECT				"level/loud/wamover.wav"
+#define SOUND_HINT					"buttons/bell1.wav"
+#define SOUND_LEVELUP				"ui/bigreward.wav"
+#define SOUND_AMMO					"items/itempickup.wav"
+#define SOUND_CROW					"ambient/animal/crow_2.wav"
+
 #define g_flSoH_rate 0.4
 #define ZC_SMOKER			1
 #define ZC_BOOMER			2
@@ -231,7 +247,7 @@ bool g_bIsOnBile[MAXPLAYERS+1] = { false, ... };
 bool g_bDeadlineHint[MAXPLAYERS+1];
 int g_iExtraAmmo[MAXPLAYERS+1];
 int g_iExtraArmor[MAXPLAYERS+1];
-int g_iAccurateShot[MAXPLAYERS+1];
+float g_fAccurateShot[MAXPLAYERS+1];
 bool g_bOnRocketDude[MAXPLAYERS+1];
 int g_iDamageChance[MAXPLAYERS+1];
 int g_iDamageChanceMin[MAXPLAYERS+1];
@@ -523,6 +539,8 @@ bool g_bHasFirstJoin[MAXPLAYERS+1];
 bool g_bHasJumping[MAXPLAYERS+1];
 bool g_bIsPaincEvent = false;
 bool g_bIsPaincIncap = false;
+int g_iChaseEntity[MAXPLAYERS+1];
+Handle g_hChaseTimer[MAXPLAYERS+1];
 
 new bool:g_bIsAngryCritActive = false;
 new bool:g_bIsAngryLastStandActive = false;
@@ -1302,6 +1320,14 @@ public void OnPluginEnd()
 	}
 	*/
 	
+	for(int i = 1; i <= MaxClients; ++i)
+	{
+		if(g_iGlowModel[i] != INVALID_ENT_REFERENCE && IsValidEntity(g_iGlowModel[i]))
+			RemoveEntity(g_iGlowModel[i]);
+		if(g_iChaseEntity[i] != INVALID_ENT_REFERENCE && IsValidEntity(g_iChaseEntity[i]))
+			RemoveEntity(g_iChaseEntity[i]);
+	}
+	
 	// 清理以及保存
 	OnMapEnd();
 }
@@ -1514,6 +1540,21 @@ public OnMapStart()
 	PrecacheSound(SOUND_STEEL);
 	PrecacheSound(SOUND_GIFT_PICKUP);
 	// PrecacheSound(SOUND_WARP);
+	PrecacheSound(SOUND_AWARD_BIG);
+	PrecacheSound(SOUND_AWARD_LITTLE);
+	PrecacheSound(SOUND_STUN);
+	PrecacheSound(SOUND_ANGRY);
+	PrecacheSound(SOUND_BELL);
+	PrecacheSound(SOUND_REGULAR);
+	PrecacheSound(SOUND_CLICK);
+	PrecacheSound(SOUND_PUCK);
+	PrecacheSound(SOUND_FLYING);
+	PrecacheSound(SOUND_CRASH);
+	PrecacheSound(SOUND_RESURRECT);
+	PrecacheSound(SOUND_HINT);
+	PrecacheSound(SOUND_LEVELUP);
+	PrecacheSound(SOUND_AMMO);
+	PrecacheSound(SOUND_CROW);
 
 	PrecacheModel( STAR_1_MDL );
 	PrecacheModel( STAR_2_MDL );
@@ -2349,7 +2390,7 @@ void Initialization(int client, bool invalid = false)
 	mtLastMoveType[client] = MOVETYPE_WALK;
 	g_iExtraAmmo[client] = 0;
 	g_iExtraArmor[client] = 0;
-	g_iAccurateShot[client] = 0;
+	g_fAccurateShot[client] = 0.0;
 	g_fNextAccurateShot[client] = 0.0;
 	g_iReloadWeaponUpgrade[client] = 0;
 	g_iReloadWeaponUpgradeClip[client] = 0;
@@ -2374,8 +2415,11 @@ void Initialization(int client, bool invalid = false)
 	g_iIsInCombat[client] = 0;
 	g_iIsSneaking[client] = 0;
 	g_iUserID[client] = 0;
+	g_iChaseEntity[client] = INVALID_ENT_REFERENCE;
 	Handle toDelete4 = g_hTimerMinigun[client];
 	g_hTimerMinigun[client] = null;
+	Handle toDelete5 = g_hChaseTimer[client];
+	g_hChaseTimer[client] = null;
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
@@ -2422,6 +2466,8 @@ void Initialization(int client, bool invalid = false)
 		// delete toDelete3;
 	if(toDelete4 != null)
 		KillTimer(toDelete4);
+	if(toDelete5 != null)
+		KillTimer(toDelete5);
 }
 
 public void QueryResult_Naked(Database db, DBResultSet results, const char[] error, any data)
@@ -3293,7 +3339,10 @@ public Action Timer_TeamTeleportCheck(Handle timer, any client)
 		GiveSkillPoint(client, -2);
 		
 		if(!IsFakeClient(client))
-			ClientCommand(client, "play \"%s\"", SOUND_BAD);
+		{
+			// ClientCommand(client, "play \"%s\"", SOUND_BAD);
+			EmitSoundToClient(client, SOUND_BAD, client);
+		}
 	}
 
 	g_stFallDamageKilled = 0;
@@ -4137,7 +4186,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	
 	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("「自守」倒地推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
 	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("「踏空」允许二级跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
-	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」胆汁时间减半",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
+	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("「防化服」受到胆汁影响不会屏幕模糊和消音",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
 	
 	if(g_bHaveIncapWeapon)
 		menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("「炮台」倒地马格南且可用任何武器",(g_clSkill_2[client]&SKL_2_Magnum)));
@@ -5198,8 +5247,9 @@ public int MenuHandler_EquipInfo(Menu menu, MenuAction action, int client, int s
 					"\x03[提示]\x01 成功穿上该装备,穿上后 伤害+\x03%d％\x01 HP+\x03%d％\x01 速度+\x03%d％\x01 跳跃+\x03%d％\x01 暴击+\x03%d‰\x01 附加:\x03%s\x01.",
 					damage,health,speed,gravity,crit,data.sEffect
 				);
-				// EmitSoundToClient(client,g_soundLevel);
-				ClientCommand(client, "play \"%s\"", g_soundLevel);
+				
+				EmitSoundToClient(client, g_soundLevel);
+				// ClientCommand(client, "play \"%s\"", g_soundLevel);
 			}
 		}
 		case 1:
@@ -5736,7 +5786,8 @@ stock void FreezePlayer(int client, float time)
 	
 	if(!IsFakeClient(client))
 	{
-		ClientCommand(client, "play \"physics/glass/glass_impact_bullet4.wav\"");
+		// ClientCommand(client, "play \"physics/glass/glass_impact_bullet4.wav\"");
+		EmitSoundToClient(client, SOUND_FREEZE, client);
 		PrintHintText(client, "你被冻结 %.0f 秒", time);
 	}
 	
@@ -5969,9 +6020,8 @@ public void OnGameFrame()
 				g_csHasGodMode[i] = !!IsPlayerHaveEffect(i, 9);
 				
 				// SetEntProp(i, Prop_Data, "m_takedamage", DAMAGE_NO, 1);
-				// EmitSoundToClient(client, g_soundLevel);
+				EmitSoundToClient(i, g_soundLevel, i);
 
-				ClientCommand(i, "play \"%s\"", g_soundLevel);
 				
 				if(g_csHasGodMode[i])
 					PrintToChat(i, "\x03「无敌•改」\x01在 \x059\x01 秒以内不会受到伤害（掉落伤害除外）且无限子弹。");
@@ -5991,7 +6041,8 @@ public void OnGameFrame()
 				
 				if(!IsFakeClient(i))
 				{
-					ClientCommand(i, "play \"physics/glass/glass_impact_bullet4.wav\"");
+					// ClientCommand(i, "play \"physics/glass/glass_impact_bullet4.wav\"");
+					EmitSoundToClient(i, SOUND_FREEZE, i);
 					PrintHintText(i, "解冻完成");
 				}
 				
@@ -6166,30 +6217,26 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 		}
 	}
 	
-	// 防止特感故意攻击胆汁玩家
-	if((g_clSkill_2[curTarget] & SKL_2_ProtectiveSuit) && g_bIsHitByVomit[curTarget] &&
-		(GetEntProp(curTarget, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(curTarget, Prop_Send, "m_isHangingFromLedge", 1)))
-	{
-		int victim = ChooseOtherVictim(specialInfected);
-		if(victim > -1 && victim != curTarget)
-		{
-			curTarget = victim;
-			return Plugin_Changed;
-		}
-	}
-	
 	// 特感切换目标
-	if((g_clSkill_5[curTarget] & SKL_5_Sneak) && (/*g_fNextCalmTime[curTarget] <= GetEngineTime() || */g_iIsSneaking[curTarget] > 0) && !GetRandomInt(0, 1))
+	if(g_clSkill_5[curTarget] & SKL_5_Sneak)
 	{
-		int victim = ChooseOtherVictim(specialInfected, curTarget);
-		if(victim > -1)
+		int chance = 0;
+		if(g_iIsSneaking[curTarget])
+			chance += 1;
+		if(!g_iIsInCombat[curTarget])
+			chance += 1;
+		if(GetRandomInt(1, 3) <= chance)
 		{
-			curTarget = victim;
-			return Plugin_Changed;
-		}
-		else
-		{
-			return Plugin_Handled;
+			int victim = ChooseOtherVictim(specialInfected, curTarget);
+			if(victim > -1)
+			{
+				curTarget = victim;
+				return Plugin_Changed;
+			}
+			else
+			{
+				return Plugin_Handled;
+			}
 		}
 	}
 	
@@ -6568,42 +6615,6 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	return Plugin_Changed;
 }
 
-/*
-public void ZombieHook_OnTakeDamagePost(int victim, int attacker, int inflictor, float damage, int damagetype,
-	int weapon, const float damageForce[3], const float damagePosition[3], int damagecustom)
-{
-	if(!IsValidEntity(victim) || !IsValidClient(attacker) || damage <= 0.0 || GetClientTeam(attacker) != 2 || (damagetype & DMG_FALL))
-		return;
-	
-	if((damagetype & DMG_HEADSHOT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_iAccurateShot[attacker] && !IsNullVector(damagePosition))
-	{
-		float vStart[3];
-		GetClientEyePosition(attacker, vStart);
-		
-		TE_SetupBeamPoints(vStart, damagePosition, g_BeamSprite, 0, 0, 0, 0.1, 0.01, 0.08, 1, 0.0, {0, 0, 200, 230}, 0);
-		TE_SendToAll();
-	}
-}
-*/
-
-/*
-public void PlayerHook_OnTakeDamagePost(int victim, int attacker, int inflictor, float damage, int damagetype,
-	int weapon, const float damageForce[3], const float damagePosition[3], int damagecustom)
-{
-	if(!IsValidAliveClient(victim) || attacker <= 0 || damage <= 0.0 || (damagetype & DMG_FALL))
-		return;
-	
-	if((damagetype & DMG_HEADSHOT) && (damagetype & (DMG_BULLET|DMG_BUCKSHOT)) && IsValidAliveClient(attacker) && g_iAccurateShot[attacker] && !IsNullVector(damagePosition))
-	{
-		float vStart[3];
-		GetClientEyePosition(attacker, vStart);
-		
-		TE_SetupBeamPoints(vStart, damagePosition, g_BeamSprite, 0, 0, 0, 0.1, 0.01, 0.08, 1, 0.0, {0, 0, 200, 230}, 0);
-		TE_SendToAll();
-	}
-}
-*/
-
 public void OnEntityCreated(int entity, const char[] classname)
 {
 	if(entity <= MaxClients || entity > 2048)
@@ -6668,41 +6679,6 @@ public void ZombieHook_OnSpawned(int entity)
 	// SDKHook(entity, SDKHook_TraceAttackPost, ZombieHook_OnTraceAttackPost);
 	// SDKHook(entity, SDKHook_OnTakeDamageAlivePost, ZombieHook_OnTakeDamagePost);
 }
-
-/*
-public void EntityHook_OnProjectileSpawned(int entity)
-{
-	SDKUnhook(entity, SDKHook_SpawnPost, EntityHook_OnProjectileSpawned);
-
-	int client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
-	if(!IsValidAliveClient(client))
-		return;
-	
-	static char classname[64];
-	GetEntityClassname(entity, classname, 64);
-	if(g_clSkill_5[client] & SKL_5_RocketDude)
-	{
-		if(StrEqual(classname, "grenade_launcher_projectile", false) ||
-			StrEqual(classname, "spitter_projectile", false))
-		{
-			// 把它变成跟踪的
-			CreateMissiles(client, entity);
-		}
-	}
-}
-*/
-
-/*
-public void ZombieHook_OnTraceAttackPost(int victim, int attacker, int inflictor, float damage, int damagetype,
-	int ammotype, int hitbox, int hitgroup)
-{
-	if(!IsValidClient(attacker))
-		return;
-	
-	if((damagetype & DMG_HEADSHOT) && g_iAccurateShot[attacker])
-		g_iAccurateShot[attacker] = false;
-}
-*/
 
 // 临时、根据情况的不在这里计算
 void CalcDamageExtra(int attacker, int& chance, int& minChDmg, int& maxChDmg, int& baseDmg)
@@ -6844,29 +6820,26 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
 		damage += originalDamage * (g_bHaveWeaponHandling ? 1 : 2);
 	
-	if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
+	float time = GetEngineTime();
+	if(g_fAccurateShot[attacker] > time || GetRandomInt(1, 1000) <= chance)
 	{
 		// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 		
 		if(!IsFakeClient(attacker))
 		{
-			if(g_iAccurateShot[attacker] > 0)
-				ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
+			if(g_fAccurateShot[attacker] > time)
+			{
+				EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
+			}
 			else
-				ClientCommand(attacker, "play \"ui/littlereward.wav\"");
+			{
+				EmitSoundToClient(attacker, SOUND_AWARD_LITTLE, victim);
+			}
 		}
 		
 		damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 		damagetype |= DMG_HEADSHOT;
-		// g_iAccurateShot[attacker] -= 1;
-		
-		/*
-		if(g_pCvarAllow.BoolValue)
-		{
-			// PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
-			PrintCenterText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
-		}
-		*/
+		// g_fAccurateShot[attacker] -= 1;
 	}
 	
 	damage += originalDamage * baseDmg / 100.0;
@@ -7250,18 +7223,6 @@ public Action Timer_CheckHavePistol(Handle timer, any client)
 	return Plugin_Continue;
 }
 
-/*
-public void PlayerHook_OnTraceAttackPost(int victim, int attacker, int inflictor, float damage, int damagetype,
-	int ammotype, int hitbox, int hitgroup)
-{
-	if(!IsValidClient(attacker))
-		return;
-	
-	if((damagetype & DMG_HEADSHOT) && g_iAccurateShot[attacker])
-		g_iAccurateShot[attacker] = false;
-}
-*/
-
 public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &ammotype, int hitbox, int hitgroup)
 {
@@ -7302,43 +7263,33 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
 			return Plugin_Continue;
 		
-		// 狙击枪伤害增加
-		// 某次更新后 inflictor 不表示武器了...
-		/*
-		if(ammotype == AMMOTYPE_SNIPERRIFLE && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
-		{
-			static char className[64];
-			if(inflictor > MaxClients)
-			{
-				GetEntityClassname(inflictor, className, 64);
-				if(StrEqual(className, "weapon_sniper_awp", false))
-					damage *= 3;
-				else if(StrEqual(className, "weapon_sniper_scout", false))
-					damage *= 2;
-			}
-			
-			// PrintToChat(attacker, "ammotype %d, classname %s, hitbox %d, hitgroup %d", ammotype, className, hitbox, hitgroup);
-		}
-		*/
-		
-		if(g_iAccurateShot[attacker] > 0 || GetRandomInt(1, 1000) <= chance)
+		float time = GetEngineTime();
+		if(g_fAccurateShot[attacker] > time || GetRandomInt(1, 1000) <= chance)
 		{
 			if(!IsFakeClient(victim))
-				ClientCommand(victim, "play \"plats/churchbell_end.wav\"");
-			
+			{
+				// ClientCommand(victim, "play \"plats/churchbell_end.wav\"");
+				EmitSoundToClient(victim, SOUND_STUN, attacker);
+			}
 			// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
 			
 			if(!IsFakeClient(attacker))
 			{
-				if(g_iAccurateShot[attacker] > 0)
-					ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
+				if(g_fAccurateShot[attacker] > time)
+				{
+					// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
+					EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
+				}
 				else
-					ClientCommand(attacker, "play \"ui/littlereward.wav\"");
+				{
+					// ClientCommand(attacker, "play \"ui/littlereward.wav\"");
+					EmitSoundToClient(attacker, SOUND_AWARD_LITTLE, victim);
+				}
 			}
 			
 			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 			damagetype |= DMG_HEADSHOT;
-			// g_iAccurateShot[attacker] -= 1;
+			// g_fAccurateShot[attacker] -= 1;
 			
 			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !GetRandomInt(0, 2))
 			{
@@ -7368,10 +7319,16 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		if(GetRandomInt(1, 1000) <= chance)
 		{
 			if(!IsFakeClient(victim))
-				ClientCommand(victim, "play \"plats/churchbell_end.wav\"");
+			{
+				// ClientCommand(victim, "play \"plats/churchbell_end.wav\"");
+				EmitSoundToClient(victim, SOUND_STUN, attacker);
+			}
 			
 			if(!IsFakeClient(attacker))
-				ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
+			{
+				// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
+				EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
+			}
 			
 			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 			damagetype |= DMG_HEADSHOT;
@@ -7778,16 +7735,7 @@ void TriggerAngrySkill(int victim, int mode)
 		case 1:
 		{
 			if(g_pCvarAllow.BoolValue)
-				for (new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientInGame(i) && IsPlayerAlive(i))
-					{
-						// EmitSoundToAll(SOUND_GOOD, i);
-						// EmitSoundToAll(SOUND_GOOD, i);
-						ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
-					}
-				}
-
+				EmitSoundToAll(SOUND_ANGRY, victim);
 			
 			float vLoc[3], vPos[3];
 			GetClientAbsOrigin(victim, vLoc);
@@ -7820,15 +7768,7 @@ void TriggerAngrySkill(int victim, int mode)
 			CreateTimer(40.0, Timer_AngryCritEnd, 0, TIMER_FLAG_NO_MAPCHANGE);
 			
 			if(g_pCvarAllow.BoolValue)
-				for (new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientInGame(i) && IsPlayerAlive(i))
-					{
-						// EmitSoundToAll(g_soundLevel, i);
-						// EmitSoundToAll(g_soundLevel, i);
-						ClientCommand(i, "play \"ui/survival_teamrec.wav\"");
-					}
-				}
+				EmitSoundToAll(SOUND_ANGRY, victim);
 			
 			if(g_pCvarAllow.BoolValue)
 				PrintToChatAll("\x03【\x05霸者之号令\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员暴击率+500,持续40秒\x04.",victim);
@@ -7838,15 +7778,7 @@ void TriggerAngrySkill(int victim, int mode)
 		case 3:
 		{
 			if(g_pCvarAllow.BoolValue)
-				for (new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientInGame(i) && IsPlayerAlive(i))
-					{
-						// EmitSoundToAll(SOUND_GOOD, i);
-						// EmitSoundToAll(SOUND_GOOD, i);
-						ClientCommand(i, "play \"ui/pickup_secret01.wav\"");
-					}
-				}
+				EmitSoundToAll(SOUND_AWARD_BIG, victim);
 			
 			float vLoc[3], vPos[3];
 			GetClientAbsOrigin(victim, vLoc);
@@ -7869,15 +7801,7 @@ void TriggerAngrySkill(int victim, int mode)
 		case 4:
 		{
 			if(g_pCvarAllow.BoolValue)
-				for (new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientInGame(i) && IsPlayerAlive(i))
-					{
-						// EmitSoundToAll(SOUND_BCLAW, i);
-						// EmitSoundToAll(SOUND_BCLAW, i);
-						ClientCommand(i, "play \"level/bell_normal.wav\"");
-					}
-				}
+				EmitSoundToAll(SOUND_BELL, victim);
 			
 			float vLoc[3], vPos[3];
 			GetClientAbsOrigin(victim, vLoc);
@@ -7900,15 +7824,7 @@ void TriggerAngrySkill(int victim, int mode)
 		case 5:
 		{
 			if(g_pCvarAllow.BoolValue)
-				for (new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientInGame(i) && IsPlayerAlive(i))
-					{
-						// EmitSoundToAll(g_soundLevel, i);
-						// EmitSoundToAll(g_soundLevel, i);
-						ClientCommand(i, "play \"level/gnomeftw.wav\"");
-					}
-				}
+				EmitSoundToAll(SOUND_GOOD, victim);
 			
 			float vLoc[3], vPos[3];
 			GetClientAbsOrigin(victim, vLoc);
@@ -7935,15 +7851,7 @@ void TriggerAngrySkill(int victim, int mode)
 			CreateTimer(60.0, Timer_AngryLastStandEnd, 0, TIMER_FLAG_NO_MAPCHANGE);
 			
 			if(g_pCvarAllow.BoolValue)
-				for (new i = 1; i <= MaxClients; i++)
-				{
-					if(IsClientInGame(i) && IsPlayerAlive(i))
-					{
-						// EmitSoundToAll(g_soundLevel, i);
-						// EmitSoundToAll(g_soundLevel, i);
-						ClientCommand(i, "play \"level/scoreregular.wav\"");
-					}
-				}
+				EmitSoundToAll(SOUND_REGULAR, victim);
 			
 			if(!IsPlayerIncapped(victim))
 			{
@@ -7974,16 +7882,10 @@ void TriggerAngrySkill(int victim, int mode)
 			g_bIsAngryBloodthirstyActive = true;
 			g_bIsAngryActive = true;
 			CreateTimer(75.0, Timer_AngryBloodthirstyEnd, 0, TIMER_FLAG_NO_MAPCHANGE);
-			for (new i = 1; i <= MaxClients; i++)
-			{
-				if(IsClientInGame(i) && IsPlayerAlive(i))
-				{
-					// EmitSoundToAll(g_soundLevel, i);
-					// EmitSoundToAll(g_soundLevel, i);
-					ClientCommand(i, "play \"level/scoreregular.wav\"");
-				}
-			}
-
+			
+			if(g_pCvarAllow.BoolValue)
+				EmitSoundToAll(SOUND_REGULAR, victim);
+			
 			if(g_pCvarAllow.BoolValue)
 				PrintToChatAll("\x03【\x05嗜血如命\x03】\x04触发怒气技者:\x03%N\x04 效果:\x03全员获得嗜血天赋(主+近),持续75秒\x04.",victim);
 			else
@@ -8035,7 +7937,8 @@ public Action:SSJ4_DMG(Handle:timer, any:client)
 		hp = GetRandomInt(20, 60);
 		if(!IsFakeClient(client))
 		{
-			ClientCommand(client, "play \"level/timer_bell.wav\"");
+			// ClientCommand(client, "play \"level/timer_bell.wav\"");
+			EmitSoundToClient(client, SOUND_CLICK, client);
 			
 			if(g_pCvarAllow.BoolValue)
 				PrintToChat(client,"\x03[\x05提示\x03]\x04你使用\x03坚韧\x04天赋随机恢复\x03%d\x04HP!",hp);
@@ -8066,7 +7969,8 @@ public Action:BoomerIce(Handle:Timer, any:target)
 	FreezePlayer(target, 5.0);
 	if(!IsFakeClient(target))
 	{
-		ClientCommand(target, "play \"level/puck_fail.wav\"");
+		// ClientCommand(target, "play \"level/puck_fail.wav\"");
+		EmitSoundToClient(target, SOUND_PUCK, target);
 		PrintCenterText(target, "你悲剧地被打麻痹了!");
 	}
 }
@@ -8091,7 +7995,9 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 					if(mulEffect > 0)
 					{
 						DealDamage(victim, attacker, 3000 * mulEffect, 0);
-						ClientCommand(victim, "play \"level/lurd/climber.wav\"");
+						// ClientCommand(victim, "play \"level/loud/climber.wav\"");
+						EmitSoundToClient(victim, SOUND_FLYING, attacker);
+						
 						// new String:name[32];
 						// GetClientName(attacker, name, 32);
 						// PrintToChatAll("\x03[\x05提示\x03]%N\x04死亡前引爆自身炸弹给予\x03%s\x043000点伤害!",victim,name);
@@ -8116,7 +8022,8 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				if(g_fSacrificeTime[victim] > 0.0 || tk || attacker == victim || GetRandomInt(0, 2) < chance)
 				{
 					SetVariantInt(1);
-					ClientCommand(victim, "play \"level/lurd/adrenaline_impact.wav\"");
+					// ClientCommand(victim, "play \"level/lurd/adrenaline_impact.wav\"");
+					EmitSoundToClient(victim, SOUND_CRASH, victim);
 					
 					int counter = 0;
 					for(int i = 1; i <= MaxClients; ++i)
@@ -8158,9 +8065,10 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				if(GetRandomInt(0, 9) < chance)
 				{
 					CreateTimer(5.0, Timer_RespawnPlayer, victim);
-					ClientCommand(victim, "play \"level/pointscored.wav\"");
-					// PrintToChatAll("\x03[\x05提示\x03] %N\x04成功\x03转生\x04,5秒后复活到队友身边!",victim);
-					PrintToChat(victim, "\x03「永生」\x01触发成功，将会在 \x055\x01 秒后复活到队友身边。");
+					// ClientCommand(victim, "play \"level/loud/wamover.wav\"");
+					EmitSoundToClient(victim, SOUND_RESURRECT, victim);
+					// PrintToChatAll("\x03[\x05提示\x03] %N\x04成功\x03转生\x04,7秒后复活到队友身边!",victim);
+					PrintToChat(victim, "\x03「永生」\x01触发成功，将会在 \x057\x01 秒后复活到队友身边。");
 				}
 				else
 				{
@@ -8692,13 +8600,7 @@ public Action:Round_Random_Event(Handle:timer, any:data)
 	PrintToChatAll("\x03[\x05提示\x03]\x04回合首只坦克死亡触发\x03天启事件\x04...");
 	PrintToChatAll("\x03[提示]\x01 本回合天启：\x04%s\x05（%s）\x01。", g_szRoundEvent, buffer);
 	
-	for(int i = 1; i <= MaxClients; ++i)
-	{
-		if(!IsValidAliveClient(i) || IsFakeClient(i))
-			continue;
-
-		ClientCommand(i, "play \"buttons/bell1.wav\"");
-	}
+	EmitSoundToAll(SOUND_HINT);
 
 	PrintToServer("本回合天启事件：%s丨%s", g_szRoundEvent, buffer);
 	return Plugin_Continue;
@@ -10791,7 +10693,7 @@ public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool don
 public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsValidClient(client))
+	if(!IsValidClient(client) || g_iChaseEntity[client] != INVALID_ENT_REFERENCE)
 		return;
 	
 	g_bIsHitByVomit[client] = false;
@@ -11026,6 +10928,7 @@ void UpdateVomitDuration(any client)
 	if(cv_bile_duration == null)
 		cv_bile_duration = FindConVar("survivor_it_duration");
 	
+	/*
 	// PropFieldType type = PropField_Unsupported;
 	// int itOffset = FindDataMapInfo(client, "m_itTimer", type);
 	
@@ -11033,17 +10936,53 @@ void UpdateVomitDuration(any client)
 	// SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + (cv_bile_duration.FloatValue / 2), true);
 	// SetEntPropFloat(client, Prop_Send, "m_itTimer", GetGameTime() + (cv_bile_duration.FloatValue / 2), 2);
 	L4D2_RunScript("NetProps.SetPropFloat(GetPlayerFromUserID(%d),\"m_itTimer.m_timestamp\",Time()+%.2f)", GetClientUserId(client), (cv_bile_duration.FloatValue / 2));
-	CreateTimer(cv_bile_duration.FloatValue / 2, Timer_UnVimit, client, TIMER_FLAG_NO_MAPCHANGE);
-	g_bIsHitByVomit[client] = true;
+	*/
+	
+	if(g_iChaseEntity[client] == INVALID_ENT_REFERENCE || !IsValidEntity(g_iChaseEntity[client]))
+	{
+		int chase = CreateEntityByName("info_goal_infected_chase");
+		if(chase <= MaxClients || !IsValidEntity(chase))
+			return;
+		
+		DispatchKeyValue(chase, "targetname", "l4d2lv_suit");
+		SetEntProp(chase, Prop_Data, "m_iHammerID", -1);
+		SetEntPropEnt(chase, Prop_Send, "m_hOwnerEntity", client);
+		
+		float origin[3];
+		GetClientAbsOrigin(client, origin);
+		TeleportEntity(chase, origin, NULL_VECTOR, NULL_VECTOR);
+		DispatchSpawn(chase);
+		ActivateEntity(chase);
+		
+		SetVariantString("!activator");
+		AcceptEntityInput(chase, "SetParent", client, chase);
+		
+		AcceptEntityInput(chase, "Enable");
+		g_iChaseEntity[client] = EntIndexToEntRef(chase);
+	}
+	
+	if(g_hChaseTimer[client] != null)
+		delete g_hChaseTimer[client];
+	
+	g_hChaseTimer[client] = CreateTimer(cv_bile_duration.FloatValue, Timer_UnVimit, client, TIMER_FLAG_NO_MAPCHANGE);
+	L4D_OnITExpired(client);
 }
 
 public Action Timer_UnVimit(Handle timer, any client)
 {
-	if(IsValidAliveClient(client))
-		L4D_OnITExpired(client);
+	if(!IsValidClient(client))
+		return Plugin_Continue;
 	
-	g_bIsOnBile[client] = false;
-	g_bIsHitByVomit[client] = false;
+	g_hChaseTimer[client] = null;
+	RemoveEntity(g_iChaseEntity[client]);
+	g_iChaseEntity[client] = INVALID_ENT_REFERENCE;
+	
+	Event event = CreateEvent("player_no_longer_it");
+	event.SetInt("userid", GetClientUserId(client));
+	Event_PlayerVomitTimeout(event, "player_no_longer_it", true);
+	delete event;
+	
+	return Plugin_Continue;
 }
 
 stock void PrintToChatTeam(int team, const char[] text, any ...)
@@ -11854,25 +11793,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			((g_clSkill_4[client] & SKL_4_SniperExtra) && (g_iIsInBattlefield[client] == 0 && isSniper))*/)					// 远距离狙击
 		{
 			// 只有非无限子弹才生效
-			if(isShotgun)
-				g_iAccurateShot[client] = 1;
-			else if(isSniper)
-				g_iAccurateShot[client] = 3;
-			else if(isRifle)
-				g_iAccurateShot[client] = 5;
-			else if(isSMG)
-				g_iAccurateShot[client] = 7;
-			else
-				g_iAccurateShot[client] = 0;
-			// PrintToChat(client, "weapon_fire");
-			
+			g_fAccurateShot[client] = time + 0.1;
 			g_fNextAccurateShot[client] = time + 5.0;
-		}
-		
-		if(g_iAccurateShot[client] > 0)
-		{
-			// 检查单发子弹结束，因为一发可以伤害多个目标的
-			RequestFrame(EndAccurateShot, client);
 		}
 		
 		if((g_clSkill_4[client] & SKL_4_SniperExtra) &&
@@ -11954,7 +11876,10 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 				SetEntProp(weapon, Prop_Send, "m_iClip1", clip + 1);
 			}
 			else if(g_iBulletFired[client] == 25)
-				ClientCommand(client, "play \"ui/bigreward.wav\"");
+			{
+				// ClientCommand(client, "play \"ui/bigreward.wav\"");
+				EmitSoundToClient(client, SOUND_LEVELUP, weapon);
+			}
 		}
 		
 		/*
@@ -11993,15 +11918,8 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			}
 		}
 		
-		g_iAccurateShot[client] = 0;
+		g_fAccurateShot[client] = 0.0;
 		
-		/*
-		// 小手枪和马格南
-		if(classname[13] == EOS)
-			g_fNextCalmTime[client] = GetEngineTime() + 2.0;
-		else
-			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
-		*/
 	}
 	else if(StrEqual(classname, "weapon_chainsaw", false))
 	{
@@ -12011,7 +11929,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			SetEntProp(weapon, Prop_Send, "m_iClip1", 31);
 		}
 		
-		g_iAccurateShot[client] = 0;
+		g_fAccurateShot[client] = 0.0;
 		// g_fNextCalmTime[client] = GetEngineTime() + 3.0;
 	}
 	else if((g_clSkill_5[client] & SKL_5_RocketDude) && !(GetEntityFlags(client) & FL_ONGROUND) && StrContains(classname, "grenade_launcher", false) != -1)
@@ -12029,11 +11947,11 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			SetEntProp(weapon, Prop_Send, "m_iClip1", clip + 1);
 		}
 		
-		g_iAccurateShot[client] = 0;
+		g_fAccurateShot[client] = 0.0;
 	}
 	else
 	{
-		g_iAccurateShot[client] = 0;
+		g_fAccurateShot[client] = 0.0;
 	}
 	
 	int pbDuration = IsPlayerHaveEffect(client, 21);
@@ -12145,11 +12063,6 @@ public void WH_OnMeleeSwing(int client, int weapon, float &speedmodifier)
 	// PrintToChat(client, "speedmodifier %f", speedmodifier);
 }
 #endif	// _WeaponHandling_included
-
-public void EndAccurateShot(any client)
-{
-	g_iAccurateShot[client] -= 1;
-}
 
 public void ResetPipeBombDuration(any data)
 {
@@ -12948,7 +12861,8 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	if(!noSound && amount != 0 && newAmmo > oldAmmo)
 	{
 		// 在弹药增加的情况下才是需要播放声音
-		ClientCommand(client, "play \"items/itempickup.wav\"");
+		// ClientCommand(client, "play \"items/itempickup.wav\"");
+		EmitSoundToClient(client, SOUND_AMMO, client);
 	}
 	
 	// PrintToChat(client, "ammo +%d, ov %d, nv %d, cl %d, ex %d, lim %d, ava %d, mc %d", amount, oldAmmo, newAmmo, clip, g_iExtraAmmo[client], maxAmmo, available, maxClip);
@@ -14153,12 +14067,8 @@ void ShowStatusPanel(int client)
 		int minDamage = g_iDamageChanceMin[client];
 		int maxDamage = g_iDamageChanceMax[client];
 		int base = g_iDamageBase[client];
-		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && (g_fNextAccurateShot[client] <= time || g_iIsInCombat[client] == 0) && g_iAccurateShot[client] > 0)
+		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && (g_fNextAccurateShot[client] <= time || g_iIsInCombat[client] == 0) && g_fAccurateShot[client] > time)
 			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
-		/*
-		else if((g_clSkill_5[client] & SKL_5_Sneak) && (g_fNextCalmTime[client] <= time || g_iIsSneaking[client] > 0))
-			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 潜行中", base, minDamage, maxDamage));
-		*/
 		else
 			menu.DrawText(tr("攻击+%d%% 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage));
 	}
@@ -15201,7 +15111,8 @@ public Action:Event_RP(Handle:timer, any:client)
 	{
 		g_bHasRPActive = false;
 		PrintToChatAll("\x03[\x05RP\x03]%N\x04人品十分有问题,没有事情发生.", client);
-		ClientCommand(client, "play \"ambient/animal/crow_2.wav\"");
+		// ClientCommand(client, "play \"ambient/animal/crow_2.wav\"");
+		EmitSoundToAll(SOUND_CROW);
 	}
 	
 	g_fLotteryStartTime = 0.0;
@@ -15712,7 +15623,8 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 						g_clSkill_5[client] = 0;
 				}
 				
-				ClientCommand(client, "play \"ambient/animal/crow_1.wav\"");
+				// ClientCommand(client, "play \"ambient/animal/crow_1.wav\"");
+				EmitSoundToAll(SOUND_CROW);
 				
 				RegPlayerHook(client, false);
 				// ClientSaveToFileSave(client, false);
@@ -16360,6 +16272,10 @@ stock bool GiveSkillPoint(int client, int amount)
 	}
 	
 	g_clSkillPoint[client] += amount;
+	
+	if(amount > 0 && !IsFakeClient(client))
+		EmitSoundToClient(client, SOUND_LEVELUP);
+	
 	return true;
 }
 
@@ -16458,6 +16374,9 @@ stock int GiveEquipment(int client, int parts = -1)
 	RebuildEquipStr(data);
 	g_mEquipData[client].SetArray(key, data, sizeof(data));
 	FlushEquipID(client, key);
+	
+	if(!IsFakeClient(client))
+		EmitSoundToClient(client, SOUND_LEVELUP);
 	
 	return data.hashID;
 }

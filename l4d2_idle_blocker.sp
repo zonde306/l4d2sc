@@ -3,6 +3,7 @@
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <left4dhooks>
 
 public Plugin myinfo =
 {
@@ -380,16 +381,16 @@ public Action Command_Away(int client, const char[] command, int argc)
 	
 	if(g_ConVar_BlockReleaseIdle.BoolValue)
 	{
-		if(g_fReleasedTimer[client] > time)
+		if(g_fReleasedTimer[client] > time || IsGettingUp(client) || IsStaggering(client))
 		{
-			PrintToChat(client, "被控释放禁止 闲置/切换队伍。");
+			PrintToChat(client, "起身禁止 闲置/切换队伍。");
 			return Plugin_Handled;
 		}
 	}
 	
 	if(g_ConVar_BlockVomitIdle.BoolValue)
 	{
-		if(g_fVomitFadeTimer[client] > time)
+		if(g_fVomitFadeTimer[client] > time || IsInBile(client))
 		{
 			PrintToChat(client, "沾上胆汁禁止 闲置/切换队伍。");
 			return Plugin_Handled;
@@ -450,4 +451,39 @@ public Action Command_Away(int client, const char[] command, int argc)
 
 	// ClientCommand(client, "cl_consistencycheck");
 	return Plugin_Continue;
+}
+
+stock bool IsInBile(int client)
+{
+	char result[64];
+	L4D2_GetVScriptOutput(tr("PlayerInstanceFromIndex(%d).IsIT()", client), result, sizeof(result));
+	return !strcmp(result, "true");
+}
+
+stock bool IsTrapped(int client)
+{
+	char result[64];
+	L4D2_GetVScriptOutput(tr("PlayerInstanceFromIndex(%d).IsDominatedBySpecialInfected()", client), result, sizeof(result));
+	return !strcmp(result, "true");
+}
+
+stock bool IsGettingUp(int client)
+{
+	char result[64];
+	L4D2_GetVScriptOutput(tr("PlayerInstanceFromIndex(%d).IsGettingUp()", client), result, sizeof(result));
+	return !strcmp(result, "true");
+}
+
+stock bool IsStaggering(int client)
+{
+	char result[64];
+	L4D2_GetVScriptOutput(tr("PlayerInstanceFromIndex(%d).IsStaggering()", client), result, sizeof(result));
+	return !strcmp(result, "true");
+}
+
+char tr(const char[] text, any ...)
+{
+	char line[1024];
+	VFormat(line, 1024, text, 2);
+	return line;
 }

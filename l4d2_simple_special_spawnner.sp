@@ -17,6 +17,7 @@ public Plugin myinfo =
 
 bool g_bLateLoad;
 ConVar g_pCvarFirstInterval, g_pCvarInterval, g_pCvarCount, g_pCvarMaxCount, g_pCvarMaxSpecials[Z_WITCH], g_pCvarChanceSpecials[Z_WITCH];
+Handle g_pfnCreateSmoker = null, g_pfnCreateBoomer = null, g_pfnCreateHunter = null, g_pfnCreateSpitter = null, g_pfnCreateJockey = null, g_pfnCreateCharger = null, g_pfnCreateTank = null;
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
@@ -76,6 +77,8 @@ public void OnPluginStart()
 	HookEvent("round_start_pre_entity", Event_RoundEnd, EventHookMode_PostNoCopy);
 	HookEvent("round_start_post_nav", Event_RoundEnd, EventHookMode_PostNoCopy);
 	
+	PrepSDKCall_CreateSpecials();
+	
 	if(g_bLateLoad)
 	{
 		if(L4D_HasAnySurvivorLeftSafeArea())
@@ -117,9 +120,28 @@ public void CvarHook_OnChanged(ConVar cvar, const char[] oldValue, const char[] 
 ******************************************
 */
 
+#define MODEL_SMOKER				"models/infected/smoker.mdl"
+#define MODEL_BOOMER				"models/infected/boomer.mdl"
+#define MODEL_HUNTER				"models/infected/hunter.mdl"
+#define MODEL_SPITTER				"models/infected/spitter.mdl"
+#define MODEL_JOCKEY				"models/infected/jockey.mdl"
+#define MODEL_CHARGER				"models/infected/charger.mdl"
+#define MODEL_TANK					"models/infected/hulk.mdl"
+
 bool g_bIsSurvivalMode = false;
 Handle g_hTimerSpawnQueue = null;
 Handle g_hTimerQueuedSpawnner = null;
+
+public void OnMapStart()
+{
+	PrecacheModel(MODEL_SMOKER);
+	PrecacheModel(MODEL_BOOMER);
+	PrecacheModel(MODEL_HUNTER);
+	PrecacheModel(MODEL_SPITTER);
+	PrecacheModel(MODEL_JOCKEY);
+	PrecacheModel(MODEL_CHARGER);
+	PrecacheModel(MODEL_TANK);
+}
 
 public void Event_RoundStart(Event event, const char[] event_name, bool dontBroadcast)
 {
@@ -298,40 +320,155 @@ stock int GetRandomSurvivor()
 	return survivors[0];
 }
 
-stock int SpawnCommand(int zClass)
+stock int SpawnCommand(int zClass, int spawnner = -1)
 {
-	L4D2_ExecVScriptCode(tr(
-		"local a={"
-			..."'cm_DominatorLimit':null,"
-			..."'cm_MaxSpecials':null,"
-			..."'MaxSpecials':null,"
-			..."'SmokerLimit':null,"
-			..."'BoomerLimit':null,"
-			..."'HunterLimit':null,"
-			..."'SpitterLimit':null,"
-			..."'JockeyLimit':null,"
-			..."'ChargerLimit':null,"
-			..."'WitchLimit':null,"
-			..."'cm_WitchLimit':null,"
-			..."'TankLimit':null,"
-			..."'cm_TankLimit':null,"
-		..."};"
-		..."foreach(k,v in a){"
-			..."if(k in SessionOptions&&SessionOptions[k]!=null)"
-				..."a[key]=v;"
-			..."SessionOptions[k]<-99;"
-		..."}"
-		..."ZSpawn({'type':%d});"
-		..."foreach(k,v in a){"
-			..."if(v!=null)"
-				..."SessionOptions[k]<-v;"
-			..."else "
-				..."delete SessionOptions[k];"
-		..."}",
-		zClass
-	));
+	if(!IsValidClient(spawnner))
+		spawnner = L4D_GetHighestFlowSurvivor();
+	if(!IsValidClient(spawnner))
+		spawnner = GetRandomSurvivor();
 	
-	return -1;
+	static ConVar z_spawn_range;
+	if(z_spawn_range == null)
+		z_spawn_range = FindConVar("z_spawn_range");
+	
+	float vPos[3];
+	if(!L4D_GetRandomPZSpawnPosition(spawnner, zClass, z_spawn_range.IntValue, vPos))
+		return 0;
+	
+	int bot = -1;
+	bool postspawn = false;
+	switch(zClass)
+	{
+		case Z_SMOKER:
+		{
+			if(g_pfnCreateSmoker != null)
+			{
+				bot = SDKCall(g_pfnCreateSmoker, "舌头");
+				if(bot > 0)
+				{
+					SetEntityModel(bot, MODEL_SMOKER);
+					postspawn = true;
+				}
+			}
+			if(bot <= 0)
+				bot = L4D2_SpawnSpecial(Z_SMOKER, vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "smoker auto");
+		}
+		case Z_BOOMER:
+		{
+			if(g_pfnCreateBoomer != null)
+			{
+				bot = SDKCall(g_pfnCreateBoomer, "肥宅");
+				if(bot > 0)
+				{
+					SetEntityModel(bot, MODEL_BOOMER);
+					postspawn = true;
+				}
+			}
+			if(bot <= 0)
+				bot = L4D2_SpawnSpecial(Z_BOOMER, vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "boomer auto");
+		}
+		case Z_HUNTER:
+		{
+			if(g_pfnCreateHunter != null)
+			{
+				bot = SDKCall(g_pfnCreateHunter, "猎人");
+				if(bot > 0)
+				{
+					SetEntityModel(bot, MODEL_HUNTER);
+					postspawn = true;
+				}
+			}
+			if(bot <= 0)
+				bot = L4D2_SpawnSpecial(Z_HUNTER, vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "hunter auto");
+		}
+		case Z_SPITTER:
+		{
+			if(g_pfnCreateSpitter != null)
+			{
+				bot = SDKCall(g_pfnCreateSpitter, "口水");
+				if(bot > 0)
+				{
+					SetEntityModel(bot, MODEL_SPITTER);
+					postspawn = true;
+				}
+			}
+			if(bot <= 0)
+				bot = L4D2_SpawnSpecial(Z_SPITTER, vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "spitter auto");
+		}
+		case Z_JOCKEY:
+		{
+			if(g_pfnCreateJockey != null)
+			{
+				bot = SDKCall(g_pfnCreateJockey, "猴");
+				if(bot > 0)
+				{
+					SetEntityModel(bot, MODEL_JOCKEY);
+					postspawn = true;
+				}
+			}
+			if(bot <= 0)
+				bot = L4D2_SpawnSpecial(Z_JOCKEY, vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "jockey auto");
+		}
+		case Z_CHARGER:
+		{
+			if(g_pfnCreateCharger != null)
+			{
+				bot = SDKCall(g_pfnCreateCharger, "牛");
+				if(bot > 0)
+				{
+					SetEntityModel(bot, MODEL_CHARGER);
+					postspawn = true;
+				}
+			}
+			if(bot <= 0)
+				bot = L4D2_SpawnSpecial(Z_CHARGER, vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "charger auto");
+		}
+		case Z_TANK:
+		{
+			if(g_pfnCreateTank != null)
+			{
+				bot = SDKCall(g_pfnCreateTank, "克");
+				if(bot > 0)
+				{
+					SetEntityModel(bot, MODEL_TANK);
+					postspawn = true;
+				}
+			}
+			if(bot <= 0)
+				bot = L4D2_SpawnTank(vPos, Float:{0.0, 0.0, 0.0});
+			if(bot <= 0)
+				CheatCommand(spawnner, "z_spawn_old", "tank auto");
+		}
+	}
+	
+	if(postspawn && bot)
+	{
+		ChangeClientTeam(bot, 3);
+		SetEntProp(bot, Prop_Send, "m_usSolidFlags", 16);
+		SetEntProp(bot, Prop_Send, "movetype", 2);
+		SetEntProp(bot, Prop_Send, "deadflag", 0);
+		SetEntProp(bot, Prop_Send, "m_lifeState", 0);
+		SetEntProp(bot, Prop_Send, "m_iObserverMode", 0);
+		SetEntProp(bot, Prop_Send, "m_iPlayerState", 0);
+		SetEntProp(bot, Prop_Send, "m_zombieState", 0);
+		DispatchSpawn(bot);
+		ActivateEntity(bot);
+		TeleportEntity(bot, vPos, NULL_VECTOR, NULL_VECTOR);
+	}
+	
+	return bot;
 }
 
 stock int GetRandomSpecial()
@@ -380,4 +517,159 @@ stock int GetRandomSpecial()
 	
 	// 位置已满
 	return -1;
+}
+
+void PrepSDKCall_CreateSpecials()
+{
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4dinfectedbots");
+	if(FileExists(sPath))
+	{
+		Handle hGameConf = LoadGameConfigFile("l4dinfectedbots");
+		if(hGameConf)
+		{
+			//find create bot signature
+			Address replaceWithBot = GameConfGetAddress(hGameConf, "NextBotCreatePlayerBot.jumptable");
+			if (replaceWithBot != Address_Null && LoadFromAddress(replaceWithBot, NumberType_Int8) == 0x68) {
+				// We're on L4D2 and linux
+				PrepWindowsCreateBotCalls(replaceWithBot);
+			}
+			else
+			{
+				PrepL4D1CreateBotCalls(hGameConf);
+				PrepL4D2CreateBotCalls(hGameConf);
+			}
+			
+			delete hGameConf;
+		}
+	}
+}
+
+#define NAME_CreateSmoker "NextBotCreatePlayerBot<Smoker>"
+#define NAME_CreateBoomer "NextBotCreatePlayerBot<Boomer>"
+#define NAME_CreateHunter "NextBotCreatePlayerBot<Hunter>"
+#define NAME_CreateSpitter "NextBotCreatePlayerBot<Spitter>"
+#define NAME_CreateJockey "NextBotCreatePlayerBot<Jockey>"
+#define NAME_CreateCharger "NextBotCreatePlayerBot<Charger>"
+#define NAME_CreateTank "NextBotCreatePlayerBot<Tank>"
+
+Handle PrepCreateBotCallFromAddress(Handle hSiFuncTrie, const char[] siName) {
+	Address addr;
+	StartPrepSDKCall(SDKCall_Static);
+	if (!GetTrieValue(hSiFuncTrie, siName, addr) || !PrepSDKCall_SetAddress(addr))
+	{
+		SetFailState("Unable to find NextBotCreatePlayer<%s> address in memory.", siName);
+		return null;
+	}
+	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+	PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+	return EndPrepSDKCall();	
+}
+
+void LoadStringFromAdddress(Address addr, char[] buffer, int maxlength) {
+	int i = 0;
+	while(i < maxlength) {
+		char val = LoadFromAddress(addr + view_as<Address>(i), NumberType_Int8);
+		if(val == 0) {
+			buffer[i] = 0;
+			break;
+		}
+		buffer[i] = val;
+		i++;
+	}
+	buffer[maxlength - 1] = 0;
+}
+
+void PrepWindowsCreateBotCalls(Address jumpTableAddr) {
+	Handle hInfectedFuncs = CreateTrie();
+	// We have the address of the jump table, starting at the first PUSH instruction of the
+	// PUSH mem32 (5 bytes)
+	// CALL rel32 (5 bytes)
+	// JUMP rel8 (2 bytes)
+	// repeated pattern.
+	
+	// Each push is pushing the address of a string onto the stack. Let's grab these strings to identify each case.
+	// "Hunter" / "Smoker" / etc.
+	for(int i = 0; i < 7; i++) {
+		// 12 bytes in PUSH32, CALL32, JMP8.
+		Address caseBase = jumpTableAddr + view_as<Address>(i * 12);
+		Address siStringAddr = view_as<Address>(LoadFromAddress(caseBase + view_as<Address>(1), NumberType_Int32));
+		static char siName[32];
+		LoadStringFromAdddress(siStringAddr, siName, sizeof(siName));
+
+		Address funcRefAddr = caseBase + view_as<Address>(6); // 2nd byte of call, 5+1 byte offset.
+		int funcRelOffset = LoadFromAddress(funcRefAddr, NumberType_Int32);
+		Address callOffsetBase = caseBase + view_as<Address>(10); // first byte of next instruction after the CALL instruction
+		Address nextBotCreatePlayerBotTAddr = callOffsetBase + view_as<Address>(funcRelOffset);
+		//PrintToServer("Found NextBotCreatePlayerBot<%s>() @ %08x", siName, nextBotCreatePlayerBotTAddr);
+		SetTrieValue(hInfectedFuncs, siName, nextBotCreatePlayerBotTAddr);
+	}
+
+	g_pfnCreateSmoker = PrepCreateBotCallFromAddress(hInfectedFuncs, "Smoker");
+	g_pfnCreateBoomer = PrepCreateBotCallFromAddress(hInfectedFuncs, "Boomer");
+	g_pfnCreateHunter = PrepCreateBotCallFromAddress(hInfectedFuncs, "Hunter");
+	g_pfnCreateTank = PrepCreateBotCallFromAddress(hInfectedFuncs, "Tank");
+	g_pfnCreateSpitter = PrepCreateBotCallFromAddress(hInfectedFuncs, "Spitter");
+	g_pfnCreateJockey = PrepCreateBotCallFromAddress(hInfectedFuncs, "Jockey");
+	g_pfnCreateCharger = PrepCreateBotCallFromAddress(hInfectedFuncs, "Charger");
+}
+
+void PrepL4D2CreateBotCalls(Handle hGameConf) {
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateSpitter))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateSpitter = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateJockey))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateJockey = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateCharger))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateCharger = EndPrepSDKCall();
+	}
+}
+
+void PrepL4D1CreateBotCalls(Handle hGameConf) {
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateSmoker))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateSmoker = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateBoomer))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateBoomer = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateHunter))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateHunter = EndPrepSDKCall();
+	}
+	
+	StartPrepSDKCall(SDKCall_Static);
+	if (PrepSDKCall_SetFromConf(hGameConf, SDKConf_Signature, NAME_CreateTank))
+	{
+		PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
+		PrepSDKCall_SetReturnInfo(SDKType_CBasePlayer, SDKPass_Pointer);
+		g_pfnCreateTank = EndPrepSDKCall();
+	}
 }

@@ -27,6 +27,7 @@ public Plugin myinfo =
 };
 
 native void L4D2_ChangeLevel(const char[] sMapName);
+#define NATIVE_EXISTS(%0)		(GetFeatureStatus(FeatureType_Native, %0) == FeatureStatus_Available)
 
 enum(<<=1)
 {
@@ -93,6 +94,12 @@ public void OnPluginStart()
 	HookEvent("player_left_start_area", Event_LeftStartArea);
 	HookEvent("player_team", Event_PlayerChangeTeam);
 	HookEvent("door_unlocked", Event_DoorUnlocked);
+}
+
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+	MarkNativeAsOptional("L4D2_ChangeLevel");
+	return APLRes_Success;
 }
 
 public void OnMapStart()
@@ -193,7 +200,7 @@ public Action Timer_ChangeLevelEmpty(Handle timer, any unused)
 	
 	char map[64];
 	g_pCvarIdleMap.GetString(map, 64);
-	if(FindPluginByFile("l4d2_changelevel.smx") != null)
+	if(NATIVE_EXISTS("L4D2_ChangeLevel"))
 		L4D2_ChangeLevel(map);
 	else
 		ServerCommand("changelevel %s", map);

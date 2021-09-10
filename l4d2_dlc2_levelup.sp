@@ -62,6 +62,7 @@
 #define	DAMAGE_EVENTS_ONLY	1
 #define	DAMAGE_YES			2
 #define	DAMAGE_AIM			3
+#define IMPULS_FLASHLIGHT	100
 
 #define AMMOTYPE_PISTOL				1
 #define AMMOTYPE_MAGNUM				2
@@ -133,6 +134,7 @@ enum()
 	SKL_1_MultiUpgrade = (1 << 13),
 	SKL_1_Button = (1 << 14),
 	SKL_1_GettingUP = (1 << 15),
+	SKL_1_NightVision = (1 << 16),
 
 	SKL_2_Chainsaw = (1 << 0),
 	SKL_2_Excited = (1 << 1),
@@ -267,6 +269,7 @@ int g_iMaxReviveCount[MAXPLAYERS+1];
 float g_fSacrificeTime[MAXPLAYERS+1];
 float g_fMinigunTime[MAXPLAYERS+1];
 Handle g_hTimerMinigun[MAXPLAYERS+1];
+float g_fNightVision[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -2412,6 +2415,7 @@ void Initialization(int client, bool invalid = false)
 	g_iMaxReviveCount[client] = 0;
 	g_fSacrificeTime[client] = 0.0;
 	g_fMinigunTime[client] = 0.0;
+	g_fNightVision[client] = 0.0;
 	g_iIsInBattlefield[client] = 0;
 	g_iIsInCombat[client] = 0;
 	g_iIsSneaking[client] = 0;
@@ -2779,13 +2783,8 @@ public void QueryResult_LoadStats(Database db, DBResultSet results, const char[]
 	
 	if(results == null || results.RowCount != 1 || !results.FetchRow())
 	{
-		char sid[20];
-		bool valid = GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), true);
-		if(!valid)
-			GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
-		
 		// 处理新增
-		db.Query(QueryResult_Naked, tr("INSERT INTO l4d2lv_stats (sid) VALUES ('%s')", sid), client);
+		db.Query(QueryResult_Naked, tr("INSERT INTO l4d2lv_stats (uid) VALUES (%d)", g_iUserID[client]), client);
 		LogMessage("[l4d2_dlc2_levelup] 读取了玩家 %N 空的统计数据", client);
 		return;
 	}
@@ -4154,6 +4153,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_MultiUpgrade), mps("「耐用」弹药包叠加/补充子弹",(g_clSkill_1[client]&SKL_1_MultiUpgrade)));
 	menu.AddItem(tr("1_%d",SKL_1_Button), mps("「巨力」开机关时间减少2/3",(g_clSkill_1[client]&SKL_1_Button)));
 	menu.AddItem(tr("1_%d",SKL_1_GettingUP), mps("「复苏」起身/失衡时免疫伤害",(g_clSkill_1[client]&SKL_1_GettingUP)));
+	menu.AddItem(tr("1_%d",SKL_1_NightVision), mps("「夜视」连按两下F切换夜视仪",(g_clSkill_1[client]&SKL_1_NightVision)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -13804,6 +13804,19 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		// 已经成功落地
 		g_bOnRocketDude[client] = false;
+	}
+	
+	if((g_clSkill_1[client] & SKL_1_NightVision) && impulse == IMPULS_FLASHLIGHT)
+	{
+		if(g_fNightVision[client] > time)
+		{
+			SetEntProp(client, Prop_Send, "m_bNightVisionOn", !GetEntProp(client, Prop_Send, "m_bNightVisionOn", 1), 1);
+			g_fNightVision[client] = 0.0;
+		}
+		else
+		{
+			g_fNightVision[client] = time + 0.3;
+		}
 	}
 	
 	/*

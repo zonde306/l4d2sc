@@ -86,7 +86,7 @@ char g_sCurrentCommand[ARGS_BUFFER_LENGTH];
 
 public Plugin myinfo =
 {
-	name = "[ANY] Command and ConVar - Buffer Overflow Fixer",
+	name = "缓冲区溢出修复",
 	author = "SilverShot and Peace-Maker",
 	description = "Fixes the 'Cbuf_AddText: buffer overflow' console error on servers, which causes ConVars to use their default value.",
 	version = PLUGIN_VERSION,

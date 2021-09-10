@@ -407,6 +407,14 @@
 				}
 			}
 
+			"RecalculateVersusScore"
+			{
+				"signature"		"RecalculateVersusScore"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+			}
+
 			"OnLedgeGrabbed"
 			{
 				"signature"		"OnLedgeGrabbed"
@@ -787,11 +795,11 @@
 				"windows"	"7660"
 				"linux"		"7680"
 			}
-			// "m_iSurvivorHealthBonus"
-			// {
-				// "windows"	"7724"
-				// "linux"		"7744"
-			// }
+			"m_iSurvivorHealthBonus"
+			{
+				"windows"	"7724"
+				"linux"		"7744"
+			}
 			"m_iTankPassedCount"
 			{
 				"windows"	"268"
@@ -817,14 +825,19 @@
 				"windows"	"1882"
 				"linux"		"1878"
 			}
+			"m_iTankCount"
+			{
+				"linux"		"524"
+				"windows"	"528"
+			}
 			"m_iCampaignScores"
 			{
 				"windows"	"1816"
 				"linux"		"1812"
 			}
-			"VersusMaxCompletionScore"
+			"VersusMaxCompletionScore" // Found via "m_iVersusMapScoreMax" string
 			{
-				"windows"	"952" // Found via "m_iVersusMapScoreMax" string
+				"windows"	"952"
 				"linux"		"944"
 			}
 			"m_fMapMaxFlowDistance"
@@ -841,6 +854,11 @@
 			{
 				"windows"	"1652"
 				"linux"		"1648"
+			}
+			"m_bFirstSurvivorLeftStartArea" // Found just before the call to "Director::OnFirstSurvivorLeftSafeArea"
+			{
+				"windows"	"360"
+				"linux"		"356"
 			}
 
 
@@ -1230,6 +1248,15 @@
 				/* 56 8D 44 ? ? 8D B1 ? ? ? ? 50 6A 00 8B CE E8 ? ? ? ? 8D 4C ? ? 51 6A 01 8B CE E8 ? ? ? ? 5E C2 08 00 */
 			}
 
+			"RecalculateVersusScore"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer22RecalculateVersusScoreEv"
+				"windows"	"\x83\xEC\x0C\x56\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x84\xC0\x0F\x84\x2A\x2A\x2A\x2A\x8B\xCE\xE8\x2A\x2A\x2A\x2A\x83\xF8"
+				/* 83 EC 0C 56 8B F1 E8 ? ? ? ? 84 C0 0F 84 ? ? ? ? 8B CE E8 ? ? ? ? 83 F8 */
+				/* Search: "weapon_give_duplicate_fail" */
+			}
+
 			/*
 			 * Director::OnFirstSurvivorLeftSafeArea(CTerrorPlayer *)
 			 *
@@ -1592,6 +1619,17 @@
 				"linux"		"@_ZNK13CTerrorPlayer15GetFlowDistanceEN13TerrorNavArea8FlowTypeE"
 				"windows"	"\x8B\x01\x8B\x90\x2A\x2A\x2A\x2A\xFF\xD2\x85\xC0\x74\x0E\x8B\x4C\x24\x04\xD9\x84\x88\x2A\x2A\x2A\x2A\xC2\x04\x00\xD9\x05\x2A\x2A\x2A\x2A\xC2\x04\x00"
 				/* 8B 01 8B 90 ? ? ? ? FF D2 85 C0 74 0E 8B 4C 24 04 D9 84 88 ? ? ? ? C2 04 00 D9 05 ? ? ? ? C2 04 00 */
+			}
+
+			/*
+			 * CTerrorGameRules::RecomputeTeamScores(void)
+			 */
+			"RecomputeTeamScores"
+			{
+				"library"	"server"
+				"linux"		"@_ZN16CTerrorGameRules19RecomputeTeamScoresEv"
+				"windows"	"\xA1\x88\x2A\x2A\x2A\x83\xEC\x34\x80\x78\x2A\x2A\x56\x8B\xF1\x0F\x84\x2A\x2A\x2A\x2A\x53\x33\xDB"
+				/* A1 88 ? ? ? 83 EC 34 80 78 ? ? 56 8B F1 0F 84 ? ? ? ? 53 33 DB */
 			}
 
 			/* CTerrorPlayer::RoundRespawn(CTerrorPlayer *this) */

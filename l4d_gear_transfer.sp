@@ -1,4 +1,24 @@
-#define PLUGIN_VERSION		"2.11"
+/*
+*	Gear Transfer
+*	Copyright (C) 2021 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+
+
+#define PLUGIN_VERSION		"2.16"
 
 /*======================================================================================
 	Plugin Info:
@@ -11,6 +31,22 @@
 
 ========================================================================================
 	Change Log:
+
+2.16 (06-Sep-2021)
+	- Fixed the last update creating a ghost weapon attached between players legs. Thanks to "ddd123" for reporting.
+
+2.15 (02-Sep-2021)
+	- Fixed the weapon slots equip icon not displaying like older versions. Thanks to "TBK Duy" for reporting.
+
+2.14 (25-Jul-2021)
+	- New translation files added (please update them all).
+	- Compatibility support for the "Survivor Shove" plugin (version 1.10 or newer).
+
+2.13 (26-Feb-2021)
+	- Blocked reloading weapons when transferring with the Reload key. Thanks to "bazrael" for reporting.
+
+2.12 (30-Sep-2020)
+	- Fixed compile errors on SM 1.11.
 
 2.11 (26-Jun-2020)
 	- Fixed right click passing conflict with "Prototype Grenades" plugin. Thanks to "fbef0102" for fixing.
@@ -321,7 +357,7 @@ bool g_bCvarNotify, g_bCvarSounds;
 float g_fDistGive, g_fDistGrab, g_fTimerGive, g_fTimerGrab, g_fCvarTimeout, g_fBlockVocalize;
 
 // Variables
-bool g_bCvarAllow, g_bMapStarted, g_bModeOffAuto, g_bRoundOver, g_bRoundIntro, g_bTranslation, g_bLeft4Dead2;
+bool g_bCvarAllow, g_bMapStarted, g_bModeOffAuto, g_bRoundOver, g_bRoundIntro, g_bTranslation, g_bTranslationNew, g_bSurvivorShove, g_bLeft4Dead2;
 
 // Timer handles
 Handle g_hTimerGrab, g_hTimerGive;
@@ -338,21 +374,21 @@ ArrayList g_TypeNade;
 ArrayList g_TypePack;
 
 // Enums for code legibility
-enum ()
+enum
 {
 	SLOT_NADE = 2,
 	SLOT_PACK = 3,
 	SLOT_MEDS = 4
 }
 
-enum ()
+enum
 {
 	EMPTY_NADE = (1<<0),
 	EMPTY_PACK = (1<<1),
 	EMPTY_MEDS = (1<<2)
 }
 
-enum ()
+enum
 {
 	METHOD_NONE = 0,
 	METHOD_GIVE = (1<<0),
@@ -360,7 +396,7 @@ enum ()
 	METHOD_SWAP = (1<<2)
 }
 
-enum ()
+enum
 {
 	TYPE_ADREN,
 	TYPE_PILLS,
@@ -454,7 +490,7 @@ static const char g_Zoey[10][] =
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "机器人捡/递物品",
+	name = "物品传递/机器人捡东西",
 	author = "SilverShot",
 	description = "Survivor bots can automatically pickup and give items. Players can switch, grab or give items.",
 	version = PLUGIN_VERSION,
@@ -478,15 +514,23 @@ public void OnPluginStart()
 {
 	// Translations
 	char sPath[PLATFORM_MAX_PATH];
-	BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, "translations/gear_transfer.phrases.txt");
+	BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, "translations/gear_transfer.new.phrases.txt");
 	if( FileExists(sPath) )
 	{
-		LoadTranslations("gear_transfer.phrases");
+		LoadTranslations("gear_transfer.new.phrases");
+		g_bTranslationNew = true;
 		g_bTranslation = true;
 	}
 	else
 	{
-		g_bTranslation = false;
+		BuildPath(Path_SM, sPath, PLATFORM_MAX_PATH, "translations/gear_transfer.phrases.txt");
+		if( FileExists(sPath) )
+		{
+			LoadTranslations("gear_transfer.phrases");
+			g_bTranslation = true;
+		} else {
+			g_bTranslation = false;
+		}
 	}
 
 	// Cvars
@@ -495,7 +539,7 @@ public void OnPluginStart()
 	g_hCvarDistGrab =		CreateConVar(	"l4d_gear_transfer_dist_grab",		"150.0",		"How close the bots need to be for them to pick up an item.", CVAR_FLAGS);
 	g_hCvarTimerGive =		CreateConVar(	"l4d_gear_transfer_timer_give",		"1.0",			"0.0=Off. How often to check survivor bot positions to real clients for auto give.", CVAR_FLAGS, true, 0.0, true, 10.0);
 	g_hCvarTimerGrab =		CreateConVar(	"l4d_gear_transfer_timer_grab",		"0.5",			"0.0=Off. How often to check survivor bot positions to item positions for auto grab.", CVAR_FLAGS, true, 0.0, true, 10.0);
-	g_hCvarGive =			CreateConVar(	"l4d_gear_transfer_types_give",		"345789",	"Which type can bots auto give. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
+	g_hCvarGive =			CreateConVar(	"l4d_gear_transfer_types_give",		"123456789",	"Which type can bots auto give. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
 	g_hCvarGrab =			CreateConVar(	"l4d_gear_transfer_types_grab",		"123456789",	"Which type can bots auto grab. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
 	g_hCvarTypes =			CreateConVar(	"l4d_gear_transfer_types_real",		"123456789",	"The types real players can transfer. 0=Off. 1=Adrenaline, 2=Pain Pills, 3=Molotov, 4=Pipe Bomb, 5=Vomit Jar, 6=First Aid, 7=Explosive Rounds, 8=Incendiary Rounds, 9=Defibrillator. Any string combination.", CVAR_FLAGS);
 	g_hCvarMethod =			CreateConVar(	"l4d_gear_transfer_method",			"3",			"0=Off. 1=Shove only, 2=Reload key only, 3=Shove and Reload key to transfer items.", CVAR_FLAGS);
@@ -632,6 +676,8 @@ public void OnWeaponEquip(int client, int weapon)
 public void OnConfigsExecuted()
 {
 	IsAllowed();
+
+	g_bSurvivorShove = FindConVar("l4d_survivor_shove_version") != null;
 }
 
 public void ConVarChanged_Allow(Handle convar, const char[] oldValue, const char[] newValue)
@@ -930,10 +976,10 @@ public void Event_InstructorOff(Event event, const char[] name, bool dontBroadca
 
 public void Event_InstructorOn(Event event, const char[] name, bool dontBroadcast)
 {
-	CreateTimer(15.0, tmrIntro, _, TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(15.0, TimerIntro, _, TIMER_FLAG_NO_MAPCHANGE);
 }
 
-public Action tmrIntro(Handle timer)
+public Action TimerIntro(Handle timer)
 {
 	g_bRoundIntro = false;
 }
@@ -1081,7 +1127,16 @@ public void Event_PlayerShoved(Event event, const char[] name, bool dontBroadcas
 	if( IsReviving(client) || IsIncapped(client) )
 		return;
 
-	TransferItem(client, target, true);
+	if( g_bSurvivorShove )
+	{
+		DataPack dPack = new DataPack();
+		dPack.WriteCell(GetClientUserId(client));
+		dPack.WriteCell(GetClientUserId(target));
+		dPack.WriteCell(true);
+		RequestFrame(OnFrameTransfer, dPack);
+	} else {
+		TransferItem(client, target, true);
+	}
 }
 
 
@@ -1096,11 +1151,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 {
 	// Blocked
 	if( !g_bCvarAllow || g_bRoundOver || !g_iCvarTypes || !g_fDistGive || !g_iCvarMethod )
-		return;
+		return Plugin_Continue;
 
 	// 1 = Shove key only
 	if( buttons & IN_RELOAD && g_iCvarMethod == 1 )
-		return;
+		return Plugin_Continue;
 
 	// Check keys
 	bool b_FromShove;
@@ -1108,7 +1163,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		// 2 = Reload key only
 		if( g_iCvarMethod == 2 )
-			return;
+			return Plugin_Continue;
 
 		b_FromShove = true;
 	}
@@ -1117,27 +1172,44 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	if( buttons & IN_RELOAD || (buttons & IN_ATTACK2 && !(buttons & IN_ATTACK)) )
 	{
 		// They just transferred, return
-		if( GetGameTime() < g_fNextTransfer[client] )
-			return;
+		if( GetGameTime() < g_fNextTransfer[client] + 0.5 )
+		{
+			if( buttons & IN_RELOAD )
+			{
+				buttons &= ~IN_RELOAD;
+				return Plugin_Changed;
+			}
+
+			return Plugin_Continue;
+		}
 
 		// Validate client
 		if( !IsClientInGame(client) || IsFakeClient(client) || GetClientTeam(client) != 2 )
-			return;
+			return Plugin_Continue;
 
 		// Don't allow transfers while incapped/reviving
 		if( IsReviving(client) || IsIncapped(client) )
-			return;
+			return Plugin_Continue;
 
 		// Get aim target
 		int target = GetClientAimTarget(client, true);
 
 		// They must be aiming at an alive survivor
 		if( target == -1 || target > MaxClients || GetClientTeam(target) != 2 || !IsPlayerAlive(target) )
-			return;
+			return Plugin_Continue;
 
-		TransferItem(client, target, b_FromShove);
-
+		if( g_bSurvivorShove && b_FromShove )
+		{
+			DataPack dPack = new DataPack();
+			dPack.WriteCell(GetClientUserId(client));
+			dPack.WriteCell(GetClientUserId(target));
+			dPack.WriteCell(b_FromShove);
+			RequestFrame(OnFrameTransfer, dPack);
+		} else {
+			TransferItem(client, target, b_FromShove);
+		}
 	}
+	return Plugin_Continue;
 }
 
 
@@ -1145,6 +1217,24 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 // ====================================================================================================
 //					TRANSFER ITEM
 // ====================================================================================================
+// Delayed transfer - to support Survivor Shove plugin
+public void OnFrameTransfer(DataPack dPack)
+{
+	dPack.Reset();
+	int client = dPack.ReadCell();
+	int target = dPack.ReadCell();
+	bool shove = dPack.ReadCell();
+	delete dPack;
+
+	client = GetClientOfUserId(client);
+	if( !client || !IsClientInGame(client) ) return;
+
+	target = GetClientOfUserId(target);
+	if( !target || !IsClientInGame(target) ) return;
+
+	TransferItem(client, target, shove);
+}
+
 void TransferItem(int client, int target, bool b_FromShove)
 {
 	// Don't allow transfers while incapped/reviving
@@ -1226,7 +1316,7 @@ void TransferItem(int client, int target, bool b_FromShove)
 
 	// Don't givi pills/adren from shoves, the game already does this.
 	// Don't allow medkits to be transferred from shoves, so they can heal others!
-	if( b_FromShove && 
+	if( b_FromShove &&
 		((transferType == METHOD_GIVE && type <= TOP_INDEX_MEDS) ||
 		(transferType == METHOD_GIVE || transferType == METHOD_SWAP) && type == TYPE_FIRST)
 	)
@@ -1308,15 +1398,34 @@ void GiveItem(int client, int target, int item, int slot, int type, int transfer
 	// Notification
 	if( g_bCvarNotify && g_bTranslation && GetGameTime() > g_fBlockVocalize )
 	{
-		if( transferType == METHOD_GIVE )			CPrintToChatAll("\x05%N \x01%t \x04%t \x01%t \x05%N", client, "Gave", g_Pickups[type], "To", target);
-		else if( transferType == METHOD_GRAB )		CPrintToChatAll("\x05%N \x01%t \x04%t \x01%t \x05%N", client, "Grabbed", g_Pickups[type], "From", target);
+		if( transferType == METHOD_GIVE )
+		{
+			if( g_bTranslationNew )
+				MPrintToChatAll(client, "Gave", g_Pickups[type], target);
+			else
+				CPrintToChatAll("\x05%N \x01%t \x04%t \x01%t \x05%N", client, "Gave", g_Pickups[type], "To", target);
+		}
+		else if( transferType == METHOD_GRAB )
+		{
+			if( g_bTranslationNew )
+				MPrintToChatAll(client, "Grabbed", g_Pickups[type], target);
+			else
+				CPrintToChatAll("\x05%N \x01%t \x04%t \x01%t \x05%N", client, "Grabbed", g_Pickups[type], "From", target);
+		}
 		else
 		{
 			type = g_iClientType[client][slot] - 1;
-			CPrintToChatAll("\x05%N \x01%t \x04%t \x01%t \x05%N", client, "Switched", g_Pickups[type], "With", target);
+			if( g_bTranslationNew )
+				MPrintToChatAll(client, "Switched", g_Pickups[type], target);
+			else
+				CPrintToChatAll("\x05%N \x01%t \x04%t \x01%t \x05%N", client, "Switched", g_Pickups[type], "With", target);
 
 			type = g_iClientType[target][slot] - 1;
-			CPrintToChatAll("\x05%N \x01%t \x04%t \x01%t \x05%N", target, "Gave", g_Pickups[type], "To", client);
+
+			if( g_bTranslationNew )
+				MPrintToChatAll(target, "Gave", g_Pickups[type], client);
+			else
+				CPrintToChatAll("\x05%N \x01%t \x04%t \x01%t \x05%N", target, "Gave", g_Pickups[type], "To", client);
 		}
 	}
 
@@ -1325,11 +1434,33 @@ void GiveItem(int client, int target, int item, int slot, int type, int transfer
 	{
 		int ent_c = g_iClientItem[client][slot];
 		int ent_t = g_iClientItem[target][slot];
+		int type_c = g_iClientType[client][slot];
+		int type_t = g_iClientType[target][slot];
 
-		RemovePlayerItem(client, ent_c);
-		RemovePlayerItem(target, ent_t);
-		EquipPlayerWeapon(client, ent_t);
-		EquipPlayerWeapon(target, ent_c);
+		if( g_iClientType[client][slot] - 1 == TYPE_MOLO )	StopSound(ent_t, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
+		if( g_iClientType[target][slot] - 1 == TYPE_MOLO )	StopSound(ent_c, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
+
+		if( IsFakeClient(client) )
+		{
+			RemovePlayerItem(target, ent_t);
+			EquipPlayerWeapon(client, ent_t);
+		} else {
+			RemovePlayerItem(target, ent_t);
+			// RemoveEntity(ent_t); // Causing bugs with ghost weapon (valid entity) attached to bots feet
+			RemoveEdict(ent_t);
+			CreateAndEquip(client, type_t - 1);
+		}
+
+		if( IsFakeClient(target) )
+		{
+			RemovePlayerItem(client, ent_c);
+			EquipPlayerWeapon(target, ent_c);
+		} else {
+			RemovePlayerItem(client, ent_c);
+			// RemoveEntity(ent_c); // Causing bugs with ghost weapon (valid entity) attached to bots feet
+			RemoveEdict(ent_c);
+			CreateAndEquip(target, type_c - 1);
+		}
 
 		if( type >= TYPE_MOLO && type <= TYPE_VOMIT )
 		{
@@ -1337,28 +1468,63 @@ void GiveItem(int client, int target, int item, int slot, int type, int transfer
 			ClientCommand(client, "lastinv");
 			CreateTimer(0.1, TimerSwapBack, GetClientUserId(client));
 		}
-
-		if( g_iClientType[client][slot] - 1 == TYPE_MOLO )	StopSound(ent_t, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
-		if( g_iClientType[target][slot] - 1 == TYPE_MOLO )	StopSound(ent_c, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
 	}
 	else if( transferType == METHOD_GIVE )
 	{
 		g_iClientItem[client][slot] = 0;
 
-		RemovePlayerItem(client, item);
-		EquipPlayerWeapon(target, item);
-
 		if( type == TYPE_MOLO )	StopSound(item, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
+
+		if( IsFakeClient(target) )
+		{
+			RemovePlayerItem(client, item);
+			EquipPlayerWeapon(target, item);
+		} else {
+			RemovePlayerItem(client, item);
+			// RemoveEntity(item); // Causing bugs with ghost weapon (valid entity) attached to bots feet
+			RemoveEdict(item);
+			CreateAndEquip(target, type);
+		}
 	}
 	else if( transferType == METHOD_GRAB )
 	{
 		g_iClientItem[target][slot] = 0;
 
-		RemovePlayerItem(target, item);
-		EquipPlayerWeapon(client, item);
-
 		if( type == TYPE_MOLO )	StopSound(item, SNDCHAN_STATIC, SOUND_MOLOTOV_IDLE);
+
+		if( IsFakeClient(client) )
+		{
+			RemovePlayerItem(target, item);
+			EquipPlayerWeapon(client, item);
+		} else {
+			RemovePlayerItem(target, item);
+			// RemoveEntity(item); // Causing bugs with ghost weapon (valid entity) attached to bots feet
+			RemoveEdict(item);
+			CreateAndEquip(client, type);
+		}
 	}
+}
+
+void CreateAndEquip(int client, int type)
+{
+	static char classname[32];
+
+	switch( type )
+	{
+		case TYPE_ADREN:		classname = "weapon_adrenaline";
+		case TYPE_PILLS:		classname = "weapon_pain_pills";
+		case TYPE_MOLO:			classname = "weapon_molotov";
+		case TYPE_PIPE:			classname = "weapon_pipe_bomb";
+		case TYPE_VOMIT:		classname = "weapon_vomitjar";
+		case TYPE_FIRST:		classname = "weapon_first_aid_kit";
+		case TYPE_EXPLO:		classname = "weapon_upgradepack_explosive";
+		case TYPE_INCEN:		classname = "weapon_upgradepack_incendiary";
+		case TYPE_DEFIB:		classname = "weapon_defibrillator";
+		default:				{LogError("Type wrong: %d", type); return;} // This should never happen, but just in case...
+	}
+
+	int entity = GivePlayerItem(client, classname);
+	EquipPlayerWeapon(client, entity);
 }
 
 public Action TimerSwapBack(Handle timer, int client)
@@ -1440,11 +1606,11 @@ void TempTimerToggle()
 
 	if( !g_bCvarAllow || g_bRoundOver || g_bModeOffAuto )		return;
 
-	if( g_iCvarGive && g_fTimerGive )		g_hTimerGive = CreateTimer(g_fTimerGive, tmrAutoGive, _, TIMER_REPEAT);
-	if( g_iCvarGrab && g_fTimerGrab )		g_hTimerGrab = CreateTimer(g_fTimerGrab, tmrAutoGrab, _, TIMER_REPEAT);
+	if( g_iCvarGive && g_fTimerGive )		g_hTimerGive = CreateTimer(g_fTimerGive, TimerAutoGive, _, TIMER_REPEAT);
+	if( g_iCvarGrab && g_fTimerGrab )		g_hTimerGrab = CreateTimer(g_fTimerGrab, TimerAutoGrab, _, TIMER_REPEAT);
 }
 
-public Action tmrAutoGive(Handle timer)
+public Action TimerAutoGive(Handle timer)
 {
 	if( !g_bCvarAllow || g_bRoundOver || g_bModeOffAuto )
 	{
@@ -1629,7 +1795,7 @@ public Action tmrAutoGive(Handle timer)
 	return Plugin_Continue;
 }
 
-public Action tmrAutoGrab(Handle timer)
+public Action TimerAutoGrab(Handle timer)
 {
 	if( !g_bCvarAllow || g_bRoundOver || g_bModeOffAuto )
 	{
@@ -1793,7 +1959,8 @@ public Action tmrAutoGrab(Handle timer)
 							// TODO: Prototype Grenades needs to validate index is within type range otherwise a maps hammer ID will throw errors.
 							// hammer = GetEntProp(weapon, Prop_Data, "m_iHammerID");
 							// =========================
-
+							
+							/*
 							int flag = GetEntProp(weapon, Prop_Data, "m_spawnflags");
 							if( flag & (1<<3) )
 							{
@@ -1831,6 +1998,12 @@ public Action tmrAutoGrab(Handle timer)
 									EquipPlayerWeapon(bot, item);
 								}
 							}
+							*/
+							
+							int flag = GetEntProp(weapon, Prop_Data, "m_spawnflags");
+							int iCount = GetEntProp(weapon, Prop_Data, "m_itemCount");
+							if( (flag & (1<<3)) || iCount >= 1 )
+								AcceptEntityInput(weapon, "Use", bot, weapon);
 						}
 						else
 						{
@@ -1839,15 +2012,20 @@ public Action tmrAutoGrab(Handle timer)
 							#endif
 							EquipPlayerWeapon(bot, weapon);
 						}
-
+						
 						SetNextTransfer(bot, 2.0);
 
-						FireEventsFootlocker(bot, EntRefToEntIndex(weapon), g_Pickups[type]);
+						// FireEventsFootlocker(bot, EntRefToEntIndex(weapon), g_Pickups[type]);
 
 						Vocalize(bot, type);
 
 						if( g_bCvarNotify && g_bTranslation && GetGameTime() > g_fBlockVocalize )
-							CPrintToChatAll("\x05%N \x01%t \x04%t", bot, "Grabbed", g_Pickups[type]);
+						{
+							if( g_bTranslationNew )
+								MPrintToChatAll(bot, "BotGrabbed", g_Pickups[type], 0);
+							else
+								CPrintToChatAll("\x05%N \x01%t \x04%t", bot, "Grabbed", g_Pickups[type]);
+						}
 
 						// break;
 						return Plugin_Continue; // Prevent multiple gives in the same frame and wait until next timer firing?
@@ -2146,7 +2324,39 @@ void CPrintToChatAll(const char[] format, any ...)
 	}
 }
 
+void MPrintToChatAll(int client, const char[] phrase, const char[] item, int target)
+{
+	char clientName[192] = "";
+	char targetName[192] = "";
+	char pickupItem[192] = "";
 
+	for( int i = 1; i <= MaxClients; i++ )
+	{
+		if( IsClientInGame(i) && !IsFakeClient(i) )
+		{
+			SetGlobalTransTarget(i);
+			pickupItem = Translate(i, "\x04%t\x01", item);
+			clientName = Translate(i, "\x05%N\x01", client);
+			if (target == 0)	// Announcing Bot auto-grabs an item
+				PrintToChat(i, "%t", phrase, clientName, pickupItem);
+			else
+			{
+				targetName = Translate(i, "\x05%N\x01", target);
+				PrintToChat(i, "%t", phrase, clientName, pickupItem, targetName);
+			}
+		}
+	}
+}
+// ====================================================================================================
+//					TRANSLATE
+// ====================================================================================================
+stock char[] Translate(int client, const char[] format, any ...)
+{
+	char buffer[192];
+	SetGlobalTransTarget(client);
+	VFormat(buffer, sizeof(buffer), format, 3);
+	return buffer;
+}
 
 /// ====================================================================================================
 //					TRACE RAY

@@ -117,7 +117,7 @@ ArrayList g_aLv1Restrict, g_aLv0Restrict;
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Incapped Weapons Patch",
+	name = "技能：倒地武器",
 	author = "SilverShot",
 	description = "Patches the game to allow using Weapons while Incapped, instead of changing weapons scripts.",
 	version = PLUGIN_VERSION,

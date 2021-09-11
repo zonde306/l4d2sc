@@ -837,8 +837,8 @@ public OnPluginStart()
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSaveStats = CreateConVar("lv_save_stats", "0", "保存奖励计数(进度)", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarEquipment = CreateConVar("lv_enable_eq", "1", "是否开启装备功能", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "1", "是否为生还者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
-	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "1", "是否为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
+	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "0", "为生还者机器人生存随机属性.0=禁用.1/2/4/8/16=技能.32/64/128/256=装备.262144=怒气技(或许)\n512/1024/2048/4096=满级装备.8192/16384/32768/65536/131702=满级技能.524288=怒气技(必然)", FCVAR_NONE, true, 0.0, true, 2.0);
+	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "0", "为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
@@ -1972,7 +1972,7 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 		{
 			if(g_pCvarSurvivorBot.BoolValue && IsFakeClient(i))
 			{
-				GenerateRandomStats(i, g_pCvarSurvivorBot.IntValue > 1);
+				GenerateRandomStats(i, g_pCvarSurvivorBot.IntValue);
 				PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", i, CalcPlayerPower(i));
 			}
 			
@@ -2296,7 +2296,7 @@ public void OnClientPutInServer(int client)
 	}
 }
 
-void GenerateRandomStats(int client, bool uncap)
+void GenerateRandomStats(int client, int uncap)
 {
 	if(g_mEquipData[client] == null)
 		g_mEquipData[client] = CreateTrie();
@@ -2310,20 +2310,20 @@ void GenerateRandomStats(int client, bool uncap)
 	g_clAngryPoint[client] = 0;
 	
 	// 怒气技能
-	g_clAngryMode[client] = GetRandomInt(0, 7);
+	if(uncap & (1 << 18)) g_clAngryMode[client] = GetRandomInt(0, 7);
 	
 	// 技能
-	g_clSkill_1[client] = GetRandomInt(0, 131071);
-	g_clSkill_2[client] = GetRandomInt(0, 32767);
-	g_clSkill_3[client] = GetRandomInt(0, 65535);
-	g_clSkill_4[client] = GetRandomInt(0, 32767);
-	g_clSkill_5[client] = GetRandomInt(0, 131071);
+	if(uncap & (1 << 0)) g_clSkill_1[client] = GetRandomInt(0, 131071);
+	if(uncap & (1 << 1)) g_clSkill_2[client] = GetRandomInt(0, 32767);
+	if(uncap & (1 << 2)) g_clSkill_3[client] = GetRandomInt(0, 65535);
+	if(uncap & (1 << 3)) g_clSkill_4[client] = GetRandomInt(0, 32767);
+	if(uncap & (1 << 4)) g_clSkill_5[client] = GetRandomInt(0, 131071);
 	
 	// 装备
 	for(int i = 0; i < 4; ++i)
 	{
-		g_clCurEquip[client][i] = GiveEquipment(client, i);
-		if(!uncap || !g_clCurEquip[client][i])
+		if(uncap & (1 << (i + 5))) g_clCurEquip[client][i] = GiveEquipment(client, i);
+		if(!g_clCurEquip[client][i] || !(uncap & (1 << (i + 9))))
 			continue;
 		
 		static char key[16];
@@ -2341,15 +2341,12 @@ void GenerateRandomStats(int client, bool uncap)
 		}
 	}
 	
-	if(uncap)
-	{
-		g_clSkill_1[client] |= 0x7FFFFFFF;
-		g_clSkill_2[client] |= 0x7FFFFFFF;
-		g_clSkill_3[client] |= 0x7FFFFFFF;
-		g_clSkill_4[client] |= 0x7FFFFFFF;
-		g_clSkill_5[client] |= 0x7FFFFFFF;
-		g_clAngryMode[client] = GetRandomInt(1, 7);
-	}
+	if(uncap & (1 << 13)) g_clSkill_1[client] |= 0x7FFFFFFF;
+	if(uncap & (1 << 14)) g_clSkill_2[client] |= 0x7FFFFFFF;
+	if(uncap & (1 << 15)) g_clSkill_3[client] |= 0x7FFFFFFF;
+	if(uncap & (1 << 16)) g_clSkill_4[client] |= 0x7FFFFFFF;
+	if(uncap & (1 << 17)) g_clSkill_5[client] |= 0x7FFFFFFF;
+	if(uncap & (1 << 19)) g_clAngryMode[client] = GetRandomInt(1, 7);
 	
 	// g_bIsVerified[client] = true;
 }
@@ -11070,14 +11067,14 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	}
 	else if(newTeam == 2 && g_pCvarSurvivorBot.BoolValue)
 	{
-		GenerateRandomStats(client, g_pCvarSurvivorBot.IntValue > 1);
+		GenerateRandomStats(client, g_pCvarSurvivorBot.IntValue);
 		// RegPlayerHook(client, false);
 		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", client, CalcPlayerPower(client));
 	}
 	else if(newTeam == 3 && g_pCvarInfectedBot.BoolValue)
 	{
-		GenerateRandomStats(client, g_pCvarInfectedBot.IntValue > 1);
+		GenerateRandomStats(client, g_pCvarInfectedBot.IntValue);
 		// RegPlayerHook(client, false);
 		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", client, CalcPlayerPower(client));
@@ -16990,7 +16987,7 @@ public int Native_GenerateRandomStatus(Handle plugin, int argc)
 	if(!IsValidClient(client))
 		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
 	
-	GenerateRandomStats(client, !!GetNativeCell(2));
+	GenerateRandomStats(client, GetNativeCell(2));
 	return 0;
 }
 
@@ -18267,7 +18264,7 @@ public int MenuHandler_AdminMenu_RandomAttr(Menu menu, MenuAction action, int cl
 		return 0;
 	}
 	
-	GenerateRandomStats(target, false);
+	GenerateRandomStats(target, g_pCvarSurvivorBot.IntValue);
 	PrintToChat(client, "\x03[提示]\x01 给 \x04%N\x01 生成了随机数据。", target);
 	
 	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);

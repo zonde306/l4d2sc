@@ -64,6 +64,8 @@ public OnPluginStart()
 	
 	HookEvent("ability_use", Event_AbilityUse);
 	HookEvent("lunge_pounce", Event_LungePounce);
+	HookEvent("jockey_ride", Event_LungePounce);
+	HookEvent("player_jump", Event_PlayerJump);
 	HookEvent("weapon_fire", Event_WeaponFire);
 	HookEvent("player_shoved", Event_PlayerShoved);
 	HookEvent("player_now_it", Event_PlayerBoomed);
@@ -162,21 +164,37 @@ public Event_AbilityUse(Handle:event, const String:name[], bool:dontBroadcast)
 	if (zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY)
 	{
 		g_bIsPouncing[client] = true;
-		CreateTimer(0.5, Timer_GroundedCheck, client, TIMER_REPEAT);
+		CreateTimer(0.5, Timer_GroundedCheck, GetClientUserId(client), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
 public Event_LungePounce(Handle:event, const String:name[], bool:dontBroadcast)
 {
 	new attacker = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(!IsClientInGame(attacker) || !IsInfected(attacker)) return;
+	
 	new zombieclass = GetEntProp(attacker, Prop_Send, "m_zombieClass");
 	
 	if (zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY) g_bIsPouncing[attacker] = false;
 }
 
-public Action:Timer_GroundedCheck(Handle:timer, any:client)
+public Event_PlayerJump(Handle:event, const String:name[], bool:dontBroadcast)
 {
-	if (!IsClientInGame(client) || IsGrounded(client))
+	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	if(!IsClientInGame(client) || !IsInfected(client)) return;
+	
+	new zombieclass = GetEntProp(client, Prop_Send, "m_zombieClass");
+	if(zombieclass == ZC_JOCKEY && !g_bIsPouncing[client]) 
+	{
+		g_bIsPouncing[client] = true;
+		CreateTimer(0.5, Timer_GroundedCheck, GetClientUserId(client), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+public Action:Timer_GroundedCheck(Handle:timer, any:userid)
+{
+	new client = GetClientOfUserId(userid);
+	if (!IsClientInGame(client) || !IsPlayerAlive(client) || IsGrounded(client))
 	{
 		g_bIsPouncing[client] = false;
 		KillTimer(timer);
@@ -191,7 +209,18 @@ public Action:Timer_KillBoomer(Handle:timer)
 // Jacked from skeet announce
 bool:IsGrounded(client)
 {
-	return (GetEntProp(client, Prop_Data, "m_fFlags") & FL_ONGROUND) > 0;
+	// if(GetEntProp(client, Prop_Data, "m_fFlags") & FL_ONGROUND)
+	if(GetEntPropEnt(client, Prop_Send, "m_hGroundEntity") != -1)
+		return true;
+	
+	MoveType mt = GetEntityMoveType(client);
+	if(mt == MOVETYPE_LADDER || mt == MOVETYPE_FLY)
+		return true;
+	
+	if(GetEntProp(client, Prop_Send, "m_nWaterLevel") >= 3)
+		return true;
+	
+	return false;
 }
 
 
@@ -285,7 +314,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			}
 		}
 		else */
-		if ((zombieclass == ZC_HUNTER && IsPouncing(victim)) || (zombieclass == ZC_JOCKEY && IsJockeyLeaping(victim)))
+		if ((zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY) && IsPouncing(victim))
 		{ // Skeet!
 			decl assisters[g_iSurvivorLimit][2];
 			new assister_count, i;
@@ -309,15 +338,15 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			
 			if (StrEqual(weapon, "weapon_melee"))
 			{
-				CPrintToChat(victim, "{blue}★ {default}你被 {olive}%N {default}使用 {blue}近战武器 {default}秒了", attacker);
-				CPrintToChat(attacker, "{blue}★ {default}你使用 {blue}近战武器 {default}秒了 {olive}%N", victim);
+				CPrintToChat(victim, "{blue}★ {default}你被 {olive}%N {default}用 {blue}近战武器 {default}秒了", attacker);
+				CPrintToChat(attacker, "{blue}★ {default}你用 {blue}近战武器 {default}秒了 {olive}%N", victim);
 				
 				for (new b = 1; b <= MaxClients; b++)
 				{
 					//Print to Specs!
 					if ((victim != b) && (attacker != b) && IsClientInGame(b))
 					{
-						CPrintToChat(b, "{blue}★ {olive}%N {default}使用 {blue}近战武器{default}秒了 {default}飞扑的 {olive}%N", attacker, victim)
+						CPrintToChat(b, "{blue}★ {olive}%N {default}用 {blue}近战武器{default}秒了 {default}飞扑的 {olive}%N", attacker, victim)
 					}
 				}
 			}
@@ -325,15 +354,15 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			else if (GetEventBool(event, "headshot") &&
 				(StrEqual(weapon, "weapon_sniper_scout") || StrEqual(weapon, "weapon_sniper_awp")))
 			{
-				CPrintToChat(victim, "{blue}★ {default}你被 {olive}%N {default}使用 {blue}%s {default}空爆 {default}了", attacker, (weapon[14] == 's' ? "鸟狙" : "大狙"));
-				CPrintToChat(attacker, "{blue}★ {default}你使用 {blue}%s {default}空爆了 {olive}%N", (weapon[14] == 's' ? "鸟狙" : "大狙"), victim);
+				CPrintToChat(victim, "{blue}★ {default}你被 {olive}%N {default}用 {blue}%s {default}空爆 {default}了", attacker, (weapon[14] == 's' ? "鸟狙" : "大狙"));
+				CPrintToChat(attacker, "{blue}★ {default}你用 {blue}%s {default}空爆了 {olive}%N", (weapon[14] == 's' ? "鸟狙" : "大狙"), victim);
 				
 				for (new b = 1; b <= MaxClients; b++)
 				{
 					//Print to Specs!
 					if ((victim != b) && (attacker != b) && IsClientInGame(b))
 					{
-						CPrintToChat(b, "{blue}★ {olive}%N {default}使用 {blue}%s {default}空爆了 {olive}%N", attacker, (weapon[14] == 's' ? "鸟狙" : "大狙"), victim);
+						CPrintToChat(b, "{blue}★ {olive}%N {default}用 {blue}%s {default}空爆了 {olive}%N", attacker, (weapon[14] == 's' ? "鸟狙" : "大狙"), victim);
 					}
 				}
 			}
@@ -471,14 +500,14 @@ public Event_PlayerShoved(Handle:event, const String:name[], bool:dontBroadcast)
 	if (g_bHasRoundEnded) return;
 	new victim = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (victim == 0 ||
-	!IsClientInGame(victim) ||
-	!IsInfected(victim)
+		!IsClientInGame(victim) ||
+		!IsInfected(victim)
 	) return;
 	
 	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
 	if (attacker == 0 ||				// World dmg?
-	!IsClientInGame(attacker) ||	// Unsure
-	!IsSurvivor(attacker)
+		!IsClientInGame(attacker) ||	// Unsure
+		!IsSurvivor(attacker)
 	) return;
 	
 	new zombieclass = GetEntProp(victim, Prop_Send, "m_zombieClass");
@@ -494,6 +523,10 @@ public Event_PlayerShoved(Handle:event, const String:name[], bool:dontBroadcast)
 			g_iBoomerShover = attacker;
 		}
 		g_hBoomerShoveTimer = CreateTimer(BOOMER_STAGGER_TIME, Timer_BoomerShove);
+	}
+	else if(zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY)
+	{
+		g_bIsPouncing[victim] = false;
 	}
 }
 

@@ -270,6 +270,7 @@ float g_fSacrificeTime[MAXPLAYERS+1];
 float g_fMinigunTime[MAXPLAYERS+1];
 Handle g_hTimerMinigun[MAXPLAYERS+1];
 float g_fNightVision[MAXPLAYERS+1];
+bool g_bFirstLoaded[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -605,7 +606,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.1.3",
+	version = "1.1.4",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -1584,6 +1585,7 @@ public OnMapStart()
 	{
 		// Initialization(i);
 		ClientSaveToFileLoad(i, g_pCvarSaveStats.BoolValue);
+		g_bFirstLoaded[i] = true;
 		
 		if(IsValidAliveClient(i))
 			RegPlayerHook(i, false);
@@ -2290,6 +2292,7 @@ public void OnClientPutInServer(int client)
 		}
 
 		ClientSaveToFileLoad(client, false);
+		g_bFirstLoaded[client] = true;
 	}
 }
 
@@ -2310,7 +2313,7 @@ void GenerateRandomStats(int client, bool uncap)
 	g_clAngryMode[client] = GetRandomInt(0, 7);
 	
 	// 技能
-	g_clSkill_1[client] = GetRandomInt(0, 32767);
+	g_clSkill_1[client] = GetRandomInt(0, 131071);
 	g_clSkill_2[client] = GetRandomInt(0, 32767);
 	g_clSkill_3[client] = GetRandomInt(0, 65535);
 	g_clSkill_4[client] = GetRandomInt(0, 32767);
@@ -2420,6 +2423,7 @@ void Initialization(int client, bool invalid = false)
 	g_iIsInCombat[client] = 0;
 	g_iIsSneaking[client] = 0;
 	g_iUserID[client] = 0;
+	g_bFirstLoaded[client] = false;
 	g_iChaseEntity[client] = INVALID_ENT_REFERENCE;
 	Handle toDelete4 = g_hTimerMinigun[client];
 	g_hTimerMinigun[client] = null;
@@ -11283,6 +11287,13 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		// 脱离黑白状态
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
+	}
+	else if(g_bFirstLoaded[client])
+	{
+		g_bFirstLoaded[client] = false;
+		int hl = GetEntProp(client, Prop_Data, "m_iHealth");
+		if(hl > maxHealth)
+			SetEntProp(client, Prop_Data, "m_iHealth", maxHealth);
 	}
 	else if(basicHealth == baseMaxHealth && !g_bIsGamePlaying)
 	{

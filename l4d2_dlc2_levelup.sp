@@ -11804,7 +11804,10 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			((g_clSkill_4[client] & SKL_4_SniperExtra) && (g_iIsInBattlefield[client] == 0 && isSniper))*/)					// 远距离狙击
 		{
 			// 只有非无限子弹才生效
-			g_fAccurateShot[client] = time + 0.1;
+			if(!isShotgun)
+				g_fAccurateShot[client] = time + 0.3;
+			else
+				g_fAccurateShot[client] = time + 0.1;
 			g_fNextAccurateShot[client] = time + 5.0;
 		}
 		

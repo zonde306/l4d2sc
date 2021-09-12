@@ -51,7 +51,7 @@ ConVar JumpAttempts, DamageAllowance, WaitTime, KickMessage, KickType, TimedBan;
 
 public Plugin myinfo =
 {
-	name = "[L4D/L4D2] Survivor Griefer Protection",
+	name = "幸存者捣乱保护",
 	author = "MasterMind420",
 	description = "Prevent Friendly Fire From Newly Connected Players For A Period Of Time",
 	version = "1.6",
@@ -76,12 +76,12 @@ public void OnPluginStart()
 {
 	RegAdminCmd("sm_sgpreset", ResetCmd, ADMFLAG_GENERIC, "");
 
-	WaitTime = CreateConVar("l4d_wait_time", "180", "How Long To Check If Griefing", FCVAR_NOTIFY);
-	KickType = CreateConVar("l4d_kick_type", "1", "[1 = Kick] [2 = Ban] [3 = Vote Kick]", FCVAR_NOTIFY);
-	KickMessage = CreateConVar("l4d_kick_message", "Kicked For Griefing", "Kick Message", FCVAR_NOTIFY);
-	JumpAttempts = CreateConVar("l4d_attempts", "3", "[0 = NoKick] Attempts When Jumping Off Ledge Before Kick/Ban/VoteKick", FCVAR_NOTIFY);
-	DamageAllowance = CreateConVar("l4d_damage_allowance", "150.0", "[0.0 = NoKick] Amount Of Damage Allowed Before Kick/Ban/VoteKick", FCVAR_NOTIFY);
-	TimedBan = CreateConVar("l4d_timed_ban", "0", "[0 = Permanent Ban] [Greater Than 0 = Timed Ban Minutes]", FCVAR_NOTIFY);
+	WaitTime = CreateConVar("l4d_wait_time", "180", "保护持续时间", FCVAR_NOTIFY);
+	KickType = CreateConVar("l4d_kick_type", "1", "惩罚方式.1=踢出.2=封禁.3=起票", FCVAR_NOTIFY);
+	KickMessage = CreateConVar("l4d_kick_message", "不准捣乱", "踢出理由", FCVAR_NOTIFY);
+	JumpAttempts = CreateConVar("l4d_attempts", "3", "跳楼多少次要受到惩罚.0=禁用", FCVAR_NOTIFY);
+	DamageAllowance = CreateConVar("l4d_damage_allowance", "150.0", "黑枪多少伤害要受到惩罚.0=禁用", FCVAR_NOTIFY);
+	TimedBan = CreateConVar("l4d_timed_ban", "0", "封禁时长.0=永久", FCVAR_NOTIFY);
 
 	AutoExecConfig(true, "l4d_survivor_griefer_protection");
 
@@ -153,7 +153,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 {
 	if (IsValidClient(victim) && IsClientInGame(victim) && GetClientTeam(victim) == 2)
 	{
-		if (!IsClientAdmin(victim))
+		if (!IsClientAdmin(victim) && !IsFakeClient(victim))
 		{
 			if (GetEngineTime() >= fHasDominator[victim])
 			{
@@ -162,7 +162,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 					iAttempts[victim] += 1;
 
 					if (iAttempts[victim] == (GetConVarInt(JumpAttempts) - 1))
-						PrintToChat(victim, "\x05Do Not Grief Warning");
+						PrintToChat(victim, "\x05跳楼警告");
 
 					CreateTimer(0.1, Teleport, GetClientUserId(victim), TIMER_FLAG_NO_MAPCHANGE);
 					return Plugin_Handled;
@@ -170,7 +170,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 			}
 		}
 
-		if (IsValidClient(attacker) && IsClientInGame(attacker) && GetClientTeam(attacker) == 2 && !IsClientAdmin(attacker))
+		if (IsValidClient(attacker) && IsClientInGame(attacker) && GetClientTeam(attacker) == 2 && !IsClientAdmin(attacker) && !IsFakeClient(attacker))
 		{
 			if (damage <= 0.0 || GetEngineTime() < fFirstSpawn[attacker])
 			{
@@ -180,7 +180,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 				fDamageLimit[attacker] += damage;
 
 				if (fDamageLimit[attacker] >= (GetConVarFloat(DamageAllowance) - 50.0))
-					PrintToChat(victim, "\x05Do Not Grief Warning");
+					PrintToChat(victim, "\x05黑枪警告");
 
 				if (GetConVarFloat(DamageAllowance) > 0.0 && fDamageLimit[attacker] > GetConVarFloat(DamageAllowance))
 				{
@@ -266,7 +266,7 @@ stock void HandleClient(int client)
 {
 	if (GetConVarInt(KickType) == 1)
 	{
-		PrintToChatAll("\x05Kicked \x04%N \x05For Griefing", client);
+		PrintToChatAll("\x05玩家 \x04%N \x05因为搞事情而被送走", client);
 		KickClient(client, sMessage);	
 	}
 	else if (GetConVarInt(KickType) == 2)
@@ -275,12 +275,12 @@ stock void HandleClient(int client)
 
 		if (GetConVarInt(TimedBan) > 0)
 		{
-			PrintToChatAll("\x05Banned \x04%N \x05%i Minutes For Griefing", client, GetConVarInt(TimedBan));
+			PrintToChatAll("\x05玩家 \x04%N 因为搞事情而被禁止 \x05%i 分钟", client, GetConVarInt(TimedBan));
 			Format(sClsName, sizeof(sClsName), "sm_ban #%N %i Other", client, GetConVarInt(TimedBan));
 		}
 		else
 		{
-			PrintToChatAll("\x05Permanently Banned \x04%N \x05For Griefing", client);
+			PrintToChatAll("\x05玩家 \x04%N \x05因为搞事情而被永久禁止", client);
 			Format(sClsName, sizeof(sClsName), "sm_ban #%N 0 Other", client);
 		}
 
@@ -288,7 +288,7 @@ stock void HandleClient(int client)
 	}
 	else if (GetConVarInt(KickType) == 3)
 	{
-		PrintToChatAll("\x05Calling Votekick For Griefing On \x04%N", client);
+		PrintToChatAll("\x05玩家 \x04%N 因为搞事情而被起票", client);
 		FakeClientCommand(client, "callvote kick %d", GetClientUserId(client));
 	}
 }

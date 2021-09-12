@@ -15,6 +15,7 @@ public Plugin:myinfo =
 
 int iHaymakerChanceFactor;
 ConVar hHaymakerChanceFactor;
+int g_iSpawnStuck[MAXPLAYERS+1];
 
 public OnPluginStart()
 {
@@ -30,6 +31,17 @@ public OnPluginStart()
 	
 	AutoExecConfig(true, "l4d2_BotHaymakers");
 	
+	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("player_first_spawn", Event_PlayerSpawn);
+}
+
+public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if(!client || !IsClientInGame(client) || !IsFakeClient(client) || GetClientTeam(client) != 3 || GetEntProp(client, Prop_Send, "m_zombieClass") != 8)
+		return;
+	
+	g_iSpawnStuck[client] = 5;
 }
 
 public Action:OnPlayerRunCmd(client, &buttons)
@@ -46,6 +58,11 @@ public Action:OnPlayerRunCmd(client, &buttons)
 					buttons |= IN_ATTACK2;
 				}
 			}
+		}
+		if(g_iSpawnStuck[client] > 0)
+		{
+			g_iSpawnStuck[client] -= 1;
+			buttons |= IN_ATTACK2;
 		}
     }
     

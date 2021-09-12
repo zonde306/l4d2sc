@@ -4,8 +4,11 @@
 #include <geoip>
 #include <geoipcity>
 
-#define PLUGIN_VERSION			"0.1"
+#define PLUGIN_VERSION			"0.2"
 #include "modules/l4d2ps.sp"
+
+#define SOUND_CONNECT		"buttons/bell1.wav"
+#define SOUND_DISCONNECT	"buttons/button4.wav"
 
 public Plugin myinfo =
 {
@@ -184,6 +187,8 @@ public void OnMapStart()
 	PrecacheGameModeList();
 	// g_szOriginalHostName[0] = EOS;
 	LoadHostName();
+	PrecacheSound(SOUND_CONNECT);
+	PrecacheSound(SOUND_DISCONNECT);
 }
 
 public Action Event_PlayerConnectClientPre(Event event, const char[] eventName, bool dontBroadcast)
@@ -292,7 +297,10 @@ public void Event_PlayerConnect(Event event, const char[] eventName, bool dontBr
 	}
 	
 	if(buffer[0] != EOS)
+	{
 		PrintToChatAll(buffer);
+		EmitSoundToAll(SOUND_CONNECT);
+	}
 }
 
 public Action Event_PlayerDisconnectPre(Event event, const char[] eventName, bool dontBroadcast)
@@ -390,7 +398,10 @@ public void Event_PlayerDisconnect(Event event, const char[] eventName, bool don
 	}
 	
 	if(buffer[0] != EOS)
+	{
 		PrintToChatAll(buffer);
+		EmitSoundToAll(SOUND_DISCONNECT);
+	}
 }
 
 public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroadcast)

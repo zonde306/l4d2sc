@@ -38,6 +38,8 @@
 #define SOUND_LEVELUP				"ui/bigreward.wav"
 #define SOUND_AMMO					"items/itempickup.wav"
 #define SOUND_CROW					"ambient/animal/crow_2.wav"
+#define SOUND_EXPLOSIVE				"weapons/hegrenade/explode5.wav"
+#define SOUND_GIFT					"ui/gift_drop.wav"
 
 #define g_flSoH_rate 0.4
 #define ZC_SMOKER			1
@@ -838,7 +840,7 @@ public OnPluginStart()
 	g_pCvarSaveStats = CreateConVar("lv_save_stats", "0", "保存奖励计数(进度)", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarEquipment = CreateConVar("lv_enable_eq", "1", "是否开启装备功能", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "0", "为生还者机器人生存随机属性.0=禁用.1/2/4/8/16=技能.32/64/128/256=装备.262144=怒气技(或许)\n512/1024/2048/4096=满级装备.8192/16384/32768/65536/131702=满级技能.524288=怒气技(必然)", FCVAR_NONE, true, 0.0, true, 2.0);
-	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "0", "为感染者机器人生存随机属性.0=禁用.1=启用.2=启用+满级", FCVAR_NONE, true, 0.0, true, 2.0);
+	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "0", "为感染者机器人生存随机属性.0=禁用.1/2/4/8/16=技能.32/64/128/256=装备.262144=怒气技(或许)\n512/1024/2048/4096=满级装备.8192/16384/32768/65536/131702=满级技能.524288=怒气技(必然)", FCVAR_NONE, true, 0.0, true, 2.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
@@ -1517,7 +1519,7 @@ public OnMapStart()
 
 	GetConVarString(g_CvarSoundLevel, g_soundLevel, sizeof(g_soundLevel));
 	PrecacheSound(g_soundLevel, true);
-	PrecacheSound("ui/gift_drop.wav", true);
+	PrecacheSound(SOUND_GIFT, true);
 	
 	for(int i = 0; i < sizeof(g_sndShoveInfected); ++i)
 		PrecacheSound(g_sndShoveInfected[i], true);
@@ -1560,6 +1562,8 @@ public OnMapStart()
 	PrecacheSound(SOUND_LEVELUP);
 	PrecacheSound(SOUND_AMMO);
 	PrecacheSound(SOUND_CROW);
+	PrecacheSound(SOUND_EXPLOSIVE);
+	PrecacheSound(SOUND_GIFT);
 
 	PrecacheModel( STAR_1_MDL );
 	PrecacheModel( STAR_2_MDL );
@@ -1585,7 +1589,7 @@ public OnMapStart()
 	{
 		// Initialization(i);
 		ClientSaveToFileLoad(i, g_pCvarSaveStats.BoolValue);
-		g_bFirstLoaded[i] = true;
+		// g_bFirstLoaded[i] = true;
 		
 		if(IsValidAliveClient(i))
 			RegPlayerHook(i, false);
@@ -8219,7 +8223,7 @@ void DropItem( int client, const char[] Model )
 		AcceptEntityInput(entity, "AddOutput", client, entity);
 		AcceptEntityInput(entity, "FireUser1", client, entity);
 
-		EmitAmbientSound("ui/gift_drop.wav", vecPos, entity, SNDLEVEL_CAR);
+		EmitAmbientSound(SOUND_GIFT, vecPos, entity, SNDLEVEL_CAR);
 	}
 }
 
@@ -9676,6 +9680,7 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	bool sur = (StrEqual(eventName, "player_first_spawn", false) && IsPlayerHaveEffect(client, 35));
 	bool full = (si || sur || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying));
 	RegPlayerHook(client, full);
+	g_bFirstLoaded[client] = false;
 	
 	if(g_clSkill_1[client] & SKL_1_Armor)
 	{
@@ -11287,7 +11292,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	}
 	else if(g_bFirstLoaded[client])
 	{
-		g_bFirstLoaded[client] = false;
+		// g_bFirstLoaded[client] = false;
 		int hl = GetEntProp(client, Prop_Data, "m_iHealth");
 		if(hl > maxHealth)
 			SetEntProp(client, Prop_Data, "m_iHealth", maxHealth);
@@ -12204,7 +12209,7 @@ public void PlayerHook_OnReloadStopped(int client, int weapon)
 	g_iReloadWeaponEntity[client] = INVALID_ENT_REFERENCE;
 	g_iReloadWeaponClip[client] = 0;
 	g_iReloadWeaponOldClip[client] = 0;
-
+	
 	/*
 	if(IsValidClient(client))
 		PrintToChat(client, "停止换子弹");
@@ -12963,7 +12968,8 @@ stock bool IsSurvivorThirdPerson(int iClient)
 		return true;
 	if(GetEntPropEnt(iClient, Prop_Send, "m_hScriptUseTarget") > 0)
 		return true;
-	if(GetEntPropFloat(iClient, Prop_Send, "m_staggerTimer", 1) > -1.0)
+	// if(GetEntPropFloat(iClient, Prop_Send, "m_staggerTimer", 1) > -1.0)
+	if(IsStaggering(iClient) || IsGettingUp(iClient))
 		return true;
 	switch(GetEntProp(iClient, Prop_Send, "m_iCurrentUseAction"))
 	{
@@ -13067,9 +13073,10 @@ stock bool IsInfectedThirdPerson(int iClient)
 {
 	if(GetEntPropFloat(iClient, Prop_Send, "m_TimeForceExternalView") > GetGameTime())
 		return true;
-	if(GetEntPropFloat(iClient, Prop_Send, "m_staggerTimer", 1) > -1.0)
+	// if(GetEntPropFloat(iClient, Prop_Send, "m_staggerTimer", 1) > -1.0)
+	if(IsStaggering(iClient) || IsGettingUp(iClient))
 		return true;
-
+	
 	switch(GetEntProp(iClient, Prop_Send, "m_zombieClass"))
 	{
 		case 1://smoker
@@ -16259,7 +16266,7 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 
 	AcceptEntityInput(entity, "Explode", -1, entity);
 	// EmitSoundToAll("weapons/hegrenade/explode5.wav", entity, SNDCHAN_WEAPON, SNDLEVEL_SCREAMING, SND_NOFLAGS, SNDVOL_NORMAL, 100, _, origin, NULL_VECTOR, false, 0.0);
-	EmitAmbientSound("weapons/hegrenade/explode5.wav", origin, entity, SNDLEVEL_SCREAMING);
+	EmitAmbientSound(SOUND_EXPLOSIVE, origin, entity, SNDLEVEL_SCREAMING);
 
 	SetVariantString("OnUser1 !self:Kill::1:1");
 	AcceptEntityInput(entity, "AddOutput", attacker, entity);

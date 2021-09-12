@@ -53,6 +53,8 @@ new				g_iShotsDealt[MAXPLAYERS + 1][MAXPLAYERS + 1];			// Victim - Attacker, co
 
 new		bool:	g_bShotCounted[MAXPLAYERS + 1][MAXPLAYERS +1];		// Victim - Attacker, used by playerhurt and weaponfired
 
+new Handle:g_hPounceTimer[MAXPLAYERS + 1];
+
 public OnPluginStart()
 {
 	HookEvent("round_start", Event_RoundStart);
@@ -140,6 +142,10 @@ public Event_RoundStart(Handle:event, const String:name[], bool:dontBroadcast)
 		BoomerKillTime = 0.0;
 	}
 	g_iAlarmCarClient = 0;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		if(g_hPounceTimer[i])
+			delete g_hPounceTimer[i];
 }
 
 public Event_RoundEnd(Handle:event, const String:name[], bool:dontBroadcast)
@@ -159,12 +165,16 @@ public Event_AbilityUse(Handle:event, const String:name[], bool:dontBroadcast)
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	if(!IsClientInGame(client) || !IsInfected(client)) return;
+	
+	if(g_hPounceTimer[client])
+		delete g_hPounceTimer[client];
+	
 	new zombieclass = GetEntProp(client, Prop_Send, "m_zombieClass");
 	
 	if (zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY)
 	{
 		g_bIsPouncing[client] = true;
-		CreateTimer(0.5, Timer_GroundedCheck, GetClientUserId(client), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+		g_hPounceTimer[client] = CreateTimer(0.5, Timer_GroundedCheck, GetClientUserId(client), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -175,7 +185,12 @@ public Event_LungePounce(Handle:event, const String:name[], bool:dontBroadcast)
 	
 	new zombieclass = GetEntProp(attacker, Prop_Send, "m_zombieClass");
 	
-	if (zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY) g_bIsPouncing[attacker] = false;
+	if (zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY)
+	{
+		g_bIsPouncing[attacker] = false;
+		if(g_hPounceTimer[attacker])
+			delete g_hPounceTimer[attacker];
+	}
 }
 
 public Event_PlayerJump(Handle:event, const String:name[], bool:dontBroadcast)
@@ -183,20 +198,24 @@ public Event_PlayerJump(Handle:event, const String:name[], bool:dontBroadcast)
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if(!IsClientInGame(client) || !IsInfected(client)) return;
 	
+	if(g_hPounceTimer[client])
+		delete g_hPounceTimer[client];
+	
 	new zombieclass = GetEntProp(client, Prop_Send, "m_zombieClass");
 	if(zombieclass == ZC_JOCKEY && !g_bIsPouncing[client]) 
 	{
 		g_bIsPouncing[client] = true;
-		CreateTimer(0.5, Timer_GroundedCheck, GetClientUserId(client), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+		g_hPounceTimer[client] = CreateTimer(0.5, Timer_GroundedCheck, GetClientUserId(client), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
 public Action:Timer_GroundedCheck(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
-	if (!IsClientInGame(client) || !IsPlayerAlive(client) || IsGrounded(client))
+	if (client <= 0 || !IsClientInGame(client) || !IsPlayerAlive(client) || IsGrounded(client))
 	{
 		g_bIsPouncing[client] = false;
+		g_hPounceTimer[client] = null;
 		KillTimer(timer);
 	}
 }
@@ -450,8 +469,24 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 				}
 			}
 		}
+		if(zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY)
+		{
+			g_bIsPouncing[victim] = false;
+			if(g_hPounceTimer[victim])
+				delete g_hPounceTimer[victim];
+		}
 	}
 	if (IsInfected(victim)) ClearDamage(victim);
+}
+
+public OnClientDisconnect_Post(int client)
+{
+	if(client <= 0 || client > MaxClients)
+		return;
+	
+	g_bIsPouncing[client] = false;
+	if(g_hPounceTimer[client])
+		delete g_hPounceTimer[client];
 }
 
 public Action:Timer_BoomerKilledCheck(Handle:timer)
@@ -527,6 +562,8 @@ public Event_PlayerShoved(Handle:event, const String:name[], bool:dontBroadcast)
 	else if(zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY)
 	{
 		g_bIsPouncing[victim] = false;
+		if(g_hPounceTimer[victim])
+			delete g_hPounceTimer[victim];
 	}
 }
 
@@ -617,6 +654,10 @@ ClearMapStats()
 		ClearDamage(i);
 	}
 	g_iAlarmCarClient = 0;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		if(g_hPounceTimer[i])
+			delete g_hPounceTimer[i];
 }
 
 ClearDamage(client)

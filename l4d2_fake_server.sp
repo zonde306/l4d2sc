@@ -279,8 +279,10 @@ public void OnEntityDestroyed(int entity)
 
 public void EntityHook_ThinkPost(int entity)
 {
+	int maxClients = MaxClients > 32 ? 32 : MaxClients;
+	
 	// 数组上限就是这么大
-	for(int i = 1; i <= 32; ++i)
+	for(int i = 1; i <= maxClients; ++i)
 	{
 		if(!IsClientInGame(i))
 			continue;

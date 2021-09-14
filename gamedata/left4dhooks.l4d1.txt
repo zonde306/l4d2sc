@@ -134,6 +134,25 @@
 				}
 			}
 
+			"SpawnWitchArea"
+			{
+				"signature"		"SpawnWitchArea"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"ignore"
+				"arguments"
+				{
+					"a1"
+					{
+						"type"	"cbaseentity"
+					}
+					"a2"
+					{
+						"type"	"vectorptr"
+					}
+				}
+			}
+
 			"OnMobRushStart"
 			{
 				"signature"		"OnMobRushStart"
@@ -331,6 +350,38 @@
 						"type"	"cbaseentity"
 					}
 					"a2"
+					{
+						"type"	"bool"
+					}
+				}
+			}
+
+			// Only using this for Linux.
+			"TryOfferingTankBot_Clone"
+			{
+				"signature"		"TryOfferingTankBot_Clone"
+				"callconv"		"cdecl"
+				"return"		"int"
+				"this"			"ignore"
+				"arguments"
+				{
+					"a1"
+					{
+						"type"	"objectptr"
+						"linux"
+						{
+							"register"	"eax"
+						}
+					}
+					"a2"
+					{
+						"type"	"cbaseentity"
+						"linux"
+						{
+							"register"	"edx"
+						}
+					}
+					"a3"
 					{
 						"type"	"bool"
 					}
@@ -775,11 +826,11 @@
 				"windows"	"624"
 				"linux"		"620"
 			}
-			// "MobTimer"
-			// {
-				// "windows"	"652"
-				// "linux"		"648"
-			// }
+			"MobSpawnTimer"
+			{
+				"windows"	"652"
+				"linux"		"648"
+			}
 			"m_PendingMobCount"
 			{
 				"windows"	"364"
@@ -825,7 +876,7 @@
 				"windows"	"1882"
 				"linux"		"1878"
 			}
-			"m_iTankCount"
+			"m_iTankCount" // Found in "Director::UpdateVersusBossSpawning"
 			{
 				"linux"		"524"
 				"windows"	"528"
@@ -1140,6 +1191,20 @@
 			}
 
 			/*
+			 * ZombieManager::SpawnWitch(TerrorNavArea const*, QAngle const&)
+			 *
+			 * String "Failed to find a witch spawn position"
+			 * Only using this for Linux.
+			 */
+			"SpawnWitchArea"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13ZombieManager10SpawnWitchEPK13TerrorNavAreaRK6QAngle"
+				// "windows"	"\x83\x2A\x2A\x56\x57\x8B\x2A\x2A\x2A\x8D\x2A\x2A\x2A\x50\x6A\x0A\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x84\x2A\x75"
+				/* 83 ? ? 56 57 8B ? ? ? 8D ? ? ? 50 6A 0A 57 8B ? E8 ? ? ? ? 84 ? 75 */
+			}
+
+			/*
 			 * CDirector::OnMobRushStart(void) - used by boomer and natural horde functions. Resets natural horde timer.
 			 *
 			 * find by String: "(MOB) %d wanderers grabbed for an IT"
@@ -1343,6 +1408,24 @@
 				"library"	"server"
 				"linux"		"@_ZN8Director18TryOfferingTankBotEP11CBaseEntityb"
 				"windows"	"\x51\x83\x2A\x2A\x2A\x2A\x55\x8B\x2A\x0F\x84\x2A\x2A\x2A\x2A\xD9\x2A\xD8"
+				/* 51 83 ? ? ? ? 55 8B ? 0F 84 ? ? ? ? D9 ? D8 */
+				/* Windows signature is of the clone not the stock function. */
+			}
+
+			/*
+			 * CDirector::TryOfferingTankBot(void) [clone]
+			 * unique string "Tank offer: Starting the lottery\n"
+			 * Only using this for Linux.
+			 */
+			"TryOfferingTankBot_Clone"
+			{
+				"library"	"server"
+				"linux"		"\x55\x57\x56\x53\x83\xEC\x3C\xE8\x2A\x2A\x2A\x2A\x81\xC3\xC8\x0C\x57\x00"
+				/**
+				 *	Signature for _ZN8Director18TryOfferingTankBotEP11CBaseEntityb_part_203:
+				 *	55 57 56 53 83 EC 3C E8 ? ? ? ? 81 C3 C8 0C 57 00
+				*/
+				/* "windows"	"\x51\x83\x2A\x2A\x2A\x2A\x55\x8B\x2A\x0F\x84\x2A\x2A\x2A\x2A\xD9\x2A\xD8" /*
 				/* 51 83 ? ? ? ? 55 8B ? 0F 84 ? ? ? ? D9 ? D8 */
 			}
 

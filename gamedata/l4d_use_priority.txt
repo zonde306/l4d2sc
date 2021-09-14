@@ -2,6 +2,15 @@
 {
 	"#default"
 	{
+		"Offsets"
+		{
+			"OS"
+			{
+				"windows"	"0"
+				"linux"		"1"
+			}
+		}
+
 		"Functions"
 		{
 			"CBaseEntity::GetUsePriority"
@@ -14,7 +23,7 @@
 				{
 					"a1"
 					{
-						"type"	"int"
+						"type"	"cbaseentity"
 					}
 				}
 			}
@@ -23,30 +32,16 @@
 
 	"left4dead"
 	{
-		"Addresses"
-		{
-			"CBaseEntity::GetUsePriority"
-			{
-				"windows"
-				{
-					"signature"	"CBaseEntity::GetUsePriority"
-				}
-				"linux"
-				{
-					"signature"	"CBaseEntity::GetUsePriority"
-				}
-			}
-		}
-
 		"Signatures"
 		{
 			"CBaseEntity::GetUsePriority"
 			{
 				"library"		"server"
 				"linux"			"@_ZN11CBaseEntity14GetUsePriorityEPS_"
-				"windows"		"\xB8\x01\x00\x00\x00\xC2\x04\x00\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\x56"
-				/* B8 01 00 00 00 C2 04 00 CC CC CC CC CC CC CC CC 56 */
+				"windows"		"\xB8\x01\x00\x00\x00\xC2\x04\x00\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xCC\xB0"
+				/* B8 01 00 00 00 C2 04 00 CC CC CC CC CC CC CC CC B0 */
 				/* VTable method to find. */
+				/* Search "unhandled input: (%s) -> (%s,%s)\n" for "CBaseEntity::AcceptInput" and 3 functions up should be target
 				/* Short function so reading past function end. */
 				/* probably breaks every update, not that L4D1 updates any more. */
 			}
@@ -55,21 +50,6 @@
 
 	"left4dead2"
 	{
-		"Addresses"
-		{
-			"CBaseEntity::GetUsePriority"
-			{
-				"windows"
-				{
-					"signature"	"CBaseEntity::GetUsePriority"
-				}
-				"linux"
-				{
-					"signature"	"CBaseEntity::GetUsePriority"
-				}
-			}
-		}
-
 		"Signatures"
 		{
 			"CBaseEntity::GetUsePriority"

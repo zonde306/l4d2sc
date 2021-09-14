@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.53"
+#define PLUGIN_VERSION		"1.55"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -41,6 +41,25 @@
 
 ========================================================================================
 	Change Log:
+
+1.55 (12-Sep-2021)
+	- Fixed native "L4D2Direct_TryOfferingTankBot" not working for L4D1 Linux due to the last update. Thanks to "Forgetest" for reporting.
+	- L4D1 gamedata file updated only.
+
+1.54 (12-Sep-2021)
+	- Big thanks to "Forgetest" and "HarryPotter" for helping fix and test this release.
+
+	- Added forward "L4D_OnGameModeChange" to notify plugins when the mode has changed to Coop, Versus, Survival and Scavenge (L4D2).
+	- Added native "L4D_GetGameModeType" to return if the current game mode is Coop, Versus, Survival or Scavenge (L4D2).
+
+	- Update for L4D1:
+
+	- Fixed on Linux forward "L4D_OnSpawnWitch" from not triggering for some Witch spawns. Thanks to "Forgetest" for fixing.
+	- Fixed on Linux forward "L4D_OnTryOfferingTankBot" from not triggering on the first tank. Thanks to "Forgetest" for fixing.
+	- Unlocked native "L4D2Direct_GetMobSpawnTimer" for usage in L4D1. Thanks to "HarryPotter" for reporting functionality.
+	- Unlocked native "L4D2Direct_GetTankCount" for usage in L4D1. Missed this from the last update.
+
+	- L4D1 GameData file, include file and plugins updated.
 
 1.53 (09-Sep-2021)
 	- Update for L4D1:
@@ -620,6 +639,7 @@ ArrayList g_aMeleePtrs;						// Stores melee pointers
 
 
 // FORWARDS
+GlobalForward g_hForward_GameModeChange;
 GlobalForward g_hForward_SpawnSpecial;
 GlobalForward g_hForward_SpawnTank;
 GlobalForward g_hForward_SpawnWitch;
@@ -839,6 +859,7 @@ Address g_pWeaponInfoDatabase;
 
 
 // Other
+int g_iCurrentMode;
 int g_iMaxChapters;
 int g_iClassTank;
 bool g_bCheckpoint[MAXPLAYERS+1];
@@ -907,6 +928,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// ====================================================================================================
 	// FORWARDS
 	// List should match the CreateDetour list of forwards.
+	g_hForward_GameModeChange					= new GlobalForward("L4D_OnGameModeChange",						ET_Event, Param_Cell);
 	g_hForward_SpawnSpecial						= new GlobalForward("L4D_OnSpawnSpecial",						ET_Event, Param_CellByRef, Param_Array, Param_Array);
 	g_hForward_SpawnTank						= new GlobalForward("L4D_OnSpawnTank",							ET_Event, Param_Array, Param_Array);
 	g_hForward_SpawnWitch						= new GlobalForward("L4D_OnSpawnWitch",							ET_Event, Param_Array, Param_Array);
@@ -969,8 +991,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 	// ====================================================================================================
 	//									NATIVES
-	// L4D1 = 12 [left4downtown] + 47 - 0 (deprecated) [l4d_direct] + 15 [l4d2addresses] + 17 [silvers - mine!] + 4 [anim] = 100
-	// L4D2 = 52 [left4downtown] + 62 - 1 (deprecated) [l4d_direct] + 26 [l4d2addresses] + 39 [silvers - mine!] + 4 [anim] = 187
+	// L4D1 = 18 [left4downtown] + 47 [l4d_direct] + 15 [l4d2addresses] + 21 [silvers - mine!] + 4 [anim] = 105
+	// L4D2 = 53 [left4downtown] + 61 [l4d_direct] + 26 [l4d2addresses] + 44 [silvers - mine!] + 4 [anim] = 188
 	// ====================================================================================================
 	// ANIMATION HOOK
 	CreateNative("AnimHookEnable",		 							Native_AnimHookEnable);
@@ -983,6 +1005,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// =========================
 	// Silvers Natives
 	// =========================
+	CreateNative("L4D_GetGameModeType",		 						Native_GetGameMode);
 	CreateNative("L4D_Deafen",		 								Native_Deafen);
 	CreateNative("L4D_Dissolve",		 							Native_Dissolve);
 	CreateNative("L4D_OnITExpired",		 							Native_OnITExpired);
@@ -1134,6 +1157,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4DDirect_GetSurvivorHealthBonus",				Direct_GetSurvivorHealthBonus);
 	CreateNative("L4DDirect_SetSurvivorHealthBonus",				Direct_SetSurvivorHealthBonus);
 	CreateNative("L4DDirect_RecomputeTeamScores",					Direct_RecomputeTeamScores);
+	CreateNative("L4D2Direct_GetMobSpawnTimer",						Direct_GetMobSpawnTimer);
+	CreateNative("L4D2Direct_GetTankCount",							Direct_GetTankCount);
 
 	CreateNative("CTimer_Reset",									Direct_CTimer_Reset);
 	CreateNative("CTimer_Start",									Direct_CTimer_Start);
@@ -1158,8 +1183,6 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("ITimer_SetTimestamp",								Direct_ITimer_SetTimestamp);
 
 	// L4D2 only:
-	CreateNative("L4D2Direct_GetTankCount",							Direct_GetTankCount);
-	CreateNative("L4D2Direct_GetMobSpawnTimer",						Direct_GetMobSpawnTimer);
 	CreateNative("L4D2Direct_GetSIClassDeathTimer",					Direct_GetSIClassDeathTimer);
 	CreateNative("L4D2Direct_GetSIClassSpawnTimer",					Direct_GetSIClassSpawnTimer);
 	CreateNative("L4D2Direct_GetVSStartTimer",						Direct_GetVSStartTimer);
@@ -1411,12 +1434,11 @@ public void OnPluginStart()
 
 		g_hDecayDecay = FindConVar("pain_pills_decay_rate");
 		g_hPillsHealth = FindConVar("pain_pills_health_value");
-	} else {
-		g_hMPGameMode = FindConVar("mp_gamemode");
-		g_hMPGameMode.AddChangeHook(ConVarChanged_Mode);
 	}
 
 	g_hCvarRescueDeadTime = FindConVar("rescue_min_dead_time");
+	g_hMPGameMode = FindConVar("mp_gamemode");
+	g_hMPGameMode.AddChangeHook(ConVarChanged_Mode);
 
 
 
@@ -1605,6 +1627,65 @@ public void ColorConfig_End(Handle parser, bool halted, bool failed)
 {
 	if( failed )
 		SetFailState("Error: Cannot load the Activity config.");
+}
+
+
+
+// ====================================================================================================
+//										GAME MODE
+// ====================================================================================================
+public void ConVarChanged_Mode(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	// Want to rescan max chapters on mode change
+	g_iMaxChapters = 0;
+
+	// For game mode native/forward
+	GetGameMode();
+}
+
+void GetGameMode()
+{
+	g_iCurrentMode = 0;
+	if( g_bMapStarted == false ) return;
+
+	int entity = CreateEntityByName("info_gamemode");
+	if( IsValidEntity(entity) )
+	{
+		DispatchSpawn(entity);
+		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+		ActivateEntity(entity);
+		AcceptEntityInput(entity, "PostSpawnActivate");
+		if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+			RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+	}
+}
+
+public void OnGamemode(const char[] output, int caller, int activator, float delay)
+{
+	if( strcmp(output, "OnCoop") == 0 )				g_iCurrentMode = 1;
+	else if( strcmp(output, "OnSurvival") == 0 )	g_iCurrentMode = 2;
+	else if( strcmp(output, "OnVersus") == 0 )		g_iCurrentMode = 4;
+	else if( strcmp(output, "OnScavenge") == 0 )	g_iCurrentMode = 8;
+
+	// Forward
+	static int mode;
+
+	if( mode != g_iCurrentMode )
+	{
+		mode = g_iCurrentMode;
+
+		Call_StartForward(g_hForward_GameModeChange);
+		Call_PushCell(mode);
+		Call_Finish();
+	}
+}
+
+public int Native_GetGameMode(Handle plugin, int numParams)
+{
+	return g_iCurrentMode;
 }
 
 
@@ -2028,23 +2109,17 @@ public void OnPluginEnd()
 	RemoveMultiTargetFilter("@t",						FilterTanks);
 }
 
+
+
+// ====================================================================================================
+//										DISABLE ADDONS
+// ====================================================================================================
 public void OnConfigsExecuted()
 {
 	if( g_bLeft4Dead2 )
 		ConVarChanged_Cvars(null, "", "");
 }
 
-public void ConVarChanged_Mode(Handle convar, const char[] oldValue, const char[] newValue)
-{
-	// Want to rescan max chapters on mode change
-	g_iMaxChapters = 0;
-}
-
-
-
-// ====================================================================================================
-//										DISABLE ADDONS
-// ====================================================================================================
 bool g_bAddonsPatched;
 
 public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
@@ -2192,6 +2267,9 @@ void SetupDetours(GameData hGameData = null)
 	// Forwards listed here must match forward list in plugin start.
 	//			 GameData	DHookCallback PRE					DHookCallback POST		Signature Name							Forward Name						useLast index		forceOn detour
 	CreateDetour(hGameData, SpawnTank,							INVALID_FUNCTION,		"SpawnTank",							"L4D_OnSpawnTank");
+	if( !g_bLeft4Dead2 && g_bLinuxOS )
+		CreateDetour(hGameData, SpawnWitchArea,					INVALID_FUNCTION,		"SpawnWitchArea",						"L4D_OnSpawnWitch");
+		// CreateDetour(hGameData, SpawnWitchAreaPre,				SpawnWitchArea,			"SpawnWitchArea",						"L4D_OnSpawnWitch");
 	CreateDetour(hGameData, SpawnWitch,							INVALID_FUNCTION,		"SpawnWitch",							"L4D_OnSpawnWitch");
 	CreateDetour(hGameData, MobRushStart,						INVALID_FUNCTION,		"OnMobRushStart",						"L4D_OnMobRushStart");
 	CreateDetour(hGameData, SpawnITMob,							INVALID_FUNCTION,		"SpawnITMob",							"L4D_OnSpawnITMob");
@@ -2202,20 +2280,23 @@ void SetupDetours(GameData hGameData = null)
 	CreateDetour(hGameData, ClearTeamScores,					INVALID_FUNCTION,		"ClearTeamScores",						"L4D_OnClearTeamScores");
 	CreateDetour(hGameData, SetCampaignScores,					INVALID_FUNCTION,		"SetCampaignScores",					"L4D_OnSetCampaignScores");
 	if( !g_bLeft4Dead2 )
-	CreateDetour(hGameData, RecalculateVersusScore,				INVALID_FUNCTION,		"RecalculateVersusScore",				"L4D_OnRecalculateVersusScore");
+		CreateDetour(hGameData, RecalculateVersusScore,			INVALID_FUNCTION,		"RecalculateVersusScore",				"L4D_OnRecalculateVersusScore");
 	CreateDetour(hGameData, OnFirstSurvivorLeftSafeArea,		INVALID_FUNCTION,		"OnFirstSurvivorLeftSafeArea",			"L4D_OnFirstSurvivorLeftSafeArea");
 	CreateDetour(hGameData, GetCrouchTopSpeedPre,				GetCrouchTopSpeed,		"GetCrouchTopSpeed",					"L4D_OnGetCrouchTopSpeed");
 	CreateDetour(hGameData, GetRunTopSpeedPre,					GetRunTopSpeed,			"GetRunTopSpeed",						"L4D_OnGetRunTopSpeed");
 	CreateDetour(hGameData, GetWalkTopSpeedPre,					GetWalkTopSpeed,		"GetWalkTopSpeed",						"L4D_OnGetWalkTopSpeed");
 	CreateDetour(hGameData, GetMissionVSBoss,					INVALID_FUNCTION,		"GetMissionVersusBossSpawning",			"L4D_OnGetMissionVSBossSpawning");
 	CreateDetour(hGameData, OnReplaceTank,						INVALID_FUNCTION,		"ReplaceTank",							"L4D_OnReplaceTank");
-	CreateDetour(hGameData, TryOfferingTankBot,					INVALID_FUNCTION,		"TryOfferingTankBot",					"L4D_OnTryOfferingTankBot");
+	if( !g_bLeft4Dead2 && g_bLinuxOS )
+		CreateDetour(hGameData, TryOfferingTankBot,				INVALID_FUNCTION,		"TryOfferingTankBot_Clone",				"L4D_OnTryOfferingTankBot");
+	else
+		CreateDetour(hGameData, TryOfferingTankBot,				INVALID_FUNCTION,		"TryOfferingTankBot",					"L4D_OnTryOfferingTankBot");
 	CreateDetour(hGameData, CThrowActivate,						INVALID_FUNCTION,		"CThrowActivate",						"L4D_OnCThrowActivate");
 	g_iAnimationDetourIndex = g_iCurrentIndex; // Animation Hook - detour index to enable when required.
 	CreateDetour(hGameData, SelectTankAttackPre,				SelectTankAttack,		"SelectTankAttack",						"L4D2_OnSelectTankAttack"); // Animation Hook
 	CreateDetour(hGameData, SelectTankAttackPre,				SelectTankAttack,		"SelectTankAttack",						"L4D2_OnSelectTankAttackPre",		true); // Animation Hook
 	if( !g_bLinuxOS ) // Blocked on Linux in L4D1/L4D2 to prevent crashes. Waiting for DHooks update to support object returns.
-	CreateDetour(hGameData, SendInRescueVehicle,				INVALID_FUNCTION,		"SendInRescueVehicle",					"L4D2_OnSendInRescueVehicle");
+		CreateDetour(hGameData, SendInRescueVehicle,			INVALID_FUNCTION,		"SendInRescueVehicle",					"L4D2_OnSendInRescueVehicle");
 	CreateDetour(hGameData, EndVersusModeRoundPre,				EndVersusModeRound,		"EndVersusModeRound",					"L4D2_OnEndVersusModeRound");
 	CreateDetour(hGameData,	EndVersusModeRoundPre,				EndVersusModeRound,		"EndVersusModeRound",					"L4D2_OnEndVersusModeRound_Post",	true); // Different forwards, same detour as above - same index.
 	CreateDetour(hGameData, LedgeGrabbed,						INVALID_FUNCTION,		"OnLedgeGrabbed",						"L4D_OnLedgeGrabbed");
@@ -2226,7 +2307,7 @@ void SetupDetours(GameData hGameData = null)
 	CreateDetour(hGameData, OnShovedByPounceLanding,			INVALID_FUNCTION,		"OnShovedByPounceLanding",				"L4D2_OnPounceOrLeapStumble");
 	CreateDetour(hGameData, InfernoSpread,						INVALID_FUNCTION,		"Spread",								"L4D2_OnSpitSpread");
 	if( !g_bLinuxOS ) // Blocked on Linux in L4D1/L4D2 to prevent crashes. Waiting for DHooks update to support object returns.
-	CreateDetour(hGameData, OnUseHealingItems,					INVALID_FUNCTION,		"UseHealingItems",						"L4D2_OnUseHealingItems");
+		CreateDetour(hGameData, OnUseHealingItems,				INVALID_FUNCTION,		"UseHealingItems",						"L4D2_OnUseHealingItems");
 	CreateDetour(hGameData, OnFindScavengeItemPre,				OnFindScavengeItem,		"FindScavengeItem",						"L4D2_OnFindScavengeItem");
 	CreateDetour(hGameData, OnChooseVictimPre,					OnChooseVictim,			"ChooseVictim",							"L4D2_OnChooseVictim");
 	CreateDetour(hGameData, OnMaterializeFromGhostPre,			OnMaterialize,			"OnMaterializeFromGhost",				"L4D_OnMaterializeFromGhostPre");
@@ -2478,6 +2559,8 @@ public void OnMapStart()
 	if( !g_bMapStarted )
 	{
 		g_bMapStarted = true;
+
+		GetGameMode();
 
 		// Precache Models, prevent crashing when spawning with SpawnSpecial()
 		for( int i = 0; i < sizeof(g_sModels1); i++ )
@@ -3888,6 +3971,9 @@ void LoadGameData()
 	m_iTankCount = hGameData.GetOffset("m_iTankCount");
 	ValidateOffset(m_iTankCount, "m_iTankCount");
 
+	MobSpawnTimer = hGameData.GetOffset("MobSpawnTimer");
+	ValidateOffset(MobSpawnTimer, "MobSpawnTimer");
+
 
 
 	if( g_bLeft4Dead2 )
@@ -3899,9 +3985,6 @@ void LoadGameData()
 
 		SpawnTimer = hGameData.GetOffset("SpawnTimer");
 		ValidateOffset(SpawnTimer, "SpawnTimer");
-
-		MobSpawnTimer = hGameData.GetOffset("MobSpawnTimer");
-		ValidateOffset(MobSpawnTimer, "MobSpawnTimer");
 
 		OnBeginRoundSetupTime = hGameData.GetOffset("OnBeginRoundSetupTime");
 		ValidateOffset(OnBeginRoundSetupTime, "OnBeginRoundSetupTime");
@@ -3998,13 +4081,13 @@ void LoadGameData()
 	PrintToServer("m_rescueCheckTimer = %d", m_rescueCheckTimer);
 	PrintToServer("VersusMaxCompletionScore = %d", VersusMaxCompletionScore);
 	PrintToServer("m_iTankCount = %d", m_iTankCount);
+	PrintToServer("MobSpawnTimer = %d", MobSpawnTimer);
 
 	if( g_bLeft4Dead2 )
 	{
 		PrintToServer("g_iAddonEclipse1 = %d", g_iAddonEclipse1);
 		PrintToServer("g_iAddonEclipse2 = %d", g_iAddonEclipse2);
 		PrintToServer("SpawnTimer = %d", SpawnTimer);
-		PrintToServer("MobSpawnTimer = %d", MobSpawnTimer);
 		PrintToServer("OnBeginRoundSetupTime = %d", OnBeginRoundSetupTime);
 		PrintToServer("m_iWitchCount = %d", m_iWitchCount);
 		PrintToServer("OvertimeGraceTimer = %d", OvertimeGraceTimer);
@@ -4886,8 +4969,6 @@ public int Native_SpawnWitchBride(Handle plugin, int numParams)
 
 public any Native_GetMobSpawnTimerRemaining(Handle plugin, int numParams)
 {
-	if( !g_bLeft4Dead2 ) ThrowNativeError(SP_ERROR_NOT_RUNNABLE, NATIVE_UNSUPPORTED2);
-
 	ValidateAddress(g_pDirector, "g_pDirector");
 	ValidateAddress(MobSpawnTimer, "MobSpawnTimer");
 
@@ -4897,8 +4978,6 @@ public any Native_GetMobSpawnTimerRemaining(Handle plugin, int numParams)
 
 public any Native_GetMobSpawnTimerDuration(Handle plugin, int numParams)
 {
-	if( !g_bLeft4Dead2 ) ThrowNativeError(SP_ERROR_NOT_RUNNABLE, NATIVE_UNSUPPORTED2);
-
 	ValidateAddress(g_pDirector, "g_pDirector");
 	ValidateAddress(MobSpawnTimer, "MobSpawnTimer");
 
@@ -5597,8 +5676,6 @@ public int Native_SetVersusWitchFlowPercent(Handle plugin, int numParams)
 // ==================================================
 public int Direct_GetTankCount(Handle plugin, int numParams)
 {
-	if( !g_bLeft4Dead2 ) ThrowNativeError(SP_ERROR_NOT_RUNNABLE, NATIVE_UNSUPPORTED2);
-
 	return Native_GetTankCount(plugin, numParams);
 }
 
@@ -5621,8 +5698,6 @@ public int Direct_SetPendingMobCount(Handle plugin, int numParams)
 
 public any Direct_GetMobSpawnTimer(Handle plugin, int numParams)
 {
-	if( !g_bLeft4Dead2 ) ThrowNativeError(SP_ERROR_NOT_RUNNABLE, NATIVE_UNSUPPORTED2);
-
 	ValidateAddress(g_pDirector, "g_pDirector");
 	ValidateAddress(MobSpawnTimer, "MobSpawnTimer");
 
@@ -6991,6 +7066,44 @@ MRESReturn Spawn_TankWitch(Handle hForward, Handle hReturn, Handle hParams)
 	return MRES_Ignored;
 }
 
+// L4D1 Linux clone function detour
+/*
+public MRESReturn SpawnWitchAreaPre(Handle hReturn, Handle hParams)
+{
+	return MRES_Ignored;
+}
+*/
+
+public MRESReturn SpawnWitchArea(Handle hReturn, Handle hParams)
+{
+	// PrintToServer("##### DTR SpawnWitchArea");
+	// From the post hook
+	/*
+	int entity = DHookGetReturn(hReturn);
+	if( entity == 0 ) return MRES_Ignored;
+
+	float a1[3], a2[3];
+	GetEntPropVector(entity, Prop_Send, "m_vecOrigin", a1);
+	DHookGetParamVector(hParams, 2, a2);
+	*/
+
+	float a2[3];
+	Action aResult = Plugin_Continue;
+	Call_StartForward(g_hForward_SpawnWitch);
+	Call_PushArray(NULL_VECTOR, 3);
+	Call_PushArray(a2, 3);
+	Call_Finish(aResult);
+
+	if( aResult == Plugin_Handled )
+	{
+		// RemoveEntity(entity); // From the post hook
+		DHookSetReturn(hReturn, 0);
+		return MRES_Supercede;
+	}
+
+	return MRES_Ignored;
+}
+
 public MRESReturn ClearTeamScores(Handle hReturn, Handle hParams)
 {
 	//PrintToServer("##### DTR ClearTeamScores");
@@ -7436,12 +7549,24 @@ public MRESReturn OnReplaceTank(Handle hReturn, Handle hParams)
 
 public MRESReturn TryOfferingTankBot(Handle hReturn, Handle hParams)
 {
-	//PrintToServer("##### DTR TryOfferingTankBot");
-	int a1 = -1;
-	if( !DHookIsNullParam(hParams, 1) )
-		a1 = DHookGetParam(hParams, 1);
+	// PrintToServer("##### DTR TryOfferingTankBot");
+	int a1 = -1, a2;
 
-	int a2 = DHookGetParam(hParams, 2);
+	if( !g_bLeft4Dead2 && g_bLinuxOS )
+	{
+		// L4D1
+		if( !DHookIsNullParam(hParams, 2) )
+			a1 = DHookGetParam(hParams, 2);
+
+		a2 = DHookGetParam(hParams, 3);
+	}
+	else
+	{
+		if( !DHookIsNullParam(hParams, 1) )
+			a1 = DHookGetParam(hParams, 1);
+
+		a2 = DHookGetParam(hParams, 2);
+	}
 
 	Action aResult = Plugin_Continue;
 	Call_StartForward(g_hForward_TryOfferingTankBot);
@@ -7458,8 +7583,17 @@ public MRESReturn TryOfferingTankBot(Handle hReturn, Handle hParams)
 	// UNKNOWN - PROBABLY WORKING
 	if( aResult == Plugin_Changed )
 	{
-		DHookSetParam(hParams, 2, a2);
-		DHookSetReturn(hReturn, a2);
+		if( g_bLeft4Dead2 || !g_bLinuxOS )
+		{
+			DHookSetParam(hParams, 2, a2);
+			DHookSetReturn(hReturn, a2);
+		}
+		else
+		{
+			// L4D1
+			DHookSetParam(hParams, 3, a2);
+		}
+
 		return MRES_ChangedOverride;
 	}
 

@@ -507,22 +507,6 @@ enum struct EquipData_t {
 
 StringMap g_mEquipData[MAXPLAYERS+1];
 
-/*
-new bool:g_eqmValid[MAXPLAYERS+1][12];	//装备是否存在
-new g_eqmPrefix[MAXPLAYERS+1][12];		//装备类型
-new String:g_esPrefix[MAXPLAYERS+1][12][32];		//装备类型名称
-new g_eqmParts[MAXPLAYERS+1][12];		//装备部件类型
-new String:g_esParts[MAXPLAYERS+1][12][32];		//装备部件名称
-new g_eqmDamage[MAXPLAYERS+1][12];		//装备+伤害
-new g_eqmHealth[MAXPLAYERS+1][12];		//装备+HP上限
-new g_eqmSpeed[MAXPLAYERS+1][12];		//装备+速度
-new g_eqmGravity[MAXPLAYERS+1][12];		//装备+重力
-new g_eqmUpgrade[MAXPLAYERS+1][12];		//装备+暴击率
-new String:g_esEffects[MAXPLAYERS+1][12][128];		//装备附加天赋技能名称
-new g_eqmEffects[MAXPLAYERS+1][12];		//装备附加天赋技能类型
-new String: g_esUpgrade[MAXPLAYERS+1][12][32];		//装备的完美度
-*/
-
 new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 int g_iActiveEffects[MAXPLAYERS+1][sizeof(g_clCurEquip[])];
 
@@ -598,11 +582,6 @@ GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveAr
 	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent, g_fwOnAngrySkill, g_fwOnAngryPoint;
 ConVar g_pCvarInCombat, g_pCvarSneaking, g_pCvarInBattlefield;
 
-/*
-Handle g_hDetourHolster = null, g_hDetourReload = null, g_hDetourShotgunReload = null;
-bool g_bLadderRambos = false;
-*/
-
 public Plugin:myinfo =
 {
 	name = "娱乐插件",
@@ -635,7 +614,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// int LV_GiveEquipment(int client, int parts)
 	CreateNative("LV_GiveEquipment", Native_GiveEquipment);
 	
-	// void LV_GenerateRandom(int client, bool uncap)
+	// void LV_GenerateRandom(int client, int capable)
 	CreateNative("LV_GenerateRandom", Native_GenerateRandomStatus);
 	
 	// bool LV_SaveToFile(int client, bool checkpoint)
@@ -798,33 +777,33 @@ public void OnAllPluginsLoaded()
 
 public void OnLibraryAdded(const char[] libary)
 {
-	if(StrEqual(libary, "lethal_helpers"))
+	if(!strcmp(libary, "lethal_helpers"))
 		g_bHaveLethal = true;
-	else if(StrEqual(libary, "protector_helpers"))
+	else if(!strcmp(libary, "protector_helpers"))
 		g_bHaveProtector = true;
-	else if(StrEqual(libary, "robot_helpers"))
+	else if(!strcmp(libary, "robot_helpers"))
 		g_bHaveRobot = true;
-	else if(StrEqual(libary, "incapweapon_helpers"))
+	else if(!strcmp(libary, "incapweapon_helpers"))
 		g_bHaveIncapWeapon = true;
-	else if(StrEqual(libary, "WeaponHandling"))
+	else if(!strcmp(libary, "WeaponHandling"))
 		g_bHaveWeaponHandling = true;
-	else if(StrEqual(libary, "self_help_includes"))
+	else if(!strcmp(libary, "self_help_includes"))
 		g_bHaveSelfHelp = true;
 }
 
 public void OnLibraryRemoved(const char[] libary)
 {
-	if(StrEqual(libary, "lethal_helpers"))
+	if(!strcmp(libary, "lethal_helpers"))
 		g_bHaveLethal = false;
-	else if(StrEqual(libary, "protector_helpers"))
+	else if(!strcmp(libary, "protector_helpers"))
 		g_bHaveProtector = false;
-	else if(StrEqual(libary, "robot_helpers"))
+	else if(!strcmp(libary, "robot_helpers"))
 		g_bHaveRobot = false;
-	else if(StrEqual(libary, "incapweapon_helpers"))
+	else if(!strcmp(libary, "incapweapon_helpers"))
 		g_bHaveIncapWeapon = false;
-	else if(StrEqual(libary, "WeaponHandling"))
+	else if(!strcmp(libary, "WeaponHandling"))
 		g_bHaveWeaponHandling = false;
-	else if(StrEqual(libary, "self_help_includes"))
+	else if(!strcmp(libary, "self_help_includes"))
 		g_bHaveSelfHelp = false;
 }
 
@@ -1259,7 +1238,7 @@ public OnPluginStart()
 	LoadTranslations("common.phrases");
 	
 	// 缓存以及读取
-	if(g_bLateLoad)
+	if(g_bLateLoad && IsServerProcessing())
 	{
 		OnMapStart();
 		OnConfigsExecuted();
@@ -1298,34 +1277,6 @@ public void OnPluginEnd()
 		DHookDisableDetour(g_hDetourTestSwingCollision, false, TestSwingCollisionPre);
 		DHookDisableDetour(g_hDetourTestSwingCollision, true, TestSwingCollisionPost);
 	}
-	
-	/*
-	if(g_hDetourHolster)
-	{
-		DHookDisableDetour(g_hDetourHolster, false, Detour_Holster);
-	}
-	
-	if(g_hDetourReload)
-	{
-		DHookDisableDetour(g_hDetourReload, false, Detour_Reload);
-	}
-	
-	if(g_hDetourShotgunReload)
-	{
-		DHookDisableDetour(g_hDetourShotgunReload, false, Detour_ShotgunReload);
-	}
-	
-	SafeDropPatch(false);
-	g_bLadderRambos = false;
-	*/
-	
-	/*
-	if(g_hDetourIsInvulnerable)
-	{
-		DHookDisableDetour(g_hDetourIsInvulnerable, false, IsInvulnerablePre);
-		DHookDisableDetour(g_hDetourIsInvulnerable, true, IsInvulnerablePost);
-	}
-	*/
 	
 	for(int i = 1; i <= MaxClients; ++i)
 	{
@@ -1899,7 +1850,7 @@ public void Event_PlayerLeftStartArea(Event event, const char[] event_name, bool
 {
 	L4D_OnFirstSurvivorLeftSafeArea(-1);
 	
-	if(StrEqual(event_name, "survival_round_start", false))
+	if(!strcmp(event_name, "survival_round_start", false))
 	{
 		g_hTimerSurvival = CreateTimer(4.0 * 60.0, Timer_SurvivalTimer, GetGameTime(), TIMER_FLAG_NO_MAPCHANGE);
 		PrintToServer("生还者模式计时开始");
@@ -2096,7 +2047,7 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 			// 胆汁效果紫色
 			CreateGlowModel(attacker, 0xFF80FF);
 		}
-		else if(StrEqual(event_name, "charger_carry_end", false))
+		else if(!strcmp(event_name, "charger_carry_end", false))
 		{
 			CreateTimer(3.0, Timer_CheckPummelState, attacker);
 		}
@@ -2125,7 +2076,7 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 			// 黑白状态 白色
 			CreateGlowModel(victim, 0xFFFFFF);
 		}
-		else if(StrEqual(event_name, "charger_carry_end", false))
+		else if(!strcmp(event_name, "charger_carry_end", false))
 		{
 			CreateTimer(3.0, Timer_CheckPummelState, victim);
 		}
@@ -3354,57 +3305,6 @@ public Action Timer_TeamTeleportCheck(Handle timer, any client)
 	return Plugin_Stop;
 }
 
-/*
-public Action OnClientCommand(int client, int argc)
-{
-	if(!IsValidClient(client))
-		return Plugin_Continue;
-
-	char command[64];
-	GetCmdArg(0, command, 64);
-	if(StrContains(command, "admin", false) != -1 || StrEqual(command, "sm_cvar", false) ||
-		StrEqual(command, "sm", false) || StrEqual(command, "sm_ban", false) ||
-		StrEqual(command, "sm_kick", false) || StrEqual(command, "sm_rcon", false) ||
-		StrEqual(command, "status", false) || StrEqual(command, "sm_help", false))
-	{
-		if(!(GetUserFlagBits(client) & (ADMFLAG_ROOT|ADMFLAG_KICK|ADMFLAG_BAN)))
-		{
-			LogMessage("玩家 %N 使用了命令：%s", client, command);
-			return Plugin_Handled;
-		}
-	}
-
-	return Plugin_Continue;
-}
-*/
-
-/*
-stock void PrintToLeft(int client, const char[] text, any ...)
-{
-	if(!IsValidClient(client) || IsFakeClient(client))
-		return;
-
-	char buffer[255];
-	VFormat(buffer, 255, text, 3);
-
-	BfWrite bf = UserMessageToBfWrite(StartMessageOne("KeyHintText", client));
-	bf.WriteByte(1);
-	bf.WriteString(buffer);
-	EndMessage();
-}
-
-stock void PrintToLeftAll(const char[] text, any ...)
-{
-	char buffer[255];
-	VFormat(buffer, 255, text, 2);
-
-	BfWrite bf = UserMessageToBfWrite(StartMessageAll("KeyHintText"));
-	bf.WriteByte(1);
-	bf.WriteString(buffer);
-	EndMessage();
-}
-*/
-
 public Action Command_Away(int client, const char[] command, int argc)
 {
 	if(!IsValidAliveClient(client))
@@ -3444,32 +3344,32 @@ public Action Command_Say(int client, const char[] command, int argc)
 
 	if(g_pCvarAllow.BoolValue)
 	{
-		if(StrEqual(sayText, "lv", false) || StrEqual(sayText, "rpg", false))
+		if(!strcmp(sayText, "lv", false) || !strcmp(sayText, "rpg", false))
 		{
 			StatusChooseMenuFunc(client);
 			return Plugin_Handled;
 		}
 
-		if(StrEqual(sayText, "buy", false) || StrEqual(sayText, "shop", false))
+		if(!strcmp(sayText, "buy", false) || !strcmp(sayText, "shop", false))
 		{
 			StatusSelectMenuFuncBuy(client, false);
 			return Plugin_Handled;
 		}
 
-		if(StrEqual(sayText, "rp", false) || StrEqual(sayText, "ldw", false))
+		if(!strcmp(sayText, "rp", false) || !strcmp(sayText, "ldw", false))
 		{
 			StatusSelectMenuFuncRP(client);
 			return Plugin_Handled;
 		}
 		
 		/*
-		if(StrEqual(sayText, "cd", false))
+		if(!strcmp(sayText, "cd", false))
 		{
 			StatusSelectMenuFuncCD(client);
 			return Plugin_Handled;
 		}
 
-		if(StrEqual(sayText, "dd", false))
+		if(!strcmp(sayText, "dd", false))
 		{
 			StatusSelectMenuFuncDD(client);
 			return Plugin_Handled;
@@ -3508,12 +3408,12 @@ public Action Command_Give(int client, const char[] command, int argc)
 	char item[64];
 	GetCmdArg(1, item, 64);
 	
-	if(StrEqual(item, "ammo", false))
+	if(!strcmp(item, "ammo", false))
 	{
 		AddAmmo(client, 999);
 		return Plugin_Handled;
 	}
-	else if(StrEqual(item, "health", false))
+	else if(!strcmp(item, "health", false))
 	{
 		// 得等命令执行完才会设置血量
 		if(g_iRoundEvent == 19)
@@ -3643,8 +3543,8 @@ public bool OnClientConnect(int client, char[] kickMessage, int msglen)
 		char steamId[64];
 		GetClientAuthId(client, AuthId_Steam2, steamId, 64, false);
 
-		if(steamId[0] == EOS || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
-			StrEqual(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || StrEqual(steamId, "STEAM_1:0:0", false))
+		if(steamId[0] == EOS || !strcmp(steamId, "BOT", false) || !strcmp(steamId, "STEAM_ID_PENDING", false) ||
+			!strcmp(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || !strcmp(steamId, "STEAM_1:0:0", false))
 		{
 			FormatEx(kickMessage, msglen, "你的 SteamID 无效\n%s\n请更换或升级破解补丁", steamId);
 			return false;
@@ -3870,7 +3770,7 @@ public int MenuHandler_Shop(Menu menu, MenuAction action, int client, int select
 		if(item[i][0] == EOS)
 			continue;
 		
-		if(StrEqual(item[i], "ammo", false))
+		if(!strcmp(item[i], "ammo", false))
 			AddAmmo(client, 999);
 		else
 			CheatCommand(client, "give", item[i]);
@@ -3978,7 +3878,7 @@ public Action Timer_HandleGiveItem(Handle timer, any pack)
 	for(int i = 0; i < argc; ++i)
 	{
 		data.ReadString(item, sizeof(item));
-		if(StrEqual(item, "ammo", false))
+		if(!strcmp(item, "ammo", false))
 			AddAmmo(client, 999);
 		else
 			CheatCommand(client, "give", item);
@@ -4906,7 +4806,7 @@ stock Panel CreateConfirmPanel(const char[] title, const char[] text = "", any .
 	if(text[0] != EOS)
 	{
 		char line[1024];
-		VFormat(line, 1024, text, 3);
+		VFormat(line, sizeof(line), text, 3);
 		menu.DrawText(line);
 	}
 
@@ -4929,7 +4829,7 @@ stock Menu CreateConfirmMenu(const char[] title, MenuHandler handler, const char
 
 	char line[1024] = "";
 	if(text[0] != EOS)
-		VFormat(line, 1024, text, 5);
+		VFormat(line, sizeof(line), text, 5);
 
 	menu.SetTitle("%s\n%s", title, line);
 	menu.AddItem(info, "是");
@@ -5058,7 +4958,7 @@ stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len
 	char text[255];
 	if(!data.valid)
 	{
-		strcopy(text, 255, "<无>");
+		strcopy(text, sizeof(text), "<无>");
 
 		if(len > 5)
 			strcopy(buffer, len, text);
@@ -5091,11 +4991,11 @@ stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len
 	
 	if(lite)
 	{
-		lentex = FormatEx(text, 255, "%s%s%s|(%d)%s", data.sPrefix, data.sNamed, data.sParts, power, extrastr);
+		lentex = FormatEx(text, sizeof(text), "%s%s%s|(%d)%s", data.sPrefix, data.sNamed, data.sParts, power, extrastr);
 	}
 	else
 	{
-		lentex = FormatEx(text, 255, "%s%s%s|伤害+%d％|血量+%d％|速度+%d％|暴击+%d‰|跳跃+%d％|(%d)%s",
+		lentex = FormatEx(text, sizeof(text), "%s%s%s|伤害+%d％|血量+%d％|速度+%d％|暴击+%d‰|跳跃+%d％|(%d)%s",
 			data.sPrefix, data.sNamed, data.sParts,
 			data.damage, data.health, data.speed, data.crit, data.gravity, power, extrastr
 		);
@@ -5811,19 +5711,19 @@ public void OnGameFrame()
 	// 修改武器攻击速度
 	if(g_iWeaponSpeedTotal > 0)
 	{
-		char className[64];
+		static char className[64];
 		float gameTime = GetGameTime(), endTime;
 		for(int i = 0; i < g_iWeaponSpeedTotal; ++i)
 		{
-			if(g_iWeaponSpeedEntity[i] == INVALID_ENT_REFERENCE || !IsValidEntity(g_iWeaponSpeedEntity[i]))
+			if(g_iWeaponSpeedEntity[i] == INVALID_ENT_REFERENCE || !IsValidEntity(g_iWeaponSpeedEntity[i]) ||
+				!GetEntityClassname(g_iWeaponSpeedEntity[i], className, sizeof(className)))
 				continue;
-
-			GetEntityClassname(g_iWeaponSpeedEntity[i], className, 64);
-			if(StrContains(className, "weapon_", false) != 0 ||
+			
+			if(strncmp(className, "weapon_", 7) ||
 				GetEntProp(g_iWeaponSpeedEntity[i], Prop_Send, "m_bInReload") ||
 				GetEntProp(g_iWeaponSpeedEntity[i], Prop_Send, "m_iClip1") <= 0)
 				continue;
-
+			
 			// 动作速度
 			SetEntPropFloat(g_iWeaponSpeedEntity[i], Prop_Send, "m_flPlaybackRate", g_fWeaponSpeedUpdate[i]);
 
@@ -6000,22 +5900,6 @@ public void OnGameFrame()
 			{
 				g_ctSelfHeal[i] = curTime + 200.0;
 				
-				/*
-				if(team == 2 && !GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1))
-				{
-					int health = GetPlayerTempHealth(i) + 80;
-					if(health > 200)
-						health = 200;
-					
-					SetEntPropFloat(i, Prop_Send, "m_healthBuffer", health * 1.0);
-					SetEntPropFloat(i, Prop_Send, "m_healthBufferTime", GetGameTime());
-				}
-				else
-				{
-					// SetEntProp(i, Prop_Data, "m_iHealth", GetEntProp(i, Prop_Data, "m_iHealth") + 80);
-					AddHealth(i, 80, true, true);
-				}
-				*/
 				AddHealth(i, 80, false, true);
 				
 				PrintToChat(i, "\x03「暴疗」\x01你获得 \x0580\x01 生命值。");
@@ -6078,7 +5962,7 @@ public void OnGameFrame()
 				L4D2_RunScript("Convars.SetValue(\"%s\",\"%d:\"+::VSLib.Player(%d).IsInBattlefield().tointeger());", buffer, i, i);
 			}
 			g_pCvarInCombat.GetName(buffer, sizeof(buffer));
-			L4D2_RunScript("Convars.SetValue(\"%s\",\"%d:\"+::VSLib.Player(%d).IsInCombat().tointeger());", buffer, i, i);
+			L4D2_RunScript("Convars.SetValue(\"%s\",\"%d:\"+PlayerInstanceFromIndex(%d).IsInCombat().tointeger());", buffer, i, i);
 		}
 
 		if(g_iRoundEvent > 0 && g_fNextRoundEvent <= curTime)
@@ -6178,31 +6062,6 @@ public void OnGameFrame()
 			}
 		}
 	}
-
-	// 跳跃处理
-	/*
-	{
-		for(int i = 1; i <= MaxClients; ++i)
-		{
-			if(!IsValidAliveClient(i))
-				continue;
-
-			// if((g_iJumpFlags[i] & JF_HasJumping) && (GetEntityFlags(i) & FL_ONGROUND))
-			if((g_iJumpFlags[i] & JF_HasJumping) && GetEntPropEnt(i, Prop_Send, "m_hGroundEntity") > -1)
-			{
-				// int buttons = GetClientButtons(i);
-
-				// 玩家跳起来然后落地了
-				// 重置多重跳状态
-
-				if(!(g_clSkill_3[i] & SKL_3_BunnyHop) || !(GetClientButtons(i) & IN_JUMP))
-					g_iJumpFlags[i] &= ~(JF_HasJumping|JF_FirstReleased|JF_CanDoubleJump);
-				// PrintCenterText(i, "落在地上了");
-			}
-		}
-	}
-	*/
-	
 }
 
 public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
@@ -6323,26 +6182,26 @@ stock int SpawnCommand(int spawnner, int zClass)
 {
 	L4D2_RunScript(
 		"local a={"
-			..."'cm_DominatorLimit':null,"
-			..."'cm_MaxSpecials':null,"
-			..."'MaxSpecials':null,"
-			..."'SmokerLimit':null,"
-			..."'BoomerLimit':null,"
-			..."'HunterLimit':null,"
-			..."'SpitterLimit':null,"
-			..."'JockeyLimit':null,"
-			..."'ChargerLimit':null,"
-			..."'WitchLimit':null,"
-			..."'cm_WitchLimit':null,"
-			..."'TankLimit':null,"
-			..."'cm_TankLimit':null,"
+			..."\"cm_DominatorLimit\":null,"
+			..."\"cm_MaxSpecials\":null,"
+			..."\"MaxSpecials\":null,"
+			..."\"SmokerLimit\":null,"
+			..."\"BoomerLimit\":null,"
+			..."\"HunterLimit\":null,"
+			..."\"SpitterLimit\":null,"
+			..."\"JockeyLimit\":null,"
+			..."\"ChargerLimit\":null,"
+			..."\"WitchLimit\":null,"
+			..."\"cm_WitchLimit\":null,"
+			..."\"TankLimit\":null,"
+			..."\"cm_TankLimit\":null,"
 		..."};"
 		..."foreach(k,v in a){"
 			..."if(k in SessionOptions&&SessionOptions[k]!=null)"
 				..."a[key]=v;"
 			..."SessionOptions[k]<-99;"
 		..."}"
-		..."ZSpawn({'type':%d});"
+		..."ZSpawn({\"type\":%d});"
 		..."foreach(k,v in a){"
 			..."if(v!=null)"
 				..."SessionOptions[k]<-v;"
@@ -6462,7 +6321,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	{
 		static char classname[32];
 		if(GetEdictClassname(inflictor, classname, sizeof(classname)) &&
-			StrEqual(classname, "grenade_launcher_projectile", false))
+			!strcmp(classname, "grenade_launcher_projectile", false))
 		{
 			float vPos[3], vDir[3], vVel[3], nVel[3], nDir[3];
 			GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
@@ -6546,7 +6405,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	if(attacker > 0 && IsValidEntity(attacker))
 	{
 		static char classname[64];
-		GetEdictClassname(attacker, classname, 64);
+		GetEdictClassname(attacker, classname, sizeof(classname));
 		
 		int reviver = GetEntPropEnt(victim, Prop_Send, "m_reviveOwner");
 		int tempHealth = GetPlayerTempHealth(victim);
@@ -6558,7 +6417,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 			damagetype = (DMG_ENERGYBEAM|DMG_RADIATION);
 		}
 		
-		if((g_clSkill_4[victim] & SKL_4_Defensive) && StrEqual(classname, "infected", false))
+		if((g_clSkill_4[victim] & SKL_4_Defensive) && !strcmp(classname, "infected", false))
 		{
 			if(damage > 1.0 && (health + tempHealth <= damage || GetRandomInt(0, 1)))
 			{
@@ -6573,7 +6432,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 			}
 		}
 		
-		if(IsPlayerHaveEffect(victim, 37) && StrEqual(classname, "infected", false))
+		if(IsPlayerHaveEffect(victim, 37) && !strcmp(classname, "infected", false))
 		{
 			// 取消攻击者，避免减速效果
 			attacker = inflictor = 0;
@@ -6637,15 +6496,15 @@ public void OnEntityCreated(int entity, const char[] classname)
 		return;
 	
 	// 敌人
-	if(StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false) || StrEqual(classname, "tank_rock", false))
+	if(!strcmp(classname, "infected", false) || !strcmp(classname, "witch", false) || !strcmp(classname, "tank_rock", false))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
 	// 自带的易碎物品
-	else if(StrEqual(classname, "func_door_rotating", false) || StrEqual(classname, "prop_wall_breakable", false) ||
-		StrEqual(classname, "func_breakable", false) || StrEqual(classname, "func_breakable_surf", false) ||
+	else if(!strcmp(classname, "func_door_rotating", false) || !strcmp(classname, "prop_wall_breakable", false) ||
+		!strcmp(classname, "func_breakable", false) || !strcmp(classname, "func_breakable_surf", false) ||
 		// 插件兼容，例如某特殊实体的带血量的路障
-		StrEqual(classname, "prop_physics", false) || StrEqual(classname, "prop_physics_override", false) ||
-		StrEqual(classname, "prop_dynamic", false) || StrEqual(classname, "prop_dynamic_override", false))
+		!strcmp(classname, "prop_physics", false) || !strcmp(classname, "prop_physics_override", false) ||
+		!strcmp(classname, "prop_dynamic", false) || !strcmp(classname, "prop_dynamic_override", false))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
 	// 可伤害实体
@@ -6653,12 +6512,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 		GetEntProp(entity, Prop_Data, "m_takedamage") == DAMAGE_YES && GetEntProp(entity, Prop_Data, "m_iHealth") > 0)
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
-	/*
-	if(StrContains(classname, "_projectile", false) > 0)
-		SDKHook(entity, SDKHook_SpawnPost, EntityHook_OnProjectileSpawned);
-	*/
-	
-	if(entity > MaxClients && entity <= 2048 && StrEqual(classname, "tank_rock", false))
+	if(entity > MaxClients && entity <= 2048 && !strcmp(classname, "tank_rock", false))
 		g_bIsTankRock[entity] = true;
 }
 
@@ -6786,10 +6640,10 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 		static char className[64];
 		if(IsValidEntity(inflictor) && IsValidEdict(inflictor))
 		{
-			GetEntityClassname(inflictor, className, 64);
-			if(StrEqual(className, "weapon_sniper_awp", false))
+			GetEntityClassname(inflictor, className, sizeof(className));
+			if(!strcmp(className, "weapon_sniper_awp", false))
 				damage *= 3;
-			else if(StrEqual(className, "weapon_sniper_scout", false))
+			else if(!strcmp(className, "weapon_sniper_scout", false))
 				damage *= 2;
 		}
 		
@@ -7048,8 +6902,8 @@ public void Event_PlayerIncapacitatedStart(Event event, const char[] event_name,
 		if(weapon > MaxClients && IsValidEntity(weapon))
 		{
 			char classname[64];
-			GetEntityClassname(weapon, classname, 64);
-			if(StrEqual(classname, "weapon_melee", false))
+			GetEntityClassname(weapon, classname, sizeof(classname));
+			if(!strcmp(classname, "weapon_melee", false))
 				GetEntPropString(weapon, Prop_Data, "m_strMapSetScriptName", classname, 64);
 			
 			strcopy(g_sLastWeapon[client], sizeof(g_sLastWeapon[]), classname);
@@ -7148,8 +7002,8 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			if(!IsValidEntity(i) || !IsValidEdict(i))
 				continue;
 			
-			GetEdictClassname(i, classname, 64);
-			if(!StrEqual(classname, "infected", false))
+			GetEdictClassname(i, classname, sizeof(classname));
+			if(strcmp(classname, "infected", false))
 				continue;
 			
 			GetEntPropVector(i, Prop_Send, "m_vecOrigin", position);
@@ -7370,7 +7224,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	{
 		static char classname[32];
 		GetEdictClassname(inflictor, classname, sizeof(classname));
-		if(StrEqual(classname, "grenade_launcher_projectile", false))
+		if(!strcmp(classname, "grenade_launcher_projectile", false))
 		{
 			damage /= 4.0;
 			return Plugin_Changed;
@@ -7380,34 +7234,6 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	return Plugin_Continue;
 }
-
-/*
-stock void PrintCenterTextEx(int client, const char[] msg, any ...)
-{
-	for(int i = MAX_CACHED_MESSAGES - 1; i > 0; --i)
-		strcopy(g_sCacheMessage[client][i], sizeof(g_sCacheMessage[][]), g_sCacheMessage[client][i-1]);
-	
-	VFormat(g_sCacheMessage[client][0], sizeof(g_sCacheMessage[][]), msg, 3);
-	
-	char buffer[255];
-	for(int i = MAX_CACHED_MESSAGES - 1; i >= 0; --i)
-		Format(buffer, sizeof(buffer), "%s\n", g_sCacheMessage[client][i]);
-	PrintCenterText(client, buffer);
-	
-	Handle killer = g_hClearCacheMessage[client];
-	g_hClearCacheMessage[client] = CreateTimer(2.5, Timer_ClearCacheMessage, client);
-	
-	if(killer != null)
-		KillTimer(killer);
-}
-
-public Action Timer_ClearCacheMessage(Handle timer, any client)
-{
-	g_hClearCacheMessage[client] = null;
-	for(int i = 0; i < MAX_CACHED_MESSAGES; ++i)
-		g_sCacheMessage[client][i][0] = EOS;
-}
-*/
 
 public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 {
@@ -7424,7 +7250,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	// 有时获取不到正确的武器...
 	GetEventString(event, "weapon", weapon, sizeof(weapon));
 	
-	if (attackPlayer && (StrEqual(weapon, "tank_claw") || StrEqual(weapon, "tank_rock")) &&
+	if (attackPlayer && (!strcmp(weapon, "tank_claw") || !strcmp(weapon, "tank_rock")) &&
 		GetClientTeam(victim) == 2 && !GetEntProp(victim, Prop_Send, "m_isIncapacitated"))
 	{
 		/*
@@ -7447,7 +7273,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	{
 		if(GetEntProp(victim, Prop_Send, "m_zombieClass") == 8)
 		{
-			if(StrEqual(weapon, "melee") || StrEqual(weapon, "chainsaw"))
+			if(!strcmp(weapon, "melee") || !strcmp(weapon, "chainsaw"))
 			{
 				int mulEffect = IsPlayerHaveEffect(attacker, 11);
 				if (mulEffect > 0)
@@ -7458,14 +7284,10 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			}
 		}
 		
-		bool isGunShot = (StrEqual(weapon, "smg") || StrEqual(weapon, "smg_silenced") || StrEqual(weapon, "smg_mp5")
-			|| StrEqual(weapon, "rifle") || StrEqual(weapon, "rifle_sg552") || StrEqual(weapon, "rifle_ak47")
-			|| StrEqual(weapon, "autoshotgun") || StrEqual(weapon, "shotgun_spas") || StrEqual(weapon, "rifle_m60")
-			|| StrEqual(weapon, "sniper_awp") || StrEqual(weapon, "sniper_military") || StrEqual(weapon, "sniper_scout")
-			|| StrEqual(weapon, "hunting_rifle") || StrEqual(weapon, "pumpshotgun") || StrEqual(weapon, "shotgun_chrome")
-			|| StrEqual(weapon, "grenade_launcher") || StrEqual(weapon, "rifle_desert")
-		);
-		bool isMeleeHack = (StrEqual(weapon, "melee"));
+		bool isGunShot = (!strncmp(weapon, "smg", 3) || !strncmp(weapon, "rifle", 5) ||
+			!strncmp(weapon, "shotgun", 7) || !strcmp(weapon[4], "shotgun") || !strncmp(weapon, "sniper", 6) ||
+			!strcmp(weapon, "hunting_rifle") || !strncmp(weapon, "pistol", 6) || !strcmp(weapon, "grenade_launcher"));
+		bool isMeleeHack = (!strcmp(weapon, "melee"));
 		
 		if (isGunShot || isMeleeHack)
 		{
@@ -7572,11 +7394,6 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			zombieType == ZC_JOCKEY || zombieType == ZC_CHARGER || zombieType == ZC_TANK))
 		{
 			// 推开控制者
-			// Charge(attacker, victim);
-			
-			// float vPos[3];
-			// GetClientAbsOrigin(victim, vPos);
-			// L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(attacker), GetClientUserId(victim));
 			L4D_StaggerPlayer(attacker, victim, NULL_VECTOR);
 		}
 	}
@@ -7588,8 +7405,8 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		if(!isInfected && attackerId > 0 && IsValidEntity(attackerId) && IsValidEdict(attackerId))
 		{
 			static char classname[64];
-			GetEdictClassname(attackerId, classname, 64);
-			isInfected = (StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false));
+			GetEdictClassname(attackerId, classname, sizeof(classname));
+			isInfected = (!strcmp(classname, "infected", false) || !strcmp(classname, "witch", false));
 		}
 		
 		if(isInfected)
@@ -7605,48 +7422,6 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			// 受伤暂停恢复
 			if((g_clSkill_4[victim] & SKL_4_TempRespite) && g_ctConvTemp[victim] > 0.0)
 				g_ctConvTemp[victim] = GetEngineTime() + 5.0;
-			
-			/*
-			int tempHealth = GetPlayerTempHealth(victim);
-			int health = GetEntProp(victim, Prop_Data, "m_iHealth");
-			int maxHealth = GetEntProp(victim, Prop_Send, "m_iMaxHealth");
-			if((g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0) &&
-				!GetEntProp(victim, Prop_Send, "m_isIncapacitated", 1) &&
-				!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
-			{
-				if((g_clSkill_3[victim] & SKL_3_TempSanctuary) && tempHealth > 0)
-				{
-					if(tempHealth >= dmg)
-					{
-						tempHealth -= dmg;
-						health += dmg;
-						dmg = 0;
-						SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", float(tempHealth));
-						SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
-						SetEntProp(victim, Prop_Data, "m_iHealth", health);
-					}
-					else
-					{
-						dmg -= tempHealth;
-						health += tempHealth;
-						tempHealth = 0;
-						SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", 0.0);
-						SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
-						SetEntProp(victim, Prop_Data, "m_iHealth", health);
-					}
-				}
-				
-				if((g_clSkill_5[victim] & SKL_5_TempRegen) && dmg > 0 && !GetRandomInt(0, 2))
-				{
-					if(health + tempHealth + dmg <= maxHealth)
-					{
-						tempHealth += dmg;
-						SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", float(tempHealth));
-						SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
-					}
-				}
-			}
-			*/
 		}
 	}
 	
@@ -8060,8 +7835,8 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 							continue;
 						
 						static char classname[64];
-						GetEdictClassname(i, classname, 64);
-						if(StrEqual(classname, "infected", false) || StrEqual(classname, "witch", false))
+						GetEdictClassname(i, classname, sizeof(classname));
+						if(!strcmp(classname, "infected", false) || !strcmp(classname, "witch", false))
 						{
 							SetEntProp(i, Prop_Data, "m_iHealth", 1);
 							DealDamage(victim, i, 999, DMG_PLASMA);
@@ -8188,11 +7963,11 @@ void DropItem( int client, const char[] Model )
 		SetEntityRenderMode( entity, RENDER_TRANSCOLOR );
 		SetEntityRenderColor( entity, 255, 255, 255, 235 );
 
-		if ( StrEqual( Model, CHAIN_MDL, false ))
+		if ( !strcmp( Model, CHAIN_MDL, false ))
 		{
 			SetEntPropFloat( entity, Prop_Send, "m_flModelScale", 0.7 );
 		}
-		else if ( StrEqual( Model, GOMBA_MDL, false ))
+		else if ( !strcmp( Model, GOMBA_MDL, false ))
 		{
 			SetEntPropFloat( entity, Prop_Send, "m_flModelScale", 1.5 );
 			SetEntityRenderColor( entity, 255, 255, 255, 255 );
@@ -8850,23 +8625,6 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 		if(weapon > MaxClients && IsValidEntity(weapon))
 			RemoveEntity(weapon);
 		
-		/*
-		if(StrContains(g_sLastWeapon[subject], "weapon_", false) == 0)
-		{
-			ReplaceString(g_sLastWeapon[subject], sizeof(g_sLastWeapon[]), "weapon_", "", false);
-			
-			CheatCommand(subject, "give", g_sLastWeapon[subject]);
-			if(g_bLastWeaponDual[subject])
-				CheatCommand(subject, "give", g_sLastWeapon[subject]);
-			
-			CreateTimer(0.1, Timer_SetWeaponClip, subject);
-		}
-		else
-		{
-			CheatCommand(subject, "give", g_sLastWeapon[subject]);
-		}
-		*/
-		
 		DataPack data = CreateDataPack();
 		data.WriteCell(subject);
 		data.WriteString(g_sLastWeapon[subject]);
@@ -8955,23 +8713,6 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		int weapon = GetPlayerWeaponSlot(subject, 1);
 		if(weapon > MaxClients && IsValidEntity(weapon))
 			RemoveEntity(weapon);
-		
-		/*
-		if(StrContains(g_sLastWeapon[subject], "weapon_", false) == 0)
-		{
-			ReplaceString(g_sLastWeapon[subject], sizeof(g_sLastWeapon[]), "weapon_", "", false);
-			
-			CheatCommand(subject, "give", g_sLastWeapon[subject]);
-			if(g_bLastWeaponDual[subject])
-				CheatCommand(subject, "give", g_sLastWeapon[subject]);
-			
-			CreateTimer(0.1, Timer_SetWeaponClip, subject);
-		}
-		else
-		{
-			CheatCommand(subject, "give", g_sLastWeapon[subject]);
-		}
-		*/
 		
 		DataPack data = CreateDataPack();
 		data.WriteCell(subject);
@@ -9539,7 +9280,7 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 		return;
 	
 	static char classname[64];
-	GetEdictClassname(victim, classname, 64);
+	GetEdictClassname(victim, classname, sizeof(classname));
 	
 	if((g_clSkill_1[client] & SKL_1_DisplayHealth) && (type & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)) && !IsFakeClient(client))
 	{
@@ -9548,9 +9289,9 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 		
 		if(!(type & DMG_BUCKSHOT))
 		{
-			if(StrEqual(classname, "infected", false))
+			if(!strcmp(classname, "infected", false))
 				PrintCenterText(client, "普感%d|%s伤害%d|%s", victim, ((type & DMG_HEADSHOT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
-			else if(StrEqual(classname, "witch", false))
+			else if(!strcmp(classname, "witch", false))
 				PrintCenterText(client, "妹%d|%s伤害%d|%s", victim, ((type & DMG_HEADSHOT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
 			else
 				PrintCenterText(client, "目标%d|%s伤害%d|%s", victim, ((type & DMG_HEADSHOT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
@@ -9636,12 +9377,12 @@ public void NotifyDamageInfo(any client)
 			GetEdictClassname(entity, name, sizeof(name));
 			alive = !td.death;
 			
-			if(StrEqual(name, "infected", false))
+			if(!strcmp(name, "infected", false))
 				alive = (alive && !GetEntProp(entity, Prop_Send, "m_bIsBurning", 1));
 			
-			if(StrEqual(name, "infected", false))
+			if(!strcmp(name, "infected", false))
 				FormatEx(name, sizeof(name), "普感%d", entity);
-			else if(StrEqual(name, "witch", false))
+			else if(!strcmp(name, "witch", false))
 				FormatEx(name, sizeof(name), "妹%d", entity);
 		}
 		
@@ -9676,8 +9417,8 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	if(!IsValidClient(client))
 		return;
 	
-	bool si = (GetClientTeam(client) == 3 && StrEqual(eventName, "player_first_spawn", false));
-	bool sur = (StrEqual(eventName, "player_first_spawn", false) && IsPlayerHaveEffect(client, 35));
+	bool si = (GetClientTeam(client) == 3 && !strcmp(eventName, "player_first_spawn", false));
+	bool sur = (!strcmp(eventName, "player_first_spawn", false) && IsPlayerHaveEffect(client, 35));
 	bool full = (si || sur || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying));
 	RegPlayerHook(client, full);
 	g_bFirstLoaded[client] = false;
@@ -10118,33 +9859,6 @@ public void ApplyJumpVelocity(any client)
 	TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 }
 
-/*
-public void Event_DoorMoving(Event event, const char[] eventName, bool dontBroadcast)
-{
-	int chance = g_pCvarBotRP.IntValue;
-	if(chance <= 0)
-		return;
-	
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	int door = event.GetInt("entindex");
-	if(door <= MaxClients || !IsValidAliveClient(client) || !IsValidEdict(door))
-		return;
-	
-	int hammerId = GetEntProp(door, Prop_Data, "m_iHammerID");
-	PrintToChatAll("Client %N, Door %d, HammerID %d", client, door, hammerId);
-	
-	if(hammerId == 0)
-		return;
-	
-	if(g_aDoorHandled.FindValue(hammerId) > -1)
-		return;
-	
-	g_aDoorHandled.Push(hammerId);
-	if(GetRandomInt(1, 100) <= chance)
-		StatusSelectMenuFuncRP(client, false);
-}
-*/
-
 public void Event_DoorEvent(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -10309,12 +10023,12 @@ public void UpdateWeaponAmmo(any data)
 	
 	int weapon = GetPlayerWeaponSlot(client, 0);
 	if(weapon > MaxClients && IsValidEntity(weapon))
-		GetEntityClassname(weapon, className, 64);
-	if(weapon < MaxClients || !IsValidEntity(weapon) || !StrEqual(className, classname, false))
+		GetEntityClassname(weapon, className, sizeof(className));
+	if(weapon < MaxClients || !IsValidEntity(weapon) || strcmp(className, classname, false))
 		weapon = GetPlayerWeaponSlot(client, 1);
 	if(weapon > MaxClients && IsValidEntity(weapon))
-		GetEntityClassname(weapon, className, 64);
-	if(weapon < MaxClients || !IsValidEntity(weapon) || !StrEqual(className, classname, false))
+		GetEntityClassname(weapon, className, sizeof(className));
+	if(weapon < MaxClients || !IsValidEntity(weapon) || strcmp(className, classname, false))
 		return;
 	
 	if(fullClip && !GetEntProp(weapon, Prop_Send, "m_bInReload"))
@@ -10375,7 +10089,7 @@ public void Event_AmmoPickup(Event event, const char[] eventName, bool dontBroad
 		return;
 	
 	char classname[64];
-	GetEntityClassname(weapon, classname, 64);
+	GetEntityClassname(weapon, classname, sizeof(classname));
 	
 	DataPack data = CreateDataPack();
 	data.WriteCell(client);
@@ -10394,10 +10108,10 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 	
 	char classname[64];
 	event.GetString("item", classname, 64);
-	Format(classname, 64, "weapon_%s", classname);
-	if(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
-		StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1 ||
-		StrContains(classname, "pistol", false) != -1 || StrContains(classname, "launcher", false) != -1)
+	Format(classname, sizeof(classname), "weapon_%s", classname);
+	if(!strcmp(classname[7], "grenade_launcher") || !strncmp(classname[7], "smg", 3) ||
+		!strncmp(classname[7], "rifle", 5) || !strncmp(classname[7], "sniper", 6) ||
+		!strncmp(classname[7], "pistol", 6) || !strncmp(classname[7], "shotgun", 7) || !strncmp(classname[11], "shotgun", 7))
 	{
 		DataPack data = CreateDataPack();
 		data.WriteCell(client);
@@ -10434,10 +10148,10 @@ public void Event_PlayerUsed(Event event, const char[] eventName, bool dontBroad
 	if(!GetEntityClassname(item, classname, sizeof(classname)))
 		return;
 	
-	bool isPistol = (StrContains(classname, "pistol", false) != -1);
-	if(StrContains(classname, "smg", false) == -1 && StrContains(classname, "rifle", false) == -1 &&
-		StrContains(classname, "sniper", false) == -1 && StrContains(classname, "shotgun", false) == -1 &&
-		StrContains(classname, "grenade_launcher", false) == -1 && !isPistol)
+	bool isPistol = !strncmp(classname[7], "pistol", 6);
+	if(strncmp(classname[7], "smg", 3) && strncmp(classname[7], "rifle", 5) &&
+		strncmp(classname[7], "sniper", 6) && strncmp(classname[7], "shotgun", 7) && strncmp(classname[11], "shotgun", 7) &&
+		strcmp(classname[7], "grenade_launcher") && !isPistol)
 		return;
 	
 	// 捡起地上零散武器只会触发 player_use，而不会触发 item_pickup
@@ -10490,9 +10204,9 @@ public void Event_WeaponDropped(Event event, const char[] eventName, bool dontBr
 	
 	char classname[64];
 	if(g_iExtraAmmo[client] > 0 && GetEdictClassname(weapon, classname, sizeof(classname)) &&
-		(StrContains(classname, "smg", false) != -1 || StrContains(classname, "rifle", false) != -1 ||
-		StrContains(classname, "sniper", false) != -1 || StrContains(classname, "shotgun", false) != -1 ||
-		StrContains(classname, "grenade_launcher", false) != -1))
+		(!strncmp(classname[7], "smg", 3) || !strncmp(classname[7], "rifle", 5) ||
+		!strncmp(classname[7], "sniper", 6) || !strncmp(classname[7], "shotgun", 7) || !strncmp(classname[11], "shotgun", 7) ||
+		!strcmp(classname, "grenade_launcher")))
 	{
 		DataPack data = CreateDataPack();
 		data.WriteCell(weapon);
@@ -10524,14 +10238,14 @@ public Action PlayerHook_OnWeaponCanUse(int client, int weapon)
 	if(primary <= MaxClients || !IsValidEdict(primary) || !GetEdictClassname(primary, weaponName, sizeof(weaponName)))
 		return Plugin_Continue;
 	
-	if(!GetEdictClassname(weapon, classname, sizeof(classname)) || StrContains(classname, "weapon_", false) != 0)
+	if(!GetEdictClassname(weapon, classname, sizeof(classname)) || strncmp(classname, "weapon_", 7))
 		return Plugin_Continue;
 	
 	int isSpawnner = (StrContains(classname, "_spawn", false) > 0);
 	if(isSpawnner)
 		ReplaceString(classname, sizeof(classname), "_spawn", "", false);
 	
-	if(!StrEqual(weaponName, classname, false))
+	if(strcmp(weaponName, classname, false))
 		return Plugin_Continue;
 	
 	int ammoType = GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType");
@@ -10581,7 +10295,7 @@ public void NotifyWeaponRange(any pack)
 	
 	int weapon = -1;
 	bool isMelee = false;
-	if(StrContains(classname, "melee", false) > -1)
+	if(!strcmp(classname[7], "melee"))
 	{
 		weapon = GetPlayerWeaponSlot(client, 1);
 		if(IsValidEntity(weapon) && HasEntProp(weapon, Prop_Data, "m_strMapSetScriptName"))
@@ -10604,7 +10318,7 @@ public void NotifyWeaponRange(any pack)
 		if(g_tMeleeRange == null || !g_tMeleeRange.GetValue(classname, range))
 			range = g_iUnknownMeleeRange;
 		
-		FormatEx(msg, 255, "攻击范围 %d", range);
+		FormatEx(msg, sizeof(msg), "攻击范围 %d", range);
 	}
 	if(g_clSkill_5[client] & SKL_5_ShoveRange)
 	{
@@ -10612,9 +10326,9 @@ public void NotifyWeaponRange(any pack)
 			range = g_iUnknownShoveRange;
 		
 		if(msg[0] == EOS)
-			FormatEx(msg, 255, "推范围 %d", range);
+			FormatEx(msg, sizeof(msg), "推范围 %d", range);
 		else
-			Format(msg, 255, "%s丨推范围 %d", msg, range);
+			Format(msg, sizeof(msg), "%s丨推范围 %d", msg, range);
 	}
 	
 	if(msg[0] != EOS)
@@ -10636,9 +10350,9 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 		return;
 	
 	char upgradeName[64];
-	GetEntityClassname(upgradePack, upgradeName, 64);
-	if(!StrEqual(upgradeName, "upgrade_ammo_incendiary", false) &&
-		!StrEqual(upgradeName, "upgrade_ammo_explosive", false))
+	GetEntityClassname(upgradePack, upgradeName, sizeof(upgradeName));
+	if(strcmp(upgradeName, "upgrade_ammo_incendiary", false) &&
+		strcmp(upgradeName, "upgrade_ammo_explosive", false))
 		return;
 	
 	int weapon = GetPlayerWeaponSlot(client, 0);
@@ -10812,7 +10526,7 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 		return;
 	
 	static char classname[64];
-	if(!GetEdictClassname(weapon, classname, 64))
+	if(!GetEdictClassname(weapon, classname, sizeof(classname)))
 		return;
 	
 	float vEnd[3];
@@ -10822,8 +10536,8 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 	
 	if(g_clSkill_3[client] & SKL_3_Ricochet)
 	{
-		if(StrContains(classname, "smg", false) > -1 || StrContains(classname, "rifle", false) > -1 ||
-			StrContains(classname, "sniper", false) > -1 || StrContains(classname, "magnum", false) > -1)
+		if(!strncmp(classname[7], "smg", 3) || !strncmp(classname[7], "rifle", 5) ||
+			!strncmp(classname[7], "sniper", 6) || !strncmp(classname[14], "magnum", 6))
 		{
 			float fEyeAngles[3], fBeamOneStart[3], fBeamOneEnd[3], fBeamEndNormals[3], fBeamTwoDirection[3], fBeamForwards[3], fBeamTwoStart[3], fBeamTwoEnd[3];
 			GetClientEyeAngles(client, fEyeAngles);
@@ -10913,7 +10627,7 @@ public void Event_BulletImpact(Event event, const char[] eventName, bool dontBro
 	
 	if(!g_bHaveWeaponHandling && (g_clSkill_4[client] & SKL_4_FastFired))
 	{
-		if(StrContains(classname, "rifle_desert", false) > 0)
+		if(!strcmp(classname, "rifle_desert"))
 			SetWeaponSpeed2(weapon, 1.25);
 	}
 }
@@ -10946,12 +10660,6 @@ void UpdateVomitDuration(any client)
 		cv_bile_duration = FindConVar("survivor_it_duration");
 	
 	/*
-	// PropFieldType type = PropField_Unsupported;
-	// int itOffset = FindDataMapInfo(client, "m_itTimer", type);
-	
-	// PrintToChat(client, "m_itTimer = %d, m_timestamp = %d", FindSendPropInfo("CTerrorPlayer", "m_itTimer"), FindSendPropInfo("DT_CountdownTimer", "m_timestamp"));
-	// SetEntDataFloat(client, g_iBileTimestamp, GetGameTime() + (cv_bile_duration.FloatValue / 2), true);
-	// SetEntPropFloat(client, Prop_Send, "m_itTimer", GetGameTime() + (cv_bile_duration.FloatValue / 2), 2);
 	L4D2_RunScript("NetProps.SetPropFloat(GetPlayerFromUserID(%d),\"m_itTimer.m_timestamp\",Time()+%.2f)", GetClientUserId(client), (cv_bile_duration.FloatValue / 2));
 	*/
 	
@@ -11005,7 +10713,7 @@ public Action Timer_UnVimit(Handle timer, any client)
 stock void PrintToChatTeam(int team, const char[] text, any ...)
 {
 	char buffer[255];
-	VFormat(buffer, 255, text, 3);
+	VFormat(buffer, sizeof(buffer), text, 3);
 
 	for(int i = 1; i <= MaxClients; ++i)
 	{
@@ -11033,23 +10741,6 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 		// PrintToServer("玩家 %N 不再进行游戏了。", client);
 		CreateHideMotd(client);
 	}
-
-	/*
-	if(newTeam > 1 && !bot && g_pCvarAllow.BoolValue)
-	{
-		char steamId[64];
-		GetClientAuthId(client, AuthId_Steam2, steamId, 64, false);
-
-		if(steamId[0] == EOS || StrEqual(steamId, "BOT", false) || StrEqual(steamId, "STEAM_ID_PENDING", false) ||
-			StrEqual(steamId, "STEAM_ID_STOP_IGNORING_RETVALS", false) || StrEqual(steamId, "STEAM_1:0:0", false))
-		{
-			PrintToChat(client, "\x03[警告]\x01 你的 SteamID 无效，将不提供保存功能！");
-			PrintToChat(client, "\x03[警告]\x01 当前的 SteamID 为：%s", steamId);
-			PrintToChat(client, "\x03[提示]\x01 解决这个问题的方法：更换/更新破解补丁或使用正版游戏。");
-			PrintHintText(client, "========= 警告 =========\n由于你的 SteamID 无效，将不提供保存功能\n%s\n建议更换破解补丁或者使用正版游戏", steamId);
-		}
-	}
-	*/
 
 	if(!IsFakeClient(client))
 	{
@@ -11362,39 +11053,26 @@ public void PlayerHook_OnPostThinkPost(int client)
 
 public void PlayerHook_OnPreThinkPost(int client)
 {
-	/*
-	if(g_clSkill_1[client] & SKL_1_NoRecoil)
-	{
-		// 无后坐力
-		SetEntProp(client, Prop_Send, "m_iShotsFired", 0);
-		// ChangeEdictState(client, FindDataMapInfo(client, "m_iShotsFired"));
-		SetEntPropVector(client, Prop_Send, "m_vecPunchAngle", Float:{0.0, 0.0, 0.0});
-		// ChangeEdictState(client, FindDataMapInfo(client, "m_vecPunchAngle"));
-		SetEntPropVector(client, Prop_Send, "m_vecPunchAngleVel", Float:{0.0, 0.0, 0.0});
-		// ChangeEdictState(client, FindDataMapInfo(client, "m_vecPunchAngleVel"));
-	}
-	*/
+	if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) ||
+		GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) ||
+		GetCurrentAttacker(client) != -1 || IsGettingUp(client) || IsStaggering(client))
+		return;
 	
-	int flags = GetEntityFlags(client);
-	int buttons = GetClientButtons(client);
 	float maxspeed = GetEntPropFloat(client, Prop_Send, "m_flMaxspeed");
-	if(GetClientTeam(client) == 2 && (flags & FL_ONGROUND) && !IsPlayerIncapped(client) &&
-		!(buttons & (IN_SPEED|IN_WALK)) && !GetEntProp(client, Prop_Send, "m_bAdrenalineActive") &&
-		GetCurrentAttacker(client) == -1 && IsPlayerHaveEffect(client, 38))
+	
+	if(IsPlayerHaveEffect(client, 38) && !GetEntProp(client, Prop_Send, "m_bAdrenalineActive", 1))
 	{
 		static ConVar survivor_speed;
 		if(survivor_speed == null)
 			survivor_speed = FindConVar("survivor_speed");
 		
-		bool isWater = (GetEntProp(client, Prop_Send, "m_nWaterLevel") > 0);
-		bool isLimp = ((GetEntProp(client, Prop_Data, "m_iHealth") + GetPlayerTempHealth(client)) * 100.0 / GetEntProp(client, Prop_Data, "m_iMaxHealth") < g_hCvarLimpHealth.FloatValue);
-		float speed = (((flags & FL_DUCKING) || (buttons & IN_DUCK)) ? g_hCvarDuckSpeed.FloatValue : survivor_speed.FloatValue);
+		int flags = GetEntityFlags(client);
+		int buttons = GetClientButtons(client);
 		
-		if((isWater || isLimp) && maxspeed < speed)
-		{
-			maxspeed = speed;
-			SetEntPropFloat(client, Prop_Send, "m_flVelocityModifier", 1.0);
-		}
+		if((flags & FL_DUCKING) || (buttons & IN_DUCK))
+			maxspeed = g_hCvarDuckSpeed.FloatValue;
+		else
+			maxspeed = survivor_speed.FloatValue;
 	}
 	
 	// 移动速度，比 m_flLaggedMovementValue 好（不会更改跳跃速度）
@@ -11403,6 +11081,41 @@ public void PlayerHook_OnPreThinkPost(int client)
 	
 	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", maxspeed);
 }
+
+/*
+public Action L4D_OnGetRunTopSpeed(int client, float &retVal)
+{
+	if(g_fMaxSpeedModify[client] >= 0.0)
+	{
+		retVal *= g_fMaxSpeedModify[client];
+		return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action L4D_OnGetCrouchTopSpeed(int client, float &retVal)
+{
+	if(g_fMaxSpeedModify[client] >= 0.0)
+	{
+		retVal *= g_fMaxSpeedModify[client];
+		return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action L4D_OnGetWalkTopSpeed(int client, float &retVal)
+{
+	if(g_fMaxSpeedModify[client] >= 0.0)
+	{
+		retVal *= g_fMaxSpeedModify[client];
+		return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+*/
 
 public int PlayerHook_OnGetMaxHealth(int client)
 {
@@ -11456,7 +11169,7 @@ int GetMaxHealth(int client)
 		{
 			static char gamemode[32];
 			cv_gamemode.GetString(gamemode, sizeof(gamemode));
-			if(StrEqual(gamemode, "rocketdude", false))
+			if(!strcmp(gamemode, "rocketdude", false))
 				return 200;
 			
 			return 100;
@@ -11621,7 +11334,7 @@ int GetDefaultClip(int weapon)
 		return -1;
 
 	char className[64];
-	if(!GetEdictClassname(weapon, className, 64))
+	if(!GetEdictClassname(weapon, className, sizeof(className)))
 		return -1;
 	
 	int clipSize = L4D2_GetIntWeaponAttribute(className, L4D2IWA_ClipSize);
@@ -11641,12 +11354,12 @@ int GetDefaultClip(int weapon)
 	*/
 	
 	/*
-	if(StrContains(className, "smg", false) != -1 || StrEqual(className, "weapon_rifle", false) ||
-		StrEqual(className, "weapon_rifle_sg552", false))
+	if(StrContains(className, "smg", false) != -1 || !strcmp(className, "weapon_rifle", false) ||
+		!strcmp(className, "weapon_rifle_sg552", false))
 		return 50;
 
-	if(StrEqual(className, "weapon_shotgun_chrome", false) || StrEqual(className, "weapon_pumpshotgun", false) ||
-		StrEqual(className, "weapon_pistol_magnum"))
+	if(!strcmp(className, "weapon_shotgun_chrome", false) || !strcmp(className, "weapon_pumpshotgun", false) ||
+		!strcmp(className, "weapon_pistol_magnum"))
 		return 8;
 
 	if(StrContains(className, "shotgun", false) != -1)
@@ -11660,25 +11373,25 @@ int GetDefaultClip(int weapon)
 		return 15;
 	}
 
-	if(StrEqual(className, "weapon_rifle_m60", false))
+	if(!strcmp(className, "weapon_rifle_m60", false))
 		return 150;
 
-	if(StrEqual(className, "weapon_rifle_desert", false))
+	if(!strcmp(className, "weapon_rifle_desert", false))
 		return 60;
 
-	if(StrEqual(className, "weapon_rifle_ak47", false))
+	if(!strcmp(className, "weapon_rifle_ak47", false))
 		return 40;
 
-	if(StrEqual(className, "weapon_sniper_military", false))
+	if(!strcmp(className, "weapon_sniper_military", false))
 		return 30;
 
-	if(StrEqual(className, "weapon_sniper_awp", false))
+	if(!strcmp(className, "weapon_sniper_awp", false))
 		return 20;
 
-	if(StrEqual(className, "weapon_hunting_rifle", false) || StrEqual(className, "weapon_sniper_scout", false))
+	if(!strcmp(className, "weapon_hunting_rifle", false) || !strcmp(className, "weapon_sniper_scout", false))
 		return 15;
 
-	if(StrEqual(className, "weapon_grenade_launcher", false))
+	if(!strcmp(className, "weapon_grenade_launcher", false))
 		return 1;
 
 	return 0;
@@ -11758,10 +11471,9 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	if(!IsValidEntity(weapon))
 		return;
 	
-	char weapons[64], classname[64];
+	static char weapons[64], classname[64];
 	event.GetString("weapon", weapons, 64);
-	GetEdictClassname(weapon, classname, 64);
-	if(StrContains(classname, weapons, false) == -1)
+	if(!GetEdictClassname(weapon, classname, sizeof(classname)) || strcmp(classname[7], weapons))
 		return;
 	
 	static ConVar sv_infinite_ammo, sv_infinite_primary_ammo;
@@ -11775,17 +11487,17 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	float time = GetEngineTime();
 	int maxClip = CalcPlayerClip(client, weapon);
 	int clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
-	bool isShotgun = (StrContains(classname, "shotgun", false) != -1);
-	bool isSniper = (StrContains(classname, "sniper", false) != -1 || StrContains(classname, "hunting", false) != -1);
-	bool isSMG = (StrContains(classname, "smg", false) != -1);
-	bool isRifle = (StrContains(classname, "rifle", false) != -1);
+	bool isShotgun = (!strncmp(weapons, "shotgun", 7) || !strcmp(weapons[4], "shotgun"));
+	bool isSniper = (!strncmp(weapons, "sniper", 6) || !strcmp(weapons, "hunting_rifle"));
+	bool isSMG = !strncmp(weapons, "smg", 3);
+	bool isRifle = !strncmp(weapons, "rifle", 5);
 	if(isShotgun || isSniper || isSMG || isRifle)
 	{
 		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 		bool hasGetAmmo = false;
 		bool hasInfAmmo = (sv_infinite_ammo.BoolValue || sv_infinite_primary_ammo.BoolValue);
 		
-		if((g_clSkill_4[client] & SKL_4_MachStrafe) && StrEqual(classname, "weapon_rifle_m60", false))
+		if((g_clSkill_4[client] & SKL_4_MachStrafe) && !strcmp(weapons, "rifle_m60"))
 		{
 			// 机枪无限子弹
 			SetEntProp(weapon, Prop_Send, "m_iClip1", 151);
@@ -11824,11 +11536,10 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			g_fNextAccurateShot[client] = time + 5.0;
 		}
 		
-		if((g_clSkill_4[client] & SKL_4_SniperExtra) &&
-			(StrEqual(classname, "weapon_sniper_awp", false) || StrEqual(classname, "weapon_sniper_scout", false)))
+		if((g_clSkill_4[client] & SKL_4_SniperExtra) && (!strcmp(weapons, "sniper_awp") || !strcmp(weapons, "sniper_scout")))
 		{
 			// AWP 射速加快无限子弹
-			if(classname[14] == 'a')
+			if(weapons[7] == 'a')
 			{
 				// SetEntProp(weapon, Prop_Send, "m_iClip1", 20);
 				// GivePlayerAmmo(client, 1, ammoType, true);
@@ -11838,7 +11549,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 				
 				weaponSpeed = 2.25;
 			}
-			else if(classname[14] == 's')
+			else if(weapons[7] == 's')
 			{
 				// 鸟狙只加快射速不无限子弹
 				weaponSpeed = 2.0;
@@ -11888,7 +11599,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			}
 		}
 
-		if((g_clSkill_5[client] & SKL_5_ClipHold) && !hasInfAmmo && StrContains(classname, "smg", false) > -1)
+		if((g_clSkill_5[client] & SKL_5_ClipHold) && !hasInfAmmo && isSMG)
 		{
 			clip = GetEntProp(weapon, Prop_Send, "m_iClip1");
 			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
@@ -11917,7 +11628,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			g_fNextCalmTime[client] = GetEngineTime() + 3.0;
 		*/
 	}
-	else if(StrContains(classname, "pistol", false) > -1)
+	else if(!strncmp(weapons, "pistol", 6))
 	{
 		if(g_clSkill_1[client] & SKL_1_MagnumInf)
 		{
@@ -11948,7 +11659,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		g_fAccurateShot[client] = 0.0;
 		
 	}
-	else if(StrEqual(classname, "weapon_chainsaw", false))
+	else if(!strcmp(weapons, "chainsaw"))
 	{
 		if(g_clSkill_2[client] & SKL_2_Chainsaw)
 		{
@@ -11959,7 +11670,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		g_fAccurateShot[client] = 0.0;
 		// g_fNextCalmTime[client] = GetEngineTime() + 3.0;
 	}
-	else if((g_clSkill_5[client] & SKL_5_RocketDude) && !(GetEntityFlags(client) & FL_ONGROUND) && StrContains(classname, "grenade_launcher", false) != -1)
+	else if((g_clSkill_5[client] & SKL_5_RocketDude) && !(GetEntityFlags(client) & FL_ONGROUND) && !strcmp(weapons, "grenade_launcher"))
 	{
 		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 		int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
@@ -12013,12 +11724,12 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			radius = 400;
 		else if(isSMG)
 			radius = 300;
-		else if(StrEqual(classname, "weapon_chainsaw", false))
+		else if(!strcmp(weapons, "chainsaw"))
 			radius = 500;
-		else if(StrContains(classname, "pistol", false) > -1)
+		else if(!strncmp(weapons, "pistol", 6))
 			radius = 250;
 		
-		L4D2_RunScript("RushVictim(Ent(%d),%d)", client, radius);
+		L4D2_RunScript("RushVictim(PlayerInstanceFromIndex(%d),%d)", client, radius);
 	}
 }
 
@@ -12286,15 +11997,10 @@ SoH_OnReload (iCid)
 		if (IsValidEntity(iEntid)==false) return;
 
 		decl String:stClass[32];
-		GetEntityNetClass(iEntid,stClass,32);
-
-		if (StrContains(stClass,"shotgun",false) == -1)
-		{
-			SoH_MagStart(iEntid,iCid);
+		if(!GetEdictClassname(iEntid,stClass,sizeof(stClass)))
 			return;
-		}
-
-		else if (StrContains(stClass,"autoshotgun",false) != -1)
+		
+		if (!strcmp(stClass[7],"autoshotgun"))
 		{
 			new Handle:hPack = CreateDataPack();
 			WritePackCell(hPack, iCid);
@@ -12304,7 +12010,7 @@ SoH_OnReload (iCid)
 			return;
 		}
 
-		else if (StrContains(stClass,"shotgun_spas",false) != -1)
+		else if (!strcmp(stClass[7],"shotgun_spas"))
 		{
 			new Handle:hPack = CreateDataPack();
 			WritePackCell(hPack, iCid);
@@ -12314,14 +12020,18 @@ SoH_OnReload (iCid)
 			return;
 		}
 
-		else if (StrContains(stClass,"pumpshotgun",false) != -1
-			|| StrContains(stClass,"shotgun_chrome",false) != -1)
+		else if (!strcmp(stClass[7],"pumpshotgun",false) || !strcmp(stClass[7],"shotgun_chrome"))
 		{
 			new Handle:hPack = CreateDataPack();
 			WritePackCell(hPack, iCid);
 			WritePackCell(hPack, iEntid);
 
 			CreateTimer(0.1,SoH_PumpshotgunStart,hPack);
+			return;
+		}
+		else
+		{
+			SoH_MagStart(iEntid,iCid);
 			return;
 		}
 	}
@@ -13269,50 +12979,25 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if(IsValidEntity(weaponId))
 		{
 			static char classname[64];
-			GetEntityClassname(weaponId, classname, 64);
+			GetEntityClassname(weaponId, classname, sizeof(classname));
 			int clip = GetEntProp(weaponId, Prop_Send, "m_iClip1");
 			bool isReloading = view_as<bool>(GetEntProp(weaponId, Prop_Send, "m_bInReload"));
-
+			
 			if((buttons & IN_ATTACK) && (g_clSkill_1[client] & SKL_1_RapidFire) && !isReloading &&
 				GetEntityMoveType(client) != MOVETYPE_LADDER &&
 				!GetEntProp(client, Prop_Send, "m_usingMountedGun") &&
 				!GetEntProp(client, Prop_Send, "m_usingMountedWeapon") &&
-				!(GetEntProp(client, Prop_Data, "m_afButtonPressed") & IN_ATTACK2) &&
-				GetEntPropFloat(weaponId, Prop_Send, "m_flCycle") <= 0.0 &&
+				!(buttons & IN_ATTACK2) &&
+				// GetEntPropFloat(weaponId, Prop_Send, "m_flCycle") <= 0.0 &&
 				!GetEntProp(weaponId, Prop_Send, "m_bInReload")
 			)
 			{
-				/*
-				if((StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "pistol", false) != -1 ||
-					StrContains(classname, "sniper", false) != -1 || StrEqual(classname, "weapon_hunting_rifle", false) ||
-					StrEqual(classname, "weapon_grenade_launcher", false)) &&
-					(GetEntPropFloat(weaponId, Prop_Send, "m_flNextPrimaryAttack") > GetGameTime() || clip <= 0))
-				{
-					// 单发武器无法开枪时取消开枪
-					// 应该(也许)不会触发spam检测吧
-					buttons &= ~IN_ATTACK;
-				}
-				*/
-				
 				SetEntProp(weaponId, Prop_Send, "m_isHoldingFireButton", 0);
-				ChangeEdictState(weaponId, FindDataMapInfo(weaponId, "m_isHoldingFireButton"));
-				
-				/*
-				if(StrContains(classname, "pistol_magnum", false) != -1)
-				{
-					SetEntPropFloat(iWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.2);
-					ChangeEdictState(iWeapon, FindDataMapInfo(iWeapon, "m_flNextPrimaryAttack"));
-				}
-				else if(StrContains(classname, "pistol", false) != -1)
-				{
-					SetEntPropFloat(iWeapon, Prop_Send, "m_flNextPrimaryAttack", GetGameTime() + 0.4);
-					ChangeEdictState(iWeapon, FindDataMapInfo(iWeapon, "m_flNextPrimaryAttack"));
-				}
-				*/
+				// ChangeEdictState(weaponId, FindDataMapInfo(weaponId, "m_isHoldingFireButton"));
 			}
-
+			
 			if(!(buttons & IN_ATTACK) || clip <= 0 || GetEntProp(weaponId, Prop_Send, "m_bInReload") ||
-				GetEntityMoveType(client) == MOVETYPE_LADDER || StrContains(classname, "smg", false) == -1 ||
+				GetEntityMoveType(client) == MOVETYPE_LADDER || strncmp(classname[7], "smg", 3) ||
 				IsSurvivorThirdPerson(client))
 			{
 				if(g_iBulletFired[client] != 0)
@@ -13323,14 +13008,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 			
 			if((g_iRoundEvent == 2 || g_bIsAngryLastStandActive || g_csHasGodMode[client]) && (buttons & IN_RELOAD) &&
-				(StrContains(classname, "shotgun", false) != -1 || StrContains(classname, "smg", false) != -1 ||
-				StrContains(classname, "rifle", false) != -1 || StrContains(classname, "sniper", false) != -1))
+				(!strncmp(classname[7], "shotgun", 7) || !strncmp(classname[7], "smg", 3) || !strncmp(classname[11], "shotgun", 7) ||
+				!strncmp(classname[7], "rifle", 5) || !strncmp(classname[7], "sniper", 6)))
 			{
 				// 临时无限子弹时防止填装
 				buttons &= ~IN_RELOAD;
 			}
 			
-			if((g_clSkill_1[client] & SKL_1_KeepClip) && !isReloading && (buttons & IN_RELOAD) && StrContains(classname, "shotgun", false) == -1)
+			if((g_clSkill_1[client] & SKL_1_KeepClip) && !isReloading && (buttons & IN_RELOAD) &&
+				strncmp(classname[7], "shotgun", 7) && strncmp(classname[11], "shotgun", 7))
 			{
 				g_iReloadWeaponKeepClip[client] = clip;
 				// PrintToChat(client, "pre clip size:%d", clip);
@@ -13345,7 +13031,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
 				if(clip < maxClip && ammo > 0)
 				{
-					if(StrContains(classname, "shotgun", false) != -1)
+					if(!strncmp(classname[7], "shotgun", 7) || !strncmp(classname[11], "shotgun", 7))
 					{
 						if(g_iReloadWeaponOldClip[client] <= 0)
 						{
@@ -13427,7 +13113,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 			
 			if((g_clSkill_1[client] & SKL_1_KeepClip) && isReloading && (buttons & IN_ATTACK) && !(buttons & (IN_ATTACK2|IN_RELOAD)) &&
-				clip > 0 && StrContains(classname, "shotgun", false) == -1)
+				clip > 0 && strncmp(classname[7], "shotgun", 7) && strncmp(classname[11], "shotgun", 7))
 			{
 				float gt = GetGameTime();
 				SetEntProp(weaponId, Prop_Send, "m_bInReload", 0);
@@ -13443,8 +13129,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			useTarget > MaxClients && IsValidEntity(useTarget) && IsValidEdict(useTarget))
 		{
 			static char className[64], weaponName[64];
-			GetEntityClassname(useTarget, className, 64);
-			GetEntityClassname(weaponId, weaponName, 64);
+			GetEntityClassname(useTarget, className, sizeof(className));
+			GetEntityClassname(weaponId, weaponName, sizeof(weaponName));
 			
 			float origin[3], position[3];
 			GetClientEyePosition(client, origin);
@@ -13457,9 +13143,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			float radius = Pow(cv_usedst.FloatValue, 2.0);
 			if(GetVectorDistance(origin, position, true) <= radius)
 			{
-				bool isAmmo = (StrEqual(className, "weapon_ammo_spawn", false) || StrEqual(className, "weapon_ammo_pack", false));	// 弹药堆
+				bool isAmmo = (!strcmp(className, "weapon_ammo_spawn") || !strcmp(className, "weapon_ammo_pack"));	// 弹药堆
 				bool isSpawnner = (StrContains(className, weaponName, false) == 0 && StrContains(className, "_spawn", false) > 0);	// weapon_*_spawn
-				if(StrEqual(className, "weapon_spawn", false) && L4D2_GetWeaponId(weaponName) == GetEntProp(useTarget, Prop_Send, "m_weaponID"))
+				if(!strcmp(className, "weapon_spawn") && L4D2_GetWeaponId(weaponName) == GetEntProp(useTarget, Prop_Send, "m_weaponID"))
 					isSpawnner = true;
 				
 				if(isAmmo || isSpawnner)
@@ -13472,7 +13158,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					// AddAmmo(client, 999, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
 					RequestFrame(UpdateWeaponAmmo, data);
 				}
-				else if(StrEqual(className, "upgrade_ammo_explosive", false) || StrEqual(className, "upgrade_ammo_incendiary", false))
+				else if(!strcmp(className, "upgrade_ammo_explosive") || !strcmp(className, "upgrade_ammo_incendiary"))
 				{
 					g_iLastWeaponAmmo[client] = GetEntProp(weaponId, Prop_Send, "m_iClip1") +
 						GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType"));
@@ -13485,7 +13171,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			useTarget > MaxClients && IsValidEntity(useTarget) && IsValidEdict(useTarget))
 		{
 			static char className[64];
-			GetEntityClassname(useTarget, className, 64);
+			GetEntityClassname(useTarget, className, sizeof(className));
 			
 			float origin[3], position[3];
 			GetClientEyePosition(client, origin);
@@ -13497,14 +13183,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			float radius = Pow(cv_usedst.FloatValue, 2.0);
 			if(GetVectorDistance(origin, position, true) <= radius &&
-				(StrEqual(className, "upgrade_ammo_explosive", false) || StrEqual(className, "upgrade_ammo_incendiary", false)))
+				(!strcmp(className, "upgrade_ammo_explosive") || !strcmp(className, "upgrade_ammo_incendiary")))
 			{
 				g_iReloadWeaponUpgrade[client] = GetEntProp(weaponId, Prop_Send, "m_upgradeBitVec");
 				g_iReloadWeaponUpgradeClip[client] = GetEntProp(weaponId, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded");
 			}
 		}
 		
-		if(/*!g_bLadderRambos && */(g_clSkill_2[client] & SKL_2_LadderRambos))
+		if(g_clSkill_2[client] & SKL_2_LadderRambos)
 		{
 			MoveType mtAmbulatoryStyle = GetEntityMoveType(client);
 			if (mtAmbulatoryStyle == MOVETYPE_FLY)
@@ -13546,7 +13232,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			static char classname[32];
 			int model = GetAimDeathModel(client);
-			if(IsValidEntity(model) && GetEdictClassname(model, classname, sizeof(classname)) && StrEqual(classname, "survivor_death_model", false))
+			if(IsValidEntity(model) && GetEdictClassname(model, classname, sizeof(classname)) && !strcmp(classname, "survivor_death_model", false))
 			{
 				int owner = GetSurvivorFromDeathModel(model);
 				static int g_iDeathModel[2048+1] = { INVALID_ENT_REFERENCE, ... };
@@ -13630,9 +13316,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			static char classname[32];
 			if(GetEdictClassname(useTarget, classname, sizeof(classname)))
 			{
-				if(StrEqual(classname, "func_button_timed", false))
+				if(!strcmp(classname, "func_button_timed", false))
 					OutputHook_OnButtonPressed("OnPressed", useTarget, client, 0.0);
-				else if(StrEqual(classname, "point_script_use_target", false))
+				else if(!strcmp(classname, "point_script_use_target", false))
 					OutputHook_OnTargetUseStarted("OnUseStarted", useTarget, client, 0.0);
 			}
 		}
@@ -13675,13 +13361,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 		
 		// 可旋转任意角度的机枪
+		// 有 bug，旋转后会导致机枪无法激活
 		/*
 		if(g_clSkill_3[client] & SKL_3_Minigun)
 		{
 			static char classname[64];
 			int machine = GetEntPropEnt(client, Prop_Send, "m_hUseEntity");
 			if(machine > MaxClients && IsValidEdict(machine) && GetEdictClassname(machine, classname, sizeof(classname)) && 
-				(StrEqual(classname, "prop_minigun", false) || StrEqual(classname, "prop_minigun_l4d1", false)))
+				(!strcmp(classname, "prop_minigun", false) || !strcmp(classname, "prop_minigun_l4d1", false)))
 			{
 				float eyeAngles[3], gunAngles[3];
 				GetClientEyeAngles(client, eyeAngles);
@@ -13757,12 +13444,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 		// CreateTimer(1.0, Timer_DoubleJumpReset, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 		
-		/*
-		Event event = CreateEvent("player_jump");
-		event.SetInt("userid", GetClientUserId(client));
-		event.Fire();
-		*/
-		
 		// PrintCenterText(client, "双重跳 %d", !!(g_iJumpFlags[client] & JF_CanBunnyHop));
 	}
 
@@ -13800,12 +13481,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			SetEntPropEnt(client, Prop_Send, "m_hGroundEntity", -1);
 			TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
 			
-			/*
-			Event event = CreateEvent("player_jump");
-			event.SetInt("userid", GetClientUserId(client));
-			event.Fire();
-			*/
-
 			// g_iJumpFlags[client] = JF_HasJumping;
 			// PrintCenterText(client, "连跳 (%.2f %.2f %.2f -> %.2f)", velocity[0], velocity[1], velocity[2], GetVectorLength(velocity));
 		}
@@ -13917,7 +13592,7 @@ stock int GetSurvivorFromDeathModel(int iEntity)
 	/*
 	static char sClassname[21];
 	GetEntityClassname(iEntity, sClassname, sizeof(sClassname));
-	if(!StrEqual(sClassname, "survivor_death_model", false))
+	if(strcmp(sClassname, "survivor_death_model", false))
 		return -1;
 	*/
 	if(!HasEntProp(iEntity, Prop_Send, "m_nCharacterType"))
@@ -14362,7 +14037,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 	if( weapon > MaxClients && (g_clSkill_5[client] & SKL_5_ShoveRange) )
 	{
 		GetEntityClassname(weapon, sTemp, sizeof(sTemp));
-		if(StrEqual(sTemp, "weapon_melee", false))
+		if(!strcmp(sTemp, "weapon_melee", false))
 			GetEntPropString(weapon, Prop_Data, "m_strMapSetScriptName", sTemp, sizeof(sTemp));
 		
 		if( g_tShoveRange != null )
@@ -14438,7 +14113,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 		else
 		{
 			GetEdictClassname(target, sTemp, sizeof(sTemp));
-			if( StrEqual(sTemp, "infected", false) || (StrEqual(sTemp, "witch", false) && GetEntPropFloat(target, Prop_Send, "m_rage") >= 1.0) )
+			if( !strcmp(sTemp, "infected", false) || (!strcmp(sTemp, "witch", false) && GetEntPropFloat(target, Prop_Send, "m_rage") >= 1.0) )
 			{
 				// GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", vLoc);
 				if( GetVectorDistance(vPos, vLoc, true) <= range )
@@ -14536,8 +14211,8 @@ public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
 			if(g_clSkill_5[owner] & SKL_5_ShoveRange)
 			{
 				static char sTemp[32];
-				GetEntityClassname(pThis, sTemp, 32);
-				if(StrEqual(sTemp, "weapon_melee", false))
+				GetEntityClassname(pThis, sTemp, sizeof(sTemp));
+				if(!strcmp(sTemp, "weapon_melee", false))
 					GetEntPropString(pThis, Prop_Data, "m_strMapSetScriptName", sTemp, 32);
 				
 				int range = 0;
@@ -14846,17 +14521,17 @@ public Action:DeleteParticle(Handle:timer, Handle:pack)
 	{
 		decl String:classname[128];
 		GetEdictClassname(particle, classname, sizeof(classname));
-		if (StrEqual(classname, "info_particle_system", false))
+		if (!strcmp(classname, "info_particle_system", false))
 		{
 			RemoveEdict(particle);
 		}
 	}
 
-	if (StrEqual(particleType, "achieved", true))
+	if (!strcmp(particleType, "achieved", true))
 	{
 		hTimerAchieved[client] = INVALID_HANDLE;
 	}
-	else if (StrEqual(particleType, "mini_fireworks", true))
+	else if (!strcmp(particleType, "mini_fireworks", true))
 	{
 		hTimerMiniFireworks[client] = INVALID_HANDLE;
 	}
@@ -14873,7 +14548,7 @@ public Action:LoopParticleEffect(Handle:timer, Handle:pack)
 	{
 		decl String:classname[128];
 		GetEdictClassname(particle, classname, sizeof(classname));
-		if (StrEqual(classname, "info_particle_system", false))
+		if (!strcmp(classname, "info_particle_system", false))
 		{
 			AcceptEntityInput(particle, "FireUser1");
 			AcceptEntityInput(particle, "FireUser2");
@@ -14887,7 +14562,7 @@ public Action:LoopParticleEffect(Handle:timer, Handle:pack)
 stock bool CheatCommand(int client = 0, const char[] command, const char[] arguments = "", any ...)
 {
 	char fmt[1024];
-	VFormat(fmt, 1024, arguments, 4);
+	VFormat(fmt, sizeof(fmt), arguments, 4);
 
 	int cmdFlags = GetCommandFlags(command);
 	SetCommandFlags(command, cmdFlags & ~FCVAR_CHEAT);
@@ -14912,7 +14587,7 @@ stock bool CheatCommand(int client = 0, const char[] command, const char[] argum
 stock bool CheatCommandEx(int client = 0, const char[] command, const char[] arguments = "", any ...)
 {
 	char fmt[1024];
-	VFormat(fmt, 1024, arguments, 4);
+	VFormat(fmt, sizeof(fmt), arguments, 4);
 
 	int cmdFlags = GetCommandFlags(command);
 	SetCommandFlags(command, cmdFlags & ~FCVAR_CHEAT);
@@ -14980,9 +14655,9 @@ stock void AdjustWeaponSpeed(int weapon, float speed)
 		return;
 	
 	char classname[64];
-	GetEdictClassname(weapon, classname, 64);
-	if(StrContains(classname, "weapon_", false) != 0 || GetEntProp(weapon, Prop_Send, "m_bInReload")/* ||
-		GetEntPropFloat(weapon, Prop_Send, "m_flCycle") != 0.0*/ || GetEntProp(weapon, Prop_Send, "m_iClip1") <= 0)
+	GetEdictClassname(weapon, classname, sizeof(classname));
+	if(strncmp(classname, "weapon_", 7) || GetEntProp(weapon, Prop_Send, "m_bInReload") ||
+		/*GetEntPropFloat(weapon, Prop_Send, "m_flCycle") != 0.0 ||*/ GetEntProp(weapon, Prop_Send, "m_iClip1") <= 0)
 		return;
 	
 	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", speed);
@@ -15021,24 +14696,6 @@ public void AttachWeaponSpeed(any data)
 
 stock L4D2_Fling(target, Float:vector[3], attacker, Float:incaptime = 3.0)
 {
-	/*
-	new Handle:MySDKCall = INVALID_HANDLE;
-	new Handle:ConfigFile = LoadGameConfigFile(GAMEDATA_FILENAME);
-
-	StartPrepSDKCall(SDKCall_Player);
-	new bool:bFlingFuncLoaded = PrepSDKCall_SetFromConf(ConfigFile, SDKConf_Signature, "CTerrorPlayer_Fling");
-	if(!bFlingFuncLoaded) LogError("无法下载扇飞插件文件");
-	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
-	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
-
-	MySDKCall = EndPrepSDKCall();
-	if(MySDKCall == INVALID_HANDLE) LogError("无法启用扇飞功能");
-
-	SDKCall(MySDKCall, target, vector, 76, attacker, incaptime);
-	*/
-
 	// Charge(target, 0);
 	L4D2_CTerrorPlayer_Fling(target, attacker, vector);
 }
@@ -16025,7 +15682,7 @@ public Action:DeleteParticles(Handle:timer, any:particle)
 	{
 		new String:classname[64];
 		GetEdictClassname(particle, classname, sizeof(classname));
-		if (StrEqual(classname, "info_particle_system", false))
+		if (!strcmp(classname, "info_particle_system", false))
 		RemoveEdict(particle);
 	}
 }
@@ -16034,20 +15691,6 @@ stock RevivePlayer(iTarget)
 {
 	if(GetEntProp(iTarget, Prop_Send, "m_isIncapacitated") || GetEntProp(iTarget, Prop_Send, "m_isHangingFromLedge"))
 	{
-		// SDKCall(sdkRevive, iTarget);
-
-		/*
-		int incap_count = GetEntProp(iTarget, Prop_Send, "m_currentReviveCount");
-		CheatCommand(iTarget, "give", "health");
-		SetEntProp(iTarget, Prop_Data, "m_iHealth", 1);
-		SetEntPropFloat(iTarget, Prop_Send, "m_healthBuffer", g_hCvarReviveHealth.FloatValue);
-		SetEntPropFloat(iTarget, Prop_Send, "m_healthBufferTime", GetGameTime());
-		SetEntProp(iTarget, Prop_Send, "m_currentReviveCount", incap_count + 1);
-
-		if(incap_count + 1 == FindConVar("survivor_max_incapacitated_count").IntValue)
-			SetEntProp(iTarget, Prop_Send, "m_bIsOnThirdStrike", 1);
-		*/
-
 		// CheatCommand(iTarget, "script", "GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(iTarget));
 		L4D2_RunScript("GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(iTarget));
 	}
@@ -16072,59 +15715,10 @@ void Charge(int target, int sender, float force = 500.0, float height = 500.0)
 
 	// SDKCall(sdkCallPushPlayer, target, addVel, 76, sender, 7.0);
 	L4D2_CTerrorPlayer_Fling(target, sender, addVel);
-
-	/*
-	float angles[3], velocity[3];
-	GetClientEyeAngles(sender, angles);
-	GetAngleVectors(angles, velocity, NULL_VECTOR, NULL_VECTOR);
-	ScaleVector(velocity, power);
-	TeleportEntity(target, NULL_VECTOR, NULL_VECTOR, velocity);
-	*/
-	
-	/*
-	if(target == sender)
-	{
-		// CheatCommand(target, "script", "GetPlayerFromUserID(%d).Stagger(Vector(0,0,0))", GetClientUserId(target));
-		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(Vector(0,0,0))", GetClientUserId(target));
-	}
-	else
-	{
-		// CheatCommand(target, "script", "GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(sender));
-		L4D2_RunScript("GetPlayerFromUserID(%d).Stagger(GetPlayerFromUserID(%d).GetOrigin())", GetClientUserId(target), GetClientUserId(sender));
-	}
-	*/
 }
 
 DealDamage(attacker=0,victim,damage,dmg_type=0)
 {
-	/*
-	if(IsValidEdict(victim) && damage>0)
-	{
-		new String:victimid[64];
-		new String:dmg_type_str[32];
-		IntToString(dmg_type,dmg_type_str,32);
-		new PointHurt = CreateEntityByName("point_hurt");
-		if(PointHurt)
-		{
-			Format(victimid, 64, "victim%d", victim);
-			DispatchKeyValue(victim,"targetname",victimid);
-			DispatchKeyValue(PointHurt,"DamageTarget",victimid);
-			DispatchKeyValueFloat(PointHurt,"Damage",float(damage));
-			DispatchKeyValue(PointHurt,"DamageType",dmg_type_str);
-			if(!StrEqual(weapon,""))
-			{
-				DispatchKeyValue(PointHurt,"classname",weapon);
-			}
-			DispatchSpawn(PointHurt);
-			if(IsClientInGame(attacker))
-			{
-				AcceptEntityInput(PointHurt, "Hurt", attacker);
-			} else	AcceptEntityInput(PointHurt, "Hurt", -1);
-			RemoveEdict(PointHurt);
-		}
-	}
-	*/
-
 	SDKHooks_TakeDamage(victim, 0, attacker, float(damage), dmg_type);
 }
 
@@ -16181,30 +15775,6 @@ stock void CreateHideMotd(int client, const char[] url = "about:blank", const ch
 	if(!IsValidClient(client))
 		return;
 
-	/*
-	Protobuf pb = UserMessageToProtobuf(StartMessageOne("VGUIMenu", client));
-	pb.SetString("name", "info");
-	pb.SetBool("show", false);
-
-	Protobuf sub = pb.AddMessage("subkeys");
-	sub.SetString("name", "title");
-	sub.SetString("str", "");
-
-	sub = pb.AddMessage("subkeys");
-	sub.SetString("name", "type");
-	sub.SetString("str", "0");
-
-	sub = pb.AddMessage("subkeys");
-	sub.SetString("name", "msg");
-	sub.SetString("str", "");
-
-	sub = pb.AddMessage("subkeys");
-	sub.SetString("name", "cmd");
-	sub.SetString("str", "1");
-
-	EndMessage();
-	*/
-
 	static KeyValues kv;
 	if(kv == null)
 	{
@@ -16217,7 +15787,7 @@ stock void CreateHideMotd(int client, const char[] url = "about:blank", const ch
 	kv.SetString("title", title);
 	kv.SetString("msg", url);
 
-	if(!StrEqual(url, "about:blank", false))
+	if(strcmp(url, "about:blank", false))
 		ShowMOTDPanel(client, title, url, MOTDPANEL_TYPE_URL);
 
 	ShowVGUIPanel(client, "info", kv, false);
@@ -16586,27 +16156,6 @@ stock int IsPlayerHaveEffect(int client, int effect)
 	
 	int ExtraAdd = 0;
 	
-	/*
-	for(int i = 0; i < sizeof(g_clCurEquip[]); i++)
-	{
-		if(!g_clCurEquip[client][i])
-			continue;
-		
-		static char key[16];
-		IntToString(g_clCurEquip[client][i], key, sizeof(key));
-		
-		static EquipData_t data;
-		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
-			continue;
-		
-		if(data.effect == effect)
-		{
-			ExtraAdd += 1;
-			// break;
-		}
-	}
-	*/
-	
 	for(int i = 0; i < sizeof(g_iActiveEffects[]); ++i)
 	{
 		if(g_iActiveEffects[client][i] == effect)
@@ -16889,7 +16438,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 char tr(const char[] text, any ...)
 {
 	char line[1024];
-	VFormat(line, 1024, text, 2);
+	VFormat(line, sizeof(line), text, 2);
 	return line;
 }
 

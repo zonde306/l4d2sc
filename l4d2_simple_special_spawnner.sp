@@ -79,7 +79,7 @@ public void OnPluginStart()
 	
 	PrepSDKCall_CreateSpecials();
 	
-	if(g_bLateLoad)
+	if(g_bLateLoad && IsServerProcessing())
 	{
 		if(L4D_HasAnySurvivorLeftSafeArea())
 			TryActiveSpawnQueue();

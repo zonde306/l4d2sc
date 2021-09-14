@@ -82,7 +82,7 @@ public void OnPluginStart()
 	g_pCvarVersion.AddChangeHook(CvarHook_OnChanged);
 	g_hCvarIncapHealth.AddChangeHook(CvarHook_OnChanged);
 	
-	if(g_bLateLoad)
+	if(g_bLateLoad && IsServerProcessing())
 	{
 		int entity = FindEntityByClassname(MaxClients + 1, "terror_player_manager");
 		if(entity > MaxClients)
@@ -292,7 +292,7 @@ public void EntityHook_ThinkPost(int entity)
 			continue;
 		
 		// FAKE HEALTH
-		if(team == 2 && g_iFakeHealth == 2 || (g_iFakeHealth == 1 && IsClientAdmin(i)))
+		if(team == 2 && g_iFakeHealth == 2 || (g_iFakeHealth == 1 && (IsClientAdmin(i) || IsFakeClient(i))))
 		{
 			int maxHealth = GetEntProp(i, Prop_Data, "m_iMaxHealth");
 			int health = GetEntProp(i, Prop_Data, "m_iHealth");
@@ -337,7 +337,8 @@ public void EntityHook_ThinkPost(int entity)
 		}
 		
 		// 设置1可以防止被起票？
-		SetEntProp(entity, Prop_Send, "m_listenServerHost", 0, 1, i);
+		if(IsDedicatedServer() && IsClientAdmin(i))
+			SetEntProp(entity, Prop_Send, "m_listenServerHost", 1, 1, i);
 	}
 }
 

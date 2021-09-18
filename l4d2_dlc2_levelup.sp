@@ -911,9 +911,10 @@ public OnPluginStart()
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
 
 	RegConsoleCmd("lv", Command_Levelup, "", FCVAR_HIDDEN);
-	RegConsoleCmd("rpg", Command_Levelup, "", FCVAR_HIDDEN);
+	// RegConsoleCmd("rpg", Command_Levelup, "", FCVAR_HIDDEN);
 	RegConsoleCmd("perks", Command_Levelup, "", FCVAR_HIDDEN);
 	RegConsoleCmd("skills", Command_Levelup, "", FCVAR_HIDDEN);
+	RegConsoleCmd("skill", Command_Levelup, "", FCVAR_HIDDEN);
 	RegConsoleCmd("shop", Command_Shop, "", FCVAR_HIDDEN);
 	RegConsoleCmd("buy", Command_Shop, "", FCVAR_HIDDEN);
 	RegConsoleCmd("b", Command_Shop, "", FCVAR_HIDDEN);
@@ -924,8 +925,8 @@ public OnPluginStart()
 	// RegConsoleCmd("ld", Command_BackPoint, "", FCVAR_HIDDEN);
 	RegAdminCmd("sm_botbuy", Command_BotBuy, ADMFLAG_CHEATS);
 	RegAdminCmd("sm_botrp", Command_BotRP, ADMFLAG_CHEATS);
-	AddCommandListener(Command_Say, "say");
-	AddCommandListener(Command_Say, "say_team");
+	// AddCommandListener(Command_Say, "say");
+	// AddCommandListener(Command_Say, "say_team");
 	AddCommandListener(Command_Give, "give");
 	AddCommandListener(Command_Away, "go_away_from_keyboard");
 	// AddCommandListener(Command_Scripted, "scripted_user_func");
@@ -6064,6 +6065,24 @@ public void OnGameFrame()
 	}
 }
 
+bool CanBeTarget(int victim)
+{
+	if(!(g_clSkill_5[victim] & SKL_5_Sneak))
+		return true;
+	
+	int chance = 0;
+	if(g_iIsSneaking[victim])
+		chance += 1;
+	if(!g_iIsInCombat[victim])
+		chance += 1;
+	
+	SetRandomSeed(GetSysTickCount() - victim);
+	if(GetRandomInt(1, 3) <= chance)
+		return false;
+	
+	return true;
+}
+
 public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 {
 	if(!g_bIsGamePlaying)
@@ -6084,25 +6103,13 @@ public Action L4D2_OnChooseVictim(int specialInfected, int &curTarget)
 	}
 	
 	// 特感切换目标
-	if(g_clSkill_5[curTarget] & SKL_5_Sneak)
+	if(!CanBeTarget(curTarget))
 	{
-		int chance = 0;
-		if(g_iIsSneaking[curTarget])
-			chance += 1;
-		if(!g_iIsInCombat[curTarget])
-			chance += 1;
-		if(GetRandomInt(1, 3) <= chance)
+		int victim = ChooseOtherVictim(specialInfected, curTarget);
+		if(victim > -1)
 		{
-			int victim = ChooseOtherVictim(specialInfected, curTarget);
-			if(victim > -1)
-			{
-				curTarget = victim;
-				return Plugin_Changed;
-			}
-			else
-			{
-				return Plugin_Handled;
-			}
+			curTarget = victim;
+			return Plugin_Changed;
 		}
 	}
 	
@@ -6123,6 +6130,9 @@ int ChooseOtherVictim(int attacker, int ignore = -1)
 			continue;
 		
 		if(GetEntProp(i, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(i, Prop_Send, "m_isHangingFromLedge", 1) || IsSurvivorHeld(i))
+			continue;
+		
+		if(!CanBeTarget(i))
 			continue;
 		
 		GetClientAbsOrigin(i, position);
@@ -6152,6 +6162,9 @@ int ChooseSpecialVictim(int attacker, int ignore = -1)
 		
 		// Tank 会用到
 		if(GetEntProp(i, Prop_Send, "m_isIncapacitated", 1))
+			continue;
+		
+		if(!CanBeTarget(i))
 			continue;
 		
 		GetClientAbsOrigin(i, position);

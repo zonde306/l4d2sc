@@ -238,11 +238,16 @@ public void eEvents(Event event, const char[] name, bool dontBroadcast)
 
 		if (iOldTeam == 2 || iTeam == 2 && bDisconnect)
 		{
-			int entity = -1;
+			// int entity = -1;
 			char sClsName[32];
+			int maxEntity = GetMaxEntities();
 
-			while((entity = FindEntityByClassname(entity, "*")) != -1)
+			// while((entity = FindEntityByClassname(entity, "*")) != -1)
+			for(int entity = MaxClients + 1; entity <= maxEntity; ++entity)
 			{
+				if(!IsValidEntity(entity))
+					continue;
+				
 				if (!GetEntityClassname(entity, sClsName, sizeof(sClsName)))
 					continue;
 

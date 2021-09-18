@@ -187,7 +187,7 @@ public void OnPluginStart()
 	
 	hCvar_UseIncapCycle = CreateConVar("wh_use_incap_cycle_cvar", "1", "是否对倒地武器应用 survivor_incapacitated_cycle_time 效果", FCVAR_NOTIFY, true, 0.0, true, 1.0);
 	
-	hCvar_DeploySetting = CreateConVar("wh_deploy_animation_speed", "1", "-1=不修改.0=DeployDuration与动作匹配.1=动作与DeployDuration匹配", FCVAR_NOTIFY, true, -1.0, true, 1.0);
+	hCvar_DeploySetting = CreateConVar("wh_deploy_animation_speed", "-1", "-1=不修改.0=DeployDuration与动作匹配.1=动作与DeployDuration匹配", FCVAR_NOTIFY, true, -1.0, true, 1.0);
 	
 	hCvar_IncapCycle = FindConVar("survivor_incapacitated_cycle_time");
 	if(hCvar_IncapCycle == null)
@@ -395,7 +395,8 @@ public MRESReturn OnGetRateOfFire(int pThis, Handle hReturn)
 	
 	if(g_bUseIncapCycle && GetEntProp(iClient, Prop_Send, "m_isIncapacitated", 1))
 	{
-		fRateOfFire = g_fIncapCycle;
+		if(fRateOfFire < g_fIncapCycle)
+			fRateOfFire = g_fIncapCycle;
 	}
 	
 	fRateOfFire = ClampFloatAboveZero(fRateOfFire / fRateOfFireModifier);

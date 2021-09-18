@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.55"
+#define PLUGIN_VERSION		"1.57"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -41,6 +41,15 @@
 
 ========================================================================================
 	Change Log:
+
+1.57 (18-Sep-2021)
+	- Changed the method for getting the current GameMode. Should have no more issues. Thanks to "ddd123" for reporting.
+	- L4D2: Wildcarded the "CTerrorPlayer_Fling" signature for compatibility with being detoured. Thanks to "ddd123" for reporting.
+
+	- L4D2 GameData file and plugin updated.
+
+1.56 (15-Sep-2021)
+	- Fixed spawning an entity directly OnMapStart (can cause crashes), delayed by a frame to fix errors. Thanks to "fdxx" for reporting.
 
 1.55 (12-Sep-2021)
 	- Fixed native "L4D2Direct_TryOfferingTankBot" not working for L4D1 Linux due to the last update. Thanks to "Forgetest" for reporting.
@@ -727,6 +736,7 @@ Handle g_hSDK_Call_HasAnySurvivorLeftSafeArea;
 Handle g_hSDK_Call_IsAnySurvivorInCheckpoint;
 Handle g_hSDK_Call_IsAnySurvivorInStartArea;
 Handle g_hSDK_Call_GetMaxChapters;
+Handle g_hSDK_Call_GetGameMode;
 Handle g_hSDK_Call_KV_GetString;
 
 // left4downtown.inc
@@ -763,7 +773,7 @@ Handle g_hSDK_Call_LobbyUnreserve;
 Handle g_hSDK_Call_CTerrorPlayer_OnVomitedUpon;
 Handle g_hSDK_Call_CTerrorPlayer_OnHitByVomitJar;
 Handle g_hSDK_Call_Infected_OnHitByVomitJar;
-Handle g_hSDK_Call_Fling;
+Handle g_hSDK_Call_CTerrorPlayer_Fling;
 Handle g_hSDK_Call_CancelStagger;
 Handle g_hSDK_Call_CreateRescuableSurvivors;
 Handle g_hSDK_Call_OnRevived;
@@ -941,7 +951,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_hForward_ClearTeamScores					= new GlobalForward("L4D_OnClearTeamScores",					ET_Event, Param_Cell);
 	g_hForward_SetCampaignScores				= new GlobalForward("L4D_OnSetCampaignScores",					ET_Event, Param_CellByRef, Param_CellByRef);
 	if( !g_bLeft4Dead2 )
-	g_hForward_RecalculateVersusScore			= new GlobalForward("L4D_OnRecalculateVersusScore",				ET_Event, Param_Cell);
+		g_hForward_RecalculateVersusScore			= new GlobalForward("L4D_OnRecalculateVersusScore",				ET_Event, Param_Cell);
 	g_hForward_OnFirstSurvivorLeftSafeArea		= new GlobalForward("L4D_OnFirstSurvivorLeftSafeArea",			ET_Event, Param_Cell);
 	g_hForward_GetCrouchTopSpeed				= new GlobalForward("L4D_OnGetCrouchTopSpeed",					ET_Event, Param_Cell, Param_FloatByRef);
 	g_hForward_GetRunTopSpeed					= new GlobalForward("L4D_OnGetRunTopSpeed",						ET_Event, Param_Cell, Param_FloatByRef);
@@ -1646,29 +1656,28 @@ public void ConVarChanged_Mode(Handle convar, const char[] oldValue, const char[
 void GetGameMode()
 {
 	g_iCurrentMode = 0;
-	if( g_bMapStarted == false ) return;
 
-	int entity = CreateEntityByName("info_gamemode");
-	if( IsValidEntity(entity) )
+	static char sMode[12];
+
+	if( g_bLeft4Dead2 )
 	{
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
-			RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
-	}
-}
+		ValidateAddress(g_pDirector, "g_pDirector");
+		ValidateNatives(g_hSDK_Call_GetGameMode, "GetGameMode");
 
-public void OnGamemode(const char[] output, int caller, int activator, float delay)
-{
-	if( strcmp(output, "OnCoop") == 0 )				g_iCurrentMode = 1;
-	else if( strcmp(output, "OnSurvival") == 0 )	g_iCurrentMode = 2;
-	else if( strcmp(output, "OnVersus") == 0 )		g_iCurrentMode = 4;
-	else if( strcmp(output, "OnScavenge") == 0 )	g_iCurrentMode = 8;
+		//PrintToServer("#### CALL g_hSDK_Call_GetGameMode");
+		SDKCall(g_hSDK_Call_GetGameMode, g_pDirector, sMode, sizeof(sMode));
+
+		if( strcmp(sMode,			"coop") == 0 )		g_iCurrentMode = 1;
+		else if( strcmp(sMode,		"survival") == 0 )	g_iCurrentMode = 2;
+		else if( strcmp(sMode,		"versus") == 0 )	g_iCurrentMode = 4;
+		else if( strcmp(sMode,		"scavenge") == 0 )	g_iCurrentMode = 8;
+	} else {
+		g_hMPGameMode.GetString(sMode, sizeof(sMode));
+
+		if( strcmp(sMode,			"coop") == 0 )		g_iCurrentMode = 1;
+		else if( strcmp(sMode,		"survival") == 0 )	g_iCurrentMode = 2;
+		else if( strcmp(sMode,		"versus") == 0 )	g_iCurrentMode = 4;
+	}
 
 	// Forward
 	static int mode;
@@ -3117,6 +3126,14 @@ void LoadGameData()
 		g_hSDK_Call_GetMaxChapters = EndPrepSDKCall();
 		if( g_hSDK_Call_GetMaxChapters == null )
 			SetFailState("Could not prep the \"GetNumChaptersForMissionAndMode\" function.");
+
+		StartPrepSDKCall(SDKCall_Raw);
+		if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CDirector_GetGameModeBase") == false )
+			SetFailState("Could not load the \"CDirector_GetGameModeBase\" gamedata signature.");
+		PrepSDKCall_SetReturnInfo(SDKType_String, SDKPass_Pointer);
+		g_hSDK_Call_GetGameMode = EndPrepSDKCall();
+		if( g_hSDK_Call_GetGameMode == null )
+			SetFailState("Could not prep the \"CDirector_GetGameModeBase\" function.");
 	}
 
 	StartPrepSDKCall(SDKCall_GameRules);
@@ -3656,8 +3673,8 @@ void LoadGameData()
 			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
 			PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
-			g_hSDK_Call_Fling = EndPrepSDKCall();
-			if( g_hSDK_Call_Fling == null )
+			g_hSDK_Call_CTerrorPlayer_Fling = EndPrepSDKCall();
+			if( g_hSDK_Call_CTerrorPlayer_Fling == null )
 				LogError("Failed to create SDKCall: CTerrorPlayer_Fling");
 		}
 
@@ -6556,15 +6573,15 @@ public int Native_CTerrorPlayer_Fling(Handle plugin, int numParams)
 {
 	if( !g_bLeft4Dead2 ) ThrowNativeError(SP_ERROR_NOT_RUNNABLE, NATIVE_UNSUPPORTED2);
 
-	ValidateNatives(g_hSDK_Call_Fling, "Fling");
+	ValidateNatives(g_hSDK_Call_CTerrorPlayer_Fling, "CTerrorPlayer_Fling");
 
 	int client = GetNativeCell(1);
 	int attacker = GetNativeCell(2);
 	float vDir[3];
 	GetNativeArray(3, vDir, 3);
 
-	//PrintToServer("#### CALL g_hSDK_Call_Fling");
-	SDKCall(g_hSDK_Call_Fling, client, vDir, 76, attacker, 3.0); // 76 is the 'got bounced' animation in L4D2. 3.0 = incapTime, what's this mean?
+	//PrintToServer("#### CALL g_hSDK_Call_CTerrorPlayer_Fling");
+	SDKCall(g_hSDK_Call_CTerrorPlayer_Fling, client, vDir, 76, attacker, 3.0); // 76 is the 'got bounced' animation in L4D2. 3.0 = incapTime, what's this mean?
 }
 
 public int Native_CancelStagger(Handle plugin, int numParams)

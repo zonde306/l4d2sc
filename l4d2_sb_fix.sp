@@ -742,10 +742,12 @@ public Action:WeaponSwitch(client, weapon)
 			
 			//if (!g_bCommonWithinMelee[client] && (clip != 0 || extra_ammo != 0)) PrintToChatAll("switch Stoped");
 			
+			/*
 			if (clip == 0 && extra_ammo == 0) {
 				// PrintToChatAll("\x05[sb_fix] \x04%N\x01 ammo is now zero.", client);
 				FakeClientCommandEx(client, "say \"no ammo\"");
 			}
+			*/
 			
 			if (!g_bCommonWithinMelee[client] && (clip != 0 || extra_ammo != 0)) return Plugin_Handled;
 		}

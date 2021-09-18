@@ -157,20 +157,13 @@ public void Event_RoundEnd(Event event, const char[] event_name, bool dontBroadc
 	
 	if(g_hTimerSpawnQueue != null)
 	{
-		deleteme1 = g_hTimerSpawnQueue;
-		g_hTimerSpawnQueue = null;
+		delete g_hTimerSpawnQueue;
 	}
 	
 	if(g_hTimerQueuedSpawnner != null)
 	{
-		deleteme2 = g_hTimerQueuedSpawnner;
-		g_hTimerQueuedSpawnner = null;
+		delete g_hTimerQueuedSpawnner;
 	}
-	
-	if(deleteme1)
-		KillTimer(deleteme1);
-	if(deleteme2)
-		KillTimer(deleteme2);
 }
 
 public Action L4D_OnFirstSurvivorLeftSafeArea(int client)

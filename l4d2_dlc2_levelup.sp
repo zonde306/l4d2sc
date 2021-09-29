@@ -170,6 +170,7 @@ enum()
 	SKL_3_Accurate = (1 << 13),
 	SKL_3_Cure = (1 << 14),
 	SKL_3_Minigun = (1 << 15),
+	SKL_3_HandGrenade = (1 << 16),
 
 	SKL_4_ClawHeal = (1 << 0),
 	SKL_4_DmgExtra = (1 << 1),
@@ -186,6 +187,8 @@ enum()
 	SKL_4_Terror = (1 << 12),
 	SKL_4_ReviveCount = (1 << 13),
 	SKL_4_MeleeExtra = (1 << 14),
+	SKL_4_MoreGrenade = (1 << 15),
+	SKL_4_MultiGrenade = (1 << 16),
 
 	SKL_5_FireBullet = (1 << 0),
 	SKL_5_ExpBullet = (1 << 1),
@@ -238,8 +241,8 @@ new bool:g_bIsRPActived[MAXPLAYERS+1] = false;
 new bool:g_cdCanTeleport[MAXPLAYERS+1] = false;
 new bool:g_bHasVampire[MAXPLAYERS+1] = false;
 new bool:g_bHasRetarding[MAXPLAYERS+1] = false;
-new bool:g_bCanGunShover[MAXPLAYERS+1] = false;
 float g_fNextGunShover[MAXPLAYERS+1];
+float g_fNextHandGrenade[MAXPLAYERS+1];
 // new bool:g_bCanDoubleJump[MAXPLAYERS+1] = false;
 // new bool:g_bHanFirstRelease[MAXPLAYERS+1] = false;
 float g_fMaxSpeedModify[MAXPLAYERS+1] = { 1.0, ... };
@@ -1757,7 +1760,6 @@ public Action:Event_FinaleWin(Handle:event, String:event_name[], bool:dontBroadc
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		g_cdSaveCount[client] = -1;
-		g_bCanGunShover[client] = false;
 		if(IsClientConnected(i) && !IsFakeClient(i))
 		{
 			g_clSkillPoint[client] += 3;
@@ -2272,11 +2274,11 @@ void GenerateRandomStats(int client, int uncap)
 	if(uncap & (1 << 18)) g_clAngryMode[client] = GetRandomInt(0, 7);
 	
 	// 技能
-	if(uncap & (1 << 0)) g_clSkill_1[client] = GetRandomInt(0, 131071);
-	if(uncap & (1 << 1)) g_clSkill_2[client] = GetRandomInt(0, 32767);
-	if(uncap & (1 << 2)) g_clSkill_3[client] = GetRandomInt(0, 65535);
-	if(uncap & (1 << 3)) g_clSkill_4[client] = GetRandomInt(0, 32767);
-	if(uncap & (1 << 4)) g_clSkill_5[client] = GetRandomInt(0, 131071);
+	if(uncap & (1 << 0)) g_clSkill_1[client] = GetRandomInt(0, (1 << 17) - 1);
+	if(uncap & (1 << 1)) g_clSkill_2[client] = GetRandomInt(0, (1 << 15) - 1);
+	if(uncap & (1 << 2)) g_clSkill_3[client] = GetRandomInt(0, (1 << 17) - 1);
+	if(uncap & (1 << 3)) g_clSkill_4[client] = GetRandomInt(0, (1 << 17) - 1);
+	if(uncap & (1 << 4)) g_clSkill_5[client] = GetRandomInt(0, (1 << 17) - 1);
 	
 	// 装备
 	for(int i = 0; i < 4; ++i)
@@ -2321,8 +2323,8 @@ void Initialization(int client, bool invalid = false)
 			g_clSkill_2[client] = g_clSkill_3[client] = g_clSkill_4[client] = g_clSkill_5[client] = 0;
 	}
 	
-	g_bCanGunShover[client] = false;
 	g_fNextGunShover[client] = 0.0;
+	g_fNextHandGrenade[client] = 0.0;
 	g_iJumpFlags[client] = JF_None;
 	g_csHasGodMode[client] = false;
 	g_bHasVampire[client] = false;
@@ -4153,6 +4155,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪总是暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
 	menu.AddItem(tr("3_%d",SKL_3_Cure), mps("「清醒」打针治疗濒死状态",(g_clSkill_3[client]&SKL_3_Cure)));
 	menu.AddItem(tr("3_%d",SKL_3_Minigun), mps("「工程」鼠标中键部署固定机枪",(g_clSkill_3[client]&SKL_3_Minigun)));
+	menu.AddItem(tr("3_%d",SKL_3_HandGrenade), mps("「手雷」持手枪时按鼠标中键发射榴弹",(g_clSkill_3[client]&SKL_3_HandGrenade)));
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4192,6 +4195,9 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 		menu.AddItem(tr("4_%d",SKL_4_MeleeExtra), mps("「快刀」两倍近战伤害且攻速加快",(g_clSkill_4[client]&SKL_4_MeleeExtra)));
 	else
 		menu.AddItem(tr("4_%d",SKL_4_MeleeExtra), mps("「战士」三倍近战伤害",(g_clSkill_4[client]&SKL_4_MeleeExtra)));
+	
+	menu.AddItem(tr("4_%d",SKL_4_MoreGrenade), mps("「节约」手雷有1/3几率不消耗",(g_clSkill_4[client]&SKL_4_MoreGrenade)));
+	menu.AddItem(tr("4_%d",SKL_4_MultiGrenade), mps("「复制」手雷有1/4几率掷出多个",(g_clSkill_4[client]&SKL_4_MultiGrenade)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6525,21 +6531,23 @@ public void OnEntityCreated(int entity, const char[] classname)
 		return;
 	
 	// 敌人
-	if(!strcmp(classname, "infected", false) || !strcmp(classname, "witch", false) || !strcmp(classname, "tank_rock", false))
+	if(!strcmp(classname, "infected", false) || !strcmp(classname, "witch", false) || !strcmp(classname, "tank_rock"))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
 	// 自带的易碎物品
-	else if(!strcmp(classname, "func_door_rotating", false) || !strcmp(classname, "prop_wall_breakable", false) ||
-		!strcmp(classname, "func_breakable", false) || !strcmp(classname, "func_breakable_surf", false) ||
+	else if(!strcmp(classname, "func_door_rotating") || !strcmp(classname, "prop_wall_breakable") ||
+		!strcmp(classname, "func_breakable") || !strcmp(classname, "func_breakable_surf") ||
 		// 插件兼容，例如某特殊实体的带血量的路障
-		!strcmp(classname, "prop_physics", false) || !strcmp(classname, "prop_physics_override", false) ||
-		!strcmp(classname, "prop_dynamic", false) || !strcmp(classname, "prop_dynamic_override", false))
+		!strcmp(classname, "prop_physics") || !strcmp(classname, "prop_physics_override") ||
+		!strcmp(classname, "prop_dynamic") || !strcmp(classname, "prop_dynamic_override"))
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	
 	// 可伤害实体
 	else if(HasEntProp(entity, Prop_Data, "m_takedamage") && HasEntProp(entity, Prop_Data, "m_iHealth") &&
 		GetEntProp(entity, Prop_Data, "m_takedamage") == DAMAGE_YES && GetEntProp(entity, Prop_Data, "m_iHealth") > 0)
 		SDKHook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
+	else if(!strcmp(classname, "molotov_projectile") || !strcmp(classname, "vomitjar_projectile") || !strcmp(classname, "pipe_bomb_projectile"))
+		SDKHook(entity, SDKHook_SpawnPost, GrenadeHook_OnSpawned);
 	
 	if(entity > MaxClients && entity <= 2048 && !strcmp(classname, "tank_rock", false))
 		g_bIsTankRock[entity] = true;
@@ -6563,11 +6571,71 @@ public void OnEntityDestroyed(int entity)
 	SDKUnhook(entity, SDKHook_WeaponDropPost, PlayerHook_OnReloadStopped);
 	SDKUnhook(entity, SDKHook_SetTransmit, GlowHook_SetTransmit);
 	SDKUnhook(entity, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
+	SDKUnhook(entity, SDKHook_SpawnPost, GrenadeHook_OnSpawned);
 	
 	if(entity > MaxClients && entity <= 2048)
 	{
 		g_bIsTankRock[entity] = false;
 		g_fTimedButton[entity] = -1.0;
+	}
+}
+
+public void GrenadeHook_OnSpawned(int entity)
+{
+	SDKUnhook(entity, SDKHook_SpawnPost, GrenadeHook_OnSpawned);
+	
+	static bool ignore;
+	if(ignore)
+		return;
+	
+	int client = GetEntPropEnt(entity, Prop_Data, "m_hOwnerEntity");
+	if(!IsValidClient(client) || GetClientTeam(client) != 2)
+		client = GetEntPropEnt(entity, Prop_Data, "m_hThrower");
+	if(!IsValidClient(client) || GetClientTeam(client) != 2)
+		return;
+	
+	char projectile[32];
+	GetEntityClassname(entity, projectile, sizeof(projectile));
+	
+	SetRandomSeed(GetSysTickCount() + SKL_4_MoreGrenade);
+	if((g_clSkill_4[client] & SKL_4_MoreGrenade) && !GetRandomInt(0, 2))
+	{
+		int slot = GetPlayerWeaponSlot(client, 2);
+		if(slot > MaxClients && IsValidEdict(slot))
+		{
+			char weapon[32];
+			GetEdictClassname(slot, weapon, sizeof(weapon));
+			if(!strncmp(weapon[7], projectile, strlen(weapon[7])))
+			{
+				SetEntProp(client, Prop_Send, "m_iAmmo", 1, _, GetEntProp(slot, Prop_Send, "m_iPrimaryAmmoType"));
+				PrintToChat(client, "\x03「节约」\x01触发，投掷武器不消耗。");
+			}
+		}
+	}
+	
+	SetRandomSeed(GetSysTickCount() + SKL_4_MultiGrenade);
+	if((g_clSkill_4[client] & SKL_4_MultiGrenade) && !GetRandomInt(0, 3))
+	{
+		static ConVar player_throwforce;
+		if(player_throwforce == null)
+			player_throwforce = FindConVar("player_throwforce");
+		
+		float pos[3], vel[3];
+		GetClientEyePosition(client, pos);
+		GetClientEyeAngles(client, vel);
+		GetAngleVectors(vel, vel, NULL_VECTOR, NULL_VECTOR);
+		ScaleVector(vel, player_throwforce.FloatValue);
+		
+		ignore = true;
+		if(!strncmp(projectile, "molotov", 7))
+			L4D_MolotovPrj(client, pos, vel);
+		else if(!strncmp(projectile, "vomitjar", 8))
+			L4D2_VomitJarPrj(client, pos, vel);
+		else if(!strncmp(projectile, "pipe_bomb", 9))
+			L4D_PipeBombPrj(client, pos, vel);
+		ignore = false;
+		
+		PrintToChat(client, "\x03「复制」\x01触发，掷出数量增加。");
 	}
 }
 
@@ -6883,7 +6951,8 @@ public Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadcast)
 	{
 		// SDKCall(sdkAdrenaline, client, 30.0);
 		// CheatCommand(client, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), 30);
-		L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), 10 * mulEffect);
+		// L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), 10 * mulEffect);
+		L4D2_UseAdrenaline(client, 10.0 * mulEffect, false);
 	}
 	
 	mulEffect = IsPlayerHaveEffect(client, 40);
@@ -7656,7 +7725,10 @@ void TriggerAngrySkill(int victim, int mode)
 				int et = GetClientTeam(i);
 				GetClientAbsOrigin(i, vPos);
 				if(et == team && GetVectorDistance(vLoc, vPos, true) < 1000.0 * 1000.0)
-					L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
+				{
+					// L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(i), 50);
+					L4D2_UseAdrenaline(i, 50.0, false);
+				}
 			}
 
 			if(g_pCvarAllow.BoolValue)
@@ -7949,7 +8021,8 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 			{
 				// SDKCall(sdkAdrenaline, attacker, 14.0);
 				// CheatCommand(attacker, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(attacker), 14);
-				L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(attacker), 5);
+				// L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(attacker), 5);
+				L4D2_UseAdrenaline(attacker, 5.0, false);
 				
 				EmitSoundToClient(attacker,g_soundLevel);
 				if(!IsFakeClient(attacker)) PrintToChat(attacker, "\x03「热血」\x01你进入状态兴奋 \x055\x01 秒。");
@@ -8359,7 +8432,8 @@ public Action:Timer_RespawnPlayer(Handle:timer, any:client)
 		{
 			// SDKCall(hRoundRespawn, client);
 			// CheatCommand(client, "script", "GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(client));
-			L4D2_RunScript("GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(client));
+			// L4D2_RunScript("GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(client));
+			L4D_RespawnPlayer(client);
 			
 			// PrintToChatAll("\x03[\x05提示\x03]\x04玩家\x03%s\x04顺利复活.", playername);
 			PrintToChat(client, "\x03[提示]\x01 复活完毕。");
@@ -8716,7 +8790,8 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		{
 			// SDKCall(sdkAdrenaline, subject, 15.0);
 			// CheatCommand(subject, "script", "GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 15);
-			L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 10 * mulEffect);
+			// L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(subject), 10 * mulEffect);
+			L4D2_UseAdrenaline(subject, 10.0 * mulEffect, false);
 		}
 		
 		if(g_bIsGamePlaying && client != subject)
@@ -9614,7 +9689,7 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 		if (!IsClientInGame(target))
 			continue;
 		
-		if (!IsPlayerAlive(target))
+		if (!IsPlayerAlive(target) || !L4D2_VScriptWrapper_HasEverBeenInjured(target, 2))
 			continue;
 		
 		// 目标潜行中
@@ -10816,8 +10891,8 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	
 	// Initialization(client);
 	g_iJumpFlags[client] = JF_None;
-	g_bCanGunShover[client] = true;
 	g_fNextGunShover[client] = 0.0;
+	g_fNextHandGrenade[client] = 0.0;
 }
 
 public Action Timer_RegPlayerHook(Handle timer, any client)
@@ -12939,10 +13014,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				useTarget = FindUseEntity(client);
 		}
 		
-		if ((g_clSkill_4[client] & SKL_4_DuckShover) && g_bCanGunShover[client] && !isGrabbed &&
+		if ((g_clSkill_4[client] & SKL_4_DuckShover) && g_fNextGunShover[client] <= time && !isGrabbed &&
 			(flags & FL_DUCKING) && (buttons & IN_ATTACK2) && (buttons & IN_DUCK))
 		{
-			g_bCanGunShover[client] = false;
 			new Float:pos[3];
 			// GetClientAbsOrigin(client, pos);
 			GetClientEyePosition(client, pos);
@@ -12989,7 +13063,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 			
-			CreateTimer(15.0, Timer_GunShovedReset, client, TIMER_FLAG_NO_MAPCHANGE);
 			g_fNextGunShover[client] = time + 15.0;
 			
 			if(g_pCvarAllow.BoolValue)
@@ -13152,6 +13225,29 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				SetEntPropFloat(client, Prop_Send, "m_flNextAttack", gt);
 				SetEntPropFloat(weaponId, Prop_Send, "m_flNextPrimaryAttack", gt);
 				PlayerHook_OnReloadStopped(client, weaponId);
+			}
+		}
+		
+		if((g_clSkill_3[client] & SKL_3_HandGrenade) && (buttons & IN_ZOOM) && useTarget <= MaxClients &&
+			g_fNextHandGrenade[client] <= time && weaponId > MaxClients && IsValidEdict(weaponId))
+		{
+			static char className[64];
+			GetEntityClassname(weaponId, className, sizeof(className));
+			if(!strncmp(className[7], "pistol", 6))
+			{
+				static ConVar player_throwforce;
+				if(player_throwforce == null)
+					player_throwforce = FindConVar("player_throwforce");
+				
+				float pos[3], velo[3];
+				GetClientEyePosition(client, pos);
+				GetClientEyeAngles(client, velo);
+				GetAngleVectors(velo, velo, NULL_VECTOR, NULL_VECTOR);
+				ScaleVector(velo, player_throwforce.FloatValue);
+				
+				L4D2_GrenadeLauncherPrj(client, pos, velo);
+				
+				g_fNextHandGrenade[client] = time + 20.0;
 			}
 		}
 		
@@ -13568,7 +13664,9 @@ public void OutputHook_OnResurrect(const char[] output, int caller, int activato
 	if(!IsValidClient(owner) || IsPlayerAlive(owner))
 		return;
 	
-	L4D2_RunScript("GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(owner));
+	// L4D2_RunScript("GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(owner));
+	L4D_RespawnPlayer(owner);
+	
 	SetEntProp(activator, Prop_Send, "m_currentReviveCount", g_hCvarIncapCount.IntValue);
 	SetEntProp(activator, Prop_Send, "m_bIsOnThirdStrike", 1);
 	
@@ -13836,8 +13934,10 @@ void ShowStatusPanel(int client)
 		menu.DrawText(tr("暴疗%.0fs", g_ctSelfHeal[client] - time));
 	if((g_clSkill_3[client] & SKL_3_GodMode) && g_ctGodMode[client] != 0.0)
 		menu.DrawText(tr("无敌%.0fs", (g_ctGodMode[client] > 0.0 ? g_ctGodMode[client] - time : time - g_ctGodMode[client])));
-	if((g_clSkill_4[client] & SKL_4_DuckShover) && g_fNextGunShover[client] > 0.0)
+	if((g_clSkill_4[client] & SKL_4_DuckShover) && g_fNextGunShover[client] > time)
 		menu.DrawText(tr("霸气%.0fs", g_fNextGunShover[client] - time));
+	if((g_clSkill_3[client] & SKL_3_HandGrenade) && g_fNextHandGrenade[client] > time)
+		menu.DrawText(tr("手雷%.0fs", g_fNextHandGrenade[client] - time));
 	menu.DrawText(" ");
 	
 	// 奖励进度
@@ -13874,17 +13974,6 @@ bool:IsMoving(client)
 	decl Float:fVelocity[3];
 	GetEntPropVector(client, Prop_Data, "m_vecAbsVelocity", fVelocity);
 	return (GetVectorLength(fVelocity, true) > 0.0);
-}
-
-public Action Timer_GunShovedReset(Handle timer, any client)
-{
-	if(1 <= client <= MaxClients)
-	{
-		g_bCanGunShover[client] = true;
-		g_fNextGunShover[client] = 0.0;
-	}
-	
-	return Plugin_Continue;
 }
 
 int Cmd_GetTargets(int client, const char[] arg, int[] target_list, int filter = COMMAND_FILTER_ALIVE|COMMAND_FILTER_CONNECTED)

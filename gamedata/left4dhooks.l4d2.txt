@@ -962,6 +962,11 @@
 			{
 				"signature"	"VomitJar_StrFind"
 			}
+
+			"GrenadeLauncher_StrFind"
+			{
+				"signature"	"GrenadeLauncher_StrFind"
+			}
 		}
 
 
@@ -1046,6 +1051,11 @@
 			}
 
 			"VomitJar_OffsetPush"
+			{
+				"windows"	"74"
+			}
+
+			"GrenadeLauncher_OffsetPush"
 			{
 				"windows"	"74"
 			}
@@ -1617,6 +1627,23 @@
 			{
 				"library"		"server"
 				"windows"		"VomitJar projectile"
+				/* Search for the literal string to then reverse bytes and search for that address. */
+			}
+
+			/*
+			*  CGrenadeLauncher_Projectile::Create(int, int, int, int, CBaseEntity *, int)
+			*  Search: "VomitJar projectile spawned at %f %f %f"
+			*/
+			"GrenadeLauncher_Create"
+			{
+				"library"	"server"
+				"linux"		"@_ZN27CGrenadeLauncher_Projectile6CreateERK6VectorRK6QAngleS2_S2_P20CBaseCombatCharacteri"
+				/* Windows signature is extremely long to be unique without using bytes that may change in game updates. */
+			}
+			"GrenadeLauncher_StrFind"
+			{
+				"library"		"server"
+				"windows"		"CGrenadeLauncher_Projectile spawned"
 				/* Search for the literal string to then reverse bytes and search for that address. */
 			}
 

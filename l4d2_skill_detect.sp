@@ -57,7 +57,7 @@
 #include <sourcemod>
 #include <sdkhooks>
 #include <sdktools>
-#include <l4d2_direct>
+#include <left4dhooks>
 
 #define PLUGIN_VERSION "0.9.19"
 
@@ -1685,7 +1685,7 @@ public Action: Timer_ChargeCheck( Handle:timer, any:client )
 		charging = true;
 	
 	// we're done checking if either the victim reached the ground, or died
-	if ( !IsPlayerAlive(client) )
+	if ( !IsPlayerAlive(client) || L4D2_VScriptWrapper_IsDead(client) || L4D2_VScriptWrapper_IsDying(client) )
 	{
 		// player died (this was .. probably.. a death charge)
 		g_iVictimFlags[client] = g_iVictimFlags[client] | VICFLG_AIRDEATH;
@@ -1719,7 +1719,7 @@ public Action: Timer_DeathChargeCheck( Handle:timer, any:client )
 	
 	new flags = g_iVictimFlags[client];
 	
-	if ( !IsPlayerAlive(client) )
+	if ( !IsPlayerAlive(client) || L4D2_VScriptWrapper_IsDead(client) || L4D2_VScriptWrapper_IsDying(client) )
 	{
 		new Float: pos[3];
 		GetClientAbsOrigin( client, pos );

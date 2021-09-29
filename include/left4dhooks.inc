@@ -95,6 +95,7 @@ public void __pl_l4dh_SetNTVOptional()
 	MarkNativeAsOptional("L4D_PipeBombPrj");
 	MarkNativeAsOptional("L4D_MolotovPrj");
 	MarkNativeAsOptional("L4D2_VomitJarPrj");
+	MarkNativeAsOptional("L4D2_GrenadeLauncherPrj");
 
 	MarkNativeAsOptional("L4D2_ExecVScriptCode");
 	MarkNativeAsOptional("L4D2_GetVScriptOutput");
@@ -5315,6 +5316,18 @@ native int L4D_MolotovPrj(int client, const float vecPos[3], const float vecAng[
  */
 // L4D2 Only.
 native int L4D2_VomitJarPrj(int client, const float vecPos[3], const float vecAng[3]);
+
+/**
+ * @brief Creates an activated Grenade Launcher projectile.
+ *
+ * @param client	Client id to attribute the projectile to for damage credit
+ * @param vecPos	Vector coordinate of the projectile on creation
+ * @param vecAng	Vector velocity and direction of the projectile
+ *
+ * @return			Entity index of the projectile
+ */
+// L4D2 Only.
+native int L4D2_GrenadeLauncherPrj(int client, const float vecPos[3], const float vecAng[3]);
 
 /**
  * @brief Creates a Spitter goo projectile.

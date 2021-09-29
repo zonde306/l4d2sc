@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.59"
+#define PLUGIN_VERSION		"1.60"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -41,6 +41,10 @@
 
 ========================================================================================
 	Change Log:
+
+1.60 (29-Sep-2021)
+	- Added native "L4D2_GrenadeLauncherPrj" to create an activated Grenade Launcher projectile which detonates on impact. L4D2 only.
+	- Fixed L4D1 Linux "MolotovProjectile_Create" signature. Thanks to "Ja-Forces" for reporting.
 
 1.59 (29-Sep-2021)
 	- HotFix: Fix Linux not loading the last 2 natives.
@@ -729,6 +733,7 @@ Handle g_hSDK_Call_HasPlayerControlledZombies;
 Handle g_hSDK_Call_PipeBombPrj;
 Handle g_hSDK_Call_MolotovPrj;
 Handle g_hSDK_Call_VomitJarPrj;
+Handle g_hSDK_Call_GrenadeLauncher;
 Handle g_hSDK_Call_SpitterPrj;
 Handle g_hSDK_Call_OnAdrenalineUsed;
 Handle g_hSDK_Call_RoundRespawn;
@@ -1016,7 +1021,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	// ====================================================================================================
 	//									NATIVES
 	// L4D1 = 18 [left4downtown] + 47 [l4d_direct] + 15 [l4d2addresses] + 22 [silvers - mine!] + 4 [anim] = 106
-	// L4D2 = 53 [left4downtown] + 61 [l4d_direct] + 26 [l4d2addresses] + 46 [silvers - mine!] + 4 [anim] = 190
+	// L4D2 = 53 [left4downtown] + 61 [l4d_direct] + 26 [l4d2addresses] + 47 [silvers - mine!] + 4 [anim] = 191
 	// ====================================================================================================
 	// ANIMATION HOOK
 	CreateNative("AnimHookEnable",		 							Native_AnimHookEnable);
@@ -1047,6 +1052,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D_PipeBombPrj",		 							Native_PipeBombPrj);
 	CreateNative("L4D_MolotovPrj",		 							Native_MolotovPrj);
 	CreateNative("L4D2_VomitJarPrj",		 						Native_VomitJarPrj);
+	CreateNative("L4D2_GrenadeLauncherPrj",		 					Native_GrenadeLauncher);
 
 	CreateNative("L4D_SetHumanSpec",								Native_SetHumanSpec);
 	CreateNative("L4D_TakeOverBot",									Native_TakeOverBot);
@@ -2932,8 +2938,8 @@ void LoadGameData()
 	{
 		// AUTOMATICALLY GENERATE DETOURS
 		// Search game memory for specific strings
-		#define MAX_HOOKS 2
-		int iMaxHooks = g_bLeft4Dead2 ? 2 : 1;
+		#define MAX_HOOKS 3
+		int iMaxHooks = g_bLeft4Dead2 ? 3 : 1;
 		int offsetPush;
 
 		Address patchAddr;
@@ -2941,7 +2947,10 @@ void LoadGameData()
 
 		patches[0] = GameConfGetAddress(hGameData, "Molotov_StrFind");
 		if( g_bLeft4Dead2 )
+		{
 			patches[1] = GameConfGetAddress(hGameData, "VomitJar_StrFind");
+			patches[2] = GameConfGetAddress(hGameData, "GrenadeLauncher_StrFind");
+		}
 
 
 
@@ -2996,9 +3005,7 @@ void LoadGameData()
 				Format(sAddress, sizeof(sAddress), "%X", patchAddr);
 				ReverseAddress(sAddress, sHexAddr);
 
-
-
-				// First byte of projectile functions is \x55
+				// First byte of projectile functions is \x55 || \x8B
 				if( g_bLeft4Dead2 )
 					sAddress = "\\x55";
 				else
@@ -3009,6 +3016,7 @@ void LoadGameData()
 				{
 					case 0: offsetPush = hGameData.GetOffset("Molotov_OffsetPush");
 					case 1: offsetPush = hGameData.GetOffset("VomitJar_OffsetPush");
+					case 2: offsetPush = hGameData.GetOffset("GrenadeLauncher_OffsetPush");
 				}
 
 				// Add * bytes
@@ -3103,6 +3111,23 @@ void LoadGameData()
 			g_hSDK_Call_VomitJarPrj = EndPrepSDKCall();
 			if( g_hSDK_Call_VomitJarPrj == null )
 				LogError("Failed to create SDKCall: VomitJarProjectile_Create");
+		}
+
+		StartPrepSDKCall(SDKCall_Static);
+		if( PrepSDKCall_SetFromConf(g_bLinuxOS ? hGameData : hTempGameData, SDKConf_Signature, g_bLinuxOS ? "GrenadeLauncher_Create" : "FindAddress_2") == false )
+		{
+			LogError("Failed to find signature: GrenadeLauncher_Create");
+		} else {
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+			PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
+			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
+			g_hSDK_Call_GrenadeLauncher = EndPrepSDKCall();
+			if( g_hSDK_Call_GrenadeLauncher == null )
+				LogError("Failed to create SDKCall: GrenadeLauncher_Create");
 		}
 
 		StartPrepSDKCall(SDKCall_Static);
@@ -4636,6 +4661,19 @@ public int Native_VomitJarPrj(Handle plugin, int numParams)
 
 	//PrintToServer("#### CALL g_hSDK_Call_VomitJarPrj");
 	return SDKCall(g_hSDK_Call_VomitJarPrj, vPos, vAng, vAng, vAng, client, 2.0);
+}
+
+public int Native_GrenadeLauncher(Handle plugin, int numParams)
+{
+	ValidateNatives(g_hSDK_Call_GrenadeLauncher, "CGrenadeLauncher");
+
+	float vPos[3], vAng[3];
+	int client = GetNativeCell(1);
+	GetNativeArray(2, vPos, 3);
+	GetNativeArray(3, vAng, 3);
+
+	//PrintToServer("#### CALL g_hSDK_Call_GrenadeLauncher");
+	return SDKCall(g_hSDK_Call_GrenadeLauncher, vPos, vAng, vAng, vAng, client, 2.0);
 }
 
 public int Native_SpitterPrj(Handle plugin, int numParams)

@@ -1065,7 +1065,7 @@
 			"MolotovProjectile_Create"
 			{
 				"library"	"server"
-				"linux"		"@_ZN18CMolotovProjectile6CreateERK6VectorRK6QAngleS2_S2_P20CBaseCombatCharacter"
+				"linux"		"@_ZN18CMolotovProjectile6CreateERK6VectorRK6QAngleS2_S2_P20CBaseCombatCharacterf"
 				/* Windows signature is extremely long to be unique without using bytes that may change in game updates. */
 			}
 			"Molotov_StrFind"

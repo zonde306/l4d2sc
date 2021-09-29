@@ -141,6 +141,8 @@ public void OnMapStart()
 	PrecacheModel(MODEL_JOCKEY);
 	PrecacheModel(MODEL_CHARGER);
 	PrecacheModel(MODEL_TANK);
+	g_hTimerSpawnQueue = null;
+	g_hTimerQueuedSpawnner = null;
 }
 
 public void Event_RoundStart(Event event, const char[] event_name, bool dontBroadcast)
@@ -157,13 +159,20 @@ public void Event_RoundEnd(Event event, const char[] event_name, bool dontBroadc
 	
 	if(g_hTimerSpawnQueue != null)
 	{
-		delete g_hTimerSpawnQueue;
+		deleteme1 = g_hTimerSpawnQueue;
+		g_hTimerSpawnQueue = null;
 	}
 	
 	if(g_hTimerQueuedSpawnner != null)
 	{
-		delete g_hTimerQueuedSpawnner;
+		deleteme2 = g_hTimerQueuedSpawnner;
+		g_hTimerQueuedSpawnner = null;
 	}
+	
+	if(deleteme1)
+		delete deleteme1;
+	if(deleteme2)
+		delete deleteme2;
 }
 
 public Action L4D_OnFirstSurvivorLeftSafeArea(int client)

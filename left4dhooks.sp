@@ -18,7 +18,7 @@
 
 
 
-#define PLUGIN_VERSION		"1.57"
+#define PLUGIN_VERSION		"1.59"
 
 #define DEBUG				0
 // #define DEBUG			1	// Prints addresses + detour info (only use for debugging, slows server down)
@@ -41,6 +41,17 @@
 
 ========================================================================================
 	Change Log:
+
+1.59 (29-Sep-2021)
+	- HotFix: Fix Linux not loading the last 2 natives.
+
+1.58 (29-Sep-2021)
+	- Added native "L4D_MolotovPrj" to create an activated Molotov projectile which detonates on impact.
+	- Added native "L4D2_VomitJarPrj" to create an activated VomitJar projectile which detonates on impact. L4D2 only.
+	- Added "STATE_*" enums to the include file for use with the "L4D_State_Transition" native. Thanks to "BHaType" for providing.
+	- Fixed some incorrect information in the include file. Thanks to "jackz" for reporting.
+
+	- GameData files, include file and plugins updated.
 
 1.57 (18-Sep-2021)
 	- Changed the method for getting the current GameMode. Should have no more issues. Thanks to "ddd123" for reporting.
@@ -560,6 +571,7 @@ float g_fProf;
 // Plugin
 #define GAMEDATA_1							"left4dhooks.l4d1"
 #define GAMEDATA_2							"left4dhooks.l4d2"
+#define GAMEDATA_TEMP						"left4dhooks.temp"
 #define NATIVE_UNSUPPORTED1					"\n==========\nThis Native is only supported in L4D1.\nPlease fix the code to avoid calling this native from L4D2.\n=========="
 #define NATIVE_UNSUPPORTED2					"\n==========\nThis Native is only supported in L4D2.\nPlease fix the code to avoid calling this native from L4D1.\n=========="
 
@@ -715,6 +727,8 @@ Handle g_hSDK_Call_AngularVelocity;
 Handle g_hSDK_Call_IsReachable;
 Handle g_hSDK_Call_HasPlayerControlledZombies;
 Handle g_hSDK_Call_PipeBombPrj;
+Handle g_hSDK_Call_MolotovPrj;
+Handle g_hSDK_Call_VomitJarPrj;
 Handle g_hSDK_Call_SpitterPrj;
 Handle g_hSDK_Call_OnAdrenalineUsed;
 Handle g_hSDK_Call_RoundRespawn;
@@ -895,7 +909,7 @@ bool g_bLateLoad;
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "[L4D & L4D2] Left 4 DHooks Direct",
+	name = "左边4个动态钩子",
 	author = "SilverShot",
 	description = "Left 4 Downtown and L4D Direct conversion and merger.",
 	version = PLUGIN_VERSION,
@@ -951,7 +965,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	g_hForward_ClearTeamScores					= new GlobalForward("L4D_OnClearTeamScores",					ET_Event, Param_Cell);
 	g_hForward_SetCampaignScores				= new GlobalForward("L4D_OnSetCampaignScores",					ET_Event, Param_CellByRef, Param_CellByRef);
 	if( !g_bLeft4Dead2 )
-		g_hForward_RecalculateVersusScore			= new GlobalForward("L4D_OnRecalculateVersusScore",				ET_Event, Param_Cell);
+		g_hForward_RecalculateVersusScore		= new GlobalForward("L4D_OnRecalculateVersusScore",				ET_Event, Param_Cell);
 	g_hForward_OnFirstSurvivorLeftSafeArea		= new GlobalForward("L4D_OnFirstSurvivorLeftSafeArea",			ET_Event, Param_Cell);
 	g_hForward_GetCrouchTopSpeed				= new GlobalForward("L4D_OnGetCrouchTopSpeed",					ET_Event, Param_Cell, Param_FloatByRef);
 	g_hForward_GetRunTopSpeed					= new GlobalForward("L4D_OnGetRunTopSpeed",						ET_Event, Param_Cell, Param_FloatByRef);
@@ -1001,8 +1015,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 	// ====================================================================================================
 	//									NATIVES
-	// L4D1 = 18 [left4downtown] + 47 [l4d_direct] + 15 [l4d2addresses] + 21 [silvers - mine!] + 4 [anim] = 105
-	// L4D2 = 53 [left4downtown] + 61 [l4d_direct] + 26 [l4d2addresses] + 44 [silvers - mine!] + 4 [anim] = 188
+	// L4D1 = 18 [left4downtown] + 47 [l4d_direct] + 15 [l4d2addresses] + 22 [silvers - mine!] + 4 [anim] = 106
+	// L4D2 = 53 [left4downtown] + 61 [l4d_direct] + 26 [l4d2addresses] + 46 [silvers - mine!] + 4 [anim] = 190
 	// ====================================================================================================
 	// ANIMATION HOOK
 	CreateNative("AnimHookEnable",		 							Native_AnimHookEnable);
@@ -1031,6 +1045,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("L4D_IsInLastCheckpoint",		 					Native_IsInLastCheckpoint);
 	CreateNative("L4D_HasPlayerControlledZombies",		 			Native_HasPlayerControlledZombies);
 	CreateNative("L4D_PipeBombPrj",		 							Native_PipeBombPrj);
+	CreateNative("L4D_MolotovPrj",		 							Native_MolotovPrj);
+	CreateNative("L4D2_VomitJarPrj",		 						Native_VomitJarPrj);
 
 	CreateNative("L4D_SetHumanSpec",								Native_SetHumanSpec);
 	CreateNative("L4D_TakeOverBot",									Native_TakeOverBot);
@@ -2701,6 +2717,8 @@ void LoadGameData()
 	PrintToServer("");
 	#endif
 
+	g_bLinuxOS = hGameData.GetOffset("OS") == 1;
+
 
 
 	// ====================================================================================================
@@ -2903,20 +2921,188 @@ void LoadGameData()
 			LogError("Failed to create SDKCall: CPipeBombProjectile_Create");
 	}
 
+
+
+	// =========================
+	// DYNAMIC SIG SCANS
+	// =========================
+
+	// Load custom gamedata addresses to detour
+	if( !g_bLinuxOS )
+	{
+		// AUTOMATICALLY GENERATE DETOURS
+		// Search game memory for specific strings
+		#define MAX_HOOKS 2
+		int iMaxHooks = g_bLeft4Dead2 ? 2 : 1;
+		int offsetPush;
+
+		Address patchAddr;
+		Address patches[MAX_HOOKS];
+
+		patches[0] = GameConfGetAddress(hGameData, "Molotov_StrFind");
+		if( g_bLeft4Dead2 )
+			patches[1] = GameConfGetAddress(hGameData, "VomitJar_StrFind");
+
+
+
+		// Write custom gamedata with found addresses
+		BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", GAMEDATA_TEMP);
+		File hFile = OpenFile(sPath, "w", false);
+
+		char sAddress[512];
+		char sHexAddr[32];
+
+		hFile.WriteLine("\"Games\"");
+		hFile.WriteLine("{");
+		hFile.WriteLine("	\"#default\"");
+		hFile.WriteLine("	{");
+		hFile.WriteLine("		\"Addresses\"");
+		hFile.WriteLine("		{");
+
+		for( int i = 0; i < iMaxHooks; i++ )
+		{
+			patchAddr = patches[i];
+
+			if( patchAddr )
+			{
+				hFile.WriteLine("			\"FindAddress_%d\"", i);
+				hFile.WriteLine("			{");
+				if( g_bLinuxOS )
+				{
+					hFile.WriteLine("				\"linux\"");
+					hFile.WriteLine("				{");
+					hFile.WriteLine("					\"signature\"		\"FindAddress_%d\"", i);
+					hFile.WriteLine("				}");
+				} else {
+					hFile.WriteLine("				\"windows\"");
+					hFile.WriteLine("				{");
+					hFile.WriteLine("					\"signature\"		\"FindAddress_%d\"", i);
+					hFile.WriteLine("				}");
+				}
+				hFile.WriteLine("			}");
+			}
+		}
+
+		hFile.WriteLine("		}");
+		hFile.WriteLine("");
+		hFile.WriteLine("		\"Signatures\"");
+		hFile.WriteLine("		{");
+
+		for( int i = 0; i < iMaxHooks; i++ )
+		{
+			patchAddr = patches[i];
+			if( patchAddr )
+			{
+				Format(sAddress, sizeof(sAddress), "%X", patchAddr);
+				ReverseAddress(sAddress, sHexAddr);
+
+
+
+				// First byte of projectile functions is \x55
+				if( g_bLeft4Dead2 )
+					sAddress = "\\x55";
+				else
+					sAddress = "\\x8B";
+
+				// Offset to the "push" call
+				switch( i )
+				{
+					case 0: offsetPush = hGameData.GetOffset("Molotov_OffsetPush");
+					case 1: offsetPush = hGameData.GetOffset("VomitJar_OffsetPush");
+				}
+
+				// Add * bytes
+				for( int x = 0; x < offsetPush; x++ )
+				{
+					StrCat(sAddress, sizeof(sAddress), "\\x2A");
+				}
+
+				// Add call X address
+				StrCat(sAddress, sizeof(sAddress), "\\x68"); // Add "push" byte
+				StrCat(sAddress, sizeof(sAddress), sHexAddr);
+
+
+				// Write lines
+				hFile.WriteLine("			\"FindAddress_%d\"", i);
+				hFile.WriteLine("			{");
+				// hFile.WriteLine("				\"library\"	\"server\""); // Server is default.
+				if( g_bLinuxOS )
+				{
+					hFile.WriteLine("				\"linux\"	\"%s\"", sAddress);
+				} else {
+					hFile.WriteLine("				\"windows\"	\"%s\"", sAddress);
+				}
+
+				// Write wildcard for IDA
+				/*
+				ReplaceString(sAddress, sizeof(sAddress), "\\x", " ");
+				ReplaceString(sAddress, sizeof(sAddress), "2A", "?");
+				// */
+
+				// Finish
+				hFile.WriteLine("				/*%s */", sAddress);
+				hFile.WriteLine("			}");
+			}
+		}
+
+		hFile.WriteLine("		}");
+		hFile.WriteLine("	}");
+		hFile.WriteLine("}");
+
+		FlushFile(hFile);
+		delete hFile;
+
+		// =========================
+		// END DYNAMIC SIG SCANS
+		// =========================
+	}
+
+
+
+	GameData hTempGameData;
+	
+	if( !g_bLinuxOS )
+	{
+		hTempGameData = LoadGameConfigFile(GAMEDATA_TEMP);
+		if( hTempGameData == null ) LogError("Failed to load \"%s.txt\" gamedata.", GAMEDATA_TEMP);
+	}
+
+
+
+	StartPrepSDKCall(SDKCall_Static);
+	if( PrepSDKCall_SetFromConf(g_bLinuxOS ? hGameData : hTempGameData, SDKConf_Signature, g_bLinuxOS ? "MolotovProjectile_Create" : "FindAddress_0") == false )
+	{
+		LogError("Failed to find signature: MolotovProjectile_Create");
+	} else {
+		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+		PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+		PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
+		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
+		g_hSDK_Call_MolotovPrj = EndPrepSDKCall();
+		if( g_hSDK_Call_MolotovPrj == null )
+			LogError("Failed to create SDKCall: MolotovProjectile_Create");
+	}
+
 	if( g_bLeft4Dead2 )
 	{
 		StartPrepSDKCall(SDKCall_Static);
-		if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NavAreaTravelDistance") == false )
+		if( PrepSDKCall_SetFromConf(g_bLinuxOS ? hGameData : hTempGameData, SDKConf_Signature, g_bLinuxOS ? "VomitJarProjectile_Create" : "FindAddress_1") == false )
 		{
-			LogError("Failed to find signature: NavAreaTravelDistance");
+			LogError("Failed to find signature: VomitJarProjectile_Create");
 		} else {
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
-			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
-			PrepSDKCall_SetReturnInfo(SDKType_Float, SDKPass_Plain);
-			g_hSDK_Call_NavAreaTravelDistance = EndPrepSDKCall();
-			if( g_hSDK_Call_NavAreaTravelDistance == null )
-				LogError("Failed to create SDKCall: NavAreaTravelDistance");
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+			PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
+			PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
+			g_hSDK_Call_VomitJarPrj = EndPrepSDKCall();
+			if( g_hSDK_Call_VomitJarPrj == null )
+				LogError("Failed to create SDKCall: VomitJarProjectile_Create");
 		}
 
 		StartPrepSDKCall(SDKCall_Static);
@@ -2933,6 +3119,20 @@ void LoadGameData()
 			g_hSDK_Call_SpitterPrj = EndPrepSDKCall();
 			if( g_hSDK_Call_SpitterPrj == null )
 				LogError("Failed to create SDKCall: CSpitterProjectile_Create");
+		}
+
+		StartPrepSDKCall(SDKCall_Static);
+		if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "NavAreaTravelDistance") == false )
+		{
+			LogError("Failed to find signature: NavAreaTravelDistance");
+		} else {
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
+			PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+			PrepSDKCall_SetReturnInfo(SDKType_Float, SDKPass_Plain);
+			g_hSDK_Call_NavAreaTravelDistance = EndPrepSDKCall();
+			if( g_hSDK_Call_NavAreaTravelDistance == null )
+				LogError("Failed to create SDKCall: NavAreaTravelDistance");
 		}
 
 		StartPrepSDKCall(SDKCall_Player);
@@ -3932,8 +4132,6 @@ void LoadGameData()
 	PrintToServer("Various Offsets:");
 	#endif
 
-	g_bLinuxOS = hGameData.GetOffset("OS") == 1;
-
 	m_iCampaignScores = hGameData.GetOffset("m_iCampaignScores");
 	ValidateOffset(m_iCampaignScores, "m_iCampaignScores");
 
@@ -4137,6 +4335,7 @@ void LoadGameData()
 	// ====================================================================================================
 	//									END
 	// ====================================================================================================
+	delete hTempGameData;
 	delete hGameData;
 }
 
@@ -4411,6 +4610,32 @@ public int Native_PipeBombPrj(Handle plugin, int numParams)
 
 	//PrintToServer("#### CALL g_hSDK_Call_PipeBombPrj");
 	return SDKCall(g_hSDK_Call_PipeBombPrj, vPos, vAng, vAng, vAng, client, 2.0);
+}
+
+public int Native_MolotovPrj(Handle plugin, int numParams)
+{
+	ValidateNatives(g_hSDK_Call_MolotovPrj, "MolotovPrj");
+
+	float vPos[3], vAng[3];
+	int client = GetNativeCell(1);
+	GetNativeArray(2, vPos, 3);
+	GetNativeArray(3, vAng, 3);
+
+	//PrintToServer("#### CALL g_hSDK_Call_MolotovPrj");
+	return SDKCall(g_hSDK_Call_MolotovPrj, vPos, vAng, vAng, vAng, client, 2.0);
+}
+
+public int Native_VomitJarPrj(Handle plugin, int numParams)
+{
+	ValidateNatives(g_hSDK_Call_VomitJarPrj, "VomitJarPrj");
+
+	float vPos[3], vAng[3];
+	int client = GetNativeCell(1);
+	GetNativeArray(2, vPos, 3);
+	GetNativeArray(3, vAng, 3);
+
+	//PrintToServer("#### CALL g_hSDK_Call_VomitJarPrj");
+	return SDKCall(g_hSDK_Call_VomitJarPrj, vPos, vAng, vAng, vAng, client, 2.0);
 }
 
 public int Native_SpitterPrj(Handle plugin, int numParams)
@@ -8652,6 +8877,21 @@ stock void ReadMemoryString(int addr, char[] temp, int size)
 		} else {
 			return;
 		}
+	}
+}
+
+void ReverseAddress(const char[] sBytes, char sReturn[32])
+{
+	sReturn[0] = 0;
+	char sByte[3];
+	for( int i = strlen(sBytes) - 2; i >= -1 ; i -= 2 )
+	{
+		strcopy(sByte, i >= 1 ? 3 : i + 3, sBytes[i >= 0 ? i : 0]);
+
+		StrCat(sReturn, sizeof(sReturn), "\\x");
+		if( strlen(sByte) == 1 )
+			StrCat(sReturn, sizeof(sReturn), "0");
+		StrCat(sReturn, sizeof(sReturn), sByte);
 	}
 }
 

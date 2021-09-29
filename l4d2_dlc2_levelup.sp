@@ -1241,8 +1241,8 @@ public OnPluginStart()
 	// 缓存以及读取
 	if(g_bLateLoad && IsServerProcessing())
 	{
-		OnMapStart();
 		OnConfigsExecuted();
+		OnMapStart();
 		OnAllPluginsLoaded();
 		g_bIsGamePlaying = L4D_HasAnySurvivorLeftSafeArea();
 	}
@@ -1537,14 +1537,17 @@ public OnMapStart()
 	for(int i = 0; i <= MAXPLAYERS; ++i)
 		g_kvSavePlayer[i] = null;
 	
-	for(new i = 1; i <= MaxClients; i++)
+	if(g_Database)
 	{
-		// Initialization(i);
-		ClientSaveToFileLoad(i, g_pCvarSaveStats.BoolValue);
-		// g_bFirstLoaded[i] = true;
-		
-		if(IsValidAliveClient(i))
-			RegPlayerHook(i, false);
+		for(new i = 1; i <= MaxClients; i++)
+		{
+			// Initialization(i);
+			ClientSaveToFileLoad(i, g_pCvarSaveStats.BoolValue);
+			// g_bFirstLoaded[i] = true;
+			
+			if(IsValidAliveClient(i))
+				RegPlayerHook(i, false);
+		}
 	}
 }
 
@@ -2583,6 +2586,19 @@ public void ConnectResult_Init(Database db, const char[] error, any data)
 	else
 	{
 		LogError("[l4d2_dlc2_levelup] 连接数据库失败，无错误信息。");
+	}
+	
+	if(g_Database && g_bLateLoad)
+	{
+		for(new i = 1; i <= MaxClients; i++)
+		{
+			// Initialization(i);
+			ClientSaveToFileLoad(i, g_pCvarSaveStats.BoolValue);
+			// g_bFirstLoaded[i] = true;
+			
+			if(IsValidAliveClient(i))
+				RegPlayerHook(i, false);
+		}
 	}
 }
 
@@ -9874,6 +9890,9 @@ public void ApplyJumpVelocity(any client)
 
 public void Event_DoorEvent(Event event, const char[] eventName, bool dontBroadcast)
 {
+	if(!g_pCvarAllow.BoolValue)
+		return;
+	
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidAliveClient(client) || !IsFakeClient(client) || GetClientTeam(client) != 2)
 		return;

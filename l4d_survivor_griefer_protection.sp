@@ -180,7 +180,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 				fDamageLimit[attacker] += damage;
 
 				if (fDamageLimit[attacker] >= (GetConVarFloat(DamageAllowance) - 50.0))
-					PrintToChat(victim, "\x05黑枪警告");
+					PrintToChat(attacker, "\x05黑枪警告");
 
 				if (GetConVarFloat(DamageAllowance) > 0.0 && fDamageLimit[attacker] > GetConVarFloat(DamageAllowance))
 				{
@@ -276,20 +276,22 @@ stock void HandleClient(int client)
 	}
 	else if (GetConVarInt(KickType) == 2)
 	{
-		char sClsName[32];
-
+		// char sClsName[32];
+		
 		if (GetConVarInt(TimedBan) > 0)
 		{
 			PrintToChatAll("\x05玩家 \x04%N 因为搞事情而被禁止 \x05%i 分钟", client, GetConVarInt(TimedBan));
-			Format(sClsName, sizeof(sClsName), "sm_ban #%N %i Other", client, GetConVarInt(TimedBan));
+			// Format(sClsName, sizeof(sClsName), "sm_ban #%N %i Other", client, GetConVarInt(TimedBan));
+			BanClient(client, GetConVarInt(TimedBan), BANFLAG_AUTHID|BANFLAG_IP, sMessage);
 		}
 		else
 		{
 			PrintToChatAll("\x05玩家 \x04%N \x05因为搞事情而被永久禁止", client);
-			Format(sClsName, sizeof(sClsName), "sm_ban #%N 0 Other", client);
+			// Format(sClsName, sizeof(sClsName), "sm_ban #%N 0 Other", client);
+			BanClient(client, 0, BANFLAG_AUTHID|BANFLAG_IP, sMessage);
 		}
 
-		ServerCommand(sClsName);
+		// ServerCommand(sClsName);
 	}
 	else if (GetConVarInt(KickType) == 3)
 	{

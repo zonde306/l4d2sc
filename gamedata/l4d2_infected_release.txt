@@ -4,26 +4,49 @@
 	{
 		"Signatures"
 		{
+			/**
+			 * CTerrorPlayer::OnPummelEnded(bool, CTerrorPlayer*)
+			 *
+			 * How to find on Windows:
+			 * 1. Search for the "charger_pummel_end" string.
+			 * 2. The string can only be found in this function.
+			 **/
 			"CTerrorPlayer::OnPummelEnded"
 			{
 				"library"	"server"
-				"windows"    	"\x8B\x15****\x56\x8B\xF1\x8B\x86\x40\x3E\x00\x00\x83"
 				"linux"		"@_ZN13CTerrorPlayer13OnPummelEndedEbPS_"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x53\x56\x8B\x2A\x8B\x86\x2A\x2A\x2A\x2A\x57\x83\x2A\x2A\x0F"
+						/* ? ? ? ? ? ? ? ? ? 53 56 8B ? 8B 86 ? ? ? ? 57 83 ? ? 0F */
 			}
-			"CTerrorPlayer::OnPounceEnd"
+			/**
+			 * CTerrorPlayer::OnPounceEnded()
+			 *
+			 * How to find on Windows:
+			 * 1. Search for the "pounce_end" string.
+			 * 2. The string can only be found in this function.
+			 **/
+			"CTerrorPlayer::OnPounceEnded"
 			{
-				"library"    "server"
-				"linux" "@_ZN13CTerrorPlayer13OnPounceEndedEv"
-				"windows" "\x55\x8B\xEC\x51\x53\x8B\xD9\x80\xBB\xAC\x3E\x00\x00\x00"
-				/* 55 8B EC 51 53 8B D9 80 BB AC 3E 00 00 00  */
-			}  
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer13OnPounceEndedEv"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x80\xBB\x2A\x2A\x2A\x2A\x2A\x56\x74"
+						/* ? ? ? ? ? ? ? 80 BB ? ? ? ? ? 56 74 */
+			}
+			/**
+			 * CBaseAbility::StartActivationTimer(float, float)
+			 *
+			 * How to find on Windows:
+			 * 1. Locate the "CThrow::ActivateAbility" function.
+			 * 2. The second to last function call should be this function.
+			 * 3. This function should be called after the "> 0.0" check.
+			 **/
 			"CBaseAbility::StartActivationTimer"
 			{
-				"library"    "server"
-				"linux" "@_ZN12CBaseAbility20StartActivationTimerEff"
-				"windows" "\x55\x8B\xEC\xF3\x0F\x10\x4D\x0C\x0F\x57\xC0"
-				/* 55 8B EC F3 0F 10 4D 0C 0F 57 C0  */
-			}  
+				"library"	"server"
+				"linux"		"@_ZN12CBaseAbility20StartActivationTimerEff"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x0F\x2E\x2A\x2A\x2A\x2A\x2A\x9F\x56\x57\x8B"
+						/* ? ? ? ? ? ? ? ? 0F 2E ? ? ? ? ? 9F 56 57 8B */
+			}
 		}
 	}
 }

@@ -756,6 +756,12 @@
 				"read" "0"
 			}
 
+			// Used for dynamic searching of memory address for SDKCall
+			"Molotov_StrFind"
+			{
+				"signature"	"Molotov_StrFind"
+			}
+
 
 
 			// UNUSED
@@ -816,6 +822,13 @@
 
 
 			// VARIOUS OFFSETS
+
+			// Offset to the "push" call: e.g. 68 14 D7 50 10                          push    offset aMolotovProject_0 ; "Molotov projectile spawned at %f %f %f,"...
+			"Molotov_OffsetPush"
+			{
+				"windows"	"75"
+			}
+
 			"m_rescueCheckTimer"
 			{
 				"windows"	"868"
@@ -1046,6 +1059,23 @@
 			}
 
 			/*
+			*  CMolotovProjectile::Create(int, int, int, int, CBaseEntity *)
+			*  Search: "Molotov projectile spawned at %f %f %f"
+			*/
+			"MolotovProjectile_Create"
+			{
+				"library"	"server"
+				"linux"		"@_ZN18CMolotovProjectile6CreateERK6VectorRK6QAngleS2_S2_P20CBaseCombatCharacter"
+				/* Windows signature is extremely long to be unique without using bytes that may change in game updates. */
+			}
+			"Molotov_StrFind"
+			{
+				"library"		"server"
+				"windows"		"Molotov projectile"
+				/* Search for the literal string to then reverse bytes and search for that address. */
+			}
+
+			/*
 			*  ZombieManager::GetRandomPZSpawnPosition(ZombieManager *_ZombieManager, int zombieClass, int attempts, int a4, int a5)
 			*/
 			"GetRandomPZSpawnPosition"
@@ -1200,7 +1230,7 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13ZombieManager10SpawnWitchEPK13TerrorNavAreaRK6QAngle"
-				// "windows"	"\x83\x2A\x2A\x56\x57\x8B\x2A\x2A\x2A\x8D\x2A\x2A\x2A\x50\x6A\x0A\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x84\x2A\x75"
+				"windows"	"\x83\x2A\x2A\x56\x57\x8B\x2A\x2A\x2A\x8D\x2A\x2A\x2A\x50\x6A\x0A\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x84\x2A\x75"
 				/* 83 ? ? 56 57 8B ? ? ? 8D ? ? ? 50 6A 0A 57 8B ? E8 ? ? ? ? 84 ? 75 */
 			}
 

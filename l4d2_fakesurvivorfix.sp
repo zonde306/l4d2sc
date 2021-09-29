@@ -99,7 +99,7 @@ public Action L4D_OnGetSurvivorSet(int &retVal)
 		for(int i = 0; i < MAX_CHARACTOR / 2; ++i)
 			g_iModelOrder[i] = i + 4;
 		for(int i = MAX_CHARACTOR / 2; i < MAX_CHARACTOR; ++i)
-			g_iModelOrder[i] = i;
+			g_iModelOrder[i] = i - 4;
 	}
 	else if(retVal == 2)
 	{

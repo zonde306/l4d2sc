@@ -951,6 +951,17 @@
 					"signature" "ForceNextStageAddress"
 				}
 			}
+
+			// Used for dynamic searching of memory address for SDKCall
+			"Molotov_StrFind"
+			{
+				"signature"	"Molotov_StrFind"
+			}
+
+			"VomitJar_StrFind"
+			{
+				"signature"	"VomitJar_StrFind"
+			}
 		}
 
 
@@ -1027,6 +1038,17 @@
 
 
 			// VARIOUS OFFSETS
+
+			// Offset to the "push" call: e.g. 68 14 D7 50 10                          push    offset aMolotovProject_0 ; "Molotov projectile spawned at %f %f %f,"...
+			"Molotov_OffsetPush"
+			{
+				"windows"	"74"
+			}
+
+			"VomitJar_OffsetPush"
+			{
+				"windows"	"74"
+			}
 
 			// USING PTR BELOW INSTEAD
 			/* Offset into CDirector::AreWanderersAllowed */
@@ -1562,6 +1584,40 @@
 				"linux"		"@_ZN18CSpitterProjectile6CreateERK6VectorRK6QAngleS2_S2_P20CBaseCombatCharacter"
 				"windows"	"\x55\x8B\x2A\x8B\x2A\x2A\x8B\x2A\x2A\x53\x8B\x2A\x2A\x56\x57\x50\x51\x53\x68\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x83\x2A\x2A\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x68\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\xD9\x2A\x2A\x2A\x2A\x2A\x83\x2A\x2A\x8B\x2A\xD9\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x57"
 				/* 55 8B ? 8B ? ? 8B ? ? 53 8B ? ? 56 57 50 51 53 68 ? ? ? ? E8 ? ? ? ? 8B ? ? ? ? ? 83 ? ? ? ? ? ? 8B ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 68 ? ? ? ? E8 ? ? ? ? D9 ? ? ? ? ? 83 ? ? 8B ? D9 ? ? E8 ? ? ? ? 57 8B ? E8 ? ? ? ? 57 8B ? E8 ? ? ? ? ? ? ? 57 */
+			}
+
+			/*
+			*  CMolotovProjectile::Create(int, int, int, int, CBaseEntity *)
+			*  Search: "Molotov projectile spawned at %f %f %f"
+			*/
+			"MolotovProjectile_Create"
+			{
+				"library"	"server"
+				"linux"		"@_ZN18CMolotovProjectile6CreateERK6VectorRK6QAngleS2_S2_P20CBaseCombatCharacter"
+				/* Windows signature is extremely long to be unique without using bytes that may change in game updates. */
+			}
+			"Molotov_StrFind"
+			{
+				"library"		"server"
+				"windows"		"Molotov projectile"
+				/* Search for the literal string to then reverse bytes and search for that address. */
+			}
+
+			/*
+			*  VomitJarProjectile::Create(int, int, int, int, CBaseEntity *)
+			*  Search: "VomitJar projectile spawned at %f %f %f"
+			*/
+			"VomitJarProjectile_Create"
+			{
+				"library"	"server"
+				"linux"		"@_ZN19CVomitJarProjectile6CreateERK6VectorRK6QAngleS2_S2_P20CBaseCombatCharacter"
+				/* Windows signature is extremely long to be unique without using bytes that may change in game updates. */
+			}
+			"VomitJar_StrFind"
+			{
+				"library"		"server"
+				"windows"		"VomitJar projectile"
+				/* Search for the literal string to then reverse bytes and search for that address. */
 			}
 
 			/*

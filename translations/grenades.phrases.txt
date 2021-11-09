@@ -97,4 +97,12 @@
 	{
 		"en"			"Flak"
 	}
+	"GrenadeMod_Title_19"
+	{
+		"en"			"Airstrike"
+	}
+	"GrenadeMod_Title_20"
+	{
+		"en"			"Weapon"
+	}
 }

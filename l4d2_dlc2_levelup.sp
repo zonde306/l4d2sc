@@ -153,6 +153,8 @@ enum()
 	SKL_2_LadderRambos = (1 << 12),
 	SKL_2_IncapCrawling = (1 << 13),
 	SKL_2_ShoveFatigue = (1 << 14),
+	SKL_2_QuickRevive = (1 << 15),
+	SKL_2_PrototypeGrenade = (1 << 16),
 
 	SKL_3_Sacrifice = (1 << 0),
 	SKL_3_Respawn = (1 << 1),
@@ -754,12 +756,13 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	MarkNativeAsOptional("Robot_SetAllowedClient");
 	MarkNativeAsOptional("IncapWeapon_SetAllowedClient");
 	MarkNativeAsOptional("SelfHelp_SetAllowedClient");
+	MarkNativeAsOptional("PrototypeGrenade_SetAllowedClient");
 	
 	return APLRes_Success;
 }
 
 bool g_bHaveLethal = false, g_bHaveProtector = false, g_bHaveRobot = false, g_bHaveIncapWeapon = false,
-	g_bHaveWeaponHandling = false, g_bHaveSelfHelp = false;
+	g_bHaveWeaponHandling = false, g_bHaveSelfHelp = false, g_bHaveGrenades = false;
 
 // 这几个暂时没有 inc 文件
 native bool Lethal_SetAllowedClient(int client, bool enable);
@@ -767,6 +770,7 @@ native bool Protector_SetAllowedClient(int client, bool enable);
 native bool Robot_SetAllowedClient(int client, bool enable);
 native bool IncapWeapon_SetAllowedClient(int client, bool enable);
 native bool SelfHelp_SetAllowedClient(int client, bool enable);
+native bool PrototypeGrenade_SetAllowedClient(int client, bool enable);
 
 public void OnAllPluginsLoaded()
 {
@@ -776,6 +780,7 @@ public void OnAllPluginsLoaded()
 	g_bHaveIncapWeapon = LibraryExists("incapweapon_helpers");
 	g_bHaveWeaponHandling = LibraryExists("WeaponHandling");
 	g_bHaveSelfHelp = LibraryExists("self_help_includes");
+	g_bHaveGrenades = LibraryExists("prototype_grenades_includes");
 }
 
 public void OnLibraryAdded(const char[] libary)
@@ -792,6 +797,8 @@ public void OnLibraryAdded(const char[] libary)
 		g_bHaveWeaponHandling = true;
 	else if(!strcmp(libary, "self_help_includes"))
 		g_bHaveSelfHelp = true;
+	else if(!strcmp(libary, "prototype_grenades_includes"))
+		g_bHaveGrenades = true;
 }
 
 public void OnLibraryRemoved(const char[] libary)
@@ -808,6 +815,8 @@ public void OnLibraryRemoved(const char[] libary)
 		g_bHaveWeaponHandling = false;
 	else if(!strcmp(libary, "self_help_includes"))
 		g_bHaveSelfHelp = false;
+	else if(!strcmp(libary, "prototype_grenades_includes"))
+		g_bHaveGrenades = false;
 }
 
 public OnPluginStart()
@@ -2274,11 +2283,11 @@ void GenerateRandomStats(int client, int uncap)
 	if(uncap & (1 << 18)) g_clAngryMode[client] = GetRandomInt(0, 7);
 	
 	// 技能
-	if(uncap & (1 << 0)) g_clSkill_1[client] = GetRandomInt(0, (1 << 17) - 1);
-	if(uncap & (1 << 1)) g_clSkill_2[client] = GetRandomInt(0, (1 << 15) - 1);
-	if(uncap & (1 << 2)) g_clSkill_3[client] = GetRandomInt(0, (1 << 17) - 1);
-	if(uncap & (1 << 3)) g_clSkill_4[client] = GetRandomInt(0, (1 << 17) - 1);
-	if(uncap & (1 << 4)) g_clSkill_5[client] = GetRandomInt(0, (1 << 17) - 1);
+	if(uncap & (1 << 0)) g_clSkill_1[client] = GetRandomInt(0, 0x7FFFFFFF);
+	if(uncap & (1 << 1)) g_clSkill_2[client] = GetRandomInt(0, 0x7FFFFFFF);
+	if(uncap & (1 << 2)) g_clSkill_3[client] = GetRandomInt(0, 0x7FFFFFFF);
+	if(uncap & (1 << 3)) g_clSkill_4[client] = GetRandomInt(0, 0x7FFFFFFF);
+	if(uncap & (1 << 4)) g_clSkill_5[client] = GetRandomInt(0, 0x7FFFFFFF);
 	
 	// 装备
 	for(int i = 0; i < 4; ++i)
@@ -2424,6 +2433,8 @@ void Initialization(int client, bool invalid = false)
 		IncapWeapon_SetAllowedClient(client, false);
 	if(g_bHaveSelfHelp && NATIVE_EXISTS("SelfHelp_SetAllowedClient"))
 		SelfHelp_SetAllowedClient(client, false);
+	if(g_bHaveGrenades && NATIVE_EXISTS("PrototypeGrenade_SetAllowedClient"))
+		PrototypeGrenade_SetAllowedClient(client, false);
 	
 	if(toDelete1 != null)
 		delete toDelete1;
@@ -4067,7 +4078,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("「凶狠」暴击率+5‰",(g_clSkill_1[client]&SKL_1_DmgExtra)));
 	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
-	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」避免队友伤害",(g_clSkill_1[client]&SKL_1_Firendly)));
+	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」队友伤害降低至1点",(g_clSkill_1[client]&SKL_1_Firendly)));
 	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("「手速」手枪自动连发",(g_clSkill_1[client]&SKL_1_RapidFire)));
 	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
 	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("「稳定」自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
@@ -4124,6 +4135,11 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	
 	if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
 		menu.AddItem(tr("2_%d",SKL_2_IncapCrawling), mps("「爬行」倒地爬行",(g_clSkill_2[client]&SKL_2_IncapCrawling)));
+	
+	menu.AddItem(tr("2_%d",SKL_2_QuickRevive), mps("「急速」电击器按R快速拉人",(g_clSkill_2[client]&SKL_2_QuickRevive)));
+	
+	if(g_bHaveGrenades)
+		menu.AddItem(tr("2_%d",SKL_2_PrototypeGrenade), mps("「形态」持手雷按左键+右键可切换形态",(g_clSkill_2[client]&SKL_2_PrototypeGrenade)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6400,18 +6416,18 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		// 火箭跳免疫掉落伤害
 		if(g_bOnRocketDude[victim])
 		{
-			damage = 0.0;
+			damage = 1.0;
 			return Plugin_Changed;
 		}
 		
 		return Plugin_Continue;
 	}
 	
-	if(IsValidClient(attacker) && GetClientTeam(attacker) == GetClientTeam(victim) &&
+	if(IsValidClient(attacker) && GetClientTeam(attacker) == GetClientTeam(victim) && damage > 1.0 &&
 		((g_clSkill_1[attacker] & SKL_1_Firendly) || (g_clSkill_1[victim] & SKL_1_Firendly)))
 	{
 		// 免疫队友和自己的伤害
-		damage = 0.0;
+		damage = 1.0;
 		return Plugin_Changed;
 	}
 	
@@ -11141,6 +11157,8 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		IncapWeapon_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_Magnum));
 	if(g_bHaveSelfHelp && NATIVE_EXISTS("SelfHelp_SetAllowedClient"))
 		SelfHelp_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_SelfHelp));
+	if(g_bHaveGrenades && NATIVE_EXISTS("PrototypeGrenade_SetAllowedClient"))
+		PrototypeGrenade_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_PrototypeGrenade));
 }
 
 public void PlayerHook_OnPostThinkPost(int client)
@@ -13004,6 +13022,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	int useTarget = -1;
 	int flags = GetEntityFlags(client);
 	bool isGrabbed = IsSurvivorHeld(client);
+	bool isDown = (GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1));
 	
 	if(GetClientTeam(client) == 2 && !isGrabbed)
 	{
@@ -13226,6 +13245,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				SetEntPropFloat(weaponId, Prop_Send, "m_flNextPrimaryAttack", gt);
 				PlayerHook_OnReloadStopped(client, weaponId);
 			}
+			
+			if((g_clSkill_2[client] & SKL_2_QuickRevive) && (buttons & IN_RELOAD) && !isDown && strcmp(classname[7], "defibrillator"))
+			{
+				int revivee = GetEntPropEnt(client, Prop_Send, "m_reviveTarget");
+				if(IsValidAliveClient(revivee))
+					L4D_ReviveSurvivor(revivee);
+			}
 		}
 		
 		if((g_clSkill_3[client] & SKL_3_HandGrenade) && (buttons & IN_ZOOM) && useTarget <= MaxClients &&
@@ -13349,7 +13375,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
-		if(!(g_clSkill_2[client] & SKL_2_IncapCrawling) && !g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue && GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
+		if(!(g_clSkill_2[client] & SKL_2_IncapCrawling) && !g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue && isDown)
 		{
 			// 禁止自带的倒地爬行
 			buttons &= ~IN_FORWARD;
@@ -13416,8 +13442,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
-		if((g_clSkill_3[client] & SKL_3_Sacrifice) && (buttons & IN_SPEED) && GetEntPropEnt(client, Prop_Send, "m_reviveOwner") <= 0 &&
-			(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1)))
+		if((g_clSkill_3[client] & SKL_3_Sacrifice) && (buttons & IN_SPEED) && GetEntPropEnt(client, Prop_Send, "m_reviveOwner") <= 0 && isDown)
 		{
 			if(g_fSacrificeTime[client] <= 0.0)
 			{
@@ -15535,7 +15560,8 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 				if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge"))
 				{
 					// CheatCommand(client, "give", "health");
-					L4D2_RunScript("GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(client));
+					// L4D2_RunScript("GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(client));
+					L4D_ReviveSurvivor(client);
 				}
 				SetEntProp(client,Prop_Send,"m_iHealth", 1);
 				SetEntPropFloat(client,Prop_Send,"m_healthBuffer", 0.0);
@@ -15813,7 +15839,8 @@ stock RevivePlayer(iTarget)
 	if(GetEntProp(iTarget, Prop_Send, "m_isIncapacitated") || GetEntProp(iTarget, Prop_Send, "m_isHangingFromLedge"))
 	{
 		// CheatCommand(iTarget, "script", "GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(iTarget));
-		L4D2_RunScript("GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(iTarget));
+		// L4D2_RunScript("GetPlayerFromUserID(%d).ReviveFromIncap()", GetClientUserId(iTarget));
+		L4D_ReviveSurvivor(iTarget);
 	}
 }
 

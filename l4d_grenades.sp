@@ -1,6 +1,26 @@
-#define PLUGIN_VERSION 		"1.15"
+/*
+*	Prototype Grenades
+*	Copyright (C) 2021 Silvers
+*
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU General Public License as published by
+*	the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*	GNU General Public License for more details.
+*
+*	You should have received a copy of the GNU General Public License
+*	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
 
-/*====================================================================================================
+
+
+#define PLUGIN_VERSION 		"1.42"
+
+/*======================================================================================
 	Plugin Info:
 
 *	Name	:	[L4D & L4D2] Prototype Grenades
@@ -9,8 +29,119 @@
 *	Link	:	https://forums.alliedmods.net/showthread.php?t=318965
 *	Plugins	:	https://sourcemod.net/plugins.php?exact=exact&sortby=title&search=1&author=Silvers
 
-======================================================================================================
+========================================================================================
 	Change Log:
+
+1.42 (29-Oct-2021)
+	- Changed "Medic" grenade type to allow healing all targets specified, no longer only Survivors. Requested by "Dragokas".
+	- Fixed "Bullets" and "Freezer" types not excluding the tank correctly.
+
+1.41 (29-Sep-2021)
+	- Changed method of creating an explosive to prevent it being visible (still sometimes shows, but probably less).
+
+1.40 (19-Sep-2021)
+	- Fixed users without access to the "sm_grenade" command from having different grenade modes when picking up grenades.
+	- Thanks to "Darkwob" for reporting.
+
+1.39 (25-Jul-2021)
+	- Fixed index errors (replaced using "m_iHammerID" with a variable array). Thanks to "Elite Biker" for reporting.
+	- L4D1: Fixed the "Airstrike" potentially showing in the menu.
+
+1.38 (16-Jun-2021)
+	- Added new grenade type "Weapon" to spawn weapons and items when the grenade explodes.
+	- L4D2 only: Added new grenade type: "Airstrike" to call an Airstrike on the grenade explosion position. Requires the "F-18 Airstrike" plugin.
+	- All translation files updated.
+	- Config file updated.
+	- Requested by "Darkwob"
+
+1.37 (04-Jun-2021)
+	- Now tests if clients have access to the "sm_grenade" command to restrict Prototype Grenades to specific users. Requested by "Darkwob".
+	- Use the "sourcemod/configs/admin_overrides.cfg" to modify the command flags required.
+	- Data config change: "Tesla" and "Black Hole" types no longer create a shake on explosion.
+
+1.36 (10-Apr-2021)
+	- Fixed not resetting gravity from the "Anti-Gravity" type when a client died. Thanks to "Voevoda" for reporting.
+
+1.35 (27-Mar-2021)
+	- L4D1: Fixed client console error about unknowing particle "sparks_generic_random" and "fireworks_sparkshower_01e" when using the "Flak" type.
+	- Added "Flak" type "damage_type" config key value to specify which enemies catch on fire instead of stumble.
+	- Changed "Flak" type damage to Blast instead of burn for Special Infected. Thanks to "sbeve" for reporting.
+	- Data config "data/l4d_grenades.cfg" updated to reflect changes.
+
+1.34 (04-Mar-2021)
+	- Fixed affecting special infected ghosts. Thanks to "Voevoda" for reporting.
+
+1.33 (23-Feb-2021)
+	- Fixed errors caused by the last L4D2 update. Thanks to "sonic155" for reporting.
+
+1.32 (15-Feb-2021)
+	- Fixed healing with full health when players are black and white.
+
+1.31 (30-Sep-2020)
+	- Fixed compile errors on SM 1.11.
+
+1.30a (24-Sep-2020)
+	- Compatibility update for L4D2's "The Last Stand" update.
+	- GameData .txt file updated.
+
+1.30 (20-Sep-2020)
+	- Fixed not working in L4D1 due to various L4D2 specific things not being ignored.
+	- GameData for L4D1 updated to fix "CTerrorPlayer::OnStaggered" not being found when detoured by Left4DHooks.
+
+1.29 (18-Sep-2020)
+	- L4D2 only: Added new config keys "damage_acid_comm", "damage_acid_self", "damage_acid_spec" and "damage_acid_surv".
+	- These control the "Chemical" type acid puddle damage. Thanks to "SilentBr" for requesting.
+	- Data config "data/l4d_grenades.cfg" updated to reflect changes.
+
+1.28 (10-Sep-2020)
+	- Fixed "Glow" type not causing any damage. Thanks to "simvolist777" for reporting.
+
+1.27 (01-Sep-2020)
+	- Fixed "Glow" type not instantly removing on player death. Thanks to "piggies" for reporting.
+
+1.26 (27-Aug-2020)
+	- Fixed "mode_switch" option to block keybind control when using "2" value. Thanks to "Winn" for reporting.
+
+1.25 (15-Jul-2020)
+	- Added more checks to prevent gravity reset error. Thanks to "Voevoda" for reporting.
+
+1.24 (14-May-2020)
+	- Fixed grenade types not detonating on impact due to accidental deletion in 1.23 update.
+	- Replaced some "point_hurt" damage calls with "SDKHooks_TakeDamage" function.
+	- Support for compiling on SourceMod 1.11.
+
+1.23 (10-May-2020)
+	- Added better error log message when gamedata file is missing.
+	- Added random grenade spin when thrown if Left4DHooks is detected.
+	- Extra checks to prevent "IsAllowedGameMode" throwing errors.
+	- Fixed grenades not sticking if enabled, unless they hit a client.
+	- Various changes to tidy up code.
+	- Various optimizations and fixes.
+
+1.22 (01-Apr-2020)
+	- Fixed "IsAllowedGameMode" from throwing errors when the "_tog" cvar was changed before MapStart.
+	- Fixed not precaching "env_shake" which caused stutter on first explosion.
+
+1.21 (03-Mar-2020)
+	- Fixed 2 particles missing from being precached. Thanks to "foxhound27" for reporting.
+
+1.20 (29-Feb-2020)
+	- Fixed conflict with "Detonation Force" plugin. Thanks to "hoanganh81097" for reporting.
+	- This will also fix conflicts with any other plugin detecting when a grenade projectile is destroyed.
+
+1.19 (04-Feb-2020)
+	- Fixed dissolve from "Vaporizer" type potentially causing godmode zombies.
+
+1.18 (03-Feb-2020)
+	- Fixed conflict with "Bile The World" plugin. Thanks to "3aljiyavslgazana" for reporting.
+	- Plugin now compiled with SoureMod 1.10. Recompile yourself or time to upgrade your installation.
+
+1.17 (13-Jan-2020)
+	- Fixed players "semi-falling" when colliding the grenade. Thanks to "Dragokas" for reporting a fix.
+
+1.16 (05-Jan-2020)
+	- Added additional checks to prevent OnWeaponEquip errors. Thanks to "Mr. Man" for reporting.
+	- Added Traditional Chinese translations. Thanks to "fbef0102" for providing.
 
 1.15 (29-Nov-2019)
 	- Added "messages" option in the config to disable hint messages as requested by "BlackSabbarh".
@@ -30,17 +161,17 @@
 1.11 (09-Nov-2019)
 	- Small optimizations.
 	- Fixed breaking equip on round restart.
-	- Fixed Shield type not working. Thanks to "fbef0102" for reporting.
+	- Fixed "Shield" type not working. Thanks to "fbef0102" for reporting.
 
 1.10 (01-Nov-2019)
 	- Changed the way grenade bounce sounds are replaced to prevent plugin conflicts. Thanks to "Lux" for the idea.
 	- Optimizations: Changed string creation to static char for faster CPU cycles. Various string comparison changes.
 	- Now only supports "Gear Transfer" plugin version 2.0 or greater to preserve random grenade type preferences.
 	- Removed 1 frame delay on weapon equip from previous version of supporting "Gear Transfer" plugin.
-	- Fixed "GrenadeMenu_Invalid" PrintToChat not replacing thef colors. Thanks to "BHaType" for reporting.
+	- Fixed "GrenadeMenu_Invalid" PrintToChat not replacing the colors. Thanks to "BHaType" for reporting.
 
 1.9 (23-Oct-2019)
-	- Fixed Freezer mode not preserving special infected render color. Thanks to "Dragokas" for reporting.
+	- Fixed "Freezer" mode not preserving special infected render color. Thanks to "Dragokas" for reporting.
 
 1.8 (23-Oct-2019)
 	- Changed "Bullets" mode projectile sound.
@@ -65,9 +196,9 @@
 	- Changed grenade bounce impact sound.
 	- Cleaned up the sounds by changing some and adding a few missing ones.
 	- Feature to push and stumble Common Infected now works in L4D1.
-	- Fixed wrong Deafen offset for L4D1 Linux. Fixes Flashbang.
+	- Fixed wrong Deafen offset for L4D1 Linux. Fixes "Flashbang".
 	- Fixed wrong OnStaggered signature for Linux L4D1. Fixes staggering clients.
-	- Fixed Freezer type not following the "targets" setting.
+	- Fixed "Freezer" type not following the "targets" setting.
 	- Fixed "damage_tick" to function for most types. Values smaller than "effect_tick" will use the effect tick time.
 	- Thanks to "Dragokas" for the menu ideas and reporting problems in L4D1.
 
@@ -82,7 +213,7 @@
 
 1.3 (10-Oct-2019)
 	- Added support for "Gear Transfer" plugin. For persistent grenade types when "preferences" is set to random grenade mode.
-	- Changed Vaporizer to inflict full damage on Common instead of range scaled. Original functionality before 1.1.
+	- Changed "Vaporizer" to inflict full damage on Common instead of range scaled. Original functionality before 1.1.
 
 1.2 (10-Oct-2019)
 	- Fixed OnWeaponDrop errors. Thanks to "BlackSabbarh" for reporting.
@@ -103,7 +234,7 @@
 1.0 (03-Oct-2019)
 	- Initial release.
 
-======================================================================================================
+========================================================================================
 	Thanks:
 
 	This plugin was made using source code from the following plugins.
@@ -118,7 +249,7 @@
 *	"Zuko & McFlurry" for "[L4D2] Weapon/Zombie Spawner" - Modified SetTeleportEndPoint() function.
 	https://forums.alliedmods.net/showthread.php?t=109659
 
-====================================================================================================*/
+======================================================================================*/
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -127,7 +258,6 @@
 #include <clientprefs>
 #include <sdktools>
 #include <sdkhooks>
-#include <l4d2_simple_combat>
 
 
 
@@ -149,6 +279,7 @@ bool	bLMC_Available;
 #define CVAR_FLAGS				FCVAR_NOTIFY
 #define CONFIG_DATA				"data/l4d_grenades.cfg"
 #define GAMEDATA				"l4d_grenades"
+#define GLOW_COLOR				38655 // Glow Mode color: GetColor("255 150 0");
 
 
 
@@ -181,7 +312,6 @@ bool	bLMC_Available;
 #define PARTICLE_PIPE1			"weapon_pipebomb" // Explosion
 #define PARTICLE_PIPE2			"weapon_pipebomb_child_fire" // Medium blast
 #define PARTICLE_PIPE3			"weapon_pipebomb_water_child_flash" // Flash
-#define PARTICLE_SHORT			"impact_steam_short" // Medium water impact, points in 1 direction
 #define PARTICLE_CHARGE			"charger_wall_impact_b"
 #define PARTICLE_FLARE			"flare_burning"
 #define PARTICLE_SPIT_T			"spitter_projectile_trail_old"
@@ -196,6 +326,7 @@ bool	bLMC_Available;
 #define PARTICLE_TES7			"railroad_wheel_sparks"
 #define PARTICLE_GSPARKS		"sparks_generic_random"
 #define PARTICLE_SPARKS			"fireworks_sparkshower_01e"
+#define PARTICLE_FIREWORK		"mini_fireworks"
 
 #define SOUND_SHOOTING			"weapons/flash/flash01.wav"
 #define SOUND_EXPLODE3			"weapons/hegrenade/explode3.wav"
@@ -218,6 +349,7 @@ bool	bLMC_Available;
 #define SOUND_SPLASH1			"ambient/water/water_splash1.wav"
 #define SOUND_SPLASH2			"ambient/water/water_splash2.wav"
 #define SOUND_SPLASH3			"ambient/water/water_splash3.wav"
+#define SOUND_GIFT				"items/suitchargeok1.wav"
 
 #define SPRITE_BEAM				"materials/sprites/laserbeam.vmt"
 #define SPRITE_HALO				"materials/sprites/glow01.vmt"
@@ -266,12 +398,121 @@ static const char g_sSoundsMissing[][]	=
 	"player/survivor/voice/gambler/grenade12.wav"
 };
 
+// Weapons
+#define	MAX_WEAPONS			10
+#define	MAX_WEAPONS2		29
+#define	MAX_MELEE			13
+
+static char g_sWeapons[MAX_WEAPONS][] =
+{
+	"weapon_rifle",
+	"weapon_autoshotgun",
+	"weapon_hunting_rifle",
+	"weapon_smg",
+	"weapon_pumpshotgun",
+	"weapon_pistol",
+	"weapon_molotov",
+	"weapon_pipe_bomb",
+	"weapon_first_aid_kit",
+	"weapon_pain_pills"
+};
+static char g_sWeaponModels[MAX_WEAPONS][] =
+{
+	"models/w_models/weapons/w_rifle_m16a2.mdl",
+	"models/w_models/weapons/w_autoshot_m4super.mdl",
+	"models/w_models/weapons/w_sniper_mini14.mdl",
+	"models/w_models/weapons/w_smg_uzi.mdl",
+	"models/w_models/weapons/w_pumpshotgun_A.mdl",
+	"models/w_models/weapons/w_pistol_a.mdl",
+	"models/w_models/weapons/w_eq_molotov.mdl",
+	"models/w_models/weapons/w_eq_pipebomb.mdl",
+	"models/w_models/weapons/w_eq_medkit.mdl",
+	"models/w_models/weapons/w_eq_painpills.mdl"
+};
+static char g_sWeapons2[MAX_WEAPONS2 + MAX_MELEE][] =
+{
+	"weapon_rifle",
+	"weapon_autoshotgun",
+	"weapon_hunting_rifle",
+	"weapon_smg",
+	"weapon_pumpshotgun",
+	"weapon_shotgun_chrome",
+	"weapon_rifle_desert",
+	"weapon_grenade_launcher",
+	"weapon_rifle_m60",
+	"weapon_rifle_ak47",
+	"weapon_shotgun_spas",
+	"weapon_smg_silenced",
+	"weapon_sniper_military",
+	"weapon_chainsaw",
+	"weapon_rifle_sg552",
+	"weapon_smg_mp5",
+	"weapon_sniper_awp",
+	"weapon_sniper_scout",
+	"weapon_pistol",
+	"weapon_pistol_magnum",
+	"weapon_molotov",
+	"weapon_pipe_bomb",
+	"weapon_vomitjar",
+	"weapon_first_aid_kit",
+	"weapon_defibrillator",
+	"weapon_pain_pills",
+	"weapon_adrenaline",
+	"weapon_upgradepack_explosive",
+	"weapon_upgradepack_incendiary",
+	"fireaxe",
+	"baseball_bat",
+	"cricket_bat",
+	"crowbar",
+	"frying_pan",
+	"golfclub",
+	"electric_guitar",
+	"katana",
+	"machete",
+	"tonfa",
+	"knife",
+	"pitchfork",
+	"shovel"
+};
+static char g_sWeaponModels2[MAX_WEAPONS2][] =
+{
+	"models/w_models/weapons/w_rifle_m16a2.mdl",
+	"models/w_models/weapons/w_autoshot_m4super.mdl",
+	"models/w_models/weapons/w_sniper_mini14.mdl",
+	"models/w_models/weapons/w_smg_uzi.mdl",
+	"models/w_models/weapons/w_pumpshotgun_A.mdl",
+	"models/w_models/weapons/w_shotgun.mdl",
+	"models/w_models/weapons/w_desert_rifle.mdl",
+	"models/w_models/weapons/w_grenade_launcher.mdl",
+	"models/w_models/weapons/w_m60.mdl",
+	"models/w_models/weapons/w_rifle_ak47.mdl",
+	"models/w_models/weapons/w_shotgun_spas.mdl",
+	"models/w_models/weapons/w_smg_a.mdl",
+	"models/w_models/weapons/w_sniper_military.mdl",
+	"models/weapons/melee/w_chainsaw.mdl",
+	"models/w_models/weapons/w_rifle_sg552.mdl",
+	"models/w_models/weapons/w_smg_mp5.mdl",
+	"models/w_models/weapons/w_sniper_awp.mdl",
+	"models/w_models/weapons/w_sniper_scout.mdl",
+	"models/w_models/weapons/w_pistol_a.mdl",
+	"models/w_models/weapons/w_desert_eagle.mdl",
+	"models/w_models/weapons/w_eq_molotov.mdl",
+	"models/w_models/weapons/w_eq_pipebomb.mdl",
+	"models/w_models/weapons/w_eq_bile_flask.mdl",
+	"models/w_models/weapons/w_eq_medkit.mdl",
+	"models/w_models/weapons/w_eq_defibrillator.mdl",
+	"models/w_models/weapons/w_eq_painpills.mdl",
+	"models/w_models/weapons/w_eq_adrenaline.mdl",
+	"models/w_models/weapons/w_eq_explosive_ammopack.mdl",
+	"models/w_models/weapons/w_eq_incendiary_ammopack.mdl"
+};
+
 
 
 // ARRAYS etc
 #define MAX_ENTS			2048									// Max ents
 #define MAX_DATA			16										// Total data entries to read from a grenades config.
-#define MAX_TYPES			18										// Number of grenade types.
+#define MAX_TYPES			20										// Number of grenade types.
 #define MAX_WAIT			0.2										// Delay between +USE mode changes.
 #define BEAM_OFFSET			100.0									// Increase beam diameter by this value to correct visual size.
 #define BEAM_RINGS			5										// Number of beam rings.
@@ -288,7 +529,13 @@ int		g_iClientGrenadePref[MAXPLAYERS+1][3];						// Client cookie preferences - 
 float	g_GrenadeData[MAX_TYPES][MAX_DATA];							// Config data for all grenade modes.
 int		g_GrenadeSlot[MAX_TYPES][2];								// [0]=L4D2, [1]=L4D1. Which grenade slot the grenade mode uses.
 int		g_GrenadeTarg[MAX_TYPES];									// Who the grenade affects.
+int		g_GrenadeType[2048];										// The type of grenade selected.
 int		g_BeamSprite, g_HaloSprite;									// Beam Rings
+float	g_fConfigAcidComm;											// Chemical Mode - Acid damage - Common
+float	g_fConfigAcidSelf;											// Chemical Mode - Acid damage - Self
+float	g_fConfigAcidSpec;											// Chemical Mode - Acid damage - Special Infected
+float	g_fConfigAcidSurv;											// Chemical Mode - Acid damage - Survivors
+int		g_iConfigDmgType;											// Damage type. Only used for Flak type.
 int		g_iConfigBots;												// Can bots use Prototype Grenades
 int		g_iConfigStock;												// Which grenades have their default feature.
 int		g_iConfigTypes;												// Which grenade modes are allowed.
@@ -307,13 +554,31 @@ int		g_iParticleBashed;
 UserMsg	g_FadeUserMsgId;
 
 
-// VARS
-Handle sdkDissolveCreate, sdkActivateSpit, sdkStaggerClient, sdkDeafenClient;
-ConVar g_hCvarAllow, g_hDecayDecay, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog;
-bool g_bCvarAllow, g_bLeft4Dead2, g_bLateLoad, g_bHookFire, g_bBlockHook, g_bBlockSound;
-Handle g_hCookie;
 
-enum ()
+// Optional native from Left4DHooks
+native int L4D_AngularVelocity(int entity, const float vecAng[3]);
+bool g_bLeft4DHooks, g_bAirstrike, g_bAirstrikeValid;
+
+// Optional native from L4D2 Airstrike
+native void F18_ShowAirstrike(float origin[3], float direction);
+
+
+
+// VARS - Weapons
+ConVar g_hAmmoAutoShot, g_hAmmoChainsaw, g_hAmmoGL, g_hAmmoHunting, g_hAmmoM60, g_hAmmoRifle, g_hAmmoShotgun, g_hAmmoSmg, g_hAmmoSniper;
+int g_iAmmoAutoShot, g_iAmmoChainsaw, g_iAmmoGL, g_iAmmoHunting, g_iAmmoM60, g_iAmmoRifle, g_iAmmoShotgun, g_iAmmoSmg, g_iAmmoSniper;
+int g_iTotalChance, g_iChances[MAX_WEAPONS2 + MAX_MELEE];
+
+// VARS
+Handle g_hSDK_DissolveCreate, g_hSDK_ActivateSpit, g_hSDK_StaggerClient, g_hSDK_DeafenClient;
+ConVar g_hCvarAllow, g_hDecayDecay, g_hCvarMPGameMode, g_hCvarModes, g_hCvarModesOff, g_hCvarModesTog;
+bool g_bCvarAllow, g_bMapStarted, g_bLeft4Dead2, g_bLateLoad, g_bHookFire, g_bBlockHook, g_bBlockSound;
+int g_iClassTank, m_maxHealth;
+Handle g_hCookie;
+ArrayList g_hAlAcid;
+bool g_bAcidSpawn;
+
+enum
 {
 	INDEX_BOMB = 0,
 	INDEX_CLUSTER,
@@ -332,10 +597,12 @@ enum ()
 	INDEX_ANTIGRAVITY,
 	INDEX_FIRECLUSTER,
 	INDEX_BULLETS,
-	INDEX_FLAK
+	INDEX_FLAK,
+	INDEX_AIRSTRIKE,
+	INDEX_WEAPON
 }
 
-enum ()
+enum
 {
 	CONFIG_ELASTICITY = 0,
 	CONFIG_GRAVITY,
@@ -355,7 +622,7 @@ enum ()
 	CONFIG_TIME
 }
 
-enum ()
+enum
 {
 	TARGET_COMMON = 0,
 	TARGET_SURVIVOR,
@@ -372,7 +639,7 @@ enum ()
 // ====================================================================================================
 public Plugin myinfo =
 {
-	name = "原型手雷",
+	name = "形态手雷",
 	author = "SilverShot",
 	description = "Creates a selection of different grenade types.",
 	version = PLUGIN_VERSION,
@@ -389,28 +656,54 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 		strcopy(error, err_max, "Plugin only supports Left 4 Dead 1 & 2.");
 		return APLRes_SilentFailure;
 	}
+	
+	RegPluginLibrary("prototype_grenades_includes");
+	CreateNative("PrototypeGrenade_SetAllowedClient", Native_SetAllowedClient);
 
 	MarkNativeAsOptional("LMC_GetEntityOverlayModel"); // LMC
+	MarkNativeAsOptional("L4D_AngularVelocity");
+	MarkNativeAsOptional("F18_ShowAirstrike");
 
 	g_bLateLoad = late;
 	return APLRes_Success;
 }
 
-public void OnAllPluginsLoaded()
+bool g_bAllowedClient[MAXPLAYERS+1];
+
+public any Native_SetAllowedClient(Handle plugin, int argc)
 {
-	bLMC_Available = LibraryExists("LMCEDeathHandler");
+	int client = GetNativeCell(1);
+	if(client < 1 || client > MaxClients || !IsClientInGame(client))
+		return false;
+	
+	g_bAllowedClient[client] = view_as<bool>(GetNativeCell(2));
+	return true;
 }
 
 public void OnLibraryAdded(const char[] sName)
 {
-	if(StrEqual(sName, "LMCEDeathHandler"))
+	if( strcmp(sName, "LMCEDeathHandler") == 0 )
 		bLMC_Available = true;
+	else if( strcmp(sName, "left4dhooks") == 0 )
+		g_bLeft4DHooks = true;
+	else if( g_bLeft4Dead2 && strcmp(sName, "l4d2_airstrike") == 0 )
+	{
+		g_bAirstrike = true;
+
+		// Assuming valid for late load
+		if( g_bLateLoad )
+			g_bAirstrikeValid = true;
+	}
 }
 
 public void OnLibraryRemoved(const char[] sName)
 {
-	if(StrEqual(sName, "LMCEDeathHandler"))
+	if( strcmp(sName, "LMCEDeathHandler") == 0 )
 		bLMC_Available = false;
+	else if( strcmp(sName, "left4dhooks") == 0 )
+		g_bLeft4DHooks = false;
+	else if( g_bLeft4Dead2 && strcmp(sName, "l4d2_airstrike") == 0 )
+		g_bAirstrike = true;
 }
 
 public void OnPluginStart()
@@ -418,23 +711,27 @@ public void OnPluginStart()
 	// ====================================================================================================
 	// GAMEDATA
 	// ====================================================================================================
-	Handle hGamedata = LoadGameConfigFile(GAMEDATA);
-	if( hGamedata == null ) SetFailState("Failed to load \"%s.txt\" gamedata.", GAMEDATA);
+	char sPath[PLATFORM_MAX_PATH];
+	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", GAMEDATA);
+	if( FileExists(sPath) == false ) SetFailState("\n==========\nMissing required file: \"%s\".\nRead installation instructions again.\n==========", sPath);
+
+	Handle hGameData = LoadGameConfigFile(GAMEDATA);
+	if( hGameData == null ) SetFailState("Failed to load \"%s.txt\" gamedata.", GAMEDATA);
 
 	// Deafen
 	StartPrepSDKCall(SDKCall_Player);
-	if( PrepSDKCall_SetFromConf(hGamedata, SDKConf_Virtual, "CTerrorPlayer::Deafen") == false )
+	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Virtual, "CTerrorPlayer::Deafen") == false )
 		SetFailState("Failed to find signature: CTerrorPlayer::Deafen");
 	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
-	sdkDeafenClient = EndPrepSDKCall();
-	if( sdkDeafenClient == null )
+	g_hSDK_DeafenClient = EndPrepSDKCall();
+	if( g_hSDK_DeafenClient == null )
 		SetFailState("Failed to create SDKCall: CTerrorPlayer::Deafen");
 
 	// Dissolve
 	StartPrepSDKCall(SDKCall_Static);
-	if( PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CEntityDissolve_Create") == false )
+	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CEntityDissolve_Create") == false )
 		SetFailState("Could not load the \"CEntityDissolve_Create\" gamedata signature.");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 	PrepSDKCall_AddParameter(SDKType_String, SDKPass_Pointer);
@@ -442,25 +739,25 @@ public void OnPluginStart()
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
 	PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-	sdkDissolveCreate = EndPrepSDKCall();
-	if( sdkDissolveCreate == null )
+	g_hSDK_DissolveCreate = EndPrepSDKCall();
+	if( g_hSDK_DissolveCreate == null )
 		SetFailState("Could not prep the \"CEntityDissolve_Create\" function.");
 
 	// Stagger
 	StartPrepSDKCall(SDKCall_Player);
-	if( PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CTerrorPlayer::OnStaggered") == false )
+	if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorPlayer::OnStaggered") == false )
 		SetFailState("Could not load the 'CTerrorPlayer::OnStaggered' gamedata signature.");
 	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
 	PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_Pointer);
-	sdkStaggerClient = EndPrepSDKCall();
-	if( sdkStaggerClient == null )
+	g_hSDK_StaggerClient = EndPrepSDKCall();
+	if( g_hSDK_StaggerClient == null )
 		SetFailState("Could not prep the 'CTerrorPlayer::OnStaggered' function.");
 
 	// Spitter Projectile
 	if( g_bLeft4Dead2 )
 	{
 		StartPrepSDKCall(SDKCall_Static);
-		if( PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CSpitterProjectile_Create") == false )
+		if( PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CSpitterProjectile_Create") == false )
 			SetFailState("Could not load the \"CSpitterProjectile_Create\" gamedata signature.");
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
@@ -468,12 +765,12 @@ public void OnPluginStart()
 		PrepSDKCall_AddParameter(SDKType_Vector, SDKPass_ByRef);
 		PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
 		PrepSDKCall_SetReturnInfo(SDKType_CBaseEntity, SDKPass_Pointer);
-		sdkActivateSpit = EndPrepSDKCall();
-		if( sdkActivateSpit == null )
+		g_hSDK_ActivateSpit = EndPrepSDKCall();
+		if( g_hSDK_ActivateSpit == null )
 			SetFailState("Could not prep the \"CSpitterProjectile_Create\" function.");
 	}
 
-	delete hGamedata;
+	delete hGameData;
 
 
 
@@ -484,7 +781,7 @@ public void OnPluginStart()
 	g_hCvarModes = CreateConVar(	"l4d_grenades_modes",			"",						"Turn on the plugin in these game modes, separate by commas (no spaces). (Empty = all).", CVAR_FLAGS );
 	g_hCvarModesOff = CreateConVar(	"l4d_grenades_modes_off",		"",						"Turn off the plugin in these game modes, separate by commas (no spaces). (Empty = none).", CVAR_FLAGS );
 	g_hCvarModesTog = CreateConVar(	"l4d_grenades_modes_tog",		"0",					"Turn on the plugin in these game modes. 0=All, 1=Coop, 2=Survival, 4=Versus, 8=Scavenge. Add numbers together.", CVAR_FLAGS );
-	CreateConVar(					"l4d_grenades_version",			PLUGIN_VERSION,			"Prototype Grenades plugin version.", CVAR_FLAGS|FCVAR_DONTRECORD);
+	CreateConVar(					"l4d_grenades_version",			PLUGIN_VERSION,			"Prototype Grenades plugin version.", FCVAR_NOTIFY|FCVAR_DONTRECORD);
 	AutoExecConfig(true,			"l4d_grenades");
 
 	g_hDecayDecay = FindConVar("pain_pills_decay_rate");
@@ -495,15 +792,44 @@ public void OnPluginStart()
 	g_hCvarModesOff.AddChangeHook(ConVarChanged_Allow);
 	g_hCvarAllow.AddChangeHook(ConVarChanged_Allow);
 
+	// Weapons
+	g_hAmmoRifle =			FindConVar("ammo_assaultrifle_max");
+	g_hAmmoSmg =			FindConVar("ammo_smg_max");
+	g_hAmmoHunting =		FindConVar("ammo_huntingrifle_max");
+
+	g_hAmmoRifle.AddChangeHook(ConVarChanged_Cvars);
+	g_hAmmoSmg.AddChangeHook(ConVarChanged_Cvars);
+	g_hAmmoHunting.AddChangeHook(ConVarChanged_Cvars);
+
+	if( g_bLeft4Dead2 )
+	{
+		g_hAmmoShotgun =	FindConVar("ammo_shotgun_max");
+		g_hAmmoGL =			FindConVar("ammo_grenadelauncher_max");
+		g_hAmmoChainsaw =	FindConVar("ammo_chainsaw_max");
+		g_hAmmoAutoShot =	FindConVar("ammo_autoshotgun_max");
+		g_hAmmoM60 =		FindConVar("ammo_m60_max");
+		g_hAmmoSniper =		FindConVar("ammo_sniperrifle_max");
+
+		g_hAmmoGL.AddChangeHook(ConVarChanged_Cvars);
+		g_hAmmoChainsaw.AddChangeHook(ConVarChanged_Cvars);
+		g_hAmmoAutoShot.AddChangeHook(ConVarChanged_Cvars);
+		g_hAmmoM60.AddChangeHook(ConVarChanged_Cvars);
+		g_hAmmoSniper.AddChangeHook(ConVarChanged_Cvars);
+	} else {
+		g_hAmmoShotgun =	FindConVar("ammo_buckshot_max");
+	}
+
+	g_hAmmoShotgun.AddChangeHook(ConVarChanged_Cvars);
+
 
 
 	// ====================================================================================================
 	// COMMANDS
 	// ====================================================================================================
-	RegConsoleCmd("sm_grenade",			Cmd_Grenade, 	"Opens a menu to choose the current grenades mode. Force change with args, usage: sm_grenade [type: 1 - 18]");
+	RegConsoleCmd("sm_grenade",			Cmd_Grenade, 	"Opens a menu to choose the current grenades mode. Force change with args, usage: sm_grenade [type: 1 - 20]");
 	RegAdminCmd("sm_grenade_reload",	Cmd_Reload,		ADMFLAG_ROOT, "Reloads the settings config.");
-	RegAdminCmd("sm_grenade_spawn",		Cmd_SpawnSpawn,	ADMFLAG_ROOT, "Spawn grenade explosions: <type: 1 - 18>");
-	RegAdminCmd("sm_grenade_throw",		Cmd_SpawnThrow,	ADMFLAG_ROOT, "Spawn grenade projectile: <type: 1 - 18>");
+	RegAdminCmd("sm_grenade_spawn",		Cmd_SpawnSpawn,	ADMFLAG_ROOT, "Spawn grenade explosions: <type: 1 - 20>");
+	RegAdminCmd("sm_grenade_throw",		Cmd_SpawnThrow,	ADMFLAG_ROOT, "Spawn grenade projectile: <type: 1 - 20>");
 
 
 
@@ -511,7 +837,6 @@ public void OnPluginStart()
 	// OTHER
 	// ====================================================================================================
 	// Translations
-	char sPath[PLATFORM_MAX_PATH];
 	BuildPath(Path_SM, sPath, sizeof(sPath), "translations/grenades.phrases.txt");
 	if( !FileExists(sPath) )
 		SetFailState("Required translation file is missing: 'translations/grenades.phrases.txt'");
@@ -522,6 +847,11 @@ public void OnPluginStart()
 
 	// Saved client options
 	g_hCookie = RegClientCookie("l4d_grenades_modes", "Prototype Grenades - Modes", CookieAccess_Protected);
+
+
+
+	// Max char health
+	m_maxHealth = FindSendPropInfo("CTerrorPlayerResource", "m_maxHealth");
 
 
 
@@ -536,8 +866,11 @@ public void OnPluginStart()
 		LoadDataConfig();
 		IsAllowed();
 	}
-	
-	CreateTimer(1.0, Timer_Register);
+
+	g_iClassTank = g_bLeft4Dead2 ? 8 : 5;
+
+	if( g_bLeft4Dead2 )
+		g_hAlAcid = new ArrayList();
 }
 
 public void OnPluginEnd()
@@ -545,78 +878,18 @@ public void OnPluginEnd()
 	ResetPlugin(true);
 }
 
-public Action Timer_Register(Handle timer, any unused)
-{
-	// 1=Bomb, 2=Cluster, 3=Firework, 4=Smoke, 5=Black Hole
-	// 6=Flashbang, 7=Shield, 8=Tesla, 9=Chemical, 10=Freeze
-	// 11=Medic, 12=Vaporizer, 13=Extinguisher, 14=Glow, 15=Anti-Gravity
-	// 16=Fire Cluster, 17=Bullets, 18=Flak
-	SC_CreateSpell("ss_pg_bomb", "高爆弹", 10, 200, "爆炸");
-	SC_CreateSpell("ss_pg_cluster", "分裂弹", 10, 200, "散布多个小型炸弹");
-	SC_CreateSpell("ss_pg_firework", "烟花弹", 10, 200, "烟花盒爆炸效果");
-	SC_CreateSpell("ss_pg_smoke", "烟雾弹", 10, 200, "在范围内遮挡视线（对 bot 没什么卵用）");
-	SC_CreateSpell("ss_pg_hole", "引力弹", 10, 200, "将范围内的目标吸到中心");
-	SC_CreateSpell("ss_pg_flashbang", "震撼弹", 10, 200, "令范围内的目标耳鸣");
-	SC_CreateSpell("ss_pg_shield", "护卫弹", 10, 200, "在范围内的生还者受到伤害降低");
-	SC_CreateSpell("ss_pg_tesla", "电击弹", 10, 200, "电击范围内的目标");
-	SC_CreateSpell("ss_pg_chemical", "酸液弹", 10, 200, "创建一滩酸液腐蚀目标");
-	SC_CreateSpell("ss_pg_freeze", "冷冻弹", 10, 200, "冻结范围内的敌人");
-	SC_CreateSpell("ss_pg_medic", "治疗弹", 10, 200, "在范围内恢复生命");
-	SC_CreateSpell("ss_pg_vaporizer", "溶解弹", 10, 200, "溶解范围内的目标");
-	SC_CreateSpell("ss_pg_extinguisher", "灭火弹", 10, 200, "扑灭范围内的火焰");
-	SC_CreateSpell("ss_pg_glow", "标记弹", 10, 200, "给范围内的目标加上光圈");
-	SC_CreateSpell("ss_pg_gravity", "抛射弹", 10, 200, "将范围内的目标抛起来");
-	SC_CreateSpell("ss_pg_fire", "分裂燃烧弹", 10, 200, "散布多个小型燃烧弹");
-	SC_CreateSpell("ss_pg_bullets", "破片弹", 10, 200, "散布多个破片以伤害范围内的目标");
-	SC_CreateSpell("ss_pg_flask", "火花弹", 10, 200, "喷射火花点燃附近目标");
-	return Plugin_Continue;
-}
 
-public void SC_OnUseSpellPost(int client, const char[] classname)
-{
-	char bombType[18][32] = {
-		"ss_pg_bomb",
-		"ss_pg_cluster",
-		"ss_pg_firework",
-		"ss_pg_smoke",
-		"ss_pg_hole",
-		"ss_pg_flashbang",
-		"ss_pg_shield",
-		"ss_pg_tesla",
-		"ss_pg_chemical",
-		"ss_pg_freeze",
-		"ss_pg_medic",
-		"ss_pg_vaporizer",
-		"ss_pg_extinguisher",
-		"ss_pg_glow",
-		"ss_pg_gravity",
-		"ss_pg_fire",
-		"ss_pg_bullets",
-		"ss_pg_flask"
-	};
-	
-	for(int i = 0; i < 18; ++i)
-	{
-		if(StrEqual(classname, bombType[i]))
-		{
-			CreateGrenadeProjectile(client, i + 1, true);
-			break;
-		}
-	}
-}
 
 // ====================================================================================================
 //					CLIENT PREFS
 // ====================================================================================================
 public void OnClientPutInServer(int client)
 {
-	/*
 	if( g_bCvarAllow )
 	{
 		SDKHook(client, SDKHook_WeaponEquip,	OnWeaponEquip);
 		SDKHook(client, SDKHook_WeaponDrop,		OnWeaponDrop);
 	}
-	*/
 }
 
 public void OnClientCookiesCached(int client)
@@ -636,7 +909,7 @@ public void OnClientCookiesCached(int client)
 
 		if( strlen(sCookie) >= 5 )
 		{
-			ExplodeString(sCookie, ",", sChars, sizeof sChars, sizeof sChars[]);
+			ExplodeString(sCookie, ",", sChars, sizeof(sChars), sizeof(sChars[]));
 		} else {
 			sChars[0] = "0";
 			sChars[1] = "0";
@@ -667,7 +940,7 @@ void SetClientPrefs(int client)
 	if( !IsFakeClient(client) )
 	{
 		static char sCookie[10];
-		Format(sCookie, sizeof sCookie, "%d,%d,%d", g_iClientGrenadePref[client][0], g_iClientGrenadePref[client][1], g_iClientGrenadePref[client][2]);
+		Format(sCookie, sizeof(sCookie), "%d,%d,%d", g_iClientGrenadePref[client][0], g_iClientGrenadePref[client][1], g_iClientGrenadePref[client][2]);
 		SetClientCookie(client, g_hCookie, sCookie);
 	}
 }
@@ -680,7 +953,10 @@ void SetClientPrefs(int client)
 public Action Cmd_Reload(int client, int args)
 {
 	LoadDataConfig();
-	PrintToChat(client, "\x04[\x05Grenade\x04] Reloaded config");
+	if( client )
+		PrintToChat(client, "\x04[\x05Grenade\x04] Reloaded config");
+	else
+		ReplyToCommand(client, "[Grenade] Reloaded config");
 	return Plugin_Handled;
 }
 
@@ -701,44 +977,33 @@ void DoSpawnCommand(int client, int args, bool projectile)
 	// Validate
 	if( !client )
 	{
-		ReplyToCommand(client, "Command can only be used in game.");
+		ReplyToCommand(client, "Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return;
 	}
 
 	if( args != 1 )
 	{
-		ReplyToCommand(client, "Usage: sm_grenade_%s <1=Bomb, 2=Cluster, 3=Firework, 4=Smoke, 5=Black Hole, 6=Flashbang, 7=Shield, 8=Tesla, 9=Chemical, 10=Freeze, 11=Medic, 12=Vaporizer, 13=Extinguisher, 14=Glow, 15=Anti-Gravity, 16=Fire Cluster, 17=Bullets, 18=Flak>", projectile ? "throw" : "spawn");
+		ReplyToCommand(client, "Usage: sm_grenade_%s <1=Bomb, 2=Cluster, 3=Firework, 4=Smoke, 5=Black Hole, 6=Flashbang, 7=Shield, 8=Tesla, 9=Chemical, 10=Freeze, 11=Medic, 12=Vaporizer, 13=Extinguisher, 14=Glow, 15=Anti-Gravity, 16=Fire Cluster, 17=Bullets, 18=Flak, 19=Airstrike, 20=Weapon>", projectile ? "throw" : "spawn");
 		return;
 	}
 
 	// Index
 	char sTemp[4];
-	GetCmdArg(1, sTemp, sizeof sTemp);
+	GetCmdArg(1, sTemp, sizeof(sTemp));
 	int index = StringToInt(sTemp);
 
 	if( index < 1 || index > MAX_TYPES )
 	{
-		ReplyToCommand(client, "Usage: sm_grenade_%s <1=Bomb, 2=Cluster, 3=Firework, 4=Smoke, 5=Black Hole, 6=Flashbang, 7=Shield, 8=Tesla, 9=Chemical, 10=Freeze, 11=Medic, 12=Vaporizer, 13=Extinguisher, 14=Glow, 15=Anti-Gravity, 16=Fire Cluster, 17=Bullets, 18=Flak>", projectile ? "throw" : "spawn");
+		ReplyToCommand(client, "Usage: sm_grenade_%s <1=Bomb, 2=Cluster, 3=Firework, 4=Smoke, 5=Black Hole, 6=Flashbang, 7=Shield, 8=Tesla, 9=Chemical, 10=Freeze, 11=Medic, 12=Vaporizer, 13=Extinguisher, 14=Glow, 15=Anti-Gravity, 16=Fire Cluster, 17=Bullets, 18=Flak, 19=Airstrike, 20=Weapon>", projectile ? "throw" : "spawn");
 		return;
 	}
 
 	// Create
-	int entity = CreateGrenadeProjectile(client, index, projectile);
-	if(entity != -1)
-	{
-		char translation[256];
-		Format(translation, sizeof translation, "GrenadeMod_Title_%d", index);
-		PrintToChat(client, "\x04[\x05Grenade\x04] \x05Created: \x04%T", translation, client);
-	}
-}
-
-int CreateGrenadeProjectile(int client, int index, bool projectile)
-{
 	int entity = CreateEntityByName("pipe_bomb_projectile");
 	if( entity != -1 )
 	{
 		SetEntityModel(entity, MODEL_SPRAYCAN);
-		SetEntProp(entity, Prop_Data, "m_iHammerID", index);		// Store mode type
+		g_GrenadeType[entity] = index;								// Store mode type
 		SetEntPropEnt(entity, Prop_Send, "m_hThrower", client);		// Store owner
 		SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", client);	// Store owner
 		SetEntPropVector(entity, Prop_Send, "m_vInitialVelocity", view_as<float>({ 0.0, 0.0, 1.0 }));
@@ -768,8 +1033,11 @@ int CreateGrenadeProjectile(int client, int index, bool projectile)
 			TeleportEntity(entity, vPos, NULL_VECTOR, NULL_VECTOR);
 		}
 		DispatchSpawn(entity);
+
+		static char translation[256];
+		Format(translation, sizeof(translation), "GrenadeMod_Title_%d", index);
+		PrintToChat(client, "\x04[\x05Grenade\x04] \x05Created: \x04%T", translation, client);
 	}
-	return entity;
 }
 
 
@@ -781,12 +1049,12 @@ public Action Cmd_Grenade(int client, int args)
 {
 	if( !client )
 	{
-		ReplyToCommand(client, "Command can only be used in game.");
+		ReplyToCommand(client, "Command can only be used %s", IsDedicatedServer() ? "in game on a dedicated server." : "in chat on a Listen server.");
 		return Plugin_Handled;
 	}
 
 	// If grenade mode not allowed to change
-	if( g_bCvarAllow == false || g_iConfigPrefs == 3 )
+	if( g_bCvarAllow == false || g_iConfigPrefs == 3 || !g_bAllowedClient[client] || CheckCommandAccess(client, "sm_grenade", 0) == false )
 	{
 		return Plugin_Handled;
 	}
@@ -803,7 +1071,7 @@ public Action Cmd_Grenade(int client, int args)
 			if( type )
 			{
 				char temp[4];
-				GetCmdArg(1, temp, sizeof temp);
+				GetCmdArg(1, temp, sizeof(temp));
 				int index = StringToInt(temp);
 
 				// Validate index
@@ -814,9 +1082,9 @@ public Action Cmd_Grenade(int client, int args)
 					index = g_iClientGrenadeType[client];
 
 					static char translation[256];
-					Format(translation, sizeof translation, "GrenadeMod_Title_%d", index);
-					Format(translation, sizeof translation, "%T %T", "GrenadeMod_Mode", client, translation, client);
-					ReplaceColors(translation, sizeof translation);
+					Format(translation, sizeof(translation), "GrenadeMod_Title_%d", index);
+					Format(translation, sizeof(translation), "%T %T", "GrenadeMod_Mode", client, translation, client);
+					ReplaceColors(translation, sizeof(translation));
 					PrintToChat(client, translation);
 				}
 			}
@@ -861,10 +1129,14 @@ void ShowGrenadeMenu(int client)
 						ins = true;
 					}
 				} else {
-					if( g_GrenadeSlot[i][!g_bLeft4Dead2] & (1<<type - 1) && g_iConfigTypes & (1<<i) )
+					if( g_GrenadeSlot[i][view_as<int>(!g_bLeft4Dead2)] & (1<<type - 1) && g_iConfigTypes & (1<<i) )
 					{
-						ins = true;
-						index = i + 1;
+						// Airstrike
+						if( i != INDEX_AIRSTRIKE || (g_bLeft4Dead2 && g_bAirstrike && g_bAirstrikeValid) )
+						{
+							ins = true;
+							index = i + 1;
+						}
 					}
 				}
 
@@ -875,9 +1147,9 @@ void ShowGrenadeMenu(int client)
 						selected = count;
 					count++;
 
-					IntToString(index, temp, sizeof temp);
-					Format(text, sizeof text, "GrenadeMod_Title_%d", index);
-					Format(text, sizeof text, "%s%T", index == g_iClientGrenadeType[client] ? "(*) " : "", text, client); // Mark selected
+					Format(text, sizeof(text), "GrenadeMod_Title_%d", index);
+					Format(text, sizeof(text), "%s%T", index == g_iClientGrenadeType[client] ? "(*) " : "", text, client); // Mark selected
+					IntToString(index, temp, sizeof(temp));
 					menu.AddItem(temp, text);
 				}
 			}
@@ -890,8 +1162,8 @@ void ShowGrenadeMenu(int client)
 	}
 
 	static char translation[256];
-	Format(translation, sizeof translation, "%T", "GrenadeMenu_Invalid", client);
-	ReplaceColors(translation, sizeof translation);
+	Format(translation, sizeof(translation), "%T", "GrenadeMenu_Invalid", client);
+	ReplaceColors(translation, sizeof(translation));
 	PrintToChat(client, translation);
 }
 
@@ -919,20 +1191,20 @@ public int Menu_Grenade(Menu menu, MenuAction action, int client, int index)
 					g_iClientGrenadeType[client] = index - 1; // Iterate to valid index.
 					GetGrenadeIndex(client, type);
 					index = g_iClientGrenadeType[client];
-					SetEntProp(iWeapon, Prop_Data, "m_iHammerID", index + 1);
+					g_GrenadeType[iWeapon] = index + 1;
 
 					// Print
-					Format(translation, sizeof translation, "GrenadeMod_Title_%d", index);
-					Format(translation, sizeof translation, "%T %T", "GrenadeMod_Mode", client, translation, client);
-					ReplaceColors(translation, sizeof translation);
+					Format(translation, sizeof(translation), "GrenadeMod_Title_%d", index);
+					Format(translation, sizeof(translation), "%T %T", "GrenadeMod_Mode", client, translation, client);
+					ReplaceColors(translation, sizeof(translation));
 					PrintToChat(client, translation);
 
 					// Redisplay menu
 					ShowGrenadeMenu(client);
 				}
 			} else {
-				Format(translation, sizeof translation, "%T", "GrenadeMenu_Invalid", client);
-				ReplaceColors(translation, sizeof translation);
+				Format(translation, sizeof(translation), "%T", "GrenadeMenu_Invalid", client);
+				ReplaceColors(translation, sizeof(translation));
 				PrintToChat(client, translation);
 			}
 		}
@@ -956,26 +1228,75 @@ public void ConVarChanged_Allow(Handle convar, const char[] oldValue, const char
 	IsAllowed();
 }
 
+public void ConVarChanged_Cvars(Handle convar, const char[] oldValue, const char[] newValue)
+{
+	GetCvars();
+}
+
+void GetCvars()
+{
+	g_iAmmoRifle		= g_hAmmoRifle.IntValue;
+	g_iAmmoShotgun		= g_hAmmoShotgun.IntValue;
+	g_iAmmoSmg			= g_hAmmoSmg.IntValue;
+	g_iAmmoHunting		= g_hAmmoHunting.IntValue;
+
+	if( g_bLeft4Dead2 )
+	{
+		g_iAmmoGL			= g_hAmmoGL.IntValue;
+		g_iAmmoChainsaw		= g_hAmmoChainsaw.IntValue;
+		g_iAmmoAutoShot		= g_hAmmoAutoShot.IntValue;
+		g_iAmmoM60			= g_hAmmoM60.IntValue;
+		g_iAmmoSniper		= g_hAmmoSniper.IntValue;
+	}
+}
+
 void IsAllowed()
 {
 	bool bCvarAllow = g_hCvarAllow.BoolValue;
 	bool bAllowMode = IsAllowedGameMode();
+	GetCvars();
 
 	if( g_bCvarAllow == false && bCvarAllow == true && bAllowMode == true )
 	{
 		g_bCvarAllow = true;
 
-		AddNormalSoundHook(view_as<NormalSHook>(SoundHook));
+		AddNormalSoundHook(SoundHook);
 		HookEvent("round_end",				Event_RoundEnd,			EventHookMode_PostNoCopy);
-		// HookEvent("bot_player_replace",		Event_BotReplace);
+		HookEvent("bot_player_replace",		Event_BotReplace);
+
+		if( g_bLeft4Dead2 )
+		{
+			HookEvent("player_death",		Event_PlayerDeath); // Chemical / Glow types
+			HookEvent("player_spawn",		Event_PlayerSpawn); // Chemical Mode - Acid damage
+		}
 
 		for( int i = 1; i <= MaxClients; i++ )
-		if( IsClientInGame(i) )
 		{
-			// Hook WeaponEquip, get cookies
-			OnClientPutInServer(i);
-			OnClientCookiesCached(i);
-			// SetCurrentNadePref(i);
+			if( IsClientInGame(i) )
+			{
+				// Hook WeaponEquip, get cookies
+				OnClientPutInServer(i);
+				OnClientCookiesCached(i);
+				SetCurrentNadePref(i);
+
+				// Chemical Mode - Acid damage
+				if( g_bLeft4Dead2 )
+				{
+					SDKHook(i, SDKHook_OnTakeDamageAlive, OnAcidDamage);
+
+					int entity = -1;
+					while( (entity = FindEntityByClassname(entity, "infected")) != INVALID_ENT_REFERENCE )
+					{
+						SDKHook(entity, SDKHook_OnTakeDamageAlive, OnAcidDamage);
+					}
+
+					entity = -1;
+					while( (entity = FindEntityByClassname(entity, "witch")) != INVALID_ENT_REFERENCE )
+					{
+						SDKHook(entity, SDKHook_OnTakeDamageAlive, OnAcidDamage);
+					}
+				}
+			}
 		}
 	}
 
@@ -984,9 +1305,23 @@ void IsAllowed()
 		ResetPlugin(true);
 		g_bCvarAllow = false;
 
-		RemoveNormalSoundHook(view_as<NormalSHook>(SoundHook));
+		RemoveNormalSoundHook(SoundHook);
 		UnhookEvent("round_end",			Event_RoundEnd,			EventHookMode_PostNoCopy);
 		UnhookEvent("bot_player_replace",	Event_BotReplace);
+
+		if( g_bLeft4Dead2 )
+		{
+			UnhookEvent("player_death",		Event_PlayerDeath); // Chemical / Glow types
+			UnhookEvent("player_spawn",		Event_PlayerSpawn); // Chemical Mode - Acid damage
+
+			for( int i = 1; i <= MaxClients; i++ )
+			{
+				if( IsClientInGame(i) )
+				{
+					SDKUnhook(i, SDKHook_OnTakeDamageAlive, OnAcidDamage);
+				}
+			}
+		}
 	}
 }
 
@@ -999,17 +1334,24 @@ bool IsAllowedGameMode()
 	int iCvarModesTog = g_hCvarModesTog.IntValue;
 	if( iCvarModesTog != 0 )
 	{
+		if( g_bMapStarted == false )
+			return false;
+
 		g_iCurrentMode = 0;
 
 		int entity = CreateEntityByName("info_gamemode");
-		DispatchSpawn(entity);
-		HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
-		HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
-		ActivateEntity(entity);
-		AcceptEntityInput(entity, "PostSpawnActivate");
-		AcceptEntityInput(entity, "Kill");
+		if( IsValidEntity(entity) )
+		{
+			DispatchSpawn(entity);
+			HookSingleEntityOutput(entity, "OnCoop", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnSurvival", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnVersus", OnGamemode, true);
+			HookSingleEntityOutput(entity, "OnScavenge", OnGamemode, true);
+			ActivateEntity(entity);
+			AcceptEntityInput(entity, "PostSpawnActivate");
+			if( IsValidEntity(entity) ) // Because sometimes "PostSpawnActivate" seems to kill the ent.
+				RemoveEdict(entity); // Because multiple plugins creating at once, avoid too many duplicate ents in the same frame
+		}
 
 		if( g_iCurrentMode == 0 )
 			return false;
@@ -1023,7 +1365,7 @@ bool IsAllowedGameMode()
 	Format(sGameMode, sizeof(sGameMode), ",%s,", sGameMode);
 
 	g_hCvarModes.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) == -1 )
@@ -1031,7 +1373,7 @@ bool IsAllowedGameMode()
 	}
 
 	g_hCvarModesOff.GetString(sGameModes, sizeof(sGameModes));
-	if( strcmp(sGameModes, "") )
+	if( sGameModes[0] )
 	{
 		Format(sGameModes, sizeof(sGameModes), ",%s,", sGameModes);
 		if( StrContains(sGameModes, sGameMode, false) != -1 )
@@ -1060,11 +1402,14 @@ public void OnGamemode(const char[] output, int caller, int activator, float del
 // ====================================================================================================
 public void OnMapEnd()
 {
+	g_bMapStarted = false;
 	ResetPlugin(true);
 }
 
 public void OnMapStart()
 {
+	g_bMapStarted = true;
+
 	// PRECACHE
 	PrecacheModel(MODEL_BOUNDING, true);
 	PrecacheModel(MODEL_CRATE, true);
@@ -1094,6 +1439,7 @@ public void OnMapStart()
 	PrecacheParticle(PARTICLE_IMPACT);
 	PrecacheParticle(PARTICLE_VOMIT);
 	PrecacheParticle(PARTICLE_SPLASH);
+	PrecacheParticle(PARTICLE_TRAIL);
 	PrecacheParticle(PARTICLE_PIPE1);
 	PrecacheParticle(PARTICLE_PIPE2);
 	PrecacheParticle(PARTICLE_PIPE3);
@@ -1104,11 +1450,13 @@ public void OnMapStart()
 	PrecacheParticle(PARTICLE_TES6);
 	PrecacheParticle(PARTICLE_TES7);
 	PrecacheParticle(PARTICLE_ELMOS);
+	PrecacheParticle(PARTICLE_FIREWORK);
 
 	if( g_bLeft4Dead2 )
 	{
 		PrecacheParticle(PARTICLE_SPARKS);
 		PrecacheParticle(PARTICLE_GSPARKS);
+		PrecacheParticle(PARTICLE_CHARGE);
 		PrecacheParticle(PARTICLE_FLARE);
 		PrecacheParticle(PARTICLE_SPIT_T);
 		PrecacheParticle(PARTICLE_SPIT_P);
@@ -1137,11 +1485,87 @@ public void OnMapStart()
 	PrecacheSound(SOUND_SPLASH1, true);
 	PrecacheSound(SOUND_SPLASH2, true);
 	PrecacheSound(SOUND_SPLASH3, true);
+	PrecacheSound(SOUND_GIFT, true);
 
-	for( int i = 0; i < sizeof g_sSoundsHit; i++ )			PrecacheSound(g_sSoundsHit[i], true);
-	for( int i = 0; i < sizeof g_sSoundsMiss; i++ )			PrecacheSound(g_sSoundsMiss[i], true);
-	for( int i = 0; i < sizeof g_sSoundsZap; i++ )			PrecacheSound(g_sSoundsZap[i], true);
-	for( int i = 0; i < sizeof g_sSoundsMissing; i++ )		PrecacheSound(g_sSoundsMissing[i], true);
+	for( int i = 0; i < sizeof(g_sSoundsHit); i++ )			PrecacheSound(g_sSoundsHit[i], true);
+	for( int i = 0; i < sizeof(g_sSoundsMiss); i++ )		PrecacheSound(g_sSoundsMiss[i], true);
+	for( int i = 0; i < sizeof(g_sSoundsZap); i++ )			PrecacheSound(g_sSoundsZap[i], true);
+	for( int i = 0; i < sizeof(g_sSoundsMissing); i++ )		PrecacheSound(g_sSoundsMissing[i], true);
+
+
+
+	// Weapons
+	int max;
+	if( g_bLeft4Dead2 ) max = MAX_WEAPONS2;
+	else max = MAX_WEAPONS;
+
+	for( int i = 0; i < max; i++ )
+	{
+		PrecacheModel(g_bLeft4Dead2 ? g_sWeaponModels2[i] : g_sWeaponModels[i], true);
+	}
+
+	// Melee weapons
+	if( g_bLeft4Dead2 )
+	{
+		// Taken from MeleeInTheSaferoom
+		PrecacheModel("models/weapons/melee/v_bat.mdl", true);
+		PrecacheModel("models/weapons/melee/v_cricket_bat.mdl", true);
+		PrecacheModel("models/weapons/melee/v_crowbar.mdl", true);
+		PrecacheModel("models/weapons/melee/v_electric_guitar.mdl", true);
+		PrecacheModel("models/weapons/melee/v_fireaxe.mdl", true);
+		PrecacheModel("models/weapons/melee/v_frying_pan.mdl", true);
+		PrecacheModel("models/weapons/melee/v_golfclub.mdl", true);
+		PrecacheModel("models/weapons/melee/v_katana.mdl", true);
+		PrecacheModel("models/weapons/melee/v_machete.mdl", true);
+		PrecacheModel("models/weapons/melee/v_tonfa.mdl", true);
+		PrecacheModel("models/weapons/melee/v_pitchfork.mdl", true);
+		PrecacheModel("models/weapons/melee/v_shovel.mdl", true);
+
+		PrecacheModel("models/weapons/melee/w_bat.mdl", true);
+		PrecacheModel("models/weapons/melee/w_cricket_bat.mdl", true);
+		PrecacheModel("models/weapons/melee/w_crowbar.mdl", true);
+		PrecacheModel("models/weapons/melee/w_electric_guitar.mdl", true);
+		PrecacheModel("models/weapons/melee/w_fireaxe.mdl", true);
+		PrecacheModel("models/weapons/melee/w_frying_pan.mdl", true);
+		PrecacheModel("models/weapons/melee/w_golfclub.mdl", true);
+		PrecacheModel("models/weapons/melee/w_katana.mdl", true);
+		PrecacheModel("models/weapons/melee/w_machete.mdl", true);
+		PrecacheModel("models/weapons/melee/w_tonfa.mdl", true);
+		PrecacheModel("models/weapons/melee/w_pitchfork.mdl", true);
+		PrecacheModel("models/weapons/melee/w_shovel.mdl", true);
+
+		PrecacheGeneric("scripts/melee/baseball_bat.txt", true);
+		PrecacheGeneric("scripts/melee/cricket_bat.txt", true);
+		PrecacheGeneric("scripts/melee/crowbar.txt", true);
+		PrecacheGeneric("scripts/melee/electric_guitar.txt", true);
+		PrecacheGeneric("scripts/melee/fireaxe.txt", true);
+		PrecacheGeneric("scripts/melee/frying_pan.txt", true);
+		PrecacheGeneric("scripts/melee/golfclub.txt", true);
+		PrecacheGeneric("scripts/melee/katana.txt", true);
+		PrecacheGeneric("scripts/melee/machete.txt", true);
+		PrecacheGeneric("scripts/melee/tonfa.txt", true);
+		PrecacheGeneric("scripts/melee/pitchfork.txt", true);
+		PrecacheGeneric("scripts/melee/shovel.txt", true);
+	}
+
+
+
+	// Pre-cache env_shake -_- WTF
+	int shake = CreateEntityByName("env_shake");
+	if( shake != -1 )
+	{
+		DispatchKeyValue(shake, "spawnflags", "8");
+		DispatchKeyValue(shake, "amplitude", "16.0");
+		DispatchKeyValue(shake, "frequency", "1.5");
+		DispatchKeyValue(shake, "duration", "0.9");
+		DispatchKeyValue(shake, "radius", "50");
+		TeleportEntity(shake, view_as<float>({ 0.0, 0.0, -1000.0 }), NULL_VECTOR, NULL_VECTOR);
+		DispatchSpawn(shake);
+		ActivateEntity(shake);
+		AcceptEntityInput(shake, "Enable");
+		AcceptEntityInput(shake, "StartShake");
+		RemoveEdict(shake);
+	}
 
 
 
@@ -1173,7 +1597,6 @@ void LoadDataEntry(int index, KeyValues hFile, const char[] KeyName)
 		g_GrenadeData[index][CONFIG_DMG_WITCH]		=	hFile.GetFloat("damage_witch",			1.0);
 		g_GrenadeData[index][CONFIG_DAMAGE]			=	hFile.GetFloat("damage",				1.0);
 		g_GrenadeData[index][CONFIG_DMG_TICK]		=	hFile.GetFloat("damage_tick",			1.0);
-
 		g_GrenadeData[index][CONFIG_FUSE]			=	hFile.GetFloat("detonate_fuse",			0.0);
 		g_GrenadeData[index][CONFIG_SHAKE]			=	hFile.GetFloat("detonate_shake",		0.0);
 		g_GrenadeData[index][CONFIG_STICK]			=	hFile.GetFloat("detonate_stick",		0.0);
@@ -1185,6 +1608,7 @@ void LoadDataEntry(int index, KeyValues hFile, const char[] KeyName)
 		g_GrenadeSlot[index][1]						=	hFile.GetNum("nade_l4d1",				0);
 		g_GrenadeTarg[index]						=	hFile.GetNum("targets",					31);
 	}
+
 	hFile.Rewind();
 }
 
@@ -1210,37 +1634,96 @@ void LoadDataConfig()
 	if( hFile.JumpToKey("Settings") )
 	{
 		g_iConfigBots =					hFile.GetNum("bots",				0);
-		g_iConfigBots =					Clamp(g_iConfigBots, 				(1<<MAX_TYPES) - 1, 0);
+		g_iConfigBots =					Clamp(g_iConfigBots, 				0, (1<<MAX_TYPES) - 1);
 
 		g_iConfigBinds =				hFile.GetNum("mode_switch",			3);
-		g_iConfigBinds =				Clamp(g_iConfigBinds, 				4, 1);
+		g_iConfigBinds =				Clamp(g_iConfigBinds, 				1, 4);
 
 		g_iConfigMsgs =					hFile.GetNum("messages",			1);
-		g_iConfigMsgs =					Clamp(g_iConfigMsgs, 				1, 0);
+		g_iConfigMsgs =					Clamp(g_iConfigMsgs, 				0, 1);
 
 		g_iConfigPrefs =				hFile.GetNum("preferences",			1);
-		g_iConfigPrefs =				Clamp(g_iConfigPrefs, 				3, 0);
+		g_iConfigPrefs =				Clamp(g_iConfigPrefs, 				0, 3);
 
 		g_fConfigSurvivors =			hFile.GetFloat("damage_survivors",	1.0);
-		g_fConfigSurvivors =			Clamp(g_fConfigSurvivors, 			1000.0, 0.0);
+		g_fConfigSurvivors =			Clamp(g_fConfigSurvivors, 			0.0, 1000.0);
 
 		g_fConfigSpecial =				hFile.GetFloat("damage_special",	1.0);
-		g_fConfigSpecial =				Clamp(g_fConfigSpecial, 			1000.0, 0.0);
+		g_fConfigSpecial =				Clamp(g_fConfigSpecial, 			0.0, 1000.0);
 
 		g_fConfigTank =					hFile.GetFloat("damage_tank",		1.0);
-		g_fConfigTank =					Clamp(g_fConfigTank, 				1000.0, 0.0);
+		g_fConfigTank =					Clamp(g_fConfigTank, 				0.0, 1000.0);
 
 		g_fConfigWitch =				hFile.GetFloat("damage_witch",		1.0);
-		g_fConfigWitch =				Clamp(g_fConfigWitch, 				1000.0, 0.0);
+		g_fConfigWitch =				Clamp(g_fConfigWitch, 				0.0, 1000.0);
 
 		g_fConfigPhysics =				hFile.GetFloat("damage_physics",	1.0);
-		g_fConfigPhysics =				Clamp(g_fConfigPhysics, 			1000.0, 0.0);
+		g_fConfigPhysics =				Clamp(g_fConfigPhysics, 			0.0, 1000.0);
 
 		g_iConfigStock =				hFile.GetNum("stocks",				0);
-		g_iConfigStock =				Clamp(g_iConfigStock, 				7,	0);
+		g_iConfigStock =				Clamp(g_iConfigStock, 				0, 7);
 
 		g_iConfigTypes =				hFile.GetNum("types",				0);
-		g_iConfigTypes =				Clamp(g_iConfigTypes, 				(1<<MAX_TYPES) - 1,	0);
+		g_iConfigTypes =				Clamp(g_iConfigTypes, 				0, (1<<MAX_TYPES) - 1);
+		hFile.Rewind();
+	}
+
+	if( hFile.JumpToKey("Mod_Chemical") )
+	{
+		g_fConfigAcidComm =				hFile.GetFloat("damage_acid_comm",		1.0);
+		g_fConfigAcidComm =				Clamp(g_fConfigAcidComm, 				0.0, 1000.0);
+		g_fConfigAcidSelf =				hFile.GetFloat("damage_acid_self",		1.0);
+		g_fConfigAcidSelf =				Clamp(g_fConfigAcidSelf, 				0.0, 1000.0);
+		g_fConfigAcidSpec =				hFile.GetFloat("damage_acid_spec",		1.0);
+		g_fConfigAcidSpec =				Clamp(g_fConfigAcidSpec, 				0.0, 1000.0);
+		g_fConfigAcidSurv =				hFile.GetFloat("damage_acid_surv",		1.0);
+		g_fConfigAcidSurv =				Clamp(g_fConfigAcidSurv, 				0.0, 1000.0);
+		hFile.Rewind();
+	}
+
+	if( hFile.JumpToKey("Mod_Flak") )
+	{
+		g_iConfigDmgType =				hFile.GetNum("damage_type",				0);
+		g_iConfigDmgType =				Clamp(g_iConfigDmgType, 				0, 31);
+		hFile.Rewind();
+	}
+
+	if( hFile.JumpToKey("Mod_Weapon") )
+	{
+		char sConfigWeapons[256];
+
+		if( g_bLeft4Dead2 )
+			hFile.GetString("weapons2",	sConfigWeapons, sizeof(sConfigWeapons));
+		else
+			hFile.GetString("weapons1",	sConfigWeapons, sizeof(sConfigWeapons));
+
+		// Weighted chance
+		int chance, index, total;
+		char buffers[MAX_WEAPONS2 + MAX_MELEE][8];
+		char temp[2][6];
+
+		g_iTotalChance = 0;
+
+		for( int i = 0; i < (g_bLeft4Dead2 ? MAX_WEAPONS2 + MAX_MELEE: MAX_WEAPONS); i++ )
+		{
+			g_iChances[i] = 0;
+		}
+
+		total = ExplodeString(sConfigWeapons, ",", buffers, sizeof(buffers), sizeof(buffers[]));
+
+		for( int i = 0; i < total; i++ )
+		{
+			ExplodeString(buffers[i], ":", temp, sizeof(temp), sizeof(temp[]));
+			chance = StringToInt(temp[1]);
+			index = StringToInt(temp[0]) - 1;
+
+			if( chance )
+			{
+				g_iTotalChance += chance;
+				g_iChances[index] = g_iTotalChance;
+			}
+		}
+
 		hFile.Rewind();
 	}
 
@@ -1262,11 +1745,13 @@ void LoadDataConfig()
 	LoadDataEntry(INDEX_FIRECLUSTER,	hFile,		"Mod_Cluster_Fire");
 	LoadDataEntry(INDEX_BULLETS,		hFile,		"Mod_Bullets");
 	LoadDataEntry(INDEX_FLAK,			hFile,		"Mod_Flak");
+	LoadDataEntry(INDEX_AIRSTRIKE,		hFile,		"Mod_Airstrike");
+	LoadDataEntry(INDEX_WEAPON,			hFile,		"Mod_Weapon");
 
 	delete hFile;
 }
 
-any Clamp(any value, any max, any min = 0.0)
+any Clamp(any value, any min = 0.0, any max)
 {
 	if( value < min )
 		value = min;
@@ -1278,82 +1763,128 @@ any Clamp(any value, any max, any min = 0.0)
 
 
 // ====================================================================================================
+//					L4D2 - F-18 AIRSTRIKE
+// ====================================================================================================
+public void F18_OnPluginState(int pluginstate)
+{
+	static int mystate;
+
+	if( pluginstate == 1 && mystate == 0 )
+	{
+		mystate = 1;
+		g_bAirstrikeValid = true;
+	}
+	else if( pluginstate == 0 && mystate == 1 )
+	{
+		mystate = 0;
+		g_bAirstrikeValid = false;
+	}
+}
+
+public void F18_OnRoundState(int roundstate)
+{
+	static int mystate;
+
+	if( roundstate == 1 && mystate == 0 )
+	{
+		mystate = 1;
+		g_bAirstrikeValid = true;
+	}
+	else if( roundstate == 0 && mystate == 1 )
+	{
+		mystate = 0;
+		g_bAirstrikeValid = false;
+	}
+}
+
+
+
+// ====================================================================================================
 //					EVENTS - WEAPON EQUIP
 // ====================================================================================================
 public void OnWeaponEquip(int client, int weapon)
 {
-	int type = IsGrenade(weapon);
-	if( type )
+	if( !g_bAllowedClient[client] || CheckCommandAccess(client, "sm_grenade", 0) == false )
 	{
-		// Random grenade prefs
-		if( g_iConfigPrefs != 1 || g_iConfigBots && IsFakeClient(client) )
-		{
-			int index = GetEntProp(weapon, Prop_Data, "m_iHammerID"); // Was previously picked up / set type
-			if( index > 0 )
-			{
-				g_iClientGrenadeType[client] = index - 1;
-			} else {
-				int types = g_iConfigBots && IsFakeClient(client) ? g_iConfigBots : g_iConfigTypes; // Allowed types for bots / players
-				int min = MAX_TYPES;
-				int max;
-				int slot;
+		g_iClientGrenadeType[client] = 0;
+		return;
+	}
 
-				// Cycle through modes
-				for( int i = 0; i < MAX_TYPES; i++ )
+	if( weapon > MaxClients && IsValidEntity(weapon) )
+	{
+		int type = IsGrenade(weapon);
+		if( type )
+		{
+			// Random grenade prefs
+			if( g_iConfigPrefs != 1 || g_iConfigBots && IsFakeClient(client) )
+			{
+				int index = g_GrenadeType[weapon]; // Was previously picked up / set type
+				if( index > 0 )
 				{
-					if( g_GrenadeSlot[i][!g_bLeft4Dead2] & (1<<type - 1) && types & (1<<i) )
+					g_iClientGrenadeType[client] = index - 1;
+				} else {
+					int types = g_iConfigBots && IsFakeClient(client) ? g_iConfigBots : g_iConfigTypes; // Allowed types for bots / players
+					int min = MAX_TYPES;
+					int max;
+					int slot;
+
+					// Cycle through modes
+					for( int i = 0; i < MAX_TYPES; i++ )
 					{
-						if( i < min )	min = i - 1;
-						if( i > max)	max = i;
+						if( g_GrenadeSlot[i][view_as<int>(!g_bLeft4Dead2)] & (1<<type - 1) && types & (1<<i) )
+						{
+							if( i < min )	min = i - 1;
+							if( i > max)	max = i;
+						}
 					}
+
+					slot = GetRandomInt(min, max);
+					g_iClientGrenadeType[client] = slot == min ? -1 : slot;
+					GetGrenadeIndex(client, type); // Iterate to valid index.
 				}
-
-				slot = GetRandomInt(min, max);
-				g_iClientGrenadeType[client] = slot == min ? -1 : slot;
-				GetGrenadeIndex(client, type); // Iterate to valid index.
+			} else {
+				g_iClientGrenadeType[client] = -1;
 			}
-		} else {
-			g_iClientGrenadeType[client] = -1;
-		}
 
-		// Client prefs default
-		if( g_iConfigPrefs == 0 )
-		{
-			g_iClientGrenadeType[client] = 0;
-			g_iClientGrenadePref[client][type - 1] = 0;
-		}
-		else if( g_iClientGrenadeType[client] == -1 )
-		{
-			g_iClientGrenadeType[client] = g_iClientGrenadePref[client][type - 1];
-
-			if( g_iClientGrenadeType[client] == -1 )
+			// Client prefs default
+			if( g_iConfigPrefs == 0 )
 			{
-				ThrowError("OnWeaponEquip == -1. This should never happen.");
+				g_iClientGrenadeType[client] = 0;
+				g_iClientGrenadePref[client][type - 1] = 0;
 			}
-		}
-
-		SetEntProp(weapon, Prop_Data, "m_iHammerID", g_iClientGrenadeType[client] + 1); // Store type
-
-		// Hints
-		if( g_bCvarAllow && g_iConfigMsgs && !IsFakeClient(client) )
-		{
-			static char translation[256];
-			Format(translation, sizeof translation, "GrenadeMod_Title_%d", g_iClientGrenadeType[client]);
-
-			Format(translation, sizeof translation, "%T %T", "GrenadeMod_Mode", client, translation, client);
-			ReplaceColors(translation, sizeof translation);
-			PrintToChat(client, translation);
-
-			// If grenade mode allowed to change
-			if( g_iConfigPrefs != 3 )
+			else if( g_iClientGrenadeType[client] == -1 )
 			{
-				if( g_iConfigBinds == 2 )
-					Format(translation, sizeof translation, "%T", "GrenadeMod_Hint2", client);
-				else
-					Format(translation, sizeof translation, "%T", "GrenadeMod_Hint", client);
+				g_iClientGrenadeType[client] = g_iClientGrenadePref[client][type - 1];
 
-				ReplaceColors(translation, sizeof translation);
+				if( g_iClientGrenadeType[client] == -1 )
+				{
+					ThrowError("OnWeaponEquip == -1. This should never happen.");
+				}
+			}
+
+			g_GrenadeType[weapon] = g_iClientGrenadeType[client] + 1; // Store type
+
+			// Hints
+			if( g_bCvarAllow && g_iConfigMsgs && !IsFakeClient(client) )
+			{
+				static char translation[256];
+				Format(translation, sizeof(translation), "GrenadeMod_Title_%d", g_iClientGrenadeType[client]);
+
+				Format(translation, sizeof(translation), "%T %T", "GrenadeMod_Mode", client, translation, client);
+				ReplaceColors(translation, sizeof(translation));
 				PrintToChat(client, translation);
+
+				// If grenade mode allowed to change
+				if( g_iConfigPrefs != 3 )
+				{
+					if( g_iConfigBinds == 2 )
+						Format(translation, sizeof(translation), "%T", "GrenadeMod_Hint2", client);
+					else
+						Format(translation, sizeof(translation), "%T", "GrenadeMod_Hint", client);
+
+					ReplaceColors(translation, sizeof(translation));
+					PrintToChat(client, translation);
+				}
 			}
 		}
 	}
@@ -1362,13 +1893,13 @@ public void OnWeaponEquip(int client, int weapon)
 public void OnWeaponDrop(int client, int weapon)
 {
 	// Random grenade prefs
-	if( g_iConfigPrefs != 1 && weapon != -1 && IsValidEntity(weapon) )
+	if( g_iConfigPrefs != 1 && weapon != -1 && IsValidEntity(weapon) && IsValidEdict(weapon) )
 	{
 		// Validate weapon
 		int type = IsGrenade(weapon);
 		if( type )
 		{
-			SetEntProp(weapon, Prop_Data, "m_iHammerID", g_iClientGrenadeType[client] + 1);
+			g_GrenadeType[weapon] = g_iClientGrenadeType[client] + 1;
 		}
 	}
 }
@@ -1411,13 +1942,13 @@ public Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_M
 	// weapons/hegrenade/he_bounce-1.wav
 	if( sample[0] == 'w' && sample[8] == 'h' && sample[18] == 'h' )
 	{
-		if( GetEntProp(entity, Prop_Data, "m_iHammerID") )
+		if( g_GrenadeType[entity] )
 		{
-			PlaySound(entity, g_sSoundsHit[GetRandomInt(0, sizeof g_sSoundsHit - 1)]);
+			PlaySound(entity, g_sSoundsHit[GetRandomInt(0, sizeof(g_sSoundsHit) - 1)]);
 
 			volume = 0.0;
 			// volume = 0.6;
-			// strcopy(sample, sizeof sample, g_sSoundsHit[GetRandomInt(0, sizeof g_sSoundsHit - 1)]);
+			// strcopy(sample, sizeof(sample), g_sSoundsHit[GetRandomInt(0, sizeof(g_sSoundsHit) - 1)]);
 			return Plugin_Changed;
 		}
 	}
@@ -1459,10 +1990,10 @@ public Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_M
 
 				switch( sample[22] ) // Match invalid number.
 				{
-					case 'C': for( int i = 0; i < sizeof g_iCoach_InvalidNade; i++ ) if( num == g_iCoach_InvalidNade[i] ) { edit = g_iCoach_ValidSample[GetRandomInt(0, sizeof g_iCoach_ValidSample - 1)]; break; }
-					case 'G': for( int i = 0; i < sizeof g_iGambl_InvalidNade; i++ ) if( num == g_iGambl_InvalidNade[i] ) { edit = g_iGambl_ValidSample[GetRandomInt(0, sizeof g_iGambl_ValidSample - 1)]; break; }
-					case 'M': for( int i = 0; i < sizeof g_iMecha_InvalidNade; i++ ) if( num == g_iMecha_InvalidNade[i] ) { edit = g_iMecha_ValidSample[GetRandomInt(0, sizeof g_iMecha_ValidSample - 1)]; break; }
-					case 'P': for( int i = 0; i < sizeof g_iProdu_InvalidNade; i++ ) if( num == g_iProdu_InvalidNade[i] ) { edit = g_iProdu_ValidSample[GetRandomInt(0, sizeof g_iProdu_ValidSample - 1)]; break; }
+					case 'C': for( int i = 0; i < sizeof(g_iCoach_InvalidNade); i++ ) if( num == g_iCoach_InvalidNade[i] ) { edit = g_iCoach_ValidSample[GetRandomInt(0, sizeof(g_iCoach_ValidSample) - 1)]; break; }
+					case 'G': for( int i = 0; i < sizeof(g_iGambl_InvalidNade); i++ ) if( num == g_iGambl_InvalidNade[i] ) { edit = g_iGambl_ValidSample[GetRandomInt(0, sizeof(g_iGambl_ValidSample) - 1)]; break; }
+					case 'M': for( int i = 0; i < sizeof(g_iMecha_InvalidNade); i++ ) if( num == g_iMecha_InvalidNade[i] ) { edit = g_iMecha_ValidSample[GetRandomInt(0, sizeof(g_iMecha_ValidSample) - 1)]; break; }
+					case 'P': for( int i = 0; i < sizeof(g_iProdu_InvalidNade); i++ ) if( num == g_iProdu_InvalidNade[i] ) { edit = g_iProdu_ValidSample[GetRandomInt(0, sizeof(g_iProdu_ValidSample) - 1)]; break; }
 				}
 			}
 
@@ -1478,22 +2009,22 @@ public Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_M
 
 				switch( sample[22] ) // Match invalid number.
 				{
-					case 'G': for( int i = 0; i < sizeof g_iGambl_InvalidBile; i++ ) if( num == g_iGambl_InvalidBile[i] ) { edit = g_iGambl_ValidSample[GetRandomInt(0, sizeof g_iGambl_ValidSample - 1)]; break; }
-					case 'M': for( int i = 0; i < sizeof g_iMecha_InvalidBile; i++ ) if( num == g_iMecha_InvalidBile[i] ) { edit = g_iMecha_ValidSample[GetRandomInt(0, sizeof g_iMecha_ValidSample - 1)]; break; }
-					case 'P': for( int i = 0; i < sizeof g_iProdu_InvalidBile; i++ ) if( num == g_iProdu_InvalidBile[i] ) { edit = g_iProdu_ValidSample[GetRandomInt(0, sizeof g_iProdu_ValidSample - 1)]; break; }
+					case 'G': for( int i = 0; i < sizeof(g_iGambl_InvalidBile); i++ ) if( num == g_iGambl_InvalidBile[i] ) { edit = g_iGambl_ValidSample[GetRandomInt(0, sizeof(g_iGambl_ValidSample) - 1)]; break; }
+					case 'M': for( int i = 0; i < sizeof(g_iMecha_InvalidBile); i++ ) if( num == g_iMecha_InvalidBile[i] ) { edit = g_iMecha_ValidSample[GetRandomInt(0, sizeof(g_iMecha_ValidSample) - 1)]; break; }
+					case 'P': for( int i = 0; i < sizeof(g_iProdu_InvalidBile); i++ ) if( num == g_iProdu_InvalidBile[i] ) { edit = g_iProdu_ValidSample[GetRandomInt(0, sizeof(g_iProdu_ValidSample) - 1)]; break; }
 				}
 
 				if( edit ) // Replace name
 				{
 					sample[pos] = '\x0';
-					StrCat(sample, sizeof sample, "Grenade##.wav");
+					StrCat(sample, sizeof(sample), "Grenade##.wav");
 				}
 			}
 
 			if( edit ) // Replace invalid number with valid number
 			{
 				static char val[3];
-				Format(val, sizeof val, "%02d", edit);
+				Format(val, sizeof(val), "%02d", edit);
 				sample[pos + 7] = val[0];
 				sample[pos + 8] = val[1];
 				return Plugin_Changed;
@@ -1509,6 +2040,34 @@ public Action SoundHook(int clients[64], int &numClients, char sample[PLATFORM_M
 // ====================================================================================================
 //					RESET PLUGIN
 // ====================================================================================================
+public void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if( client )
+	{
+		// Since players can spawn (admin command) without dieing, should unhook and rehook here.
+		// FIXME: TODO: Many other plugins probably need updating for this or they'll have duplicate hooks.
+		SDKUnhook(client, SDKHook_OnTakeDamageAlive, OnAcidDamage);
+		SDKHook(client, SDKHook_OnTakeDamageAlive, OnAcidDamage);
+	}
+}
+
+public void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	if( client && IsValidEntity(client) )
+	{
+		SDKUnhook(client, SDKHook_OnTakeDamageAlive, OnAcidDamage);
+
+		// Glow mode: Reset color on death
+		if( GetEntProp(client, Prop_Send, "m_glowColorOverride") == GLOW_COLOR )
+		{
+			SetEntProp(client, Prop_Send, "m_iGlowType", 0);
+			SetEntProp(client, Prop_Send, "m_glowColorOverride", 0);
+		}
+	}
+}
+
 public void Event_BotReplace(Event event, const char[] name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("player"));
@@ -1545,7 +2104,7 @@ void ResetPlugin(bool all = false)
 
 	if( g_iEntityHurt && EntRefToEntIndex(g_iEntityHurt) != INVALID_ENT_REFERENCE )
 	{
-		AcceptEntityInput(g_iEntityHurt, "Kill");
+		RemoveEntity(g_iEntityHurt);
 	}
 }
 
@@ -1554,11 +2113,10 @@ void ResetPlugin(bool all = false)
 // ====================================================================================================
 //					CHANGE MODE
 // ====================================================================================================
-/*
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon)
 {
 	// Preferences allow to change grenade type, holding Shoot and pressing Shove
-	if( g_bCvarAllow && g_iConfigPrefs != 3 )
+	if( g_bCvarAllow && g_iConfigPrefs != 3 && g_iConfigBinds != 2 )
 	{
 		if( buttons & IN_ATTACK )
 		{
@@ -1571,19 +2129,19 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 					// Validate weapon
 					int iWeapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
-					if( iWeapon > MaxClients && IsValidEntity(iWeapon) )
+					if( iWeapon > MaxClients && IsValidEntity(iWeapon) && g_bAllowedClient[client] && CheckCommandAccess(client, "sm_grenade", 0) == true )
 					{
 						int type = IsGrenade(iWeapon);
 						if( type )
 						{
 							// Cycle through modes
 							int index = GetGrenadeIndex(client, type);
-							SetEntProp(iWeapon, Prop_Data, "m_iHammerID", index + 1);
+							g_GrenadeType[iWeapon] = index + 1;
 
 							static char translation[256];
-							Format(translation, sizeof translation, "GrenadeMod_Title_%d", index);
-							Format(translation, sizeof translation, "%T %T", "GrenadeMod_Mode", client, translation, client);
-							ReplaceColors(translation, sizeof translation);
+							Format(translation, sizeof(translation), "GrenadeMod_Title_%d", index);
+							Format(translation, sizeof(translation), "%T %T", "GrenadeMod_Mode", client, translation, client);
+							ReplaceColors(translation, sizeof(translation));
 							PrintToChat(client, translation);
 
 							if( g_iConfigBinds == 4 )
@@ -1602,13 +2160,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 			if( GetClientMenu(client, null) != MenuSource_None )
 			{
-				InternalShowMenu(client, "\10", 1); // thanks to Zira
+				InternalShowMenu(client, "\10", 1); // Thanks to Zira
 				CancelClientMenu(client, true, null);
 			}
 		}
 	}
 }
-*/
 
 int GetGrenadeIndex(int client, int type)
 {
@@ -1636,7 +2193,7 @@ int GetGrenadeIndex(int client, int type)
 		// Loop next
 		for( int i = index - 1; i < MAX_TYPES; i++ )
 		{
-			if( g_GrenadeSlot[i][!g_bLeft4Dead2] & (1<<type - 1) && types & (1<<i) )
+			if( g_GrenadeSlot[i][view_as<int>(!g_bLeft4Dead2)] & (1<<type - 1) && types & (1<<i) )
 			{
 				index = i + 1;
 				break;
@@ -1653,7 +2210,7 @@ int GetGrenadeIndex(int client, int type)
 					// Loop from 0
 					for( int x = 0; x < MAX_TYPES; x++ )
 					{
-						if( g_GrenadeSlot[i][!g_bLeft4Dead2] & (1<<type - 1) && types & (1<<x) )
+						if( g_GrenadeSlot[i][view_as<int>(!g_bLeft4Dead2)] & (1<<type - 1) && types & (1<<x) )
 						{
 							index = x + 1;
 							break;
@@ -1678,6 +2235,10 @@ int GetGrenadeIndex(int client, int type)
 // Listen for thrown grenades to hook and replace.
 public void OnEntityCreated(int entity, const char[] classname)
 {
+	if( entity < 0 || entity >= 2048 ) return;
+
+	g_GrenadeType[entity] = 0;
+
 	if( g_bCvarAllow )
 	{
 		if( !g_bBlockHook )
@@ -1700,9 +2261,28 @@ public void OnEntityCreated(int entity, const char[] classname)
 			}
 		}
 
-		if( g_bHookFire && strcmp(classname, "inferno") == 0 ) // Small fires
+		
+		if( g_bHookFire && strcmp(classname, "inferno") == 0 )
 		{
 			SDKHook(entity, SDKHook_ThinkPost, OnPostThink);
+		}
+
+		// Chemical Mode - Acid damage
+		else if( g_bLeft4Dead2 )
+		{
+			if( g_bAcidSpawn )
+			{
+				if( strcmp(classname, "insect_swarm") == 0 )
+				{
+					g_hAlAcid.Push(entity);
+					g_bAcidSpawn = false;
+				}
+			}
+
+			if( strcmp(classname, "infected") == 0 || strcmp(classname, "witch") == 0 )
+			{
+				SDKHook(entity, SDKHook_OnTakeDamageAlive, OnAcidDamage);
+			}
 		}
 	}
 }
@@ -1735,7 +2315,7 @@ public void OnNextFrame(int entity)
 	if( client > 0 && client <= MaxClients && IsClientInGame(client) )
 	{
 		int index = g_iClientGrenadeType[client];
-		if( index > 0 )
+		if( index > 0 && g_bAllowedClient[client] && CheckCommandAccess(client, "sm_grenade", 0) == true )
 		{
 			// Game bug: when "weapon_oxygentank" and "weapon_propanetank" explode they create a "pipe_bomb_projectile". This prevents those erroneous ents.
 			static float vTest[3];
@@ -1791,6 +2371,8 @@ void DoPrjEffects(int entity, int index)
 		case INDEX_FIRECLUSTER:		PrjEffects_FireCluster		(entity);
 		case INDEX_BULLETS:			PrjEffects_Bullets			(entity);
 		case INDEX_FLAK:			PrjEffects_Flak				(entity);
+		case INDEX_AIRSTRIKE:		PrjEffects_Airstrike		(entity);
+		case INDEX_WEAPON:			PrjEffects_Weapon			(entity);
 	}
 }
 
@@ -2099,10 +2681,10 @@ void PrjEffects_AntiGravity(int entity)
 	PlaySound(entity, SOUND_TUNNEL);
 
 	// Slow projectile
-	CreateTimer(0.1, tmrSlowdown, EntIndexToEntRef(entity), TIMER_REPEAT);
+	CreateTimer(0.1, TimerSlowdown, EntIndexToEntRef(entity), TIMER_REPEAT);
 }
 
-public Action tmrSlowdown(Handle timer, any entity)
+public Action TimerSlowdown(Handle timer, any entity)
 {
 	if( (entity = EntRefToEntIndex(entity)) != INVALID_ENT_REFERENCE )
 	{
@@ -2174,11 +2756,36 @@ void PrjEffects_Flak(int entity)
 	SetupPrjEffects(entity, vPos, "255 100 100"); // Rose
 
 	// Particles
-	DisplayParticle(entity,	PARTICLE_SPARKS,	vPos, NULL_VECTOR);
-	DisplayParticle(entity,	PARTICLE_GSPARKS,	vPos, NULL_VECTOR, 0.2);
+	if( g_bLeft4Dead2 )
+	{
+		DisplayParticle(entity,	PARTICLE_SPARKS,	vPos, NULL_VECTOR);
+		DisplayParticle(entity,	PARTICLE_GSPARKS,	vPos, NULL_VECTOR, 0.2);
+	} else {
+		DisplayParticle(entity,	PARTICLE_FLARE,		vPos, NULL_VECTOR);
+	}
 
 	// Sound
 	PlaySound(entity, SOUND_STEAM);
+}
+
+// ====================================================================================================
+//					PRJ EFFECT - AIRSTRIKE
+// ====================================================================================================
+void PrjEffects_Airstrike(int entity)
+{
+	static float vPos[3];
+	SetupPrjEffects(entity, vPos, "255 0 0"); // Red
+	DisplayParticle(entity,	PARTICLE_FLARE,		vPos, NULL_VECTOR);
+}
+
+// ====================================================================================================
+//					PRJ EFFECT - WEAPON
+// ====================================================================================================
+void PrjEffects_Weapon(int entity)
+{
+	static float vPos[3];
+	SetupPrjEffects(entity, vPos, "255 255 0"); // Yellow
+	DisplayParticle(entity,	PARTICLE_FIREWORK,		vPos, NULL_VECTOR);
 }
 
 
@@ -2198,9 +2805,20 @@ public void OnTouch_Detonate(int entity, int other)
 {
 	if( other > MaxClients )
 	{
-		static char classname[12];
-		GetEdictClassname(other, classname, sizeof classname);
+		static char classname[10];
+		GetEdictClassname(other, classname, sizeof(classname));
 		if( strncmp(classname, "trigger_", 8) == 0 ) return;
+
+		// Get index
+		int index = g_GrenadeType[entity];
+
+		// Stick to surface, unless hitting a client
+		if( g_GrenadeData[index - 1][CONFIG_STICK] )
+		{
+			SetEntPropVector(entity, Prop_Data, "m_vecAbsVelocity", view_as<float>({ 0.0, 0.0, 0.0 }));
+			SetEntityMoveType(entity, MOVETYPE_NONE);
+			SetEntProp(entity, Prop_Send, "m_nSolidType", 6);
+		}
 	}
 
 	Detonate_Grenade(entity);
@@ -2214,24 +2832,10 @@ void Detonate_Grenade(int entity)
 	if( client > 0 && IsClientInGame(client) )
 	{
 		// Get index
-		int index = GetEntProp(entity, Prop_Data, "m_iHammerID");
-		static float vPos[3];
+		int index = g_GrenadeType[entity];
+		if( index < 0 || index > MAX_TYPES) return;
 
-		// Stick to surface
-		if( g_GrenadeData[index - 1][CONFIG_STICK] )
-		{
-			GetEntPropVector(entity, Prop_Data, "m_vecAbsVelocity", vPos);
-			if(
-				vPos[0] > -1.0 && vPos[0] < 1.0 &&
-				vPos[1] > -1.0 && vPos[1] < 1.0 &&
-				vPos[2] > -1.0 && vPos[2] < 1.0
-			)
-			{
-				SetEntPropVector(entity, Prop_Data, "m_vecAbsVelocity", view_as<float>({ 0.0, 0.0, 0.0 }));
-				SetEntityMoveType(entity, MOVETYPE_NONE);
-				SetEntProp(entity, Prop_Send, "m_nSolidType", 6);
-			}
-		}
+		static float vPos[3];
 
 		// Grenade Pos
 		GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
@@ -2255,10 +2859,10 @@ void Detonate_Grenade(int entity)
 
 		// Stop env_steam
 		static char sTemp[64];
-		Format(sTemp, sizeof sTemp, "OnUser4 silv_steam_%d:TurnOff::0.0:-1", entity);
+		Format(sTemp, sizeof(sTemp), "OnUser4 silv_steam_%d:TurnOff::0.0:-1", entity);
 		SetVariantString(sTemp);
 		AcceptEntityInput(entity, "AddOutput");
-		Format(sTemp, sizeof sTemp, "OnUser4 silv_steam_%d:Kill::2.0:-1", entity);
+		Format(sTemp, sizeof(sTemp), "OnUser4 silv_steam_%d:Kill::2.0:-1", entity);
 		SetVariantString(sTemp);
 		AcceptEntityInput(entity, "AddOutput");
 		AcceptEntityInput(entity, "FireUser4");
@@ -2270,7 +2874,7 @@ public Action Timer_Repeat_Explode(Handle timer, any entity)
 	if( g_bCvarAllow && (entity = EntRefToEntIndex(entity)) != INVALID_ENT_REFERENCE )
 	{
 		// Get index
-		int index = GetEntProp(entity, Prop_Data, "m_iHammerID");
+		int index = g_GrenadeType[entity];
 
 		// Validate client
 		int client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
@@ -2325,9 +2929,9 @@ void Explode_Effects(int client, int entity, int index, bool fromTimer = true)
 		case INDEX_FIRECLUSTER:		Explode_Cluster			(client, entity, index, fromTimer);
 		case INDEX_BULLETS:			Explode_Bullets			(client, entity, index, fromTimer);
 		case INDEX_FLAK:			Explode_Flak			(client, entity, index);
+		case INDEX_AIRSTRIKE:		Explode_Airstrike		(client, entity, index);
+		case INDEX_WEAPON:			Explode_Weapon			(client, entity, index);
 	}
-
-
 
 	// Detonation duration - instant explode only
 	float tick = g_GrenadeData[index - 1][CONFIG_TICK];
@@ -2339,7 +2943,6 @@ void Explode_Effects(int client, int entity, int index, bool fromTimer = true)
 		// Stop sounds
 		StopSounds(entity);
 	}
-	g_iClientGrenadeType[client] = -1;
 }
 
 
@@ -2441,7 +3044,7 @@ public void Explode_Cluster(int client, int entity, int index, bool fromTimer)
 			// Fire and forget - cluster projectiles
 			InputKill(entity, 3.0);
 
-			SetEntProp(entity, Prop_Data, "m_iHammerID", index);		// Store mode type
+			g_GrenadeType[entity] = index;								// Store mode type
 			SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", client); // Store owner
 
 			// Set origin and velocity
@@ -2481,8 +3084,8 @@ public void Explode_Cluster(int client, int entity, int index, bool fromTimer)
 
 public void OnTouchTrigger_Cluster(int entity, int target)
 {
-	static char classname[12];
-	GetEdictClassname(target, classname, sizeof classname);
+	static char classname[10];
+	GetEdictClassname(target, classname, sizeof(classname));
 	if( strncmp(classname, "trigger_", 8) == 0 ) return;
 
 	static float vPos[3];
@@ -2494,7 +3097,7 @@ public void OnTouchTrigger_Cluster(int entity, int target)
 
 	// Hurt enemies
 	int client = GetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity");
-	int index = GetEntProp(entity, Prop_Data, "m_iHammerID");
+	int index = g_GrenadeType[entity];
 
 	if( index - 1 == INDEX_CLUSTER )
 		CreateExplosion(client, entity, INDEX_CLUSTER + 1, 200.0, vPos, DMG_BLAST);
@@ -2598,7 +3201,7 @@ public void Explode_BlackHole(int client, int entity, int index, bool fromTimer)
 	}
 
 	// Sound
-	PlaySound(entity, g_sSoundsZap[GetRandomInt(0, sizeof g_sSoundsZap - 1)]);
+	PlaySound(entity, g_sSoundsZap[GetRandomInt(0, sizeof(g_sSoundsZap) - 1)]);
 
 	// Beam Ring
 	float range = g_GrenadeData[index - 1][CONFIG_RANGE] * 2 + BEAM_OFFSET;
@@ -2635,7 +3238,7 @@ public void Explode_Flashbang(int client, int entity, int index)
 	else PlaySound(entity, SOUND_EXPLODE5);
 
 	// Kill flashbang
-	AcceptEntityInput(entity, "Kill");
+	RemoveEntity(entity);
 }
 
 // ====================================================================================================
@@ -2655,10 +3258,9 @@ public void Explode_Shield(int client, int entity, int index, bool fromTimer)
 
 	// Beam rings
 	float range = g_GrenadeData[index - 1][CONFIG_RANGE] * 2 + BEAM_OFFSET;
-	static bool flip;
+	static bool flip; // Should be stored globally to avoid conflict on multiple shields, but meh
 	flip = !flip;
 	CreateBeamRing(entity, { 0, 220, 255, 255 }, flip ? 0.1 : range - (range / BEAM_RINGS), flip ? range - (range / BEAM_RINGS) : 0.1);
-
 
 	if( fromTimer == false )
 	{
@@ -2735,12 +3337,7 @@ void TeslaShock(int grenade, int target)
 
 
 	// PARTICLE TARGET
-	if( g_bLeft4Dead2 )
-		entity = CreateEntityByName("info_particle_target");
-	else
-	{
-		entity = CreateEntityByName("info_particle_system");
-	}
+	entity = CreateEntityByName(g_bLeft4Dead2 ? "info_particle_target" : "info_particle_system");
 
 	if( iType == 0 )
 		DispatchKeyValue(entity, "effect_name", PARTICLE_TES1);
@@ -2784,7 +3381,7 @@ void TeslaShock(int grenade, int target)
 
 
 	// SOUND
-	PlaySound(entity, g_sSoundsZap[GetRandomInt(0, sizeof g_sSoundsZap - 1)]);
+	PlaySound(entity, g_sSoundsZap[GetRandomInt(0, sizeof(g_sSoundsZap) - 1)]);
 }
 
 // ====================================================================================================
@@ -2816,7 +3413,6 @@ public void Explode_Chemical(int client, int entity, int index, bool fromTimer)
 			// vPos[2] -= 10.0;
 
 			// Fire and forget itself
-			// char sTime[64];
 			// InputKill(entity, g_GrenadeData[index - 1][CONFIG_TIME]);
 		}
 		else
@@ -2831,12 +3427,66 @@ public void Explode_Chemical(int client, int entity, int index, bool fromTimer)
 		{
 			vPos[1] += 5.0;
 			vPos[2] += 5.0;
-			entity = SDKCall(sdkActivateSpit, vPos, view_as<float>({ 0.0, 0.0, 0.0 }), view_as<float>({ 0.0, 0.0, 0.0 }), view_as<float>({ 0.0, 0.0, 0.0 }), client);
+			g_bAcidSpawn = true;
+			entity = SDKCall(g_hSDK_ActivateSpit, vPos, view_as<float>({ 0.0, 0.0, 0.0 }), view_as<float>({ 0.0, 0.0, 0.0 }), view_as<float>({ 0.0, 0.0, 0.0 }), client);
 			SetEntPropEnt(entity, Prop_Data, "m_hThrower", client);
 			vPos[1] -= 5.0;
 			vPos[2] -= 5.0;
 		}
 	}
+}
+
+public Action OnAcidDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
+{
+	// if( damagetype == (DMG_ENERGYBEAM | DMG_RADIATION) || damagetype == (DMG_ENERGYBEAM | DMG_RADIATION | DMG_PREVENT_PHYSICS_FORCE) )
+	// 1024 (1<<10) DMG_ENERGYBEAM
+	// 2048 (1<<11) DMG_PREVENT_PHYSICS_FORCE
+	// 262144 (1<<18) DMG_RADIATION
+
+	if( damagetype == 263168 || damagetype == 265216 ) // 265216 at end of entity life when fading out
+	{
+		int entity;
+		int len = g_hAlAcid.Length;
+
+		// Match inflictor with one we created
+		for( int i = 0; i < len; i++ )
+		{
+			entity = g_hAlAcid.Get(i);
+
+			// Clear invalid ents
+			if( EntRefToEntIndex(entity) == INVALID_ENT_REFERENCE )
+			{
+				g_hAlAcid.Erase(i);
+				i--;
+			}
+
+			// Modify damage
+			if( entity == inflictor )
+			{
+				if( victim > 0 && victim <= MaxClients )
+				{
+					if( victim == attacker )
+					{
+						damage *= g_fConfigAcidSelf;
+						return Plugin_Changed;
+					}
+					else
+					{
+						int team = GetClientTeam(victim);
+						if( team == 2 ) damage *= g_fConfigAcidSurv;
+						else if( team == 3 ) damage *= g_fConfigAcidSpec;
+						return Plugin_Changed;
+					}
+				}
+				else if( victim > MaxClients )
+				{
+					damage *= g_fConfigAcidComm;
+					return Plugin_Changed;
+				}
+			}
+		}
+	}
+	return Plugin_Continue;
 }
 
 // ====================================================================================================
@@ -2879,7 +3529,7 @@ public void OnTouchTriggerFreezer2(int entity, int target)
 	if( target > MaxClients )
 	{
 		static char classname[12];
-		GetEdictClassname(target, classname, sizeof classname);
+		GetEdictClassname(target, classname, sizeof(classname));
 
 		int targ = g_GrenadeTarg[INDEX_FREEZER];
 		if( (targ & (1 << TARGET_COMMON) && strcmp(classname, "infected") == 0) || (targ & (1 << TARGET_WITCH) && strcmp(classname, "witch") == 0) )
@@ -2912,16 +3562,20 @@ public void OnTouchTriggerFreezer(int entity, int target)
 				int team = GetClientTeam(target);
 				if( team == 2 && targ & (1<<TARGET_SURVIVOR) )
 					pass = true;
-				else if( team == 3 && targ & (1<<TARGET_SPECIAL) )
+				else if( team == 3 && targ & (1<<TARGET_SPECIAL) && GetEntProp(target, Prop_Send, "m_zombieClass") != g_iClassTank )
 					pass = true;
-				else if( team == 3 && targ & (1<<TARGET_TANK) && GetEntProp(target, Prop_Send, "m_zombieClass") == (g_bLeft4Dead2 ? 8 : 5) )
+				else if( team == 3 && targ & (1<<TARGET_TANK) && GetEntProp(target, Prop_Send, "m_zombieClass") == g_iClassTank )
 					pass = true;
+
+				// Ignore ghosts
+				if( team == 3 && GetEntProp(target, Prop_Send, "m_isGhost") == 1 )
+					pass = false;
 
 				if( pass )
 				{
 					if( GetGameTime() - g_fLastFreeze[target] > 1.0 )
 					{
-						CreateTimer(0.5, tmrFreezer, GetClientUserId(target), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+						CreateTimer(0.5, TimerFreezer, GetClientUserId(target), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 
 						PlaySound(target, SOUND_FREEZER);
 
@@ -2940,7 +3594,7 @@ public void OnTouchTriggerFreezer(int entity, int target)
 	}
 }
 
-public Action tmrFreezer(Handle timer, any client)
+public Action TimerFreezer(Handle timer, any client)
 {
 	if( (client = GetClientOfUserId(client)) && IsClientInGame(client) && IsPlayerAlive(client) )
 	{
@@ -2978,36 +3632,176 @@ public void Explode_Medic(int client, int entity, int index)
 	float range = g_GrenadeData[index - 1][CONFIG_RANGE] * 2 + BEAM_OFFSET;
 	CreateBeamRing(entity, { 0, 150, 0, 255 }, 0.1, range - (range / BEAM_RINGS));
 
-	// Heal survivors
+	// Heal targets
+	int targ = g_GrenadeTarg[INDEX_FREEZER];
+	int team;
+	bool pass;
+
+	int iHeal = RoundFloat(g_GrenadeData[index - 1][CONFIG_DAMAGE]);
 	int iHealth;
+	int iMax;
 	float fHealth;
+	float fRange = g_GrenadeData[index - 1][CONFIG_RANGE];
 	float vEnd[3];
+
+
+
+	// Survivors and Special Infected
 	for( int i = 1; i <= MaxClients; i++ )
 	{
-		if( IsClientInGame(i) && GetClientTeam(i) == 2 && IsPlayerAlive(i) )
+		if( IsClientInGame(i) && IsPlayerAlive(i) )
 		{
-			GetClientAbsOrigin(i, vEnd);
-			if( GetVectorDistance(vPos, vEnd) <= g_GrenadeData[index - 1][CONFIG_RANGE] )
-			{
-				iHealth = GetClientHealth(i);
-				if( iHealth < 100 )
-				{
-					iHealth += RoundFloat(g_GrenadeData[index - 1][CONFIG_DAMAGE]);
-					if( iHealth > 100 )
-						iHealth = 100;
+			team = GetClientTeam(i);
+			if( team == 2 && targ & (1<<TARGET_SURVIVOR) )
+				pass = true;
+			else if( team == 3 && targ & (1<<TARGET_SPECIAL) && GetEntProp(i, Prop_Send, "m_zombieClass") != g_iClassTank )
+				pass = true;
+			else if( team == 3 && targ & (1<<TARGET_TANK) && GetEntProp(i, Prop_Send, "m_zombieClass") == g_iClassTank )
+				pass = true;
 
-					fHealth = GetTempHealth(i);
-					if( iHealth + fHealth > 100 )
+			if( pass )
+			{
+				GetClientAbsOrigin(i, vEnd);
+				if( GetVectorDistance(vPos, vEnd) <= fRange )
+				{
+					// Check for Black and White health:
+					bool bBlackAndWhite;
+					if( team == 2 )
 					{
-						fHealth = 100.0 - iHealth;
-						SetTempHealth(i, fHealth);
+						if( g_bLeft4Dead2 )
+							bBlackAndWhite = view_as<bool>(GetEntProp(i, Prop_Send, "m_bIsOnThirdStrike", 1));
+						else
+							bBlackAndWhite = GetEntProp(i, Prop_Send, "m_currentReviveCount") >= GetMaxReviveCount();
 					}
 
-					SetEntityHealth(i, iHealth);
+					if( bBlackAndWhite )
+					{
+						fHealth = GetTempHealth(i);
+						if( fHealth < 100 )
+						{
+							fHealth += g_GrenadeData[index - 1][CONFIG_DAMAGE];
+
+							if( fHealth > 100.0 )
+								fHealth = 100.0;
+
+							SetTempHealth(i, fHealth);
+						}
+					} else {
+						iHealth = GetClientHealth(i);
+						iMax = GetClientMaxHealth(i);
+	
+						if( iHealth < iMax )
+						{
+							iHealth += iHeal;
+							if( iHealth > iMax )
+								iHealth = iMax;
+
+							if( team == 2 )
+							{
+								fHealth = GetTempHealth(i);
+								if( iHealth + fHealth > 100 )
+								{
+									fHealth = 100.0 - iHealth;
+									SetTempHealth(i, fHealth);
+								}
+							}
+
+							SetEntityHealth(i, iHealth);
+						}
+					}
 				}
 			}
 		}
 	}
+
+
+
+	// Common
+	if( targ & (1<<TARGET_COMMON) )
+	{
+		int target = -1;
+
+		while( (target = FindEntityByClassname(target, "infected")) != INVALID_ENT_REFERENCE )
+		{
+			GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", vEnd);
+			if( GetVectorDistance(vPos, vEnd) <= fRange )
+			{
+				iMax = GetEntProp(target, Prop_Data, "m_iMaxHealth");
+				iHealth = GetEntProp(target, Prop_Data, "m_iHealth");
+				iHealth += iHeal;
+
+				if( iHealth > iMax )
+					iHealth = iMax;
+
+				SetEntProp(target, Prop_Data, "m_iHealth", iHealth);
+			}
+		}
+	}
+
+
+
+	// Witch
+	if( targ & (1<<TARGET_WITCH) )
+	{
+		int target = -1;
+
+		while( (target = FindEntityByClassname(target, "witch")) != INVALID_ENT_REFERENCE )
+		{
+			GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", vEnd);
+			if( GetVectorDistance(vPos, vEnd) <= fRange )
+			{
+				iMax = GetEntProp(target, Prop_Data, "m_iMaxHealth");
+				iHealth = GetEntProp(target, Prop_Data, "m_iHealth");
+				iHealth += iHeal;
+
+				if( iHealth > iMax )
+					iHealth = iMax;
+
+				SetEntProp(target, Prop_Data, "m_iHealth", iHealth);
+			}
+		}
+	}
+}
+
+int GetClientMaxHealth(int client)
+{
+	int entity = GetPlayerManager();
+
+	if( entity != INVALID_ENT_REFERENCE )
+	{
+		return GetEntData(entity, m_maxHealth + (client * 4));
+	}
+
+	return 0;
+}
+
+int GetPlayerManager()
+{
+	static int entity = INVALID_ENT_REFERENCE;
+	if( entity == INVALID_ENT_REFERENCE || EntRefToEntIndex(entity) == INVALID_ENT_REFERENCE )
+	{
+		entity = FindEntityByClassname(-1, "terror_player_manager");
+		if( entity != INVALID_ENT_REFERENCE ) entity = EntIndexToEntRef(entity);
+	}
+
+	return entity;
+}
+
+// Stock taken from "LMC_Black_and_White_Notifier" by "Lux".
+// https://github.com/LuxLuma/LMC_Black_and_White_Notifier/blob/master/LMC_Black_and_White_Notifier.sp
+int GetMaxReviveCount()
+{
+	static Handle hMaxReviveCount = INVALID_HANDLE;
+	if (hMaxReviveCount == INVALID_HANDLE)
+	{
+		hMaxReviveCount = FindConVar("survivor_max_incapacitated_count");
+		if (hMaxReviveCount == INVALID_HANDLE)
+		{
+			return -1;
+		}
+	}
+	
+	return GetConVarInt(hMaxReviveCount);
 }
 
 // ====================================================================================================
@@ -3073,18 +3867,13 @@ void DissolveTarget(int client, int target, int iOverlayModel = 0)
 	// CreateEntityByName "env_entity_dissolver" has broken particles, this way works 100% of the time
 	float time = GetRandomFloat(0.2, 0.7);
 
-	int dissolver = SDKCall(sdkDissolveCreate, iOverlayModel ? iOverlayModel : target, "", GetGameTime() + time, 2, false);
+	int dissolver = SDKCall(g_hSDK_DissolveCreate, iOverlayModel ? iOverlayModel : target, "", GetGameTime() + time, 2, false);
 	if( dissolver > MaxClients && IsValidEntity(dissolver) )
 	{
 		if( target > MaxClients )
 		{
 			// Have to kill here because this function is called above the actual hurt in CreateExplosion.
-			static char sTemp[8];
-			IntToString(GetEntProp(target, Prop_Data, "m_iHealth") - 10, sTemp, sizeof(sTemp));
-			DispatchKeyValue(g_iEntityHurt, "Damage", sTemp);
-			DispatchKeyValue(g_iEntityHurt, "DamageType", "0");
-			DispatchKeyValue(target, "targetname", "silvershot");
-			AcceptEntityInput(g_iEntityHurt, "Hurt", client, client);
+			SDKHooks_TakeDamage(target, client, client, float(GetEntProp(target, Prop_Data, "m_iHealth") - 10), DMG_GENERIC);
 
 			// Prevent common infected from crashing the server when taking damage from the dissolver.
 			SDKHook(target, SDKHook_OnTakeDamage, OnCommonDamage);
@@ -3134,8 +3923,13 @@ int AttachFakeRagdoll(int target)
 
 public Action OnCommonDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype)
 {
-	damage = 0.0;
-	return Plugin_Handled;
+	// Block dissolver damage to common, otherwise server will crash.
+	if( damage == 10000 && damagetype == (g_bLeft4Dead2 ? 5982249 : 33540137) )
+	{
+		damage = 0.0;
+		return Plugin_Handled;
+	}
+	return Plugin_Continue;
 }
 
 // ====================================================================================================
@@ -3173,7 +3967,7 @@ void Explode_Extinguisher(int client, int entity, int index)
 		GetEntPropVector(inferno, Prop_Data, "m_vecAbsOrigin", vEnd);
 		if( GetVectorDistance(vPos, vEnd) < g_GrenadeData[INDEX_EXTINGUISHER][CONFIG_RANGE] )
 		{
-			AcceptEntityInput(inferno, "Kill");
+			RemoveEntity(inferno);
 		}
 	}
 
@@ -3183,7 +3977,7 @@ void Explode_Extinguisher(int client, int entity, int index)
 		GetEntPropVector(inferno, Prop_Data, "m_vecAbsOrigin", vEnd);
 		if( GetVectorDistance(vPos, vEnd) < g_GrenadeData[INDEX_EXTINGUISHER][CONFIG_RANGE] )
 		{
-			AcceptEntityInput(inferno, "Kill");
+			RemoveEntity(inferno);
 		}
 	}
 }
@@ -3260,7 +4054,7 @@ void Explode_Bullets(int client, int entity, int index, bool fromTimer)
 
 	// Sound
 	if( GetRandomInt(0,3) == 3 )
-		PlaySound(entity, g_sSoundsMiss[GetRandomInt(0, sizeof g_sSoundsMiss - 1)]);
+		PlaySound(entity, g_sSoundsMiss[GetRandomInt(0, sizeof(g_sSoundsMiss) - 1)]);
 	PlaySound(entity, SOUND_SHOOTING, SNDLEVEL_RAIDSIREN);
 
 
@@ -3304,7 +4098,7 @@ void Explode_Bullets(int client, int entity, int index, bool fromTimer)
 		// */
 
 		// Validate entity hit
-		if( TR_DidHit(trace) == true )
+		if( TR_DidHit(trace) )
 		{
 			target = TR_GetEntityIndex(trace);
 			targ = g_GrenadeTarg[index - 1];
@@ -3319,12 +4113,12 @@ void Explode_Bullets(int client, int entity, int index, bool fromTimer)
 					fDamage = fDamage * g_fConfigSurvivors * g_GrenadeData[index - 1][CONFIG_DMG_SURVIVORS];
 					pass = true;
 				}
-				else if( team == 3 && targ & (1<<TARGET_SPECIAL) )
+				else if( team == 3 && targ & (1<<TARGET_SPECIAL) && GetEntProp(target, Prop_Send, "m_zombieClass") != g_iClassTank )
 				{
 					fDamage = fDamage * g_fConfigSpecial * g_GrenadeData[index - 1][CONFIG_DMG_SPECIAL];
 					pass = true;
 				}
-				else if( team == 3 && targ & (1<<TARGET_TANK) && GetEntProp(target, Prop_Send, "m_zombieClass") == (g_bLeft4Dead2 ? 8 : 5) )
+				else if( team == 3 && targ & (1<<TARGET_TANK) && GetEntProp(target, Prop_Send, "m_zombieClass") == g_iClassTank )
 				{
 					fDamage = fDamage * g_fConfigTank * g_GrenadeData[index - 1][CONFIG_DMG_TANK];
 					pass = true;
@@ -3334,7 +4128,7 @@ void Explode_Bullets(int client, int entity, int index, bool fromTimer)
 			if( target > MaxClients && (targ & (1<<TARGET_WITCH) || targ & (1<<TARGET_COMMON) || targ & (1<<TARGET_PHYSICS)) )
 			{
 				// Check classname
-				GetEdictClassname(target, classname, sizeof classname);
+				GetEdictClassname(target, classname, sizeof(classname));
 
 				if( targ & (1 << TARGET_WITCH) && strcmp(classname, "witch") == 0 )
 				{
@@ -3362,13 +4156,10 @@ void Explode_Bullets(int client, int entity, int index, bool fromTimer)
 
 			if( pass )
 			{
-				IntToString(RoundFloat(fDamage), classname, sizeof classname);
-				DispatchKeyValue(g_iEntityHurt, "Damage", classname);
-				DispatchKeyValue(target, "targetname", "silvershot");
-				AcceptEntityInput(g_iEntityHurt, "Hurt", client, client);
-				DispatchKeyValue(target, "targetname", "");
+				SDKHooks_TakeDamage(target, client, client, fDamage, DMG_BULLET);
 			}
 		}
+
 		delete trace;
 	}
 }
@@ -3425,7 +4216,145 @@ void Explode_Flak(int client, int entity, int index)
 
 	// Explosion
 	vPos[2] -= 75.0;
-	CreateExplosion(client, entity, index, 150.0, vPos, DMG_BURN);
+	CreateExplosion(client, entity, index, 150.0, vPos, DMG_BLAST);
+}
+
+// ====================================================================================================
+//					EXPLOSION FX - AIRSTRIKE
+// ====================================================================================================
+void Explode_Airstrike(int client, int entity, int index)
+{
+	// Grenade Pos
+	static float vPos[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
+
+	// Shake
+	CreateShake(g_GrenadeData[index - 1][CONFIG_SHAKE], g_GrenadeData[index - 1][CONFIG_RANGE], vPos);
+
+	// Sound
+	int random = GetRandomInt(1, 4);
+	switch( random )
+	{
+		case 1: PlaySound(entity, SOUND_FIREWORK1);
+		case 2: PlaySound(entity, SOUND_FIREWORK2);
+		case 3: PlaySound(entity, SOUND_FIREWORK3);
+		case 4: PlaySound(entity, SOUND_FIREWORK4);
+	}
+
+	F18_ShowAirstrike(vPos, GetRandomFloat(0.0, 180.0));
+
+	// Explosion
+	vPos[2] -= 75.0;
+	CreateExplosion(client, entity, index, 150.0, vPos, DMG_BLAST);
+}
+
+// ====================================================================================================
+//					EXPLOSION FX - WEAPON
+// ====================================================================================================
+void Explode_Weapon(int client, int entity, int index)
+{
+	SetEntityRenderMode(entity, RENDER_NONE);
+
+	// Weighted chance
+	int model = -1;
+	int rand = GetRandomInt(1, g_iTotalChance);
+
+	for( int i = 0; i < (g_bLeft4Dead2 ? MAX_WEAPONS2 + MAX_MELEE : MAX_WEAPONS); i++ )
+	{
+		if( rand <= g_iChances[i] )
+		{
+			model = i;
+			break;
+		}
+	}
+
+	if( model == -1 ) return;
+
+	// Grenade Pos
+	static float vPos[3], vAng[3];
+	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
+	vAng[1] = GetRandomFloat(1.0, 360.0);
+
+	// Create
+	if( model >= 29 )
+	{
+		// Melee:
+		entity = CreateEntityByName("weapon_melee");
+		if( entity == -1 )
+			ThrowError("Failed to create entity 'weapon_melee'.");
+
+		DispatchKeyValue(entity, "melee_script_name", g_sWeapons2[model]);
+		DispatchSpawn(entity);
+
+		vPos[2] += 20.0;
+		TeleportEntity(entity, vPos, vAng, NULL_VECTOR);
+		vPos[2] -= 40.0;
+	} else {
+		// Weapons:
+		entity = -1;
+		entity = CreateEntityByName(g_bLeft4Dead2 ? g_sWeapons2[model] : g_sWeapons[model]);
+
+		if( entity != -1 )
+		{
+			DispatchKeyValue(entity, "solid", "6");
+			DispatchKeyValue(entity, "model", g_bLeft4Dead2 ? g_sWeaponModels2[model] : g_sWeaponModels[model]);
+			DispatchKeyValue(entity, "rendermode", "3");
+			DispatchKeyValue(entity, "disableshadows", "1");
+
+			vPos[2] += 10.0;
+			TeleportEntity(entity, vPos, vAng, NULL_VECTOR);
+			vPos[2] -= 30.0;
+			DispatchSpawn(entity);
+
+			int ammo;
+			model += 1;
+
+			if( !g_bLeft4Dead2 )
+			{
+				switch( model )
+				{
+					case 1:					ammo = g_iAmmoRifle;
+					case 2:					ammo = g_iAmmoAutoShot;
+					case 3:					ammo = g_iAmmoHunting;
+					case 4:					ammo = g_iAmmoSmg;
+					case 5:					ammo = g_iAmmoShotgun;
+				}
+			}
+			else
+			{
+				switch( model )
+				{
+					case 4, 16:				ammo = g_iAmmoSmg;
+					case 1, 7, 10, 15:		ammo = g_iAmmoRifle;
+					case 5, 6:				ammo = g_iAmmoShotgun;
+					case 2, 11:				ammo = g_iAmmoAutoShot;
+					case 14:				ammo = g_iAmmoM60;
+					case 22:				ammo = g_iAmmoChainsaw;
+					case 8:					ammo = g_iAmmoGL;
+					case 3, 13, 17, 18:		ammo = g_iAmmoSniper;
+				}
+			}
+
+			if( !g_bLeft4Dead2 && model == 1 ) ammo = g_iAmmoShotgun;
+
+			SetEntProp(entity, Prop_Send, "m_iExtraPrimaryAmmo", ammo, 4);
+		}
+	}
+
+	if( entity != -1 )
+	{
+		// Shake
+		CreateShake(g_GrenadeData[index - 1][CONFIG_SHAKE], g_GrenadeData[index - 1][CONFIG_RANGE], vPos);
+
+		// Sound
+		PlaySound(entity, SOUND_GIFT);
+
+		// Particles
+		DisplayParticle(entity, PARTICLE_FIREWORK, vPos, NULL_VECTOR);
+
+		// Explosion
+		CreateExplosion(client, entity, index, 150.0, vPos, DMG_BLAST);
+	}
 }
 
 
@@ -3440,7 +4369,12 @@ int CreateProjectile(int entity, int client, int index)
 	GetEntPropVector(entity, Prop_Data, "m_angRotation", vAng);
 	GetEntPropVector(entity, Prop_Data, "m_vecAbsOrigin", vPos);
 	GetEntPropVector(entity, Prop_Send, "m_vInitialVelocity", vVel);
-	AcceptEntityInput(entity, "Kill");
+
+	// Prevent conflict with "Bile The World" and "Detonation force" plugins.
+	DispatchKeyValue(entity, "classname", "weapon_pistol");
+
+	// Kill entity
+	RemoveEntity(entity);
 
 	// Create new projectile
 	g_bBlockHook = true;
@@ -3452,7 +4386,8 @@ int CreateProjectile(int entity, int client, int index)
 		return 0;
 	}
 
-	SetEntProp(entity, Prop_Data, "m_iHammerID", index);			// Store mode type
+	DispatchKeyValue(entity, "spawnflags", "4");					// Don't collide with player. Thanks to "Dragokas".
+	g_GrenadeType[entity] = index;									// Store mode type
 	SetEntPropEnt(entity, Prop_Send, "m_hOwnerEntity", client);		// Store owner
 	SetEntPropFloat(entity, Prop_Data, "m_flGravity", g_GrenadeData[index - 1][CONFIG_GRAVITY]);
 	SetEntPropFloat(entity, Prop_Data, "m_flElasticity", g_GrenadeData[index - 1][CONFIG_ELASTICITY]);
@@ -3466,6 +4401,12 @@ int CreateProjectile(int entity, int client, int index)
 	TeleportEntity(entity, vPos, vAng, vVel);
 	DispatchSpawn(entity);
 	SetEntityModel(entity, MODEL_SPRAYCAN); // Model after Dispatch otherwise the projectile effects (flashing light + trail) show and model doesn't change.
+
+	// Randomly spin grenade with Left4DHooks
+	if( g_bLeft4DHooks )
+	{
+		L4D_AngularVelocity(entity, view_as<float>({ 0.0, 1000.0, 0.0}));
+	}
 
 	// Fire and forget - if plugins unloaded the entity and fx will still be deleted.
 	float tick = g_GrenadeData[index - 1][CONFIG_TICK];
@@ -3485,7 +4426,7 @@ int CreateProjectile(int entity, int client, int index)
 int IsGrenade(int weapon)
 {
 	static char classname[20];
-	GetEdictClassname(weapon, classname, sizeof classname);
+	GetEdictClassname(weapon, classname, sizeof(classname));
 
 	if( strcmp(classname[7], "molotov") == 0 )							return 1;
 	if( strcmp(classname[7], "pipe_bomb") == 0 )						return 2;
@@ -3531,6 +4472,7 @@ void StopSounds(int entity)
 // ====================================================================================================
 void PushCommon(int client, int target, float vPos[3], bool common = true)
 {
+	// Cannot use SDKHooks_TakeDamage because it doesn't push in the correct direction.
 	CreateHurtEntity();
 
 	if( common && g_bLeft4Dead2 )			DispatchKeyValue(g_iEntityHurt, "DamageType", "33554432");	// DMG_AIRBOAT (1<<25)	// Common L4D2
@@ -3563,10 +4505,10 @@ void StaggerClient(int userid, const float vPos[3])
 		Format(sBuffer, sizeof(sBuffer), "GetPlayerFromUserID(%d).Stagger(Vector(%d,%d,%d))", userid, RoundFloat(vPos[0]), RoundFloat(vPos[1]), RoundFloat(vPos[2]));
 		SetVariantString(sBuffer);
 		AcceptEntityInput(iScriptLogic, "RunScriptCode");
-		AcceptEntityInput(iScriptLogic, "Kill");
+		RemoveEntity(iScriptLogic);
 	} else {
 		userid = GetClientOfUserId(userid);
-		SDKCall(sdkStaggerClient, userid, userid, vPos); // Stagger: SDKCall method
+		SDKCall(g_hSDK_StaggerClient, userid, userid, vPos); // Stagger: SDKCall method
 	}
 }
 
@@ -3577,15 +4519,16 @@ void StaggerClient(int userid, const float vPos[3])
 // ====================================================================================================
 void CreateExplosion(int client, int entity, int index, float range = 0.0, float vPos[3], int damagetype = DMG_GENERIC, bool ignorePhysics = false)
 {
-	int targ = g_GrenadeTarg[index - 1];
+	index -= 1;
+	int targ = g_GrenadeTarg[index];
 	if( targ == 0 ) return;
 
 
 
 	// Damage tick timeout. Tesla and Vaporizer have their own timeout.
-	if( index -1 != INDEX_TESLA && index -1 != INDEX_VAPORIZER )
+	if( index != INDEX_TESLA && index != INDEX_VAPORIZER )
 	{
-		if( GetGameTime() - g_fLastTesla[entity] < g_GrenadeData[index - 1][CONFIG_DMG_TICK] ) return;
+		if( GetGameTime() - g_fLastTesla[entity] < g_GrenadeData[index][CONFIG_DMG_TICK] ) return;
 		g_fLastTesla[entity] = GetGameTime();
 	}
 
@@ -3596,8 +4539,8 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 	float range_stumble;
 	if( range == 0.0 )
 	{
-		range_damage		= g_GrenadeData[index - 1][CONFIG_RANGE];
-		range_stumble		= g_GrenadeData[index - 1][CONFIG_STUMBLE];
+		range_damage		= g_GrenadeData[index][CONFIG_RANGE];
+		range_stumble		= g_GrenadeData[index][CONFIG_STUMBLE];
 	} else {
 		// From Cluster projectiles
 		range_damage		= range;
@@ -3608,7 +4551,7 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 
 	// Vars
 	ArrayList aGodMode = new ArrayList(); // GodMode list, prevent players/common/witch from taking env_explosion damage.
-	float damage = g_GrenadeData[index - 1][CONFIG_DAMAGE];
+	float damage = g_GrenadeData[index][CONFIG_DAMAGE];
 	float fDamage, fDistance;
 	static float vEnd[3];
 	static char sTemp[16];
@@ -3633,6 +4576,7 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 	{
 		int clients[MAXPLAYERS+1]; // Flashbang
 		int flashcount;
+		bool tank;
 
 		for( i = 1; i <= MaxClients; i++ )
 		{
@@ -3641,12 +4585,14 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 				team = GetClientTeam(i);
 				if( team == 2 ? targ & (1<<TARGET_SURVIVOR) : targ & (1<<TARGET_SPECIAL) )
 				{
+					if( team == 3 && GetEntProp(i, Prop_Send, "m_isGhost") == 1 ) continue; // Ignore ghosts
+	
 					GetEntPropVector(i, Prop_Data, "m_vecOrigin", vEnd);
 					fDistance = GetVectorDistance(vPos, vEnd);
 
 					// Stumble
 					// In range, not Cluster projectiles, not Tesla, not BlackHole, not Anti-Gravity
-					if( range == 0.0 && range_stumble && fDistance < range_stumble && index -1 != INDEX_TESLA && index -1 != INDEX_BLACKHOLE && index -1 != INDEX_ANTIGRAVITY )
+					if( range == 0.0 && range_stumble && fDistance < range_stumble && index != INDEX_TESLA && index != INDEX_BLACKHOLE && index != INDEX_ANTIGRAVITY )
 					{
 						StaggerClient(GetClientUserId(i), vPos);
 					}
@@ -3654,28 +4600,34 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 					// Scale Damage to Range
 					if( fDistance <= range_damage )
 					{
-						if( index -1 == INDEX_VAPORIZER )
+						if( index == INDEX_VAPORIZER )
 						{
 							fDamage = damage; // Full damage
 						} else {
-							fDamage = fDistance / (index -1 == INDEX_TESLA ? range_damage * 2 : range_damage); // Double Tesla range so damage is more when entering.
+							fDamage = fDistance / (index == INDEX_TESLA ? range_damage * 2 : range_damage); // Double Tesla range so damage is more when entering.
 							fDamage = damage * fDamage;
 							fDamage = damage - fDamage;
 						}
 
 						if( team == 3 )
 						{
-							if( GetEntProp(i, Prop_Send, "m_zombieClass") == (g_bLeft4Dead2 ? 8 : 5) )
+							if( GetEntProp(i, Prop_Send, "m_zombieClass") == g_iClassTank )
 							{
+								tank = true;
+
 								if( targ & (1<<TARGET_TANK) )
-									fDamage = fDamage * g_fConfigTank * g_GrenadeData[index - 1][CONFIG_DMG_TANK];
+									fDamage = fDamage * g_fConfigTank * g_GrenadeData[index][CONFIG_DMG_TANK];
 								else
 									fDamage = 0.0;
 							}
 							else
-								fDamage = fDamage * g_fConfigSpecial * g_GrenadeData[index - 1][CONFIG_DMG_SPECIAL];
+							{
+								tank = false;
+
+								fDamage = fDamage * g_fConfigSpecial * g_GrenadeData[index][CONFIG_DMG_SPECIAL];
+							}
 						} else {
-							fDamage = fDamage * g_fConfigSurvivors * g_GrenadeData[index - 1][CONFIG_DMG_SURVIVORS];
+							fDamage = fDamage * g_fConfigSurvivors * g_GrenadeData[index][CONFIG_DMG_SURVIVORS];
 						}
 
 						// Round to 1 because damage fall off scaling can set the value to above 0 and below 1. So affected guaranteed to lose 1 HP.
@@ -3687,19 +4639,26 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 							// ==================================================
 							// Grenade mode specific things:
 							// ==================================================
-							if( GrenadeSpecificExplosion(i, client, entity, index, TARGET_SURVIVOR, 0.0, fDistance, vPos, vEnd) == false )
+							if( GrenadeSpecificExplosion(i, client, entity, index + 1, TARGET_SURVIVOR, 0.0, fDistance, vPos, vEnd) == false )
 								fDamage = 0.0;
 
 							// Damage
-							if( fDamage != 0.0 && (!g_bLeft4Dead2 || index -1 != INDEX_CHEMICAL) ) // Chemical mode in L4D2 only needs to damage non-survivor, the spit already damages them.
+							if( fDamage != 0.0 && (!g_bLeft4Dead2 || index != INDEX_CHEMICAL) ) // Chemical mode in L4D2 only needs to damage non-survivor, the spit already damages them.
 							{
 								clients[flashcount++] = i;
 
 								// Hurt
+								// Cannot use SDKHooks_TakeDamage because it doesn't push in the correct direction.
 								FloatToString(fDamage, sTemp, sizeof(sTemp));
 								DispatchKeyValue(g_iEntityHurt, "Damage", sTemp);
-								IntToString(damagetype, sTemp, sizeof(sTemp));
-								DispatchKeyValue(g_iEntityHurt, "DamageType", sTemp);
+
+								if( index == INDEX_FLAK && ((team == 2 && g_iConfigDmgType & TARGET_SURVIVOR) || (team == 3 && g_iConfigDmgType & TARGET_SPECIAL) || (tank && g_iConfigDmgType & TARGET_TANK)) )
+								{
+									DispatchKeyValue(g_iEntityHurt, "DamageType", "8");
+								} else {
+									IntToString(damagetype, sTemp, sizeof(sTemp));
+									DispatchKeyValue(g_iEntityHurt, "DamageType", sTemp);
+								}
 								DispatchKeyValue(i, "targetname", "silvershot");
 
 								if( i == client ) // Otherwise can't hurt self. Also to avoid red flash on Flashbang
@@ -3720,12 +4679,12 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 		}
 
 		// Flashbang
-		if( flashcount && index -1 == INDEX_FLASHBANG )
+		if( flashcount && index == INDEX_FLASHBANG )
 		{
 			// Blind
 			Handle message = StartMessageEx(g_FadeUserMsgId, clients, flashcount);
 			BfWrite bf = UserMessageToBfWrite(message);
-			bf.WriteShort(RoundFloat(g_GrenadeData[index - 1][CONFIG_TIME]) * 1000);
+			bf.WriteShort(RoundFloat(g_GrenadeData[index][CONFIG_TIME]) * 1000);
 			bf.WriteShort(100);
 			bf.WriteShort(0x0001);
 			bf.WriteByte(255);
@@ -3756,11 +4715,11 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 			fDistance = GetVectorDistance(vPos, vEnd);
 			if( fDistance <= range_damage )
 			{
-				if( index -1 == INDEX_VAPORIZER )
+				if( index == INDEX_VAPORIZER )
 				{
 					fDamage = damage;
 				} else {
-					fDamage = fDistance / (index -1 == INDEX_TESLA ? range_damage * 2 : range_damage);
+					fDamage = fDistance / (index == INDEX_TESLA ? range_damage * 2 : range_damage);
 					fDamage = damage * fDamage;
 					fDamage = damage - fDamage;
 				}
@@ -3772,7 +4731,7 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 					// ==================================================
 					// Grenade mode specific things:
 					// ==================================================
-					if( GrenadeSpecificExplosion(i, client, entity, index, TARGET_COMMON, fDamage, fDistance, vPos, vEnd) == false )
+					if( GrenadeSpecificExplosion(i, client, entity, index + 1, TARGET_COMMON, fDamage, fDistance, vPos, vEnd) == false )
 						fDamage = 0.0;
 
 
@@ -3780,6 +4739,7 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 					// Damage
 					if( fDamage != 0.0 )
 					{
+						// Cannot use SDKHooks_TakeDamage because it doesn't push in the correct direction.
 						FloatToString(fDamage, sTemp, sizeof(sTemp));
 						DispatchKeyValue(g_iEntityHurt, "Damage", sTemp);
 
@@ -3789,11 +4749,18 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 							else					DispatchKeyValue(g_iEntityHurt, "DamageType", "536870912");	// DMG_BUCKSHOT (1<<29)	// Common L4D1
 						}
 						else
-							DispatchKeyValue(g_iEntityHurt, "DamageType", "0");
+						{
+							if( index == INDEX_FLAK && g_iConfigDmgType & TARGET_COMMON )
+							{
+								DispatchKeyValue(g_iEntityHurt, "DamageType", "8");
+							} else {
+								DispatchKeyValue(g_iEntityHurt, "DamageType", "0");
+							}
+						}
 
 						DispatchKeyValue(i, "targetname", "silvershot");
 
-						if( index -1 == INDEX_BLACKHOLE )
+						if( index == INDEX_BLACKHOLE )
 						{
 							static float vAng[3];
 							MakeVectorFromPoints(vPos, vEnd, vAng);
@@ -3821,7 +4788,7 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 
 				if( fDamage != 0.0 )
 				{
-					if( index -1 == INDEX_TESLA )
+					if( index == INDEX_TESLA )
 					{
 						if( numTesla++ >= 3 )
 						{
@@ -3829,7 +4796,7 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 							break;
 						}
 					}
-					else if( index -1 == INDEX_VAPORIZER )
+					else if( index == INDEX_VAPORIZER )
 					{
 						if( numVapo++ >= 2 )
 						{
@@ -3856,14 +4823,14 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 			fDistance = GetVectorDistance(vPos, vEnd);
 			if( fDistance <= range_damage )
 			{
-				if( index -1 == INDEX_VAPORIZER )
+				if( index == INDEX_VAPORIZER )
 				{
 					fDamage = damage;
 				} else {
-					fDamage = fDistance / (index -1 == INDEX_TESLA ? range_damage * 2 : range_damage);
+					fDamage = fDistance / (index == INDEX_TESLA ? range_damage * 2 : range_damage);
 					fDamage = damage * fDamage;
 					fDamage = damage - fDamage;
-					fDamage = fDamage * g_fConfigWitch * g_GrenadeData[index - 1][CONFIG_DMG_WITCH];
+					fDamage = fDamage * g_fConfigWitch * g_GrenadeData[index][CONFIG_DMG_WITCH];
 				}
 
 
@@ -3873,7 +4840,7 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 					// ==================================================
 					// Grenade mode specific things:
 					// ==================================================
-					if( GrenadeSpecificExplosion(i, client, entity, index, TARGET_WITCH, 0.0, fDistance, vPos, vEnd) == false )
+					if( GrenadeSpecificExplosion(i, client, entity, index + 1, TARGET_WITCH, 0.0, fDistance, vPos, vEnd) == false )
 						fDamage = 0.0;
 
 
@@ -3881,16 +4848,26 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 					// Damage
 					if( fDamage != 0.0 )
 					{
+						// Cannot use SDKHooks_TakeDamage because it doesn't push in the correct direction.
 						FloatToString(fDamage, sTemp, sizeof(sTemp));
 						DispatchKeyValue(g_iEntityHurt, "Damage", sTemp);
 
 						if( range_stumble && fDistance <= range_stumble )
+						{
 							DispatchKeyValue(g_iEntityHurt, "DamageType", "64"); // DMG_BLAST (1<<6) // Witch
+						}
 						else
-							DispatchKeyValue(g_iEntityHurt, "DamageType", "0");
+						{
+							if( index == INDEX_FLAK && g_iConfigDmgType & TARGET_WITCH )
+							{
+								DispatchKeyValue(g_iEntityHurt, "DamageType", "8");
+							} else {
+								DispatchKeyValue(g_iEntityHurt, "DamageType", "0");
+							}
+						}
 
 						DispatchKeyValue(i, "targetname", "silvershot");
-						TeleportEntity(g_iEntityHurt, index -1 == INDEX_BLACKHOLE ? vEnd : vPos, NULL_VECTOR, NULL_VECTOR);
+						TeleportEntity(g_iEntityHurt, index == INDEX_BLACKHOLE ? vEnd : vPos, NULL_VECTOR, NULL_VECTOR);
 						AcceptEntityInput(g_iEntityHurt, "Hurt", client, client);
 						DispatchKeyValue(i, "targetname", "");
 					}
@@ -3912,10 +4889,10 @@ void CreateExplosion(int client, int entity, int index, float range = 0.0, float
 	// ==================================================
 	if( ignorePhysics == false && targ & (1 << TARGET_PHYSICS) )
 	{
-		if( g_GrenadeData[index - 1][CONFIG_DMG_PHYSICS] )
+		if( g_GrenadeData[index][CONFIG_DMG_PHYSICS] )
 		{
 			int explo = CreateEntityByName("env_explosion");
-			fDamage = damage * g_fConfigPhysics * g_GrenadeData[index - 1][CONFIG_DMG_PHYSICS];
+			fDamage = damage * g_fConfigPhysics * g_GrenadeData[index][CONFIG_DMG_PHYSICS];
 			// FloatToString(fDamage, sTemp, sizeof(sTemp));
 			// DispatchKeyValue(explo, "iMagnitude", sTemp);
 			// FloatToString(range_damage, sTemp, sizeof(sTemp));
@@ -4030,7 +5007,7 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 			vEnd[2] += 50.0;
 			if( IsVisibleTo(vPos, vEnd) )
 			{
-				SDKCall(sdkDeafenClient, target, 1.0, 0.0, 0.01 );
+				SDKCall(g_hSDK_DeafenClient, target, 1.0, 0.0, 0.01 );
 			}
 		}
 	}
@@ -4066,15 +5043,14 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 	// ==================================================
 	else if( index -1 == INDEX_GLOW )
 	{
-		if( GetEntProp(target, Prop_Data, "m_iHammerID") == 0 && GetEntProp(target, Prop_Send, "m_glowColorOverride") == 0 ) // Avoid conflict with Mutant Zombies and already glowing.
+		if( g_GrenadeType[target] == 0 && GetEntProp(target, Prop_Send, "m_glowColorOverride") == 0 ) // Avoid conflict with Mutant Zombies and already glowing.
 		{
 			SetEntProp(target, Prop_Send, "m_nGlowRange", RoundFloat(g_GrenadeData[index - 1][CONFIG_RANGE] * 4));
 			SetEntProp(target, Prop_Send, "m_iGlowType", 3); // 2 = Requires line of sight. 3 = Glow through walls.
-			SetEntProp(target, Prop_Send, "m_glowColorOverride", 38655); // GetColor("255 150 0");
+			SetEntProp(target, Prop_Send, "m_glowColorOverride", GLOW_COLOR);
 
-			CreateTimer(g_GrenadeData[index - 1][CONFIG_TIME], tmrResetGlow, target <= MaxClients ? GetClientUserId(target) : EntIndexToEntRef(target));
+			CreateTimer(g_GrenadeData[index - 1][CONFIG_TIME], TimerResetGlow, target <= MaxClients ? GetClientUserId(target) : EntIndexToEntRef(target));
 		}
-		return false;
 	}
 
 	// ==================================================
@@ -4094,7 +5070,7 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 
 			AcceptEntityInput(client, "DisableLedgeHang");
 			SetEntityGravity(target, 0.4);
-			CreateTimer(0.1, tmrResetGravity, GetClientUserId(target), TIMER_REPEAT);
+			CreateTimer(0.1, TimerResetGravity, GetClientUserId(target), TIMER_REPEAT);
 		}
 	}
 
@@ -4110,12 +5086,12 @@ bool GrenadeSpecificExplosion(int target, int client, int entity, int index, int
 	return true;
 }
 
-public Action tmrResetGravity(Handle timer, any target)
+public Action TimerResetGravity(Handle timer, any target)
 {
-	if( (target = GetClientOfUserId(target)) )
-	if( target )
+	target = GetClientOfUserId(target);
+	if( target && IsClientInGame(target) )
 	{
-		if( GetEntProp(target, Prop_Send, "m_fFlags") & FL_ONGROUND )
+		if( GetEntProp(target, Prop_Send, "m_fFlags") & FL_ONGROUND || !IsPlayerAlive(target) )
 		{
 			AcceptEntityInput(target, "EnableLedgeHang");
 			SetEntityGravity(target, 1.0);
@@ -4127,10 +5103,10 @@ public Action tmrResetGravity(Handle timer, any target)
 	return Plugin_Stop;
 }
 
-public Action tmrResetGlow(Handle timer, any target)
+public Action TimerResetGlow(Handle timer, any target)
 {
 	target = ValidTargetRef(target);
-	if( target && GetEntProp(target, Prop_Send, "m_glowColorOverride") == 38655 ) // GetColor("255 150 0");
+	if( target && GetEntProp(target, Prop_Send, "m_glowColorOverride") == GLOW_COLOR )
 	{
 		SetEntProp(target, Prop_Send, "m_nGlowRange", 0);
 		SetEntProp(target, Prop_Send, "m_iGlowType", 0);
@@ -4145,23 +5121,29 @@ int ValidTargetRef(int target)
 		if( (target = EntRefToEntIndex(target)) != INVALID_ENT_REFERENCE )
 			return target;
 	} else {
-		if( (target = GetClientOfUserId(target)) )
-			return target;
+		target = GetClientOfUserId(target);
+		return target;
 	}
 
 	return 0;
 }
 
 /*
-int GetColor(char sTemp[32])
+int GetColor(char[] sTemp)
 {
-	static char sColors[3][4];
-	ExplodeString(sTemp, " ", sColors, 3, 4);
+	if( sTemp[0] == 0 )
+		return 0;
 
-	int color;
+	char sColors[3][4];
+	int color = ExplodeString(sTemp, " ", sColors, sizeof(sColors), sizeof(sColors[]));
+
+	if( color != 3 )
+		return 0;
+
 	color = StringToInt(sColors[0]);
 	color += 256 * StringToInt(sColors[1]);
 	color += 65536 * StringToInt(sColors[2]);
+
 	return color;
 }
 // */
@@ -4183,11 +5165,11 @@ void CreateShake(float intensity, float range, float vPos[3])
 	}
 
 	static char sTemp[8];
-	FloatToString(intensity, sTemp, sizeof sTemp);
+	FloatToString(intensity, sTemp, sizeof(sTemp));
 	DispatchKeyValue(entity, "amplitude", sTemp);
 	DispatchKeyValue(entity, "frequency", "1.5");
 	DispatchKeyValue(entity, "duration", "0.9");
-	FloatToString(range, sTemp, sizeof sTemp);
+	FloatToString(range, sTemp, sizeof(sTemp));
 	DispatchKeyValue(entity, "radius", sTemp);
 	DispatchKeyValue(entity, "spawnflags", "8");
 	DispatchSpawn(entity);
@@ -4243,25 +5225,48 @@ void CreateFires(int target, int client, bool gascan)
 		if( gascan )		SetEntityModel(entity, MODEL_GASCAN);
 		else				SetEntityModel(entity, MODEL_CRATE);
 
+		// Hide from view (multiple hides still show the gascan for a split second sometimes, but works better than only using 1 of them)
+		SDKHook(entity, SDKHook_SetTransmit, OnTransmitExplosive);
+
+		// Hide from view
+		int flags = GetEntityFlags(entity);
+		SetEntityFlags(entity, flags|FL_EDICT_DONTSEND);
+
+		// Make invisible
+		SetEntityRenderMode(entity, RENDER_TRANSALPHAADD);
+		SetEntityRenderColor(entity, 0, 0, 0, 0);
+
+		// Prevent collision and movement
+		SetEntProp(entity, Prop_Send, "m_CollisionGroup", 1, 1);
+		SetEntityMoveType(entity, MOVETYPE_NONE);
+
+		// Teleport
 		static float vPos[3];
 		GetEntPropVector(target, Prop_Data, "m_vecOrigin", vPos);
 		vPos[2] += 10.0;
 		TeleportEntity(entity, vPos, NULL_VECTOR, NULL_VECTOR);
+
+		// Spawn
 		DispatchSpawn(entity);
 
-		SetEntData(entity, GetEntSendPropOffs(entity, "m_CollisionGroup"), 1, 1, true);
+		// Set attacker
 		SetEntPropEnt(entity, Prop_Data, "m_hPhysicsAttacker", client);
 		SetEntPropFloat(entity, Prop_Data, "m_flLastPhysicsInfluenceTime", GetGameTime());
-		SetEntityRenderMode(entity, RENDER_TRANSCOLOR);
-		SetEntityRenderColor(entity, 0, 0, 0, 0);
+
+		// Explode
 		AcceptEntityInput(entity, "Break");
 	}
+}
+
+public Action OnTransmitExplosive(int entity, int client)
+{
+	return Plugin_Handled;
 }
 
 void InputKill(int entity, float time)
 {
 	static char temp[40];
-	Format(temp, sizeof temp, "OnUser4 !self:Kill::%f:-1", time);
+	Format(temp, sizeof(temp), "OnUser4 !self:Kill::%f:-1", time);
 	SetVariantString(temp);
 	AcceptEntityInput(entity, "AddOutput");
 	AcceptEntityInput(entity, "FireUser4");
@@ -4282,7 +5287,7 @@ void TriggerMultipleDamage(int entity, int index, float range, float vPos[3])
 	SetEntityModel(trigger, MODEL_BOUNDING);
 	DispatchSpawn(trigger);
 
-	SetEntProp(trigger, Prop_Data, "m_iHammerID", index);
+	g_GrenadeType[trigger] = index;
 	SetEntProp(trigger, Prop_Send, "m_nSolidType", 2);
 
 	// Box size
@@ -4313,11 +5318,11 @@ void TriggerMultipleDamage(int entity, int index, float range, float vPos[3])
 public void OnTouchTriggerMultple(int trigger, int target)
 {
 	// Check duration
-	int index = GetEntProp(trigger, Prop_Data, "m_iHammerID") - 1;
+	int index = g_GrenadeType[trigger] - 1;
 
 	// Check classname
-	static char classname[12];
-	GetEdictClassname(target, classname, sizeof classname);
+	static char classname[10];
+	GetEdictClassname(target, classname, sizeof(classname));
 	if(
 		(index == INDEX_SHIELD && strcmp(classname, "player") == 0) ||
 		(index != INDEX_SHIELD && strcmp(classname, "player") == 0 || strcmp(classname, "infected") == 0 || strcmp(classname, "witch") == 0)
@@ -4374,8 +5379,8 @@ void MakeEnvSteam(int target, const float vPos[3], const float vAng[3], const ch
 		return;
 	}
 
-	static char sTemp[32];
-	Format(sTemp, sizeof sTemp, "silv_steam_%d", target);
+	static char sTemp[16];
+	Format(sTemp, sizeof(sTemp), "silv_steam_%d", target);
 	DispatchKeyValue(entity, "targetname", sTemp);
 	DispatchKeyValue(entity, "SpawnFlags", "1");
 	DispatchKeyValue(entity, "rendercolor", sColor);
@@ -4465,11 +5470,11 @@ int DisplayParticle(int target, const char[] sParticle, const float vPos[3], con
 	// Refire
 	if( refire )
 	{
-		static char sTemp[64];
-		Format(sTemp, sizeof sTemp, "OnUser1 !self:Stop::%f:-1", refire - 0.05);
+		static char sTemp[48];
+		Format(sTemp, sizeof(sTemp), "OnUser1 !self:Stop::%f:-1", refire - 0.05);
 		SetVariantString(sTemp);
 		AcceptEntityInput(entity, "AddOutput");
-		Format(sTemp, sizeof sTemp, "OnUser1 !self:FireUser2::%f:-1", refire);
+		Format(sTemp, sizeof(sTemp), "OnUser1 !self:FireUser2::%f:-1", refire);
 		SetVariantString(sTemp);
 		AcceptEntityInput(entity, "AddOutput");
 		AcceptEntityInput(entity, "FireUser1");
@@ -4493,7 +5498,6 @@ int DisplayParticle(int target, const char[] sParticle, const float vPos[3], con
 int PrecacheParticle(const char[] sEffectName)
 {
 	static int table = INVALID_STRING_TABLE;
-
 	if( table == INVALID_STRING_TABLE )
 	{
 		table = FindStringTable("ParticleEffectNames");
@@ -4553,8 +5557,8 @@ public bool _TraceFilter(int entity, int contentsMask)
 		return false;
 
 	// Don't hit triggers
-	static char classname[12];
-	GetEdictClassname(entity, classname, sizeof classname);
+	static char classname[10];
+	GetEdictClassname(entity, classname, sizeof(classname));
 	if( strncmp(classname, "trigger_", 8) == 0 ) return false;
 
 	return true;
@@ -4569,7 +5573,7 @@ bool SetTeleportEndPoint(int client, float vPos[3])
 	static Handle trace;
 	trace = TR_TraceRayFilterEx(vPos, vAng, MASK_SHOT, RayType_Infinite, ExcludeSelf_Filter, client);
 
-	if(TR_DidHit(trace))
+	if( TR_DidHit(trace) )
 	{
 		TR_GetEndPosition(vPos, trace);
 
@@ -4584,6 +5588,7 @@ bool SetTeleportEndPoint(int client, float vPos[3])
 		delete trace;
 		return false;
 	}
+
 	delete trace;
 	return true;
 }
@@ -4637,20 +5642,20 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 	TE_WriteFloat(g_bLeft4Dead2 ? "m_vStart.z"	:	"m_vOrigin[2]",		fParticleEndPos[2]);
 
 	static int iEffectIndex = INVALID_STRING_INDEX;
-	if(iEffectIndex < 0)
+	if( iEffectIndex < 0 )
 	{
 		iEffectIndex = __FindStringIndex2(FindStringTable("EffectDispatch"), "ParticleEffect");
-		if(iEffectIndex == INVALID_STRING_INDEX)
+		if( iEffectIndex == INVALID_STRING_INDEX )
 			SetFailState("Unable to find EffectDispatch/ParticleEffect indexes");
 	}
 
 	TE_WriteNum("m_iEffectName", iEffectIndex);
 
-	if(iParticleIndex < 0)
+	if( iParticleIndex < 0 )
 	{
 		static int iParticleStringIndex = INVALID_STRING_INDEX;
 		iParticleStringIndex = __FindStringIndex2(iEffectIndex, sParticleName);
-		if(iParticleStringIndex == INVALID_STRING_INDEX)
+		if( iParticleStringIndex == INVALID_STRING_INDEX )
 			return false;
 
 		TE_WriteNum("m_nHitBox", iParticleStringIndex);
@@ -4669,8 +5674,11 @@ stock bool L4D_TE_Create_Particle(float fParticleStartPos[3]={0.0, 0.0, 0.0},
 	TE_WriteFloat("m_flRadius", fRadius);// saw this being used in pipebomb needs testing what it does probs shaking screen?
 	TE_WriteNum("m_nDamageType", iDamageType);// this shit is required dunno why for attachpoint emitting valve probs named it wrong
 
-	if(SendToAll)
+	if( SendToAll )
+	{
 		TE_SendToAll(fDelay);
+		// TE_SendToAllInRange(fParticleStartPos, RangeType_Visibility, GetTickInterval());
+	}
 
 	return true;
 }
@@ -4690,10 +5698,12 @@ stock int __FindStringIndex2(int tableidx, const char[] str)
 	static char buf[1024];
 
 	int numStrings = GetStringTableNumStrings(tableidx);
-	for (int i=0; i < numStrings; i++) {
+	for( int i=0; i < numStrings; i++ )
+	{
 		ReadStringTable(tableidx, i, buf, sizeof(buf));
 
-		if (StrEqual(buf, str)) {
+		if( strcmp(buf, str) == 0 )
+		{
 			return i;
 		}
 	}

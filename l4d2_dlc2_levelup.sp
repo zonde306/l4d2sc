@@ -592,7 +592,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.1.4",
+	version = "1.1.5",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -922,19 +922,19 @@ public OnPluginStart()
 	
 	BuildPath(Path_SM, g_szSavePath, sizeof(g_szSavePath), "data/l4d2_dlc2_levelup");
 
-	RegConsoleCmd("lv", Command_Levelup, "", FCVAR_HIDDEN);
-	// RegConsoleCmd("rpg", Command_Levelup, "", FCVAR_HIDDEN);
-	RegConsoleCmd("perks", Command_Levelup, "", FCVAR_HIDDEN);
-	RegConsoleCmd("skills", Command_Levelup, "", FCVAR_HIDDEN);
-	RegConsoleCmd("skill", Command_Levelup, "", FCVAR_HIDDEN);
-	RegConsoleCmd("shop", Command_Shop, "", FCVAR_HIDDEN);
-	RegConsoleCmd("buy", Command_Shop, "", FCVAR_HIDDEN);
-	RegConsoleCmd("b", Command_Shop, "", FCVAR_HIDDEN);
-	RegConsoleCmd("rp", Command_RandEvent, "", FCVAR_HIDDEN);
-	RegConsoleCmd("ldw", Command_RandEvent, "", FCVAR_HIDDEN);
-	// RegConsoleCmd("cd", Command_SavePoint, "", FCVAR_HIDDEN);
-	// RegConsoleCmd("dd", Command_LoadPoint, "", FCVAR_HIDDEN);
-	// RegConsoleCmd("ld", Command_BackPoint, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_lv", Command_Levelup, "", FCVAR_HIDDEN);
+	// RegConsoleCmd("sm_rpg", Command_Levelup, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_perks", Command_Levelup, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_skills", Command_Levelup, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_skill", Command_Levelup, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_shop", Command_Shop, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_buy", Command_Shop, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_b", Command_Shop, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_rp", Command_RandEvent, "", FCVAR_HIDDEN);
+	RegConsoleCmd("sm_ldw", Command_RandEvent, "", FCVAR_HIDDEN);
+	// RegConsoleCmd("sm_cd", Command_SavePoint, "", FCVAR_HIDDEN);
+	// RegConsoleCmd("sm_dd", Command_LoadPoint, "", FCVAR_HIDDEN);
+	// RegConsoleCmd("sm_ld", Command_BackPoint, "", FCVAR_HIDDEN);
 	RegAdminCmd("sm_botbuy", Command_BotBuy, ADMFLAG_CHEATS);
 	RegAdminCmd("sm_botrp", Command_BotRP, ADMFLAG_CHEATS);
 	// AddCommandListener(Command_Say, "say");
@@ -12416,6 +12416,22 @@ void OnSkillAttach(int client, int level, int skill)
 		PrintHintText(client, "***聊天框输入!gun创建哨塔***");
 	else if(level == 5 && skill == SKL_5_Robot)
 		PrintHintText(client, "***聊天框输入!robot创建护卫***");
+	else if(level == 2 && skill == SKL_2_QuickRevive)
+		CheatCommand(client, "give", "defibrillator");
+	else if(level == 2 && skill == SKL_2_PrototypeGrenade)
+	{
+		switch(GetRandomInt(1, 3))
+		{
+			case 1:
+				CheatCommand(client, "give", "pipe_bomb");
+			case 2:
+				CheatCommand(client, "give", "molotov");
+			case 3:
+				CheatCommand(client, "give", "vomitjar");
+		}
+		
+		PrintHintText(client, "***聊天框输入 !grenade 切换手雷形态***");
+	}
 }
 
 stock bool AddHealth(int client, int amount, bool limit = true, bool conv = false)
@@ -13103,7 +13119,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if(IsValidEntity(weaponId))
 		{
 			static char classname[64];
-			GetEntityClassname(weaponId, classname, sizeof(classname));
+			GetEdictClassname(weaponId, classname, sizeof(classname));
 			int clip = GetEntProp(weaponId, Prop_Send, "m_iClip1");
 			bool isReloading = view_as<bool>(GetEntProp(weaponId, Prop_Send, "m_bInReload"));
 			
@@ -13246,11 +13262,24 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				PlayerHook_OnReloadStopped(client, weaponId);
 			}
 			
-			if((g_clSkill_2[client] & SKL_2_QuickRevive) && (buttons & IN_RELOAD) && !isDown && strcmp(classname[7], "defibrillator"))
+			if((g_clSkill_2[client] & SKL_2_QuickRevive) && (buttons & IN_RELOAD) && !isDown && !strcmp(classname[7], "defibrillator"))
 			{
-				int revivee = GetEntPropEnt(client, Prop_Send, "m_reviveTarget");
+				int revivee = FindUseEntity(client);
 				if(IsValidAliveClient(revivee))
+				{
 					L4D_ReviveSurvivor(revivee);
+					
+					if(GetRandomInt(0, 1))
+					{
+						RemoveEntity(weaponId);
+						weaponId = -1;
+						PrintToChat(client, "\x03「急速」\x01 你救起了 \x04%N\x01，电击器已被消耗。", revivee);
+					}
+					else
+					{
+						PrintToChat(client, "\x03「急速」\x01 你救起了 \x04%N\x01。", revivee);
+					}
+				}
 			}
 		}
 		

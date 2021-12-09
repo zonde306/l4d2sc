@@ -180,7 +180,7 @@
 			{
 				"signature"		"ZombieManager::SpawnSpecial"
 				"callconv"		"thiscall"
-				"return"		"int"
+				"return"		"cbaseentity"
 				"this"			"ignore"
 				"arguments"
 				{
@@ -203,7 +203,7 @@
 			{
 				"signature"		"ZombieManager::SpawnTank"
 				"callconv"		"thiscall"
-				"return"		"int"
+				"return"		"cbaseentity"
 				"this"			"ignore"
 				"arguments"
 				{
@@ -222,7 +222,7 @@
 			{
 				"signature"		"ZombieManager::SpawnWitch"
 				"callconv"		"thiscall"
-				"return"		"int"
+				"return"		"cbaseentity"
 				"this"			"ignore"
 				"arguments"
 				{
@@ -241,7 +241,7 @@
 			{
 				"signature"		"ZombieManager::SpawnWitchBride"
 				"callconv"		"thiscall"
-				"return"		"int"
+				"return"		"cbaseentity"
 				"this"			"ignore"
 				"arguments"
 				{
@@ -1858,8 +1858,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN5Music4PlayEPKcifbb"
-				"windows"	"\x55\x8B\x2A\x81\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x83\x2A\x2A\x00\x53\x8B\x2A\x2A\x56\x57"
-				/* 55 8B ? 81 ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? A1 ? ? ? ? 83 ? ? 00 53 8B ? ? 56 57 */
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x33\x2A\x89\x2A\x2A\xA1\x2A\x2A\x2A\x2A\x83\x2A\x2A\x00\x53\x8B\x2A\x2A\x56\x57"
+				/* ? ? ? ? ? ? ? ? ? A1 ? ? ? ? 33 ? 89 ? ? A1 ? ? ? ? 83 ? ? 00 53 8B ? ? 56 57 */
 				/* Search "Invalid emit entity index: %i\n" */
 			}
 
@@ -1966,10 +1966,10 @@
 			}
 
 			/*
-			*  VomitJarProjectile::Create(int, int, int, int, CBaseEntity *)
+			*  CVomitJarProjectile::Create(int, int, int, int, CBaseEntity *)
 			*  Search: "VomitJar projectile spawned at %f %f %f"
 			*/
-			"VomitJarProjectile::Create"
+			"CVomitJarProjectile::Create"
 			{
 				"library"	"server"
 				"linux"		"@_ZN19CVomitJarProjectile6CreateERK6VectorRK6QAngleS2_S2_P20CBaseCombatCharacter"
@@ -2303,8 +2303,8 @@
 			{
 				"library"	"server"
 				"linux"		"@_ZN13ZombieManager9SpawnTankERK6VectorRK6QAngle"
-				"windows"	"\x55\x8B\xEC\x57\x8B\xF9\x8B\x0D\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x85\xC0\x78\x2A\x8B\x0D\x2A\x2A\x2A\x2A\x39"
-				/* 55 8B EC 57 8B F9 8B 0D ? ? ? ? E8 ? ? ? ? 85 C0 78 ? 8B 0D ? ? ? ? 39 */
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x8B\x0D\x2A\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x85\xC0\x78\x2A\x8B\x0D\x2A\x2A\x2A\x2A\x39\x2A\x2A\x2A\x2A\x2A\x7C\x2A\x33\x2A\x5F"
+				/* ? ? ? ? ? ? 8B 0D ? ? ? ? E8 ? ? ? ? 85 C0 78 ? 8B 0D ? ? ? ? 39 ? ? ? ? ? 7C ? 33 ? 5F */
 			}
 
 			/*
@@ -3651,17 +3651,6 @@
 				 * Function below is "CTerrorGameRules::TrackPlayerZombieDamage". This calls target.
 				 * Probably correct, Win looks different to Nix.
 				*/
-			}
-
-			/*
-			 * SurvivorBot::IsReachable(CBaseEntity *)const
-			 */
-			"SurvivorBot::IsReachable"
-			{
-				"library"	"server"
-				"linux"		"@_ZNK11SurvivorBot11IsReachableEP11CBaseEntity"
-				"windows"	"\xD9\x2A\x2A\x2A\x2A\x2A\x56\x6A\x2A\x6A\x2A\x6A\x2A\x51\x8B\xF1\xD9"
-				/* D9 ? ? ? ? ? 56 6A ? 6A ? 6A ? 51 8B F1 D9 */
 			}
 
 			/*

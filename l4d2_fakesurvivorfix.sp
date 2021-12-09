@@ -9,11 +9,12 @@ public Plugin myinfo =
 	name = "生还者模型修复",
 	author = "zonde306",
 	description = "",
-	version = "0.1",
+	version = "0.2",
 	url = ""
 }
 
 #define MAX_CHARACTOR 8
+#define MIN_SURVIVORS 4
 
 char g_szName[MAX_CHARACTOR][] = {
 	"Nick",
@@ -121,7 +122,8 @@ public void RemoveFakeSurvivors(any unused)
 	while((entity = FindEntityByClassname(entity, "info_transitioning_player")) != -1)
 	{
 		RemoveEntity(entity);
-		AddSurvivorBot();
+		if(GetSruvivorCount() < MIN_SURVIVORS)
+			AddSurvivorBot();
 	}
 }
 
@@ -220,4 +222,14 @@ void AssignCharactor(int client, int charactor)
 	
 	if(IsFakeClient(client))
 		SetClientName(client, g_szName[charactor]);
+}
+
+int GetSruvivorCount()
+{
+	int count = 0;
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsClientInGame(i) && GetClientTeam(i) == 2)
+			count += 1;
+	
+	return count;
 }

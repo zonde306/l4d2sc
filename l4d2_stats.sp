@@ -1,5 +1,6 @@
 #include <sourcemod>
 #include <colors>
+#include <sdkhooks>
 
 #define TEAM_SPECTATOR 1
 #define TEAM_SURVIVOR 2
@@ -353,9 +354,11 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			// Used GetClientWeapon because Melee Damage is known to be broken
 			// Use l4d2_melee_fix.smx in order to make this work properly. :)
 			new String:weapon[64];
-			GetClientWeapon(attacker, weapon, sizeof(weapon));
+			// GetClientWeapon(attacker, weapon, sizeof(weapon));
+			GetEventString(event, "weapon", weapon, sizeof(weapon));
+			new type = GetEventInt(event, "type");
 			
-			if (StrEqual(weapon, "weapon_melee"))
+			if ((type & (DMG_CLUB|DMG_SLASH)) || StrEqual(weapon, "melee"))
 			{
 				CPrintToChat(victim, "{blue}★ {default}你被 {olive}%N {default}用 {blue}近战武器 {default}秒了", attacker);
 				CPrintToChat(attacker, "{blue}★ {default}你用 {blue}近战武器 {default}秒了 {olive}%N", victim);
@@ -371,7 +374,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 			}
 			// Scout Headshot
 			else if (GetEventBool(event, "headshot") &&
-				(StrEqual(weapon, "weapon_sniper_scout") || StrEqual(weapon, "weapon_sniper_awp")))
+				(StrEqual(weapon, "sniper_scout") || StrEqual(weapon, "sniper_awp")))
 			{
 				CPrintToChat(victim, "{blue}★ {default}你被 {olive}%N {default}用 {blue}%s {default}空爆 {default}了", attacker, (weapon[14] == 's' ? "鸟狙" : "大狙"));
 				CPrintToChat(attacker, "{blue}★ {default}你用 {blue}%s {default}空爆了 {olive}%N", (weapon[14] == 's' ? "鸟狙" : "大狙"), victim);
@@ -385,7 +388,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 					}
 				}
 			}
-			else if (assister_count)
+			else if (assister_count && (type & (DMG_BULLET|DMG_BUCKSHOT)))
 			{
 				// Sort by damage, descending
 				SortCustom2D(assisters, assister_count, ClientValue2DSortDesc);
@@ -450,7 +453,7 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 					);
 				}
 			}
-			else
+			else if(type & (DMG_BULLET|DMG_BUCKSHOT))
 			{
 				CPrintToChat(victim, "{blue}%s {default}你在飞扑时被 {olive}%N {default}射死了 (射击 {blue}%d{default} 次)",
 					(shots > 1 ? "☆" : "★"), attacker, shots);

@@ -284,6 +284,7 @@ float g_fMinigunTime[MAXPLAYERS+1];
 Handle g_hTimerMinigun[MAXPLAYERS+1];
 float g_fNightVision[MAXPLAYERS+1];
 bool g_bFirstLoaded[MAXPLAYERS+1];
+bool g_bFFTick[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -513,7 +514,7 @@ int g_iUserID[MAXPLAYERS+1];
 
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
 	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath, g_pCvarReimburse,
-	g_pCvarSurvivorBot, g_pCvarInfectedBot, g_pCvarEquipment, g_pCvarGiveEquipment;
+	g_pCvarSurvivorBot, g_pCvarInfectedBot, g_pCvarEquipment, g_pCvarGiveEquipment, g_pCvarRoundEnd;
 
 ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hCvarBurnExpert, g_hCvarReviveHealth,
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
@@ -791,6 +792,7 @@ public OnPluginStart()
 	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarTankDeath = CreateConVar("lv_bonus_tank", "1", "是否开启Tank死亡奖励.0=禁用.1=启用", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarRoundEnd = CreateConVar("lv_bonus_end", "1", "是否开启生还者过关奖励.0=禁用.1=启用", FCVAR_NONE, true, 0.0, true, 1.0);
 	
 	AutoExecConfig(true, "l4d2_dlc2_levelup");
 	
@@ -2293,6 +2295,7 @@ void Initialization(int client, bool invalid = false)
 	g_iIsSneaking[client] = 0;
 	g_iUserID[client] = 0;
 	g_bFirstLoaded[client] = false;
+	g_bFFTick[client] = false;
 	g_iChaseEntity[client] = INVALID_ENT_REFERENCE;
 	Handle toDelete4 = g_hTimerMinigun[client];
 	g_hTimerMinigun[client] = null;
@@ -5736,7 +5739,7 @@ public void OnGameFrame()
 				
 				// SetEntProp(i, Prop_Data, "m_takedamage", DAMAGE_NO, 1);
 				EmitSoundToClient(i, g_soundLevel, i);
-				SetEntityRenderColor(i, 0, 128, 255, 192);
+				SetEntityRenderColor(i, 255, 255, 255, 192);
 				
 				if(g_csHasGodMode[i])
 					PrintToChat(i, "\x03「无敌•改」\x01在 \x059\x01 秒以内不会受到伤害（掉落伤害除外）且无限子弹。");
@@ -6200,8 +6203,18 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	if(IsValidClient(attacker) && GetClientTeam(attacker) == GetClientTeam(victim) && damage > 1.0 &&
 		((g_clSkill_1[attacker] & SKL_1_Firendly) || (g_clSkill_1[victim] & SKL_1_Firendly)))
 	{
-		// 免疫队友和自己的伤害
-		damage = 1.0;
+		// 队友和自己的伤害
+		if(g_bFFTick[victim])
+		{
+			damage = 0.0;
+		}
+		else
+		{
+			damage = 1.0;
+			g_bFFTick[victim] = true;
+			RequestFrame(ResetFFTick, victim);
+		}
+		
 		return Plugin_Changed;
 	}
 	
@@ -6317,6 +6330,11 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	
 	// g_iOldRealHealth[victim] = GetEntProp(victim, Prop_Data, "m_iHealth");
 	return Plugin_Changed;
+}
+
+public void ResetFFTick(any client)
+{
+	g_bFFTick[client] = false;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -8246,7 +8264,7 @@ public Action:Timer_RespawnPlayer(Handle:timer, any:client)
 			// PrintToChatAll("\x03[\x05提示\x03]\x04玩家\x03%s\x04顺利复活.", playername);
 			PrintToChat(client, "\x03[提示]\x01 复活完毕。");
 			// ClientCommand(client, "play \"ui/helpful_event_1.wav\"");
-
+			
 			new Float:position[3];
 			new Float:anglestarget[3];
 			GetClientAbsOrigin(teletarget, position);
@@ -9318,15 +9336,39 @@ public void NotifyDamageInfo(any client)
 
 public void Event_RoundWin(Event event, const char[] eventName, bool dontBroadcast)
 {
+	if(!g_pCvarRoundEnd.BoolValue)
+		return;
+	
+	bool fully = true;
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
+		if(!IsClientInGame(i) || GetClientTeam(i) != 2)
 			continue;
-
+		
+		if(!IsPlayerAlive(i))
+		{
+			fully = false;
+			continue;
+		}
+		
 		GiveSkillPoint(i, 1);
-
+		
 		if(g_pCvarAllow.BoolValue && !IsFakeClient(i))
 			PrintToChat(i, "\x03[提示]\x01 你因为过关时还活着获得了 \x051\x01 硬币。");
+	}
+	
+	if(fully)
+	{
+		for(int i = 1; i <= MaxClients; ++i)
+		{
+			if(!IsClientInGame(i) || GetClientTeam(i) != 2)
+				continue;
+			
+			GiveSkillPoint(i, 1);
+			
+			if(g_pCvarAllow.BoolValue && !IsFakeClient(i))
+				PrintToChat(i, "\x03[提示]\x01 你因为过关时全队存活而获得 \x051\x01 硬币。");
+		}
 	}
 }
 
@@ -13526,7 +13568,16 @@ public void OutputHook_OnResurrect(const char[] output, int caller, int activato
 		return;
 	
 	// L4D2_RunScript("GetPlayerFromUserID(%d).ReviveByDefib()", GetClientUserId(owner));
-	L4D_RespawnPlayer(owner);
+	L4D2_VScriptWrapper_ReviveByDefib(owner);
+	if(!IsPlayerAlive(owner))
+	{
+		L4D_RespawnPlayer(owner);
+		
+		float origin[3];
+		GetEntPropVector(target, Prop_Send, "m_vecOrigin", origin);
+		RemoveEntity(target);
+		TeleportEntity(owner, origin, NULL_VECTOR, NULL_VECTOR);
+	}
 	
 	SetEntProp(activator, Prop_Send, "m_currentReviveCount", g_hCvarIncapCount.IntValue);
 	SetEntProp(activator, Prop_Send, "m_bIsOnThirdStrike", 1);

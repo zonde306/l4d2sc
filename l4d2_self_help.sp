@@ -616,7 +616,8 @@ public Action DelayMechanism(Handle timer, any client)
 		
 		if (IsSelfHelpAble(client) && !IsFakeClient(client))
 		{
-			PrintToChat(client, "\x03[SH]\x01 按住 \x04CTRL(蹲下)\x01 可以自救。");
+			// PrintToChat(client, "\x03[SH]\x01 按住 \x04CTRL(蹲下)\x01 可以自救。");
+			PrintHintText(client, "按住 CTRL(蹲下) 自救");
 		}
 		hSHTime[client] = CreateTimer(0.1, CheckPlayerState, client, TIMER_REPEAT);
 	}
@@ -1170,7 +1171,7 @@ void DoSelfHelp(int client, int other = 0, bool bLedge)
 					L4D2_RunScript("GetPlayerFromUserID(%d).UseAdrenaline(%d)", GetClientUserId(client), cvDuration.IntValue);
 					
 					// bFirstAidUsed = 3;
-					PrintToChatAll("\x03[SH] \x05%N\x01 使用 \x04针筒\x01 自救成功。", client);
+					// PrintToChatAll("\x03[SH] \x05%N\x01 使用 \x04针筒\x01 自救成功。", client);
 					
 					Event eAdrenalineUsed = CreateEvent("adrenaline_used");
 					eAdrenalineUsed.SetInt("userid", GetClientUserId(client));
@@ -1179,7 +1180,7 @@ void DoSelfHelp(int client, int other = 0, bool bLedge)
 				else
 				{
 					bFirstAidUsed = 2;
-					PrintToChatAll("\x03[SH] \x05%N\x01 使用 \x04药丸\x01 自救成功。", client);
+					// PrintToChatAll("\x03[SH] \x05%N\x01 使用 \x04药丸\x01 自救成功。", client);
 					
 					Event ePillsUsed = CreateEvent("pills_used");
 					ePillsUsed.SetInt("userid", GetClientUserId(client));
@@ -1196,7 +1197,7 @@ void DoSelfHelp(int client, int other = 0, bool bLedge)
 				RemoveEdict(iUsedItem);
 				
 				bFirstAidUsed = 1;
-				PrintToChatAll("\x03[SH] \x05%N\x01 使用 \x04药包\x01 自救成功。", client);
+				// PrintToChatAll("\x03[SH] \x05%N\x01 使用 \x04药包\x01 自救成功。", client);
 				
 				Event eHealSuccess = CreateEvent("heal_success");
 				eHealSuccess.SetInt("userid", GetClientUserId(client));
@@ -1419,10 +1420,12 @@ void SelfHelpFixer(int client, bool bDoNotTamper, int other = 0, int bMedkitUsed
 	}
 	*/
 	
+	/*
 	if (bAnnounce && IsSurvivor(other))
 	{
 		PrintToChatAll("\x03[SH] \x05%N\x01 在倒地时救起了 \x05%N\x01", other, client);
 	}
+	*/
 	
 	Call_StartForward(hSHPostForward);
 	Call_PushCell(client);

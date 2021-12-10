@@ -1843,15 +1843,25 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 {
 	for(int i = 1; i <= MaxClients; ++i)
 	{
-		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
+		if(!IsValidAliveClient(i))
+			continue;
+		
+		if(GetClientTeam(i) == 2)
 		{
 			if(g_pCvarSurvivorBot.BoolValue && IsFakeClient(i))
 			{
 				GenerateRandomStats(i, g_pCvarSurvivorBot.IntValue);
 				PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", i, CalcPlayerPower(i));
 			}
-			
-			RegPlayerHook(i, g_Cvarhppack.BoolValue);
+		}
+		
+		RegPlayerHook(i, g_Cvarhppack.BoolValue);
+		
+		if(g_clSkill_1[i] & SKL_1_Armor)
+		{
+			int armor = g_iExtraArmor[i] + GetEntProp(i, Prop_Send, "m_ArmorValue");
+			if(armor <= 0)
+				AddArmor(i, 100 + (100 * IsPlayerHaveEffect(i, 33)));
 		}
 	}
 	
@@ -2067,7 +2077,8 @@ public void Event_AchievementEarend(Event event, const char[] event_name, bool d
 		return;
 	
 	GiveSkillPoint(client, 1);
-	PrintToChat(client, "\x03[提示]\x01 你因为解锁成就而获得 \x051\x01 枚硬币。");
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(client, "\x03[提示]\x01 你因为解锁成就而获得 \x051\x01 枚硬币。");
 }
 
 public void Event_StashwhackerWon(Event event, const char[] event_name, bool dontBroadcast)
@@ -2077,7 +2088,8 @@ public void Event_StashwhackerWon(Event event, const char[] event_name, bool don
 		return;
 	
 	GiveSkillPoint(client, 1);
-	PrintToChat(client, "\x03[提示]\x01 你因为触发奖励而获得 \x051\x01 枚硬币。");
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(client, "\x03[提示]\x01 你因为触发奖励而获得 \x051\x01 枚硬币。");
 }
 
 public void Event_StrongmanBell(Event event, const char[] event_name, bool dontBroadcast)
@@ -2087,7 +2099,8 @@ public void Event_StrongmanBell(Event event, const char[] event_name, bool dontB
 		return;
 	
 	GiveSkillPoint(client, 1);
-	PrintToChat(client, "\x03[提示]\x01 你因为触发奖励而获得 \x051\x01 枚硬币。");
+	if(g_pCvarAllow.BoolValue)
+		PrintToChat(client, "\x03[提示]\x01 你因为触发奖励而获得 \x051\x01 枚硬币。");
 }
 
 public Action Timer_RoundStartPost(Handle timer, any data)
@@ -11713,7 +11726,7 @@ public void WH_OnDeployModifier(int client, int weapon, L4D2WeaponType weapontyp
 public void WH_OnMeleeSwing(int client, int weapon, float &speedmodifier)
 {
 	if(g_clSkill_4[client] & SKL_4_MeleeExtra)
-		speedmodifier = 1.2;
+		speedmodifier = 1.25;
 	
 	// PrintToChat(client, "speedmodifier %f", speedmodifier);
 }
@@ -13265,7 +13278,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
-		if((g_clSkill_3[client] & SKL_3_Sacrifice) && (buttons & IN_SPEED) && GetEntPropEnt(client, Prop_Send, "m_reviveOwner") <= 0 && isDown)
+		if((g_clSkill_3[client] & SKL_3_Sacrifice) && (buttons & IN_SPEED) && isDown && GetEntPropEnt(client, Prop_Send, "m_reviveOwner") <= 0)
 		{
 			if(g_fSacrificeTime[client] <= 0.0)
 			{

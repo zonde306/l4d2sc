@@ -18,7 +18,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.1.8",
+	version = "1.1.9",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -460,12 +460,12 @@ enum struct EquipData_t {
 StringMap g_mEquipData[MAXPLAYERS+1];
 
 new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
-int g_iActiveEffects[MAXPLAYERS+1][sizeof(g_clCurEquip[])];
+int g_iActiveEffects[MAXPLAYERS+1];
 
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 44;
+const int g_iMaxEqmEffects = 44;	// 上限 255
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
@@ -514,7 +514,7 @@ int g_iUserID[MAXPLAYERS+1];
 
 ConVar g_pCvarCommonKilled, g_pCvarDefibUsed, g_pCvarGivePills, g_pCvarOtherRevived, g_pCvarProtected,
 	g_pCvarSpecialKilled, g_pCvarCleared, g_pCvarPaincEvent, g_pCvarRescued, g_pCvarTankDeath, g_pCvarReimburse,
-	g_pCvarSurvivorBot, g_pCvarInfectedBot, g_pCvarEquipment, g_pCvarGiveEquipment, g_pCvarRoundEnd;
+	g_pCvarSurvivorBot, g_pCvarInfectedBot, g_pCvarEquipment, g_pCvarGiveEquipment, g_pCvarRoundEnd, g_pCvarEventFlow;
 
 ConVar g_hCvarGodMode, g_hCvarInfinite, g_hCvarBurnNormal, g_hCvarBurnHard, g_hCvarBurnExpert, g_hCvarReviveHealth,
 	g_hCvarZombieSpeed, g_hCvarLimpHealth, g_hCvarDuckSpeed, g_hCvarMedicalTime, g_hCvarReviveTime, g_hCvarGravity,
@@ -792,7 +792,8 @@ public OnPluginStart()
 	g_pCvarPaincEvent = CreateConVar("lv_bonus_painc_event", "10", "守住多波个尸潮奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarRescued = CreateConVar("lv_bonus_rescue", "30", "救援队友多少次奖励一硬币.0=禁用", FCVAR_NONE, true, 0.0);
 	g_pCvarTankDeath = CreateConVar("lv_bonus_tank", "1", "是否开启Tank死亡奖励.0=禁用.1=启用", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_pCvarRoundEnd = CreateConVar("lv_bonus_end", "1", "是否开启生还者过关奖励.0=禁用.1=启用", FCVAR_NONE, true, 0.0, true, 1.0);
+	g_pCvarRoundEnd = CreateConVar("lv_bonus_end", "1", "是否开启生还者过关奖励.0=禁用.1=启用进门奖励.2=启用全队奖励.3=启用全部奖励", FCVAR_NONE, true, 0.0, true, 3.0);
+	g_pCvarEventFlow = CreateConVar("lv_event_flows", "-1.0", "在路程达进度到多少时触发天启事件.-1=禁用.0~100=路程百分比", FCVAR_NONE, true, -1.0, true, 100.0);
 	
 	AutoExecConfig(true, "l4d2_dlc2_levelup");
 	
@@ -3855,7 +3856,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 
 	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("「强身」血量上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("「疾步」移动速度+1%",(g_clSkill_1[client]&SKL_1_Movement)));
-	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("「自愈」倒地救起血量+50",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
+	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("「自愈」倒地救起血量+20",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
 	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("「凶狠」暴击率+5‰",(g_clSkill_1[client]&SKL_1_DmgExtra)));
 	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("「手控」手枪无限子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
 	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("「轻盈」跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
@@ -5583,7 +5584,6 @@ public void OnGameFrame()
 			if(!IsValidClient(i) || !IsPlayerAlive(i))
 				continue;
 
-			randPlayer = i;
 			int team = GetClientTeam(i);
 			if(team != 2 && team != 3)
 				continue;
@@ -5887,6 +5887,16 @@ public void OnGameFrame()
 				SpawnCommand(-1, ZC_JOCKEY);
 				// PrintToServer("玩家 %N 刷出了一只 Jockey", randPlayer);
 				g_fNextRoundEvent = curTime + 20.0;
+			}
+		}
+		else if(g_iRoundEvent <= 0 && g_pCvarRE.BoolValue && g_pCvarEventFlow.IntValue > -1)
+		{
+			float topFlows = L4D2_GetFurthestSurvivorFlow();
+			float maxFlows = L4D2Direct_GetMapMaxFlowDistance();
+			if(topFlows > 0.0 && maxFlows > 0.0 && topFlows / maxFlows >= g_pCvarEventFlow.FloatValue)
+			{
+				// 基于路程启动事件
+				StartRoundEvent();
 			}
 		}
 	}
@@ -8599,7 +8609,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		new extrahp = 0;
 		if((g_clSkill_1[subject] & SKL_1_ReviveHealth))
 		{
-			extrahp += 50;
+			extrahp += 20;
 		}
 		
 		int mulEffect = IsPlayerHaveEffect(subject, 1);
@@ -8615,7 +8625,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			*/
 			
 			AddHealth(subject, extrahp);
-			if(!IsFakeClient(subject)) PrintToChat(subject, "\x03[\x05提示\x03]\x04倒地被救起恢复额外HP:%d",extrahp);
+			if(!IsFakeClient(subject)) PrintToChat(subject, "\x03[\x05提示\x03]\x04倒地被救起恢复额外生命值 %d",extrahp);
 		}
 		
 		mulEffect = IsPlayerHaveEffect(subject, 4);
@@ -9336,7 +9346,8 @@ public void NotifyDamageInfo(any client)
 
 public void Event_RoundWin(Event event, const char[] eventName, bool dontBroadcast)
 {
-	if(!g_pCvarRoundEnd.BoolValue)
+	int flags = g_pCvarRoundEnd.IntValue;
+	if(!(flags & 3))
 		return;
 	
 	bool fully = true;
@@ -9351,13 +9362,16 @@ public void Event_RoundWin(Event event, const char[] eventName, bool dontBroadca
 			continue;
 		}
 		
-		GiveSkillPoint(i, 1);
-		
-		if(g_pCvarAllow.BoolValue && !IsFakeClient(i))
-			PrintToChat(i, "\x03[提示]\x01 你因为过关时还活着获得了 \x051\x01 硬币。");
+		if(flags & 1)
+		{
+			GiveSkillPoint(i, 1);
+			
+			if(g_pCvarAllow.BoolValue && !IsFakeClient(i))
+				PrintToChat(i, "\x03[提示]\x01 你因为过关时还活着获得了 \x051\x01 硬币。");
+		}
 	}
 	
-	if(fully)
+	if(fully && (flags & 2))
 	{
 		for(int i = 1; i <= MaxClients; ++i)
 		{
@@ -10851,7 +10865,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	
 	for(int i = 0; i < sizeof(g_clCurEquip[]); i++)
 	{
-		g_iActiveEffects[client][i] = 0;
+		g_iActiveEffects[client] &= ~(0xFF << (i * 8));
 		
 		if(!g_clCurEquip[client][i])
 			continue;
@@ -10863,7 +10877,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid)
 			continue;
 		
-		g_iActiveEffects[client][i] = data.effect;
+		g_iActiveEffects[client] |= (0xFF & data.effect) << (i * 8);
 	}
 	
 	{
@@ -10894,7 +10908,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		int refChanceDamageMax = maxChDmg;
 		Call_PushCellRef(refChanceDamageMax);
 		
-		int refEffects[sizeof(g_iActiveEffects[])];
+		int refEffects[sizeof(g_clCurEquip[])];
 		Call_PushArrayEx(refEffects, sizeof(refEffects), SM_PARAM_COPYBACK);
 		Call_PushCell(sizeof(refEffects));
 		
@@ -10914,7 +10928,10 @@ void RegPlayerHook(int client, bool fullHealth = false)
 			maxChDmg = refChanceDamageMax;
 			
 			for(int i = 0; i < sizeof(refEffects); i++)
-				g_iActiveEffects[client][i] = refEffects[i];
+			{
+				g_iActiveEffects[client] &= ~(0xFF << (i * 8));
+				g_iActiveEffects[client] |= (0xFF & refEffects[i]) << (i * 8);
+			}
 		}
 	}
 	
@@ -15102,8 +15119,9 @@ void TriggerRP(int client, int RandomRP = -1, bool force = false)
 				SpawnCommand(client, ZC_BOOMER);
 				SpawnCommand(client, ZC_BOOMER);
 				
-				CheatCommand(client, "script", "GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
-				L4D2_RunScript("GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
+				// CheatCommand(client, "script", "GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
+				// L4D2_RunScript("GetPlayerFromUserID(%d).HitWithVomit()", GetClientUserId(client));
+				L4D2_CTerrorPlayer_OnHitByVomitJar(client, client);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04人品败坏,OP特赠BOOMER胆汁一口.", client);
 			}
 			case 22:
@@ -16077,7 +16095,8 @@ void RebuildEquipStr(EquipData_t data)
 		default:
 			strcopy(data.sParts, sizeof(data.sParts), "");
 	}
-
+	
+	// 上限 255
 	switch(data.effect)
 	{
 		case 1:
@@ -16194,14 +16213,26 @@ stock int IsPlayerHaveEffect(int client, int effect)
 	
 	int ExtraAdd = 0;
 	
-	for(int i = 0; i < sizeof(g_iActiveEffects[]); ++i)
+	// 展开应该比循环好的吧（大概
+	if((g_iActiveEffects[client] & 0xFF) == effect)
+		ExtraAdd += 1;
+	if((g_iActiveEffects[client] & 0xFF00) >> (1 * 8) == effect)
+		ExtraAdd += 1;
+	if((g_iActiveEffects[client] & 0xFF0000) >> (2 * 8) == effect)
+		ExtraAdd += 1;
+	if((g_iActiveEffects[client] & 0xFF000000) >> (3 * 8) == effect)
+		ExtraAdd += 1;
+	
+	/*
+	for(int i = 0; i < sizeof(g_clCurEquip[]); ++i)
 	{
-		if(g_iActiveEffects[client][i] == effect)
+		if((g_iActiveEffects[client] & ((0xFF & effect) << (i * 8))) == effect)
 		{
 			ExtraAdd += 1;
 			// break;
 		}
 	}
+	*/
 	
 	return ExtraAdd;
 }

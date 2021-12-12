@@ -11439,7 +11439,24 @@ public Event_WeaponReload (Handle:event, const String:name[], bool:dontBroadcast
 				g_iReloadWeaponKeepClip[iCid] = clipSize;
 			
 			SetEntProp(weapon, Prop_Send, "m_iClip1", g_iReloadWeaponKeepClip[iCid]);
-			SetEntProp(iCid, Prop_Send, "m_iAmmo", GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType) - g_iReloadWeaponKeepClip[iCid], _, ammoType);
+			
+			if(g_iExtraAmmo[iCid] >= g_iReloadWeaponKeepClip[iCid])
+			{
+				g_iExtraAmmo[iCid] -= g_iReloadWeaponKeepClip[iCid];
+			}
+			else if(g_iExtraAmmo[iCid] > 0)
+			{
+				int v = g_iReloadWeaponKeepClip[iCid] - g_iExtraAmmo[iCid];
+				g_iExtraAmmo[iCid] = 0;
+				v = GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType) - v;
+				SetEntProp(iCid, Prop_Send, "m_iAmmo", v > 0 ? v : 0, _, ammoType);
+			}
+			else
+			{
+				int v = GetEntProp(iCid, Prop_Send, "m_iAmmo", _, ammoType) - g_iReloadWeaponKeepClip[iCid];
+				SetEntProp(iCid, Prop_Send, "m_iAmmo", v > 0 ? v : 0, _, ammoType);
+			}
+			
 			g_iReloadWeaponKeepClip[iCid] = 0;
 		}
 	}
@@ -11469,7 +11486,10 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	if(!IsValidAliveClient(client))
 		return;
-
+	
+	g_iReloadWeaponKeepClip[client] = 0;
+	g_iReloadWeaponOldClip[client] = 0;
+	
 	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 	if(!IsValidEntity(weapon))
 		return;
@@ -12963,14 +12983,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				buttons &= ~IN_RELOAD;
 			}
 			
-			if((g_clSkill_1[client] & SKL_1_KeepClip) && !isReloading && (buttons & IN_RELOAD) &&
-				strncmp(classname[7], "shotgun", 7) && strncmp(classname[11], "shotgun", 7))
+			int defaultClip = GetDefaultClip(weaponId);
+			if((g_clSkill_1[client] & SKL_1_KeepClip) && !isReloading && (buttons & IN_RELOAD) && defaultClip > 1 &&
+				strncmp(classname[7], "shotgun", 7) && strncmp(classname[11], "shotgun", 7) && strncmp(classname[7], "pistol", 6))
 			{
 				g_iReloadWeaponKeepClip[client] = clip;
 				// PrintToChat(client, "pre clip size:%d", clip);
 			}
 			
-			int defaultClip = GetDefaultClip(weaponId);
 			if((g_clSkill_4[client] & SKL_4_ClipSize) && !isReloading && (buttons & IN_RELOAD) && !(buttons & IN_ATTACK) &&
 				defaultClip > 0 && clip >= defaultClip)
 			{
@@ -13014,7 +13034,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						
 						g_iReloadWeaponOldClip[client] = 0;
 					}
-
+					
 					// HookPlayerReload(client, RoundToNearest(defaultClip * 1.5));
 				}
 				else

@@ -18,7 +18,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.1.9",
+	version = "1.2.0",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -465,7 +465,7 @@ int g_iActiveEffects[MAXPLAYERS+1];
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 44;	// 上限 255
+const int g_iMaxEqmEffects = 56;	// 上限 255
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
@@ -1864,7 +1864,7 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 		{
 			int armor = g_iExtraArmor[i] + GetEntProp(i, Prop_Send, "m_ArmorValue");
 			if(armor <= 0)
-				AddArmor(i, 100 + (100 * IsPlayerHaveEffect(i, 33)));
+				AddArmor(i, 100 + (100 * GetPlayerEffect(i, 33)));
 		}
 	}
 	
@@ -2115,7 +2115,7 @@ public Action Timer_RoundStartPost(Handle timer, any data)
 		if(!IsValidClient(i) || GetClientTeam(i) != 2)
 			continue;
 		
-		if(!g_Cvarhppack.BoolValue && !IsPlayerHaveEffect(i, 35))
+		if(!g_Cvarhppack.BoolValue && !GetPlayerEffect(i, 35))
 			continue;
 		
 		if(!IsPlayerAlive(i))
@@ -2938,7 +2938,7 @@ public void QueryResult_LoadEquipID(Database db, DBResultSet results, const char
 	DataPack pack = view_as<DataPack>(hdl);
 	pack.Reset();
 	int client = pack.ReadCell();
-	// int hashID = pack.ReadCell();
+	pack.ReadCell();
 	
 	char key[11];
 	pack.ReadString(key, sizeof(key));
@@ -3893,7 +3893,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	
 	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」爆头杀死特感1/3几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
 	menu.AddItem(tr("2_%d",SKL_2_PainPills), mps("「嗜药」每120秒获得一个药丸",(g_clSkill_2[client]&SKL_2_PainPills)));
-	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」吃药治疗量+30",(g_clSkill_2[client]&SKL_2_FullHealth)));
+	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」吃药恢复的生命值+30",(g_clSkill_2[client]&SKL_2_FullHealth)));
 	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("「电疗」每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
 	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("「擅医」打包/电击治疗量+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
 	menu.AddItem(tr("2_%d",SKL_2_PipeBomb), mps("「爆破」每100秒获得一个土制",(g_clSkill_2[client]&SKL_2_PipeBomb)));
@@ -3921,7 +3921,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	menu.AddItem(tr("2_%d",SKL_2_QuickRevive), mps("「急速」电击器按R快速拉人",(g_clSkill_2[client]&SKL_2_QuickRevive)));
 	
 	if(g_bHaveGrenades)
-		menu.AddItem(tr("2_%d",SKL_2_PrototypeGrenade), mps("「形态」持手雷按左键+右键可切换形态",(g_clSkill_2[client]&SKL_2_PrototypeGrenade)));
+		menu.AddItem(tr("2_%d",SKL_2_PrototypeGrenade), mps("「形态」手雷可切换形态",(g_clSkill_2[client]&SKL_2_PrototypeGrenade)));
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -3937,7 +3937,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("三级天赋(3硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
 
-	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡1/3清尸(倒地Shift自杀100%触发)",(g_clSkill_3[client]&SKL_3_Sacrifice)));
+	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡1/3清尸",(g_clSkill_3[client]&SKL_3_Sacrifice)));
 	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("「永生」复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
 	menu.AddItem(tr("3_%d",SKL_3_IncapFire), mps("「纵火」倒地点燃攻击者和周围普感",(g_clSkill_3[client]&SKL_3_IncapFire)));
 	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("「妙手」帮助队友随机获得奖励",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
@@ -3951,7 +3951,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("「守备」受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
 	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("「跳弹」子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
 	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("「瞄准」第一枪总是暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
-	menu.AddItem(tr("3_%d",SKL_3_Cure), mps("「清醒」打针治疗濒死状态",(g_clSkill_3[client]&SKL_3_Cure)));
+	menu.AddItem(tr("3_%d",SKL_3_Cure), mps("「清醒」打针有1/2几率治疗濒死状态",(g_clSkill_3[client]&SKL_3_Cure)));
 	menu.AddItem(tr("3_%d",SKL_3_Minigun), mps("「工程」鼠标中键部署固定机枪",(g_clSkill_3[client]&SKL_3_Minigun)));
 	menu.AddItem(tr("3_%d",SKL_3_HandGrenade), mps("「手雷」持手枪时按鼠标中键发射榴弹",(g_clSkill_3[client]&SKL_3_HandGrenade)));
 
@@ -4010,7 +4010,7 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 {
 	Menu menu = CreateMenu(MenuHandler_Skill);
 	menu.SetTitle(tr("五级天赋(5硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
-
+	
 	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("「烈火」主武器1/4几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("「碎骨」主武器1/4几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
 	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("「冰封」主武器/近战击中特感有几率减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
@@ -4029,10 +4029,10 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 		menu.AddItem(tr("5_%d",SKL_5_ShoveRange), mps("「枪托」增加推的攻击范围",(g_clSkill_5[client]&SKL_5_ShoveRange)));
 	
 	menu.AddItem(tr("5_%d",SKL_5_TempRegen), mps("「抗性」受伤消耗实血时有1/3几率恢复等量虚血",(g_clSkill_5[client]&SKL_5_TempRegen)));
-	menu.AddItem(tr("5_%d",SKL_5_Resurrect), mps("「救赎」进入濒死以复活队友(按住E)",(g_clSkill_5[client]&SKL_5_Resurrect)));
+	menu.AddItem(tr("5_%d",SKL_5_Resurrect), mps("「救赎」进入濒死以复活队友(尸体按住E)",(g_clSkill_5[client]&SKL_5_Resurrect)));
 	
 	if(g_bHaveLethal)
-		menu.AddItem(tr("5_%d",SKL_5_Lethal), mps("「充能」AWP蹲下可射击充能",(g_clSkill_5[client]&SKL_5_Lethal)));
+		menu.AddItem(tr("5_%d",SKL_5_Lethal), mps("「充能」AWP蹲下可充能射击",(g_clSkill_5[client]&SKL_5_Lethal)));
 	if(g_bHaveProtector)
 		menu.AddItem(tr("5_%d",SKL_5_Machine), mps("「哨塔」输入!gun创建机枪塔",(g_clSkill_5[client]&SKL_5_Machine)));
 	if(g_bHaveRobot)
@@ -5604,7 +5604,7 @@ public void OnGameFrame()
 				
 				if((g_clSkill_2[i] & SKL_2_PainPills) && g_ctPainPills[i] > 0.0 && g_ctPainPills[i] <= curTime && g_iIsInCombat[i] <= 0)
 				{
-					g_ctPainPills[i] = curTime + 120.0;
+					g_ctPainPills[i] = curTime + 120.0 - (GetPlayerEffect(i, 51) * 10.0);
 					if(GetPlayerWeaponSlot(i, 4) == -1)
 					{
 						CheatCommand(i, "give", "pain_pills");
@@ -5618,10 +5618,10 @@ public void OnGameFrame()
 
 				if((g_clSkill_2[i] & SKL_2_PipeBomb) && g_ctPipeBomb[i] > 0.0 && g_ctPipeBomb[i] <= curTime && g_iIsInCombat[i] <= 0)
 				{
-					g_ctPipeBomb[i] = curTime + 100.0;
+					g_ctPipeBomb[i] = curTime + 100.0 - (GetPlayerEffect(i, 53) * 10.0);
 					if(GetPlayerWeaponSlot(i, 2) == -1)
 					{
-						if(IsPlayerHaveEffect(i, 28))
+						if(GetPlayerEffect(i, 28))
 						{
 							CheatCommand(i, "give", "vomitjar");
 							PrintToChat(i, "\x03「爆破•改」\x01你获得了胆汁。");
@@ -5640,10 +5640,10 @@ public void OnGameFrame()
 
 				if((g_clSkill_2[i] & SKL_2_Defibrillator) && g_ctDefibrillator[i] > 0.0 && g_ctDefibrillator[i] <= curTime && g_iIsInCombat[i] <= 0)
 				{
-					g_ctDefibrillator[i] = curTime + 200.0;
+					g_ctDefibrillator[i] = curTime + 200.0 - (GetPlayerEffect(i, 52) * 10.0);
 					if(GetPlayerWeaponSlot(i, 3) == -1)
 					{
-						if(IsPlayerHaveEffect(i, 27))
+						if(GetPlayerEffect(i, 27))
 						{
 							CheatCommand(i, "give", "first_aid_kit");
 							PrintToChat(i, "\x03「电疗•改」\x01你获得了医疗包。");
@@ -5682,7 +5682,7 @@ public void OnGameFrame()
 					}
 				}
 				
-				if(IsPlayerHaveEffect(i, 13))
+				if(GetPlayerEffect(i, 13))
 				{
 					// int tempHealth = GetPlayerTempHealth(i);
 					float tempHealth = L4D_GetTempHealth(i);
@@ -5704,7 +5704,7 @@ public void OnGameFrame()
 				if(team == 3)
 					buffer = 0;
 				
-				if(IsPlayerHaveEffect(i, 26))
+				if(GetPlayerEffect(i, 26))
 				{
 					CheatCommand(i, "give", "health");
 					PrintToChat(i, "\x03「永康•改」\x01你回满了血并重置倒地次数。");
@@ -5734,21 +5734,22 @@ public void OnGameFrame()
 
 			if((g_clSkill_3[i] & SKL_3_GodMode) && g_ctGodMode[i] > 0.0 && g_ctGodMode[i] <= curTime && g_iIsInCombat[i] <= 0)
 			{
-				g_ctGodMode[i] = -curTime - 9.0;
-				g_csHasGodMode[i] = !!IsPlayerHaveEffect(i, 9);
+				float duration = 9.0 + (GetPlayerEffect(i, 47) * 5.0);
+				g_ctGodMode[i] = -curTime - duration;
+				g_csHasGodMode[i] = !!GetPlayerEffect(i, 9);
 				
 				// SetEntProp(i, Prop_Data, "m_takedamage", DAMAGE_NO, 1);
 				EmitSoundToClient(i, g_soundLevel, i);
 				SetEntityRenderColor(i, 255, 255, 255, 192);
 				
 				if(g_csHasGodMode[i])
-					PrintToChat(i, "\x03「无敌•改」\x01在 \x059\x01 秒以内不会受到伤害（掉落伤害除外）且无限子弹。");
+					PrintToChat(i, "\x03「无敌•改」\x01在 \x05%.0f\x01 秒以内不会受到伤害（掉落伤害除外）且无限子弹。", duration);
 				else
-					PrintToChat(i, "\x03「无敌」\x01在 \x059\x01 秒以内不会受到伤害（掉落伤害除外）。");
+					PrintToChat(i, "\x03「无敌」\x01在 \x05%.0f\x01 秒以内不会受到伤害（掉落伤害除外）。", duration);
 			}
 			else if(g_ctGodMode[i] < 0.0 && g_ctGodMode[i] >= -curTime)
 			{
-				g_ctGodMode[i] = curTime + 80.0;
+				g_ctGodMode[i] = curTime + 80.0 - (GetPlayerEffect(i, 54) * 5.0);
 				g_csHasGodMode[i] = false;
 				SetEntityRenderColor(i);
 				PrintToChat(i, "\x03「无敌」\x01状态结束了。");
@@ -5897,6 +5898,8 @@ public void OnGameFrame()
 			{
 				// 基于路程启动事件
 				StartRoundEvent();
+				PrintToChatAll("\x03[提示]\x01 本回合天启：\x04%s\x01。", g_szRoundEvent);
+				EmitSoundToAll(SOUND_HINT);
 			}
 		}
 	}
@@ -6201,7 +6204,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	if((damagetype & DMG_FALL) || attacker <= 0)
 	{
 		// 火箭跳免疫掉落伤害
-		if(g_bOnRocketDude[victim])
+		if(g_bOnRocketDude[victim] && damage > 1.0)
 		{
 			damage = 1.0;
 			return Plugin_Changed;
@@ -6214,7 +6217,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		((g_clSkill_1[attacker] & SKL_1_Firendly) || (g_clSkill_1[victim] & SKL_1_Firendly)))
 	{
 		// 队友和自己的伤害
-		if(g_bFFTick[victim])
+		if(g_bFFTick[victim] || GetPlayerEffect(victim, 45) || GetPlayerEffect(attacker, 45))
 		{
 			damage = 0.0;
 		}
@@ -6229,13 +6232,20 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 	}
 	
 	float time = GetEngineTime();
-	if((g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -time) || (g_fFreezeTime[victim] > time && IsPlayerHaveEffect(victim, 29)))
+	if((g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -time) || (g_fFreezeTime[victim] > time && GetPlayerEffect(victim, 29)))
 	{
 		// 无敌模式伤害免疫
 		/*
 		if(!IsNullVector(damagePosition) && (g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0))
 			EmitAmbientSound(SOUND_STEEL, damagePosition, victim, SNDLEVEL_HOME);
 		*/
+		
+		if(damage >= 1.0)
+		{
+			float effect = float(GetPlayerEffect(victim, 46));
+			if(effect > 0.0)
+				AddHealth(victim, RoundToZero(damage >= effect ? effect : damage));
+		}
 		
 		damage = 0.0;
 		return Plugin_Changed;
@@ -6281,7 +6291,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 			}
 		}
 		
-		if(IsPlayerHaveEffect(victim, 37) && !strcmp(classname, "infected", false))
+		if(GetPlayerEffect(victim, 37) && !strcmp(classname, "infected", false))
 		{
 			// 取消攻击者，避免减速效果
 			attacker = inflictor = 0;
@@ -6289,7 +6299,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		
 		if(GetEntProp(victim, Prop_Send, "m_bAdrenalineActive"))
 		{
-			int effect = IsPlayerHaveEffect(victim, 43);
+			int effect = GetPlayerEffect(victim, 43);
 			if(effect > 0)
 				damage /= (effect + 1);
 		}
@@ -6602,8 +6612,8 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
 	{
-		chance += IsPlayerHaveEffect(attacker, 42) * 200;
-		damage += IsPlayerHaveEffect(attacker, 44) * originalDamage;
+		chance += GetPlayerEffect(attacker, 42) * 200;
+		damage += GetPlayerEffect(attacker, 44) * originalDamage;
 	}
 	
 	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
@@ -6655,7 +6665,7 @@ public Action:EventRevive(Handle:timer, any:client)
 {
 	if(IsClientInGame(client) && IsPlayerAlive(client))
 	{
-		if(IsPlayerHaveEffect(client, 20))
+		if(GetPlayerEffect(client, 20))
 		{
 			int attacker = -1;
 			if(((attacker = GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker")) > 0 ||
@@ -6746,7 +6756,7 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	if(g_bIsGamePlaying && (g_clSkill_3[client] & SKL_3_ReviveBonus) && client != subject)
 		GiveHelpBouns(client);
 	
-	int mulEffect = IsPlayerHaveEffect(subject, 34);
+	int mulEffect = GetPlayerEffect(subject, 34);
 	if((g_clSkill_1[subject] & SKL_1_Armor) && mulEffect > 0)
 	{
 		AddArmor(subject, 50 * mulEffect);
@@ -6754,7 +6764,7 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	
 	if(g_clSkill_4[subject] & SKL_4_ReviveCount)
 	{
-		g_iMaxReviveCount[subject] = 1 + IsPlayerHaveEffect(subject, 41);
+		g_iMaxReviveCount[subject] = 1 + GetPlayerEffect(subject, 41);
 	}
 	
 	RemoveGlowModel(subject);
@@ -6770,7 +6780,7 @@ public Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadcast)
 	new client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (!client || !IsClientInGame(client)) return;
 	
-	int mulEffect = IsPlayerHaveEffect(client, 2);
+	int mulEffect = GetPlayerEffect(client, 2);
 	if(mulEffect > 0)
 	{
 		// SDKCall(sdkAdrenaline, client, 30.0);
@@ -6781,11 +6791,26 @@ public Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadcast)
 	
 	if(g_clSkill_2[client] & SKL_2_FullHealth)
 	{
-		AddHealth(client, 30);
+		if(GetPlayerEffect(client, 26))
+		{
+			int health = GetEntProp(client, Prop_Data, "m_iHealth") + 30;
+			int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
+			if(health > maxHealth)
+				health = maxHealth;
+			
+			SetEntProp(client, Prop_Data, "m_iHealth", health);
+			SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
+			SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
+			L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, 0));
+		}
+		else
+		{
+			AddHealth(client, 30);
+		}
 	}
 	
-	mulEffect = IsPlayerHaveEffect(client, 40);
-	if((g_clSkill_3[client] & SKL_3_Cure) && GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1) && mulEffect)
+	mulEffect = GetPlayerEffect(client, 40);
+	if((g_clSkill_3[client] & SKL_3_Cure) && GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1) && mulEffect && !GetRandomInt(0, 1))
 	{
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0, 1);
 		
@@ -6794,6 +6819,7 @@ public Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadcast)
 			revivecount = 0;
 		
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", revivecount);
+		L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, revivecount));
 		PrintToChat(client, "\x03「清醒」\x01治疗了濒死状态。");
 	}
 }
@@ -6808,17 +6834,28 @@ public Event_AdrenalineUsed(Handle:event, String:event_name[], bool:dontBroadcas
 		AddHealth(client, 55);
 	}
 	
-	if((g_clSkill_3[client] & SKL_3_Cure) && GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1))
+	if((g_clSkill_3[client] & SKL_3_Cure) && GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1) && !GetRandomInt(0, 1))
 	{
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0, 1);
 		
-		int mulEffect = IsPlayerHaveEffect(client, 40);
+		int mulEffect = GetPlayerEffect(client, 40);
 		int revivecount = GetEntProp(client, Prop_Send, "m_currentReviveCount") - (1 + mulEffect);
 		if(revivecount < 0)
 			revivecount = 0;
 		
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", revivecount);
+		L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, revivecount));
 		PrintToChat(client, "\x03「清醒」\x01治疗了濒死状态。");
+	}
+	
+	int effect = GetPlayerEffect(client, 48);
+	if(effect)
+	{
+		float duration = Terror_GetAdrenalineTime(client);
+		if(duration <= 0.0)
+			duration = g_hCvarAdrenTime.FloatValue;
+		// Terror_SetAdrenalineTime(client, duration + effect * 10.0);
+		L4D2_UseAdrenaline(client, duration + effect * 10.0, false);
 	}
 }
 
@@ -6864,15 +6901,15 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		return;
 	}
 	
-	if (!g_bHaveSelfHelp && (g_clSkill_2[client] & SKL_2_SelfHelp))
+	if (g_clSkill_2[client] & SKL_2_SelfHelp)
 	{
-		int chance = 1 + IsPlayerHaveEffect(client, 17);
+		int chance = view_as<int>(!g_bHaveSelfHelp) + GetPlayerEffect(client, 17);
 		if(GetRandomInt(0, 3) < chance)
 		{
-			CreateTimer(3.0, EventRevive, client);
+			CreateTimer(5.0, EventRevive, client);
 			
 			if(!IsFakeClient(client))
-				PrintToChat(client, "\x03「顽强」\x01你将会在\x053\x01秒后倒地自救(如果那时没被控)!");
+				PrintToChat(client, "\x03「顽强」\x01你将会在\x05 5 \x01秒后自救(如果那时没被控)!");
 		}
 	}
 
@@ -6885,7 +6922,8 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 
 	if(g_clSkill_3[client] & SKL_3_Freeze)
 	{
-		float radius = 250.0 * (1 + IsPlayerHaveEffect(client, 24));
+		float radius = 250.0 * (1 + GetPlayerEffect(client, 24));
+		bool bile = !!GetPlayerEffect(client, 50);
 		
 		for(int i = 1; i <= MaxClients; ++i)
 		{
@@ -6899,6 +6937,11 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			
 			// ServerCommand("sm_freeze \"%N\" \"12\"", i);
 			FreezePlayer(i, 12.0);
+			
+			if(bile)
+			{
+				L4D2_CTerrorPlayer_OnHitByVomitJar(i, client);
+			}
 		}
 
 		if(!tk && attacker > 0 && attacker <= MaxClients)
@@ -6910,10 +6953,15 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			// ServerCommand("sm_freeze \"%N\" \"12\"",attacker);
 			FreezePlayer(attacker, 12.0);
 			
-			// new String:name[32];
-			// GetClientName(attacker, name, 32);
-			// PrintToChatAll("\x03[\x05提示\x03] %N\x04使用\x03释冰\x04天赋冻结了\x03%s\x0412秒!",client,name);
-			PrintToChat(client, "\x03「释冰」\x01冻结了攻击者 \x04%N\x05 12 \x01秒", attacker);
+			if(bile)
+			{
+				L4D2_CTerrorPlayer_OnHitByVomitJar(attacker, client);
+				PrintToChat(client, "\x03「释冰•改」\x01胆汁效果作用于攻击者 \x04%N\x01。", attacker);
+			}
+			else
+			{
+				PrintToChat(client, "\x03「释冰」\x01冻结了攻击者 \x04%N\x05 12 \x01秒", attacker);
+			}
 		}
 		
 		if(g_pCvarAllow.BoolValue)
@@ -6927,7 +6975,8 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 	if((g_clSkill_3[client] & SKL_3_IncapFire))
 	{
 		char classname[64];
-		float radius = 175.0 * (1 + IsPlayerHaveEffect(client, 25));
+		float radius = 175.0 * (1 + GetPlayerEffect(client, 25));
+		bool bile = !!GetPlayerEffect(client, 49);
 		
 		for(int i = MaxClients + 1; i <= 2048; ++i)
 		{
@@ -6943,22 +6992,36 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 				continue;
 			
 			DealDamage(client, i, 1, DMG_BURN);
-			SetEntProp(i, Prop_Send, "m_bIsBurning", 1);
+			
+			if(bile)
+			{
+				L4D2_Infected_OnHitByVomitJar(i, client);
+			}
+			else
+			{
+				IgniteEntity(i, 1.0, true);
+				SetEntProp(i, Prop_Send, "m_bIsBurning", 1);
+			}
 		}
 
 		if(!tk && attacker > 0 && attacker <= MaxClients)
 		{
 			new extradmg = 150;
-			int mulEffect = IsPlayerHaveEffect(client, 5);
+			int mulEffect = GetPlayerEffect(client, 5);
 			if(mulEffect > 0) extradmg += 100 * mulEffect;
-
+			
 			DealDamage(client, attacker, extradmg, DMG_BURN);
-			IgniteEntity(attacker, 60.0, true);
-
-			// new String:name[32];
-			// GetClientName(attacker, name, 32);
-			// PrintToChatAll("\x03[\x05提示\x03] %N\x04使用\x03纵火\x04天赋给予\x03%s %d\x04点伤害并燃烧60秒!",client,name,extradmg);
-			PrintToChat(client, "\x03「纵火」\x01点燃了攻击者 \x04%N\x05 60 \x01秒", attacker);
+			
+			if(bile)
+			{
+				L4D2_CTerrorPlayer_OnHitByVomitJar(attacker, client);
+				PrintToChat(client, "\x03「纵火•改」\x01胆汁效果作用于攻击者 \x04%N\x01。", attacker);
+			}
+			else
+			{
+				IgniteEntity(attacker, 60.0, true);
+				PrintToChat(client, "\x03「纵火」\x01点燃了攻击者 \x04%N\x05 60 \x01秒", attacker);
+			}
 		}
 		
 		if(g_pCvarAllow.BoolValue)
@@ -6989,7 +7052,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			PrintToChat(attacker, "\x03[提示]\x01 你因为放倒队友而失去了 \x051\x01 硬币。");
 	}
 	
-	if(g_fFreezeTime[client] > time && IsPlayerHaveEffect(client, 16))
+	if(g_fFreezeTime[client] > time && GetPlayerEffect(client, 16))
 	{
 		// 取消冰冻效果
 		g_fFreezeTime[client] = time;
@@ -7051,8 +7114,8 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	
 	if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
 	{
-		chance += IsPlayerHaveEffect(attacker, 42) * 200;
-		damage += IsPlayerHaveEffect(attacker, 44) * originalDamage;
+		chance += GetPlayerEffect(attacker, 42) * 200;
+		damage += GetPlayerEffect(attacker, 44) * originalDamage;
 	}
 	
 	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
@@ -7098,7 +7161,7 @@ public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 				float vAng[3], vDir[3];
 				GetClientEyeAngles(attacker, vAng);
 				GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
-				ScaleVector(vDir, 300.0 * (1 + IsPlayerHaveEffect(attacker, 23)));
+				ScaleVector(vDir, 300.0 * (1 + GetPlayerEffect(attacker, 23)));
 				TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
 			}
 			
@@ -7207,7 +7270,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		{
 			if(!strcmp(weapon, "melee") || !strcmp(weapon, "chainsaw"))
 			{
-				int mulEffect = IsPlayerHaveEffect(attacker, 11);
+				int mulEffect = GetPlayerEffect(attacker, 11);
 				if (mulEffect > 0)
 				{
 					// ServerCommand("sm_freeze \"%N\" \"5\"",victim);
@@ -7239,7 +7302,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			
 			if(dmg_type & DMG_CRIT)
 			{
-				int mulEffect = IsPlayerHaveEffect(attacker, 12);
+				int mulEffect = GetPlayerEffect(attacker, 12);
 				if (mulEffect > 0)
 				{
 					// SetEntProp(attacker,Prop_Send,"m_iHealth",GetEntProp(attacker,Prop_Send,"m_iHealth")+5);
@@ -7421,7 +7484,7 @@ void GiveAngryPoint(int victim, int amount)
 	{
 		g_clAngryPoint[victim] -= 100;
 		
-		int mulEffect = IsPlayerHaveEffect(victim, 3);
+		int mulEffect = GetPlayerEffect(victim, 3);
 		if(mulEffect > 0)
 		{
 			g_clAngryPoint[victim] += 10 * mulEffect;
@@ -7463,7 +7526,7 @@ void TriggerAngrySkill(int victim, int mode)
 			
 			float vLoc[3], vPos[3];
 			GetClientAbsOrigin(victim, vLoc);
-			bool selfhelp = !!IsPlayerHaveEffect(victim, 36);
+			bool selfhelp = !!GetPlayerEffect(victim, 36);
 			for(new i = 1; i <= MaxClients; i++)
 			{
 				if(!IsValidAliveClient(i))
@@ -7475,7 +7538,7 @@ void TriggerAngrySkill(int victim, int mode)
 				{
 					if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
 						CheatCommand(i, "give", "health");
-					else if(selfhelp || IsPlayerHaveEffect(i, 36))
+					else if(selfhelp || GetPlayerEffect(i, 36))
 						CreateTimer(3.0, EventRevive, i);
 				}
 			}
@@ -7718,7 +7781,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				int attackerTeam = GetClientTeam(attacker);
 				if(attackerTeam != victim)
 				{
-					int mulEffect = IsPlayerHaveEffect(victim, 10);
+					int mulEffect = GetPlayerEffect(victim, 10);
 					if(mulEffect > 0)
 					{
 						DealDamage(victim, attacker, 3000 * mulEffect, 0);
@@ -7745,7 +7808,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 			
 			if((g_clSkill_3[victim] & SKL_3_Sacrifice))
 			{
-				int chance = 1 + IsPlayerHaveEffect(victim, 19);
+				int chance = 1 + GetPlayerEffect(victim, 19);
 				if(g_fSacrificeTime[victim] > 0.0 || tk || attacker == victim || GetRandomInt(0, 2) < chance)
 				{
 					SetVariantInt(1);
@@ -7788,7 +7851,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 			
 			if(g_clSkill_3[victim] & SKL_3_Respawn)
 			{
-				int chance = 1 + IsPlayerHaveEffect(victim, 18);
+				int chance = 1 + GetPlayerEffect(victim, 18);
 				if(GetRandomInt(0, 9) < chance)
 				{
 					CreateTimer(5.0, Timer_RespawnPlayer, victim);
@@ -8542,11 +8605,11 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	/*
 	if(g_clSkill_1[subject] & SKL_1_Armor)
 	{
-		AddArmor(subject, 100 + (100 * IsPlayerHaveEffect(subject, 33)));
+		AddArmor(subject, 100 + (100 * GetPlayerEffect(subject, 33)));
 	}
 	*/
 	
-	bool full = (g_Cvarhppack.BoolValue || IsPlayerHaveEffect(subject, 35));
+	bool full = (g_Cvarhppack.BoolValue || GetPlayerEffect(subject, 35));
 	RegPlayerHook(subject, full);
 	
 	if(!full)
@@ -8585,7 +8648,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	
 	if(g_clSkill_4[subject] & SKL_4_ReviveCount)
 	{
-		g_iMaxReviveCount[subject] = 1 + IsPlayerHaveEffect(subject, 41);
+		g_iMaxReviveCount[subject] = 1 + GetPlayerEffect(subject, 41);
 	}
 	
 	if(g_iRoundEvent == 19)
@@ -8612,7 +8675,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			extrahp += 20;
 		}
 		
-		int mulEffect = IsPlayerHaveEffect(subject, 1);
+		int mulEffect = GetPlayerEffect(subject, 1);
 		if(mulEffect > 0) extrahp += 20 * mulEffect;
 		
 		if(extrahp)
@@ -8628,7 +8691,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			if(!IsFakeClient(subject)) PrintToChat(subject, "\x03[\x05提示\x03]\x04倒地被救起恢复额外生命值 %d",extrahp);
 		}
 		
-		mulEffect = IsPlayerHaveEffect(subject, 4);
+		mulEffect = GetPlayerEffect(subject, 4);
 		if(mulEffect > 0)
 		{
 			// SDKCall(sdkAdrenaline, subject, 15.0);
@@ -8670,7 +8733,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		g_sLastWeapon[subject][0] = EOS;
 	}
 	
-	int mulEffect = IsPlayerHaveEffect(subject, 34);
+	int mulEffect = GetPlayerEffect(subject, 34);
 	if((g_clSkill_1[subject] & SKL_1_Armor) && mulEffect > 0)
 	{
 		AddArmor(subject, 50 * mulEffect);
@@ -8682,8 +8745,9 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		if(revivecount > 1)
 		{
 			g_iMaxReviveCount[subject] -= 1;
-			SetEntProp(subject, Prop_Send, "m_currentReviveCount", revivecount - 1);
 			SetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 0);
+			SetEntProp(subject, Prop_Send, "m_currentReviveCount", revivecount - 1);
+			L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", subject, revivecount - 1));
 			PrintToChat(subject, "\x03「坚定」\x01倒地次数上限增加");
 		}
 	}
@@ -8694,6 +8758,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	{
 		SetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 0);
 		SetEntProp(subject, Prop_Send, "m_isGoingToDie", 0);
+		L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", subject, 0));
 	}
 	
 	if(GetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 1))
@@ -9393,19 +9458,19 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 		return;
 	
 	bool si = (GetClientTeam(client) == 3 && !strcmp(eventName, "player_first_spawn", false));
-	bool sur = (!strcmp(eventName, "player_first_spawn", false) && IsPlayerHaveEffect(client, 35));
+	bool sur = (!strcmp(eventName, "player_first_spawn", false) && GetPlayerEffect(client, 35));
 	bool full = (si || sur || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying));
 	RegPlayerHook(client, full);
 	g_bFirstLoaded[client] = false;
 	
 	if(g_clSkill_1[client] & SKL_1_Armor)
 	{
-		AddArmor(client, 100 + (100 * IsPlayerHaveEffect(client, 33)));
+		AddArmor(client, 100 + (100 * GetPlayerEffect(client, 33)));
 	}
 	
 	if(g_clSkill_4[client] & SKL_4_ReviveCount)
 	{
-		g_iMaxReviveCount[client] = 1 + IsPlayerHaveEffect(client, 41);
+		g_iMaxReviveCount[client] = 1 + GetPlayerEffect(client, 41);
 	}
 	
 	/*
@@ -9970,10 +10035,10 @@ public void Event_SurvivorRescued(Event event, const char[] eventName, bool dont
 	if(g_clSkill_1[subject] & SKL_1_Armor)
 	{
 		// 上限 127
-		AddArmor(subject, 100 + (100 * IsPlayerHaveEffect(subject, 33)));
+		AddArmor(subject, 100 + (100 * GetPlayerEffect(subject, 33)));
 	}
 	
-	bool full = (g_Cvarhppack.BoolValue || IsPlayerHaveEffect(subject, 35));
+	bool full = (g_Cvarhppack.BoolValue || GetPlayerEffect(subject, 35));
 	RegPlayerHook(subject, full);
 	
 	if(!full)
@@ -10019,7 +10084,7 @@ public void UpdateWeaponAmmo(any data)
 		SetEntProp(weapon, Prop_Send, "m_iClip1", CalcPlayerClip(client, weapon));
 		
 		int skin = 0;
-		if(IsPlayerHaveEffect(client, 39) && g_tWeaponSkin.GetValue(classname, skin) && skin > 0)
+		if(GetPlayerEffect(client, 39) && g_tWeaponSkin.GetValue(classname, skin) && skin > 0)
 		{
 			if(!GetEntProp(weapon, Prop_Send, "m_nSkin"))
 				SetEntProp(weapon, Prop_Send, "m_nSkin", GetRandomInt(0, skin));
@@ -10301,6 +10366,7 @@ public void NotifyWeaponRange(any pack)
 		if(g_tMeleeRange == null || !g_tMeleeRange.GetValue(classname, range))
 			range = g_iUnknownMeleeRange;
 		
+		range += RoundToZero(range * 0.1 * GetPlayerEffect(client, 55));
 		FormatEx(msg, sizeof(msg), "攻击范围 %d", range);
 	}
 	if(g_clSkill_5[client] & SKL_5_ShoveRange)
@@ -10308,6 +10374,7 @@ public void NotifyWeaponRange(any pack)
 		if(g_tShoveRange == null || !g_tShoveRange.GetValue(classname, range))
 			range = g_iUnknownShoveRange;
 		
+		range += RoundToZero(range * 0.1 * GetPlayerEffect(client, 56));
 		if(msg[0] == EOS)
 			FormatEx(msg, sizeof(msg), "推范围 %d", range);
 		else
@@ -10318,7 +10385,7 @@ public void NotifyWeaponRange(any pack)
 		PrintCenterText(client, msg);
 	
 	int skin = 0;
-	if(IsPlayerHaveEffect(client, 39) && g_tWeaponSkin.GetValue(classname, skin) && skin > 0)
+	if(GetPlayerEffect(client, 39) && g_tWeaponSkin.GetValue(classname, skin) && skin > 0)
 	{
 		if(weapon > MaxClients && IsValidEntity(weapon) && !GetEntProp(weapon, Prop_Send, "m_nSkin"))
 			SetEntProp(weapon, Prop_Send, "m_nSkin", GetRandomInt(0, skin));
@@ -10346,7 +10413,7 @@ public void Event_UpgradePickup(Event event, const char[] eventName, bool dontBr
 	int maxClip = CalcPlayerClip(client, weapon);
 	SetEntProp(weapon, Prop_Send, "m_iClip1", maxClip);
 	
-	int mulEffect = IsPlayerHaveEffect(client, 31);
+	int mulEffect = GetPlayerEffect(client, 31);
 	if(mulEffect > 0)
 		maxClip += maxClip * mulEffect;
 	if(maxClip > 255)
@@ -10967,6 +11034,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		// 脱离黑白状态
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
+		L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, 0));
 	}
 	else if(g_bFirstLoaded[client])
 	{
@@ -11049,7 +11117,7 @@ public void PlayerHook_OnPreThinkPost(int client)
 	
 	float maxspeed = GetEntPropFloat(client, Prop_Send, "m_flMaxspeed");
 	
-	if(IsPlayerHaveEffect(client, 38) && !GetEntProp(client, Prop_Send, "m_bAdrenalineActive", 1))
+	if(GetPlayerEffect(client, 38) && !GetEntProp(client, Prop_Send, "m_bAdrenalineActive", 1))
 	{
 		static ConVar survivor_speed;
 		if(survivor_speed == null)
@@ -11331,66 +11399,12 @@ int GetDefaultClip(int weapon)
 		return clipSize * 2;
 	
 	return clipSize;
-	/*
-	int clip = -1;
-	if(g_WeaponClipSize.GetValue(className, clip) && clip > 0)
-	{
-		if(HasEntProp(weapon, Prop_Send, "m_hasDualWeapons") && GetEntProp(weapon, Prop_Send, "m_hasDualWeapons", 1))
-			return clip * 2;
-		
-		return clip;
-	}
-	*/
-	
-	/*
-	if(StrContains(className, "smg", false) != -1 || !strcmp(className, "weapon_rifle", false) ||
-		!strcmp(className, "weapon_rifle_sg552", false))
-		return 50;
-
-	if(!strcmp(className, "weapon_shotgun_chrome", false) || !strcmp(className, "weapon_pumpshotgun", false) ||
-		!strcmp(className, "weapon_pistol_magnum"))
-		return 8;
-
-	if(StrContains(className, "shotgun", false) != -1)
-		return 10;
-
-	if(StrContains(className, "pistol", false) != -1)
-	{
-		if(GetEntProp(weapon, Prop_Send, "m_hasDualWeapons"))
-			return 30;
-
-		return 15;
-	}
-
-	if(!strcmp(className, "weapon_rifle_m60", false))
-		return 150;
-
-	if(!strcmp(className, "weapon_rifle_desert", false))
-		return 60;
-
-	if(!strcmp(className, "weapon_rifle_ak47", false))
-		return 40;
-
-	if(!strcmp(className, "weapon_sniper_military", false))
-		return 30;
-
-	if(!strcmp(className, "weapon_sniper_awp", false))
-		return 20;
-
-	if(!strcmp(className, "weapon_hunting_rifle", false) || !strcmp(className, "weapon_sniper_scout", false))
-		return 15;
-
-	if(!strcmp(className, "weapon_grenade_launcher", false))
-		return 1;
-
-	return 0;
-	*/
 }
 
 int CalcPlayerClip(int client, int weapon)
 {
 	float scale = 1.0;
-	scale += IsPlayerHaveEffect(client, 14) * 0.15;
+	scale += GetPlayerEffect(client, 14) * 0.15;
 	if(g_clSkill_4[client] & SKL_4_ClipSize)
 		scale += 0.5;
 	
@@ -11681,7 +11695,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 		g_fAccurateShot[client] = 0.0;
 	}
 	
-	int pbDuration = IsPlayerHaveEffect(client, 21);
+	int pbDuration = GetPlayerEffect(client, 21);
 	if(pbDuration > 0)
 	{
 		static ConVar pipe_bomb_timer_duration;
@@ -12294,7 +12308,7 @@ void OnSkillAttach(int client, int level, int skill)
 				CheatCommand(client, "give", "vomitjar");
 		}
 		
-		PrintHintText(client, "***聊天框输入 !grenade 切换手雷形态***");
+		PrintHintText(client, "聊天框输入 !grenade 切换手雷形态\n或者手持手雷时同时按鼠标左右键");
 	}
 }
 
@@ -12370,25 +12384,7 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 		// 确定是否真的有效增加或有效减少
 		if((amount > 0 && (health > oldHealth || buffer > oldBuffer)) || (amount < 0 && (oldHealth > health || oldBuffer > buffer)))
 		{
-			/*
-			if(buffer > 200.0)
-			{
-				ConVar painPillsDecayCvar;
-				if (painPillsDecayCvar == null)
-					painPillsDecayCvar = FindConVar("pain_pills_decay_rate");
-				
-				// 通过时间来扩展上限
-				float time = (200.0 - buffer) / painPillsDecayCvar.FloatValue;
-				SetEntPropFloat(client, Prop_Send, "m_healthBuffer", 200.0);
-				SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime() + time);
-			}
-			else
-			*/
-			{
-				// SetEntPropFloat(client, Prop_Send, "m_healthBuffer", buffer);
-				// SetEntPropFloat(client, Prop_Send, "m_healthBufferTime", GetGameTime());
-				L4D_SetTempHealth(client, buffer);
-			}
+			L4D_SetTempHealth(client, buffer);
 		}
 	}
 	else if(team == 3)
@@ -12467,7 +12463,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 			return false;
 		
 		float scale = 1.0;
-		scale += IsPlayerHaveEffect(client, 15) * 0.25;
+		scale += GetPlayerEffect(client, 15) * 0.25;
 		
 		if(g_clSkill_3[client] & SKL_3_MoreAmmo)
 			scale += 1.0;
@@ -12480,10 +12476,6 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	}
 	
 	int clip = 0, maxClip = 0;
-	// int secondry = GetPlayerWeaponSlot(client, 1);
-	// int grenade = GetPlayerWeaponSlot(client, 2);
-	// int kit = GetPlayerWeaponSlot(client, 3);
-	// int drug = GetPlayerWeaponSlot(client, 4);
 	if(primary > MaxClients && IsValidEntity(primary) &&
 		GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
 	{
@@ -12496,56 +12488,6 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 				maxAmmo += maxClip - clip;
 		}
 	}
-	/*
-	else if(secondry > MaxClients && IsValidEntity(secondry) &&
-		GetEntProp(secondry, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
-	{
-		maxClip = GetDefaultClip(secondry);
-		if(maxClip > 0)
-		{
-			if(g_clSkill_4[client] & SKL_4_ClipSize)
-				maxClip = RoundToNearest(maxClip * 1.5);
-
-			// 副武器
-			clip = GetEntProp(secondry, Prop_Send, "m_iClip1");
-			if(clip > -1)
-				maxAmmo += maxClip - clip;
-		}
-	}
-	else if(grenade > MaxClients && IsValidEntity(grenade) &&
-		GetEntProp(grenade, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
-	{
-		maxClip = GetDefaultClip(grenade);
-		if(maxClip > 0)
-		{
-			// 投掷武器
-			clip = GetEntProp(grenade, Prop_Send, "m_iClip1");
-			// maxAmmo += maxClip - clip;
-		}
-	}
-	else if(kit > MaxClients && IsValidEntity(kit) &&
-		GetEntProp(kit, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
-	{
-		maxClip = GetDefaultClip(kit);
-		if(maxClip > 0)
-		{
-			// 工具套件
-			clip = GetEntProp(kit, Prop_Send, "m_iClip1");
-			// maxAmmo += maxClip - clip;
-		}
-	}
-	else if(drug > MaxClients && IsValidEntity(drug) &&
-		GetEntProp(drug, Prop_Send, "m_iPrimaryAmmoType") == ammoType)
-	{
-		maxClip = GetDefaultClip(drug);
-		if(maxClip > 0)
-		{
-			// 药物
-			clip = GetEntProp(drug, Prop_Send, "m_iClip1");
-			// maxAmmo += maxClip - drug;
-		}
-	}
-	*/
 	
 	{
 		Call_StartForward(g_fwOnGiveAmmo);
@@ -12924,7 +12866,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 
 			// EmitSoundToAll(SOUND_BCLAW, client);
 			EmitAmbientSound(SOUND_BCLAW, pos, client);
-			float radius = 500.0 * (1 + IsPlayerHaveEffect(client, 32));
+			float radius = 500.0 * (1 + GetPlayerEffect(client, 32));
 
 			for (new i = 1; i <= MaxClients; i++)
 			{
@@ -12942,7 +12884,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
 			}
 			
-			if(IsPlayerHaveEffect(client, 30))
+			if(GetPlayerEffect(client, 30))
 			{
 				int numEdict = GetMaxEntities();
 				for(int i = MaxClients + 1; i < numEdict; ++i)
@@ -13808,7 +13750,7 @@ void ShowStatusPanel(int client)
 		menu.DrawText(tr("血量%d/%d", health, maxHealth));
 	
 	int armor = GetEntProp(client, Prop_Send, "m_ArmorValue") + g_iExtraArmor[client];
-	int maxArmor = ((g_clSkill_1[client] & SKL_1_Armor) ? 100 : 0) + (100 * IsPlayerHaveEffect(client, 33));
+	int maxArmor = ((g_clSkill_1[client] & SKL_1_Armor) ? 100 : 0) + (100 * GetPlayerEffect(client, 33));
 	if(armor > 0 || g_iExtraArmor[client] > 0)
 		menu.DrawText(tr("护甲%d/%d", armor, maxArmor));
 	
@@ -13823,7 +13765,7 @@ void ShowStatusPanel(int client)
 			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType")) + g_iExtraAmmo[client];
 			int maxAmmo = GetDefaultAmmo(weapon);
 			float scale = 1.0;
-			scale += IsPlayerHaveEffect(client, 15) * 0.25;
+			scale += GetPlayerEffect(client, 15) * 0.25;
 			if(g_clSkill_3[client] & SKL_3_MoreAmmo)
 				scale += 1.0;
 			maxAmmo = RoundToZero(maxAmmo * scale);
@@ -14223,6 +14165,7 @@ public MRESReturn TestMeleeSwingCollisionPre(int pThis, Handle hReturn)
 			if(g_tMeleeRange == null || !g_tMeleeRange.GetValue(sTemp, range))
 				range = g_iUnknownMeleeRange;
 			
+			range += RoundToZero(range * 0.1 * GetPlayerEffect(owner, 55));
 			if(range > g_hCvarMeleeRange.IntValue)
 			{
 				g_iOldMeleeSwingRange = g_hCvarMeleeRange.IntValue;
@@ -14269,6 +14212,7 @@ public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
 				if(g_tShoveRange == null || !g_tShoveRange.GetValue(sTemp, range))
 					range = g_iUnknownShoveRange;
 				
+				range += RoundToZero(range * 0.1 * GetPlayerEffect(owner, 56));
 				if(range > g_hCvarShovRange.IntValue)
 				{
 					g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
@@ -14358,7 +14302,7 @@ public Action L4D2_OnStagger(int target, int source)
 	if(!IsValidAliveClient(target))
 		return Plugin_Continue;
 	
-	if(IsPlayerHaveEffect(target, 22))
+	if(GetPlayerEffect(target, 22))
 		return Plugin_Handled;
 	
 	int team = GetClientTeam(target);
@@ -16102,13 +16046,13 @@ void RebuildEquipStr(EquipData_t data)
 		case 1:
 			strcopy(data.sEffect, sizeof(data.sEffect), "倒地被救起时恢复HP+20");
 		case 2:
-			strcopy(data.sEffect, sizeof(data.sEffect), "使用药丸时兴奋10秒");
+			strcopy(data.sEffect, sizeof(data.sEffect), "吃药兴奋10秒");
 		case 3:
 			strcopy(data.sEffect, sizeof(data.sEffect), "使用怒气技时怒气值恢复10");
 		case 4:
-			strcopy(data.sEffect, sizeof(data.sEffect), "倒地被救起时兴奋10秒");
+			strcopy(data.sEffect, sizeof(data.sEffect), "倒地被救起兴奋10秒");
 		case 5:
-			strcopy(data.sEffect, sizeof(data.sEffect), "倒地时反伤HP+100并点燃攻击者");
+			strcopy(data.sEffect, sizeof(data.sEffect), "倒地时反伤+100并点燃攻击者");
 		case 6:
 			strcopy(data.sEffect, sizeof(data.sEffect), "暴击时追加伤害上限+200");
 		case 7:
@@ -16116,7 +16060,7 @@ void RebuildEquipStr(EquipData_t data)
 		case 8:
 			strcopy(data.sEffect, sizeof(data.sEffect), "暴击率+5");
 		case 9:
-			strcopy(data.sEffect, sizeof(data.sEffect), "「无敌」附加无限子弹功能");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「无敌」激活时附加无限子弹");
 		case 10:
 			strcopy(data.sEffect, sizeof(data.sEffect), "死亡时反伤杀害者3000伤害");
 		case 11:
@@ -16132,13 +16076,13 @@ void RebuildEquipStr(EquipData_t data)
 		case 16:
 			strcopy(data.sEffect, sizeof(data.sEffect), "倒地取消(受到的)冰冻效果");
 		case 17:
-			strcopy(data.sEffect, sizeof(data.sEffect), "「顽强」触发几率+1/4");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「顽强」自动触发几率+1/4");
 		case 18:
 			strcopy(data.sEffect, sizeof(data.sEffect), "「永生」触发几率+1/10");
 		case 19:
 			strcopy(data.sEffect, sizeof(data.sEffect), "「牺牲」触发几率+1/3");
 		case 20:
-			strcopy(data.sEffect, sizeof(data.sEffect), "「顽强」触发时处死控制者");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「顽强」自动触发时处死控制者");
 		case 21:
 			strcopy(data.sEffect, sizeof(data.sEffect), "土雷引怪持续时间加倍");
 		case 22:
@@ -16180,13 +16124,37 @@ void RebuildEquipStr(EquipData_t data)
 		case 40:
 			strcopy(data.sEffect, sizeof(data.sEffect), "「清醒」效果加倍/吃药也触发");
 		case 41:
-			strcopy(data.sEffect, sizeof(data.sEffect), "「坚定」倒地次数+1");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「坚定」次数+1");
 		case 42:
 			strcopy(data.sEffect, sizeof(data.sEffect), "兴奋时暴击率+200");
 		case 43:
 			strcopy(data.sEffect, sizeof(data.sEffect), "兴奋时受到伤害减半");
 		case 44:
 			strcopy(data.sEffect, sizeof(data.sEffect), "兴奋时攻击伤害加倍");
+		case 45:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「谨慎」队友伤害降低至0点");
+		case 46:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「无敌」激活时受伤回复血量1点");
+		case 47:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「无敌」激活持续时间+5秒");
+		case 48:
+			strcopy(data.sEffect, sizeof(data.sEffect), "打针兴奋时间+10秒");
+		case 49:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「纵火」附加胆汁效果");
+		case 50:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「释冰」附加胆汁效果");
+		case 51:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「嗜药」冷却时间减少10秒");
+		case 52:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「电疗」冷却时间减少10秒");
+		case 53:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「爆破」冷却时间减少10秒");
+		case 54:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「无敌」冷却时间减少5秒");
+		case 55:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「刀客」范围+10%");
+		case 56:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「枪托」范围+10%");
 		default:
 			strcopy(data.sEffect, sizeof(data.sEffect), "");
 	}
@@ -16206,7 +16174,7 @@ void RebuildEquipStr(EquipData_t data)
 		strcopy(data.sNamed, sizeof(data.sNamed), "琥珀");
 }
 
-stock int IsPlayerHaveEffect(int client, int effect)
+stock int GetPlayerEffect(int client, int effect)
 {
 	if(g_mEquipData[client] == null)
 		return 0;
@@ -16434,7 +16402,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 				// SetEntProp(i, Prop_Send, "m_currentReviveCount", 0);
 				SetEntProp(i, Prop_Send, "m_bIsOnThirdStrike", 0);
 				SetEntProp(i, Prop_Send, "m_isGoingToDie", 0);
-				// CheatCommandEx(i, "stopsound");
+				L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", i, 0));
 			}
 
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "死亡之门");
@@ -16742,7 +16710,7 @@ public int Native_GetEffects(Handle plugin, int argc)
 	
 	int effect = GetNativeCell(2);
 	
-	return IsPlayerHaveEffect(client, effect);
+	return GetPlayerEffect(client, effect);
 }
 
 public int Native_GetPower(Handle plugin, int argc)

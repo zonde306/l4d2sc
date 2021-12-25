@@ -220,7 +220,7 @@ void TryActiveSpawnQueue()
 		else
 		{
 			if(g_hTimerSpawnQueue == null)
-				g_hTimerSpawnQueue = CreateTimer(g_fFirstInterval, Timer_ActiveSpawnner, 1);
+				g_hTimerSpawnQueue = CreateTimer(g_fFirstInterval, Timer_ActiveSpawnner, 1, TIMER_FLAG_NO_MAPCHANGE);
 		}
 	}
 }
@@ -228,7 +228,7 @@ void TryActiveSpawnQueue()
 public void OnGamemodeCoop(const char[] output, int caller, int activator, float delay)
 {
 	if(g_hTimerSpawnQueue == null)
-		g_hTimerSpawnQueue = CreateTimer(g_fFirstInterval, Timer_ActiveSpawnner, 1);
+		g_hTimerSpawnQueue = CreateTimer(g_fFirstInterval, Timer_ActiveSpawnner, 1, TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public void OnGamemodeSurvival(const char[] output, int caller, int activator, float delay)
@@ -236,7 +236,7 @@ public void OnGamemodeSurvival(const char[] output, int caller, int activator, f
 	if(g_bIsSurvivalMode)
 	{
 		if(g_hTimerSpawnQueue == null)
-			g_hTimerSpawnQueue = CreateTimer(g_fFirstInterval, Timer_ActiveSpawnner, 1);
+			g_hTimerSpawnQueue = CreateTimer(g_fFirstInterval, Timer_ActiveSpawnner, 1, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -250,7 +250,10 @@ public Action Timer_ActiveSpawnner(Handle timer, any first)
 	QueueSpawnner();
 	
 	if(first)
+	{
 		g_hTimerSpawnQueue = CreateTimer(g_fInterval, Timer_ActiveSpawnner, 0, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+		KillTimer(timer);
+	}
 	
 	return Plugin_Continue;
 }
@@ -292,6 +295,7 @@ public Action Timer_SpawnQueue(Handle timer, any unused)
 	if(g_iQueuedToSpawn <= 0 || !IsPluginAllow())
 	{
 		g_hTimerQueuedSpawnner = null;
+		KillTimer(timer);
 		return Plugin_Stop;
 	}
 	
@@ -309,18 +313,6 @@ public Action Timer_SpawnQueue(Handle timer, any unused)
 *	Misc.
 ******************************************
 */
-
-stock int GetRandomSurvivor()
-{
-	int count = 0;
-	int survivors[MAXPLAYERS];
-	for(int i = 1; i <= MaxClients; ++i)
-		if(IsValidAliveClient(i) && GetClientTeam(i) == 2)
-			survivors[count++] = i;
-	
-	SortIntegers(survivors, count, Sort_Random);
-	return survivors[0];
-}
 
 stock int SpawnCommand(int zClass, int spawnner = -1)
 {

@@ -5,7 +5,7 @@
 
 public Plugin:myinfo = 
 {
-	name = "弹药升级修复",
+	name = "[L4D2] Upgrade Packs FIXES",
 	author = "V10",
 	description = "Fixes bugs with upgrade packs on server more than 8 players",
 	version = PLUGIN_VERSION,
@@ -24,9 +24,6 @@ new g_UpgradePackCanUseCountO = -1;
 new Handle:g_hFindUseEntity = INVALID_HANDLE;
 static Handle:IncendAmmoMultiplier = INVALID_HANDLE;
 static Handle:SplosiveAmmoMultiplier = INVALID_HANDLE;
-static Handle:SplosiveAmmoSuperimposed = INVALID_HANDLE;
-new Handle:g_hCvarUseRadius = INVALID_HANDLE;
-new Handle:g_pCvarUseAmmoFix = INVALID_HANDLE;
 
 new Handle:g_UpgradePackResetTimers[MAX_UPGRADEPACKS];
 new g_UpgradePackEntityId[MAX_UPGRADEPACKS];
@@ -34,12 +31,6 @@ new g_TotalUpgradesCount[MAX_UPGRADEPACKS];
 new bool:g_UsedUpgradePack[MAX_UPGRADEPACKS][L4D_MAXPLAYERS+1];
 new g_CurrentMaxPackId;
 new g_LastUsedUpgradePackId;
-
-new g_iLastUpgrade[MAXPLAYERS+1];
-new g_iLastUpgradeAmmo[MAXPLAYERS+1];
-
-new g_iLastClip[MAXPLAYERS+1];
-new g_iLastAmmo[MAXPLAYERS+1];
 
 #if HARDCHECKS == 0
 	new bool:g_DelayButton[L4D_MAXPLAYERS+1];
@@ -52,12 +43,9 @@ public OnPluginStart()
 	
 	CreateConVar("l4d2_upgradepackfix_version", PLUGIN_VERSION, "UpgradePackFix plugin version", FCVAR_PLUGIN|FCVAR_SPONLY|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
-	IncendAmmoMultiplier = CreateConVar("l4d2_upgradepackfix_incendammomulti", "1.0", "燃烧子弹倍率");
-	SplosiveAmmoMultiplier = CreateConVar("l4d2_upgradepackfix_explosiveammomulti", "1.0", "高爆子弹倍率");
-	SplosiveAmmoSuperimposed = CreateConVar("l4d2_upgradepackfix_superimposed", "0", "弹药升级叠加");
-	g_pCvarUseAmmoFix = CreateConVar("l4d2_upgradepackfix_ammofix", "1", "弹药失踪修复");
-	AutoExecConfig(true, "l4d2_upgradepack");
-	
+	IncendAmmoMultiplier = CreateConVar("l4d2_upgradepackfix_incendammomulti", "2.0", " Multiplier for Incendiary Ammo Pickup Amount ");
+	SplosiveAmmoMultiplier = CreateConVar("l4d2_upgradepackfix_explosiveammomulti", "1.0", " Multiplier for Explosive Ammo Pickup Amount ");
+
 	g_SurvivorUseMaskO = FindSendPropInfo("CBaseUpgradeItem","m_iUsedBySurvivorsMask");
 	
 	new Handle:gConf = LoadGameConfigFile("upgradepackfix");
@@ -83,7 +71,6 @@ public OnPluginStart()
 	if (g_UpgradePackCanUseCountO == -1 || g_SurvivorUseMaskO == -1)
 		SetFailState("Cannot get offsets");
 	
-	g_hCvarUseRadius = FindConVar("player_use_radius");
 }
 
 public Action:OnPlayerRunCmd(client, &buttons, &impulse, Float:vel[3], Float:angles[3], &weapon)
@@ -176,38 +163,17 @@ public Event_UpgradePackAdded(Handle:event, const String:name[], bool:dontBroadc
 	if (g_UpgradePackResetTimers[UpgradePackId] == INVALID_HANDLE)
 		g_UpgradePackResetTimers[UpgradePackId] = CreateTimer(0.2,Timer_UpgradePackReset,UpgradePackId);
 	
-	new newammo = 0, upgrade = -1;
 	new ammo = GetSpecialAmmoInPlayerGun(client);
+	new newammo;
 	
-	if (StrEqual(class, "upgrade_ammo_incendiary"))
-	{
-		upgrade = 1;
+	if (StrEqual(class, "upgrade_ammo_incendiary"))	
 		newammo = RoundFloat(ammo * GetConVarFloat(IncendAmmoMultiplier));
-	}
 	else if (StrEqual(class, "upgrade_ammo_explosive"))	
-	{
-		upgrade = 2;
 		newammo = RoundFloat(ammo * GetConVarFloat(SplosiveAmmoMultiplier));
-	}
-	
-	if(GetConVarBool(SplosiveAmmoSuperimposed) && g_iLastUpgrade[client] == upgrade)
-		newammo += g_iLastUpgradeAmmo[client];
 	
 	if (newammo > 1)
 		SetSpecialAmmoInPlayerGun(client, newammo);
 	
-	new weapon = GetPlayerWeaponSlot(client, 0);
-	if(weapon > MaxClients && GetConVarBool(g_pCvarUseAmmoFix))
-	{
-		new ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
-		SetEntProp(weapon, Prop_Send, "m_iClip1", g_iLastClip[client]);
-		SetEntProp(client, Prop_Send, "m_iAmmo", g_iLastAmmo[client], _, ammoType);
-	}
-	
-	g_iLastUpgrade[client] = 0;
-	g_iLastUpgradeAmmo[client] = 0;
-	g_iLastClip[client] = 0;
-	g_iLastAmmo[client] = 0;
 //	UpgradePackReset(UpgradePackId);
 }
 
@@ -245,26 +211,9 @@ GetUpgradePackId(entityId)
 UpgradePackCheckUsable(client,PackId)
 {
 	SetEntData(g_UpgradePackEntityId[PackId], g_SurvivorUseMaskO, (g_UsedUpgradePack[PackId][client] ? 255 : 0), 1, true);
-	
+			
 	if (g_UsedUpgradePack[PackId][client] && g_UpgradePackResetTimers[PackId] == INVALID_HANDLE)
 		g_UpgradePackResetTimers[PackId] = CreateTimer(0.2,Timer_UpgradePackReset,PackId);
-	
-	new weapon = GetPlayerWeaponSlot(client, 0);
-	if(weapon > MaxClients)
-	{
-		new upgrade = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec");
-		if(upgrade & 1)
-			g_iLastUpgrade[client] = 1;		// upgrade_ammo_incendiary
-		else if(upgrade & 2)
-			g_iLastUpgrade[client] = 2;		// upgrade_ammo_explosive
-		
-		if(upgrade & 3)
-			g_iLastUpgradeAmmo[client] = GetEntProp(weapon, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", 1);
-		
-		new ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
-		g_iLastClip[client] = GetEntProp(weapon, Prop_Send, "m_iClip1");
-		g_iLastAmmo[client] = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
-	}
 }
 
 CreateUpgradePack(entityId)
@@ -296,13 +245,6 @@ ClearUpgradePacks()
 		for (new j = 1; j <= MaxClients; j++)
 			g_UsedUpgradePack[i][j] = false;
 	}
-	for (new i = 1; i <= MaxClients; ++i)
-	{
-		g_iLastUpgrade[i] = 0;
-		g_iLastUpgradeAmmo[i] = 0;
-		g_iLastAmmo[i] = 0;
-		g_iLastClip[i] = 0;
-	}
 }
 
 UpgradePackReset(PackId)
@@ -310,7 +252,7 @@ UpgradePackReset(PackId)
 	SetEntData(g_UpgradePackEntityId[PackId], g_SurvivorUseMaskO, 0, 1,true);
 }
 
-FindUseEntity(client){	return SDKCall(g_hFindUseEntity,client,GetConVarFloat(g_hCvarUseRadius),0.0,0.0,0,false);}
+FindUseEntity(client){	return SDKCall(g_hFindUseEntity,client,96.0,0.0,0.0,0,false);}
 
 
 
@@ -326,7 +268,6 @@ stock GetSpecialAmmoInPlayerGun(client) //returns the amount of special rounds i
 stock SetSpecialAmmoInPlayerGun(client, amount)
 {
 	if (!client) client = 1;
-	if(amount > 255) amount = 255;
 	new gunent = GetPlayerWeaponSlot(client, 0);
 	if (IsValidEdict(gunent))
 		SetEntProp(gunent, Prop_Send, "m_nUpgradedPrimaryAmmoLoaded", amount, 1);

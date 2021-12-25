@@ -59,7 +59,7 @@
 #include <sdktools>
 #include <left4dhooks>
 
-#define PLUGIN_VERSION "0.9.19"
+#define PLUGIN_VERSION "0.9.20"
 
 #define IS_VALID_CLIENT(%1)		(%1 > 0 && %1 <= MaxClients)
 #define IS_SURVIVOR(%1)			(GetClientTeam(%1) == 2)
@@ -205,6 +205,18 @@ enum()
 	CALARM_EXPLOSION,
 	CALARM_BOOMER
 };
+
+enum()
+{
+	ROCK_UNKNOWN,
+	ROCK_CONCRETE_CHUNK,
+	ROCK_TREE_TRUNK
+};
+
+static int g_iModel_Rock = -1;
+static int g_iModel_Trunk = -1;
+#define MODEL_CONCRETE_CHUNK          "models/props_debris/concrete_chunk01a.mdl"
+#define MODEL_TREE_TRUNK              "models/props_foliage/tree_trunk.mdl"
 
 new const String: g_csSIClassName[][] =
 {
@@ -435,7 +447,7 @@ new		bool:			g_bDeathChargeIgnore[MAXPLAYERS+1][MAXPLAYERS+1];
 public Plugin:myinfo = 
 {
 	name = "技能检测",
-	author = "Tabun, zonde306",
+	author = "Tabun & zonde306",
 	description = "检测空爆hunter, 近战秒牛, 砍舌头, 连跳等操作.",
 	version = PLUGIN_VERSION,
 	url = "https://github.com/Tabbernaut/L4D2-Plugins"
@@ -605,7 +617,11 @@ public OnClientDisconnect(client)
 	SDKUnhook(client, SDKHook_OnTakeDamage, OnTakeDamageByWitch);
 }
 
-
+public OnMapStart()
+{
+	g_iModel_Rock = PrecacheModel(MODEL_CONCRETE_CHUNK, true);
+    g_iModel_Trunk = PrecacheModel(MODEL_TREE_TRUNK, true);
+}
 
 /*
 	Tracking
@@ -1806,6 +1822,7 @@ public OnEntityCreated ( entity, const String:classname[] )
 			
 			SDKHook(entity, SDKHook_TraceAttack, TraceAttack_Rock);
 			SDKHook(entity, SDKHook_Touch, OnTouch_Rock);
+			SDKHook(entity, SDKHook_OnTakeDamageAlivePost, OnTakeDamageAlive_Rock);
 		}
 		
 		
@@ -1895,6 +1912,7 @@ public OnEntityDestroyed ( entity )
 		// tank rock
 		CreateTimer( ROCK_CHECK_TIME, Timer_CheckRockSkeet, entity );
 		SDKUnhook(entity, SDKHook_TraceAttack, TraceAttack_Rock);
+		SDKUnhook(entity, SDKHook_OnTakeDamageAlivePost, OnTakeDamageAlive_Rock);
 		return;
 	}
 
@@ -1927,10 +1945,12 @@ public Action: Timer_CheckRockSkeet (Handle:timer, any:rock)
 	RemoveFromTrie(g_hRockTrie, rock_key);
 	
 	// if rock didn't hit anyone / didn't touch anything, it was shot
+	/*
 	if ( rock_array[rckDamage] > 0 )
 	{
 		HandleRockSkeeted( rock_array[rckSkeeter], rock_array[rckTank] );
 	}
+	*/
 	
 	return Plugin_Continue;
 }
@@ -2265,6 +2285,35 @@ public Action: TraceAttack_Rock (victim, &attacker, &inflictor, &Float:damage, &
 		rock_array[rckSkeeter] = attacker;
 		SetTrieArray(g_hRockTrie, rock_key, rock_array, sizeof(rock_array), true);
 	}
+}
+
+public void OnTakeDamageAlive_Rock(int victim, int attacker, int inflictor, float damage, int damagetype, int weapon, const float damageForce[3], const float damagePosition[3])
+{
+	if (GetEntProp(victim, Prop_Data, "m_iHealth") > 0)
+        return;
+	
+	if ( IS_VALID_SURVIVOR(attacker) )
+	{
+		int owner = GetEntPropEnt(victim, Prop_Data, "m_hOwnerEntity");
+		if(!IS_VALID_INFECTED(owner))
+			owner = GetEntPropEnt(victim, Prop_Data, "m_hThrower");
+		if(!IS_VALID_INFECTED(owner))
+			owner = -1;
+		
+		HandleRockSkeeted(attacker, owner, !!(damagetype & (DMG_CLUB|DMG_SLASH)), GetRockType(victim));
+	}
+	
+	SDKUnhook(victim, SDKHook_OnTakeDamageAlivePost, OnTakeDamageAlive_Rock);
+}
+
+int GetRockType(int rock)
+{
+	int mdl = GetEntProp(rock, Prop_Send, "m_nModelIndex");
+	if(mdl == g_iModel_Rock)
+		return ROCK_CONCRETE_CHUNK;
+	if(mdl == g_iModel_Trunk)
+		return ROCK_TREE_TRUNK;
+	return ROCK_UNKNOWN;
 }
 
 public OnTouch_Rock ( entity )
@@ -2642,11 +2691,11 @@ stock HandleLevel( attacker, victim )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
-			PrintToChatAll( "\x03★ \x04%N\x01 使用近战秒杀了正在冲锋的 \x05%N\x01.", attacker, victim );
+			PrintToChatAll( "\x03★☆ \x04%N\x01 使用近战秒杀了正在冲锋的 \x05%N\x01.", attacker, victim );
 		}
 		else if ( IS_VALID_INGAME(attacker) )
 		{
-			PrintToChatAll( "\x03★ \x04%N\x01 使用近战武器秒了正在冲锋的牛", attacker );
+			PrintToChatAll( "\x03★☆ \x04%N\x01 使用近战武器秒了正在冲锋的牛", attacker );
 		}
 		else
 		{
@@ -3030,7 +3079,7 @@ HandleTongueCut( attacker, victim )
 	{
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
-			PrintToChatAll( "\x03☆ \x04%N\x01 近战砍断了 \x05%N\x01 的舌头.", attacker, victim );
+			PrintToChatAll( "\x03★☆ \x04%N\x01 近战砍断了 \x05%N\x01 的舌头.", attacker, victim );
 		}
 		else if ( IS_VALID_INGAME(attacker) )
 		{
@@ -3082,21 +3131,37 @@ HandleRockEaten( attacker, victim )
 	Call_PushCell(victim);
 	Call_Finish();
 }
-HandleRockSkeeted( attacker, victim )
+HandleRockSkeeted( attacker, victim, bool:melee=false, type=ROCK_UNKNOWN )
 {
 	// report?
 	if ( GetConVarBool(g_hCvarReport) && (GetConVarInt(g_hCvarReportFlags) & REP_ROCKSKEET) )
 	{
-		/*
+		static char typename[32];
+		switch(type)
+		{
+			case ROCK_CONCRETE_CHUNK:
+				strcopy(typename, sizeof(typename), "石头");
+			case ROCK_TREE_TRUNK:
+				strcopy(typename, sizeof(typename), "树桩");
+			default:
+				strcopy(typename, sizeof(typename), "投掷物");
+		}
+		
 		if ( IS_VALID_INGAME(attacker) && IS_VALID_INGAME(victim) && !IsFakeClient(victim) )
 		{
-			PrintToChatAll( "\x04%N\x01 skeeted \x05%N\x01's rock.", attacker, victim );
+			// PrintToChatAll( "\x04%N\x01 skeeted \x05%N\x01's rock.", attacker, victim );
+			if(melee)
+				PrintToChatAll( "\x03★★ \x04%N\x01 近战敲碎了 \x05%N\x01 的%s.", attacker, victim, typename );
+			else
+				PrintToChatAll( "\x03☆ \x04%N\x01 打爆了 \x05%N\x01 的%s.", attacker, victim, typename );
 		}
 		else if ( IS_VALID_INGAME(attacker) )
 		{
+			if(melee)
+				PrintToChatAll( "\x03★★ \x04%N\x01 近战敲碎了 \x05Tank\x01 的%s.", attacker, typename );
+			else
+				PrintToChatAll( "\x03☆ \x04%N\x01 打爆了 \x05Tank\x01 的%s.", attacker, typename );
 		}
-		*/
-		PrintToChatAll( "\x03☆ \x04%N\x01 打爆了 \x05Tank\x01 的石头.", attacker );
 	}
 	
 	// PrintToConsoleAll("%d rock-skeet %d", attacker, victim);

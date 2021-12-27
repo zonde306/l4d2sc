@@ -155,7 +155,7 @@ enum L4DResourceType
 	L4DResource_TankTickets2
 }
 
-static const char L4DResourceName[7][] =
+static const char L4DResourceName[L4DResourceType][] =
 {
 	"m_iPing",
 	"m_iScore",
@@ -1532,7 +1532,7 @@ enum L4D2WeaponId
 	L4D2WeaponId_MAX
 };
 
-static const char L4D2WeaponName[57][] =
+static const char L4D2WeaponName[L4D2WeaponId][] =
 {
 	"weapon_none",					// 0
 	"weapon_pistol",				// 1
@@ -1593,7 +1593,7 @@ static const char L4D2WeaponName[57][] =
 	""
 };
 
-static const char L4D2WeaponWorldModel[57][] =
+static const char L4D2WeaponWorldModel[L4D2WeaponId][] =
 {
 	"",
 	"/w_models/weapons/w_pistol_b.mdl",

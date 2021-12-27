@@ -50,9 +50,6 @@ public Plugin:myinfo =
 #define SOUND_CROW					"ambient/animal/crow_2.wav"
 #define SOUND_EXPLOSIVE				"weapons/hegrenade/explode5.wav"
 #define SOUND_GIFT					"ui/gift_drop.wav"
-#define SOUND_SHELL_INSERT			"weapons/auto_shotgun/gunother/auto_shotgun_load_shell_2.wav"
-#define SOUND_BILE_VICTIM			"music/terror/pukricide.wav"
-#define SOUND_BILE_OTHER			"music/tags/pukricidehit.wav"
 
 #define g_flSoH_rate 0.4
 #define ZC_SMOKER			1
@@ -125,7 +122,6 @@ const float g_fJumpHeightDucking = 52.0;	// 跳跃高度(蹲下)
 #define IsValidClient(%1)		(1 <= %1 <= MaxClients && IsClientInGame(%1))
 #define IsValidAliveClient(%1)	(1 <= %1 <= MaxClients && IsClientInGame(%1) && IsPlayerAlive(%1) && !GetEntProp(%1, Prop_Send, "m_isGhost"))
 #define IsSurvivorHeld(%1)		(GetEntPropEnt(%1, Prop_Send, "m_jockeyAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pummelAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_pounceAttacker") > 0 || GetEntPropEnt(%1, Prop_Send, "m_tongueOwner") > 0 || GetEntPropEnt(%1, Prop_Send, "m_carryAttacker") > 0)
-#define mps(%1,%2)				tr("%s %s", %1, (%2 ? "√" : ""))
 #define IsNullVector(%1)		(%1[0] == NULL_VECTOR[0] || %1[1] == NULL_VECTOR[1] || %1[2] == NULL_VECTOR[2])
 #define NATIVE_EXISTS(%0)		(GetFeatureStatus(FeatureType_Native, %0) == FeatureStatus_Available)
 
@@ -238,33 +234,33 @@ new g_iActiveWO			= -1;
 new g_iViewModelO		= -1;
 int g_iVelocityO		= -1;
 // int g_iBileTimestamp	= -1;
-new g_clSkillPoint[MAXPLAYERS+1] = 0;
-new g_ttDefibUsed[MAXPLAYERS+1] = 0;
-new g_ttOtherRevived[MAXPLAYERS+1] = 0;
-new g_ttSpecialKilled[MAXPLAYERS+1] = 0;
-new g_ttCommonKilled[MAXPLAYERS+1] = 0;
-new g_ttGivePills[MAXPLAYERS+1] = 0;
-new g_ttProtected[MAXPLAYERS+1] = 0;
-new g_ttCleared[MAXPLAYERS+1] = 0;
-new g_ttPaincEvent[MAXPLAYERS+1] = 0;
-new g_ttRescued[MAXPLAYERS+1] = 0;
-new g_csSlapCount[MAXPLAYERS+1] = 0;
+new g_clSkillPoint[MAXPLAYERS+1] = {0, ...};
+new g_ttDefibUsed[MAXPLAYERS+1] = {0, ...};
+new g_ttOtherRevived[MAXPLAYERS+1] = {0, ...};
+new g_ttSpecialKilled[MAXPLAYERS+1] = {0, ...};
+new g_ttCommonKilled[MAXPLAYERS+1] = {0, ...};
+new g_ttGivePills[MAXPLAYERS+1] = {0, ...};
+new g_ttProtected[MAXPLAYERS+1] = {0, ...};
+new g_ttCleared[MAXPLAYERS+1] = {0, ...};
+new g_ttPaincEvent[MAXPLAYERS+1] = {0, ...};
+new g_ttRescued[MAXPLAYERS+1] = {0, ...};
+new g_csSlapCount[MAXPLAYERS+1] = {0, ...};
 new bool:MeleeDelay[MAXPLAYERS+1];
 Handle g_hRPActive = null;
 Handle g_hRPColddown[MAXPLAYERS+1];
-new bool:g_cdCanTeleport[MAXPLAYERS+1] = false;
-new bool:g_bHasVampire[MAXPLAYERS+1] = false;
-new bool:g_bHasRetarding[MAXPLAYERS+1] = false;
+new bool:g_cdCanTeleport[MAXPLAYERS+1] = {false, ...};
+new bool:g_bHasVampire[MAXPLAYERS+1] = {false, ...};
+new bool:g_bHasRetarding[MAXPLAYERS+1] = {false, ...};
 float g_fNextGunShover[MAXPLAYERS+1];
 float g_fNextHandGrenade[MAXPLAYERS+1];
-// new bool:g_bCanDoubleJump[MAXPLAYERS+1] = false;
-// new bool:g_bHanFirstRelease[MAXPLAYERS+1] = false;
-float g_fMaxSpeedModify[MAXPLAYERS+1] = { 1.0, ... };
-float g_fMaxGravityModify[MAXPLAYERS+1] = { 1.0, ... };
-// float g_fNextCalmTime[MAXPLAYERS+1] = { 0.0, ... };
+// new bool:g_bCanDoubleJump[MAXPLAYERS+1] = {false, ...};
+// new bool:g_bHanFirstRelease[MAXPLAYERS+1] = {false, ...};
+float g_fMaxSpeedModify[MAXPLAYERS+1] = {1.0, ...};
+float g_fMaxGravityModify[MAXPLAYERS+1] = {1.0, ...};
+// float g_fNextCalmTime[MAXPLAYERS+1] = {0.0, ...};
 int g_iIncapShoveIgnore[g_iIncapShoveNumTrace + 1];
-bool g_bIsHitByVomit[MAXPLAYERS+1] = { false, ... };
-bool g_bIsOnBile[MAXPLAYERS+1] = { false, ... };
+bool g_bIsHitByVomit[MAXPLAYERS+1] = {false, ...};
+bool g_bIsOnBile[MAXPLAYERS+1] = {false, ...};
 // bool g_bIsInvulnerable[MAXPLAYERS+1];
 bool g_bDeadlineHint[MAXPLAYERS+1];
 int g_iExtraAmmo[MAXPLAYERS+1];
@@ -319,12 +315,12 @@ enum
 #define LG_MODE_AUTO 2
 MoveType mtLastMoveType[MAXPLAYERS+1];
 
-int g_iJumpFlags[MAXPLAYERS+1] = 0;
-// int g_iTotalDamage[MAXPLAYERS+1][MAXPLAYERS+1] = 0;
-// int g_iLastDamage[MAXPLAYERS+1][MAXPLAYERS+1] = 0;
-int g_iIsInCombat[MAXPLAYERS+1] = { -1, ... };
-int g_iIsSneaking[MAXPLAYERS+1] = { -1, ... };
-int g_iIsInBattlefield[MAXPLAYERS+1] = { -1, ... };
+int g_iJumpFlags[MAXPLAYERS+1] = {0, ...};
+// int g_iTotalDamage[MAXPLAYERS+1][MAXPLAYERS+1] = {0, ...};
+// int g_iLastDamage[MAXPLAYERS+1][MAXPLAYERS+1] = {0, ...};
+int g_iIsInCombat[MAXPLAYERS+1] = {-1, ...};
+int g_iIsSneaking[MAXPLAYERS+1] = {-1, ...};
+int g_iIsInBattlefield[MAXPLAYERS+1] = {-1, ...};
 
 new String:g_soundLevel[80];
 new String:g_sndPortalERROR[80];
@@ -405,7 +401,7 @@ int g_iReloadWeaponOldClip[MAXPLAYERS+1];
 int g_iReloadWeaponKeepClip[MAXPLAYERS+1];
 int g_iReloadWeaponUpgrade[MAXPLAYERS+1];
 int g_iReloadWeaponUpgradeClip[MAXPLAYERS+1];
-float g_fIncapShoveTimeout[MAXPLAYERS+1] = { 0.0, ... };
+float g_fIncapShoveTimeout[MAXPLAYERS+1] = {0.0, ...};
 char g_sLastWeapon[MAXPLAYERS+1][64];
 int g_iLastWeaponClip[MAXPLAYERS+1];
 bool g_bLastWeaponDual[MAXPLAYERS+1];
@@ -468,7 +464,7 @@ new g_clCurEquip[MAXPLAYERS+1][4];		//当前装备部件所在栏位
 int g_iActiveEffects[MAXPLAYERS+1];
 
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
-new bool:g_csHasGodMode[MAXPLAYERS+1] = {	false, ...};			//无敌天赋无限子弹判断
+new bool:g_csHasGodMode[MAXPLAYERS+1] = { false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
 const int g_iMaxEqmEffects = 63;	// 上限 255
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
@@ -508,7 +504,7 @@ new bool:g_bIsAngryActive = false;
 #define REWARD_SOUND	"ui/pickup_guitarriff10.wav"
 int g_iBulletFired[MAXPLAYERS+1];
 
-float g_fFreezeTime[MAXPLAYERS+1] = 0.0;
+float g_fFreezeTime[MAXPLAYERS+1] = {0.0, ...};
 int g_iWeaponSpeedEntity[MAXPLAYERS+1];
 float g_fWeaponSpeedUpdate[MAXPLAYERS+1];
 int g_iWeaponSpeedTotal = 0;
@@ -1071,8 +1067,8 @@ public OnPluginStart()
 				g_tShoveRange.SetValue("shovel",					150);
 				g_tShoveRange.SetValue("pitchfork",					160);
 				
-				// g_tShoveRange.SetValue("weapon_pistol",				90);
-				// g_tShoveRange.SetValue("weapon_pistol_magnum",		90);
+				g_tShoveRange.SetValue("weapon_pistol",				90);
+				g_tShoveRange.SetValue("weapon_pistol_magnum",		90);
 				g_tShoveRange.SetValue("weapon_smg",				100);
 				g_tShoveRange.SetValue("weapon_smg_silenced",		100);
 				g_tShoveRange.SetValue("weapon_smg_mp5",			100);
@@ -1444,9 +1440,6 @@ public OnMapStart()
 	GetConVarString(g_CvarSoundLevel, g_soundLevel, sizeof(g_soundLevel));
 	PrecacheSound(g_soundLevel, true);
 	PrecacheSound(SOUND_GIFT, true);
-	PrecacheSound(SOUND_SHELL_INSERT, true);
-	PrecacheSound(SOUND_BILE_VICTIM, true);
-	PrecacheSound(SOUND_BILE_OTHER, true);
 	
 	for(int i = 0; i < sizeof(g_sndShoveInfected); ++i)
 		PrecacheSound(g_sndShoveInfected[i], true);
@@ -1618,18 +1611,12 @@ public OnMapEnd()
 	g_bIsGamePlaying = false;
 	g_hTimerSurvival = null;
 	g_fLotteryStartTime = 0.0;
-	g_hTimerRenderHealthBar = null;
 
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
 		ClientSaveToFileSave(i);
 		OnEntityDestroyed(i);
-		g_fFreezeTime[i] = 0.0;
-		g_hTimerMinigun[i] = null;
-		g_hRPColddown[i] = null;
-		g_hChaseTimer[i] = null;
-		g_hTimerAutoReload[i] = null;
 	}
 }
 
@@ -1670,23 +1657,6 @@ public Action:Event_RoundEnd(Handle:event, String:event_name[], bool:dontBroadca
 			g_fFreezeTime[i] = 0.0;
 		if(g_hTimerMinigun[i] != null)
 			delete g_hTimerMinigun[i];
-		if(g_hRPColddown[i] != null)
-			delete g_hRPColddown[i];
-		if(g_hChaseTimer[i])
-			delete g_hChaseTimer[i];
-		if(g_hTimerAutoReload[i])
-			delete g_hTimerAutoReload[i];
-		
-		if(g_iGlowModel[i] != INVALID_ENT_REFERENCE && IsValidEntity(g_iGlowModel[i]))
-		{
-			RemoveEntity(g_iGlowModel[i]);
-			g_iGlowModel[i] = INVALID_ENT_REFERENCE;
-		}
-		if(g_iChaseEntity[i] != INVALID_ENT_REFERENCE && IsValidEntity(g_iChaseEntity[i]))
-		{
-			RemoveEntity(g_iChaseEntity[i]);
-			g_iChaseEntity[i] = INVALID_ENT_REFERENCE;
-		}
 	}
 	
 	RestoreConVar();
@@ -1741,13 +1711,11 @@ public void Event_FinaleVehicleLeaving(Event event, const char[] eventName, bool
 	{
 		// Initialization(i);
 		ClientSaveToFileSave(i);
-		
-		if(IsValidAliveClient(i) && GetClientTeam(i) == 2 &&
-			!GetEntProp(i, Prop_Send, "m_isIncapacitated") &&
-			!GetEntProp(i, Prop_Send, "m_isHangingFromLedge"))
+
+		if(IsValidAliveClient(i) && !GetEntProp(i, Prop_Send, "m_isIncapacitated") && !GetEntProp(i, Prop_Send, "m_isHangingFromLedge"))
 		{
 			GiveSkillPoint(i, count);
-			
+
 			if(g_pCvarAllow.BoolValue)
 				PrintToChat(i, "\x03[提示]\x01 你因为救援关逃跑成功而获得 \x05%d\x01 硬币。", count);
 		}
@@ -1759,7 +1727,7 @@ public Action:Event_MissionLost(Handle:event, String:event_name[], bool:dontBroa
 	g_ttTankKilled = 0;
 	g_iRoundEvent = 0;
 	g_fNextRoundEvent = 0.0;
-	
+
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		// Initialization(i);
@@ -2025,7 +1993,7 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 		}
 		else if(!strcmp(event_name, "charger_carry_end", false))
 		{
-			CreateTimer(3.0, Timer_CheckPummelState, GetClientSerial(attacker), TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(3.0, Timer_CheckPummelState, attacker, TIMER_FLAG_NO_MAPCHANGE);
 		}
 		else
 		{
@@ -2054,7 +2022,7 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 		}
 		else if(!strcmp(event_name, "charger_carry_end", false))
 		{
-			CreateTimer(3.0, Timer_CheckPummelState, GetClientSerial(victim), TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(3.0, Timer_CheckPummelState, victim, TIMER_FLAG_NO_MAPCHANGE);
 		}
 		else
 		{
@@ -2066,8 +2034,6 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 
 public Action Timer_CheckPummelState(Handle timer, any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidClient(client))
 		return Plugin_Stop;
 	
@@ -2594,11 +2560,14 @@ bool ClientSaveToFileLoad(int client)
 		return false;
 	}
 	
-	g_Database.Escape(sid, sid, sizeof(sid));
-	g_Database.Query(QueryResult_Load, tr(
+	static char buffer[255];
+	FormatEx(buffer, sizeof(buffer),
 		"SELECT id, power, deadline, points, skill_1, skill_2, skill_3, skill_4, skill_5, angry_mode, eqm_0, eqm_1, eqm_2, eqm_3 FROM l4d2lv_core WHERE sid = '%s'",
 		sid
-	), client);
+	);
+	
+	g_Database.Escape(sid, sid, sizeof(sid));
+	g_Database.Query(QueryResult_Load, buffer, client);
 	
 	g_bIsVerified[client] = true;
 	return true;
@@ -2615,11 +2584,14 @@ public void QueryResult_Load(Database db, DBResultSet results, const char[] erro
 		GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
 	g_Database.Escape(sid, sid, sizeof(sid));
 	
+	static char buffer[255];
+	
 	int points = g_pCvarStartPoints.IntValue;
 	if(results == null || results.RowCount != 1 || !results.FetchRow())
 	{
 		// 处理新增
-		db.Query(QueryResult_LoadInit, tr("INSERT INTO l4d2lv_core (sid, points) VALUES ('%s', '%d')", sid, points), client);
+		FormatEx(buffer, sizeof(buffer), "INSERT INTO l4d2lv_core (sid, points) VALUES ('%s', '%d')", sid, points);
+		db.Query(QueryResult_LoadInit, buffer, client);
 		return;
 	}
 	
@@ -2640,8 +2612,10 @@ public void QueryResult_Load(Database db, DBResultSet results, const char[] erro
 				points += power / g_pCvarReimburse.IntValue;
 			
 			Transaction trans = SQL_CreateTransaction();
-			trans.AddQuery(tr("DELETE FROM l4d2lv_core WHERE id = %d", uid));
-			trans.AddQuery(tr("INSERT INTO l4d2lv_core (sid, points) VALUES ('%s', '%d')", sid, points));
+			FormatEx(buffer, sizeof(buffer), "DELETE FROM l4d2lv_core WHERE id = %d", uid);
+			trans.AddQuery(buffer);
+			FormatEx(buffer, sizeof(buffer), "INSERT INTO l4d2lv_core (sid, points) VALUES ('%s', '%d')", sid, points);
+			trans.AddQuery(buffer);
 			db.Execute(trans, QueryResult_LoadInitPlus, QueryResults_FailedNaked, client);
 			return;
 		}
@@ -2663,17 +2637,19 @@ public void QueryResult_Load(Database db, DBResultSet results, const char[] erro
 	g_clCurEquip[client][2] = results.IsFieldNull(12) ? -1 : results.FetchInt(12);
 	g_clCurEquip[client][3] = results.IsFieldNull(13) ? -1 : results.FetchInt(13);
 	
-	db.Query(QueryResult_LoadBags, tr(
+	FormatEx(buffer, sizeof(buffer),
 		"SELECT prefix, parts, damage, health, speed, gravity, crit, effect, hashId, id FROM l4d2lv_inventory WHERE uid = %d",
 		uid
-	), client);
+	);
+	db.Query(QueryResult_LoadBags, buffer, client);
 	
 	if(g_pCvarSaveStats.BoolValue)
 	{
-		db.Query(QueryResult_LoadStats, tr(
+		FormatEx(buffer, sizeof(buffer),
 			"SELECT angry_point, defib_used, revived_count, si_killed, ci_killed, pills_given, team_protected, zone_cleared, painc_holdout, rescued_count FROM l4d2lv_stats WHERE uid = %d",
 			uid
-		), client);
+		);
+		db.Query(QueryResult_LoadStats, buffer, client);
 	}
 	
 	g_iUserID[client] = uid;
@@ -2728,10 +2704,13 @@ public void QueryResult_LoadStats(Database db, DBResultSet results, const char[]
 	if(!IsValidClient(client) || IsFakeClient(client))
 		return;
 	
+	static char buffer[64];
+	
 	if(results == null || results.RowCount != 1 || !results.FetchRow())
 	{
 		// 处理新增
-		db.Query(QueryResult_Naked, tr("INSERT INTO l4d2lv_stats (uid) VALUES (%d)", g_iUserID[client]), client);
+		FormatEx(buffer, sizeof(buffer), "INSERT INTO l4d2lv_stats (uid) VALUES (%d)", g_iUserID[client]);
+		db.Query(QueryResult_Naked, buffer, client);
 		LogMessage("[l4d2_dlc2_levelup] 读取了玩家 %N 空的统计数据", client);
 		return;
 	}
@@ -2760,10 +2739,14 @@ public void QueryResult_LoadInit(Database db, DBResultSet results, const char[] 
 	if(!valid)
 		GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
 	db.Escape(sid, sid, sizeof(sid));
-	db.Query(QueryResult_Load, tr(
+	
+	static char buffer[255];
+	
+	FormatEx(buffer, sizeof(buffer),
 		"SELECT id, power, deadline, points, skill_1, skill_2, skill_3, skill_4, skill_5, angry_mode, eqm_0, eqm_1, eqm_2, eqm_3 FROM l4d2lv_core WHERE sid = '%s'",
 		sid
-	), client);
+	);
+	db.Query(QueryResult_Load, buffer, client);
 	
 	LogMessage("[l4d2_dlc2_levelup] 新玩家 %N(%s) 加入了游戏", client, sid);
 }
@@ -2778,10 +2761,15 @@ public void QueryResult_LoadInitPlus(Database db, any client, int numQueries, DB
 	if(!valid)
 		GetClientAuthId(client, AuthId_Steam2, sid, sizeof(sid), false);
 	db.Escape(sid, sid, sizeof(sid));
-	db.Query(QueryResult_Load, tr(
+	
+	static char buffer[255];
+	
+	FormatEx(buffer, sizeof(buffer),
 		"SELECT id, power, deadline, points, skill_1, skill_2, skill_3, skill_4, skill_5, angry_mode, eqm_0, eqm_1, eqm_2, eqm_3 FROM l4d2lv_core WHERE sid = '%s'",
 		sid
-	), client);
+	);
+	
+	db.Query(QueryResult_Load, buffer, client);
 	
 	LogMessage("[l4d2_dlc2_levelup] 旧玩家 %N(%s) 加入了游戏", client, sid);
 }
@@ -2813,25 +2801,30 @@ bool ClientSaveToFileSave(int client)
 	if(g_mEquipData[client] == null)
 		g_mEquipData[client] = CreateTrie();
 	
+	static char buffer[255];
+	
 	bool insert = false;
 	if(g_iUserID[client] <= 0)
 	{
 		LogError("尝试保存 %N(%s) 时未事先获取到 uid", client, sid);
 		
 		// 这里可能会卡住游戏
-		DBResultSet results = SQL_Query(g_Database, tr("SELECT id FROM l4d2lv_core WHERE sid = '%s'", sid));
+		FormatEx(buffer, sizeof(buffer), "SELECT id FROM l4d2lv_core WHERE sid = '%s'", sid);
+		DBResultSet results = SQL_Query(g_Database, buffer);
 		if(results == null || results.RowCount != 1 || !results.FetchRow())
 		{
 			LogError("尝试立即获取 %N(%s) 的 uid 失败，尝试立即创建", client, sid);
 			
-			results = SQL_Query(g_Database, tr("INSERT INTO l4d2lv_core (sid) VALUES ('%s')", sid));
+			FormatEx(buffer, sizeof(buffer), "INSERT INTO l4d2lv_core (sid) VALUES ('%s')", sid);
+			results = SQL_Query(g_Database, buffer);
 			if(results == null)
 			{
 				LogError("尝试立即创建 %N(%s) 的 uid 失败，存档失败", client, sid);
 				return false;
 			}
 			
-			results = SQL_Query(g_Database, tr("SELECT id FROM l4d2lv_core WHERE sid = '%s'", sid));
+			FormatEx(buffer, sizeof(buffer), "SELECT id FROM l4d2lv_core WHERE sid = '%s'", sid);
+			results = SQL_Query(g_Database, buffer);
 			if(results == null || results.RowCount != 1 || !results.FetchRow())
 			{
 				LogError("尝试第二次立即获取 %N(%s) 的 uid 失败，存档失败", client, sid);
@@ -2852,7 +2845,7 @@ bool ClientSaveToFileSave(int client)
 	Transaction trans = SQL_CreateTransaction();
 	
 	// 基础数据
-	trans.AddQuery(tr(
+	FormatEx(buffer, sizeof(buffer),
 		"UPDATE l4d2lv_core SET deadline = %d, points = %d, angry_mode = %d, power = %d,"
 		..." skill_1 = %d, skill_2 = %d, skill_3 = %d, skill_4 = %d, skill_5 = %d,"
 		..." eqm_0 = %d, eqm_1 = %d, eqm_2 = %d, eqm_3 = %d, valid = %d"
@@ -2861,7 +2854,8 @@ bool ClientSaveToFileSave(int client)
 		g_clSkill_1[client], g_clSkill_2[client], g_clSkill_3[client], g_clSkill_4[client], g_clSkill_5[client],
 		g_clCurEquip[client][0], g_clCurEquip[client][1], g_clCurEquip[client][2], g_clCurEquip[client][3],
 		valid, g_iUserID[client]
-	));
+	);
+	trans.AddQuery(buffer);
 	
 	// 装备数据
 	StringMapSnapshot iterator = g_mEquipData[client].Snapshot();
@@ -2876,21 +2870,23 @@ bool ClientSaveToFileSave(int client)
 		
 		if(data.ID > 0 && !insert)
 		{
-			trans.AddQuery(tr(
+			FormatEx(buffer, sizeof(buffer),
 				"UPDATE l4d2lv_inventory SET prefix = %d, parts = %d, damage = %d, health = %d, speed = %d, gravity = %d, crit = %d, effect = %d"
 				..." WHERE id = %d AND uid = %d",
 				data.prefix, data.parts, data.damage, data.health, data.speed, data.gravity, data.crit, data.effect,
 				data.ID, g_iUserID[client]
-			));
+			);
+			trans.AddQuery(buffer);
 		}
 		else
 		{
-			trans.AddQuery(tr(
+			FormatEx(buffer, sizeof(buffer),
 				"INSERT INTO l4d2lv_inventory (prefix, parts, damage, health, speed, gravity, crit, effect, hashId, uid) VALUES"
 				..." (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
 				data.prefix, data.parts, data.damage, data.health, data.speed, data.gravity, data.crit, data.effect,
 				data.hashID, g_iUserID[client]
-			));
+			);
+			trans.AddQuery(buffer);
 		}
 		
 		if(i <= 0)
@@ -2901,25 +2897,27 @@ bool ClientSaveToFileSave(int client)
 	if(size > 0 && !insert)
 	{
 		// 清理失去的装备
-		trans.AddQuery(tr("DELETE FROM l4d2lv_inventory WHERE uid = %d AND hashId NOT IN (%s)", g_iUserID[client], toBeDelete));
+		FormatEx(buffer, sizeof(buffer), "DELETE FROM l4d2lv_inventory WHERE uid = %d AND hashId NOT IN (%s)", g_iUserID[client], toBeDelete);
+		trans.AddQuery(buffer);
 	}
 	
 	if(g_pCvarSaveStats.BoolValue)
 	{
 		if(insert)
 		{
-			trans.AddQuery(tr(
+			FormatEx(buffer, sizeof(buffer),
 				"INSERT INTO l4d2lv_stats"
 				..." (angry_point, defib_used, revived_count, si_killed, ci_killed, pills_given, team_protected, zone_cleared, painc_holdout, rescued_count, uid) VALUES"
 				..." (%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d)",
 				g_clAngryPoint[client], g_ttDefibUsed[client], g_ttOtherRevived[client], g_ttSpecialKilled[client],
 				g_ttCommonKilled[client], g_ttGivePills[client], g_ttProtected[client], g_ttCleared[client],
 				g_ttPaincEvent[client], g_ttRescued[client], g_iUserID[client]
-			));
+			);
+			trans.AddQuery(buffer);
 		}
 		else
 		{
-			trans.AddQuery(tr(
+			FormatEx(buffer, sizeof(buffer),
 				"UPDATE l4d2lv_stats SET"
 				..." angry_point = %d, defib_used = %d, revived_count = %d, si_killed = %d,"
 				..." ci_killed = %d, pills_given = %d, team_protected = %d, zone_cleared = %d,"
@@ -2927,18 +2925,20 @@ bool ClientSaveToFileSave(int client)
 				g_clAngryPoint[client], g_ttDefibUsed[client], g_ttOtherRevived[client], g_ttSpecialKilled[client],
 				g_ttCommonKilled[client], g_ttGivePills[client], g_ttProtected[client], g_ttCleared[client],
 				g_ttPaincEvent[client], g_ttRescued[client], g_iUserID[client]
-			));
+			);
+			trans.AddQuery(buffer);
 		}
 	}
 	else
 	{
-		trans.AddQuery(tr(
+		FormatEx(buffer, sizeof(buffer),
 			"UPDATE l4d2lv_stats SET"
 			..." angry_point = 0, defib_used = 0, revived_count = 0, si_killed = 0,"
 			..." ci_killed = 0, pills_given = 0, team_protected = 0, zone_cleared = 0,"
 			..." painc_holdout = 0, rescued_count = 0 WHERE uid = %d",
 			g_iUserID[client]
-		));
+		);
+		trans.AddQuery(buffer);
 	}
 	
 	g_Database.Execute(trans, QueryResult_SuccessNaked, QueryResults_FailedNaked, client);
@@ -2966,19 +2966,21 @@ void FlushEquipID(int client, const char[] key)
 	if(!g_mEquipData[client].GetArray(key, data, sizeof(data)) || !data.valid || data.ID > 0)
 		return;
 	
+	static char buffer[64];
+	
 	DataPack pack = CreateDataPack();
-	pack.WriteCell(GetClientSerial(client));
+	pack.WriteCell(client);
 	pack.WriteCell(data.hashID);
 	pack.WriteString(key);
-	g_Database.Query(QueryResult_SaveEquipID, tr("INSERT INTO l4d2lv_inventory (uid, hashId) VALUES (%d, %d)", g_iUserID[client], data.hashID), pack);
+	FormatEx(buffer, sizeof(buffer), "INSERT INTO l4d2lv_inventory (uid, hashId) VALUES (%d, %d)", g_iUserID[client], data.hashID);
+	g_Database.Query(QueryResult_SaveEquipID, buffer, pack);
 }
 
 public void QueryResult_SaveEquipID(Database db, DBResultSet results, const char[] error, any hdl)
 {
 	DataPack pack = view_as<DataPack>(hdl);
 	pack.Reset();
-	
-	int client = GetClientFromSerial(pack.ReadCell());
+	int client = pack.ReadCell();
 	int hashID = pack.ReadCell();
 	
 	if(!IsValidClient(client) || IsFakeClient(client) || g_mEquipData[client] == null)
@@ -2987,7 +2989,9 @@ public void QueryResult_SaveEquipID(Database db, DBResultSet results, const char
 		return;
 	}
 	
-	g_Database.Query(QueryResult_LoadEquipID, tr("SELECT id FROM l4d2lv_inventory WHERE uid = %d AND hashId = %d", g_iUserID[client], hashID), hdl);
+	static char buffer[64];
+	FormatEx(buffer, sizeof(buffer), "SELECT id FROM l4d2lv_inventory WHERE uid = %d AND hashId = %d", g_iUserID[client], hashID);
+	g_Database.Query(QueryResult_LoadEquipID, buffer, hdl);
 }
 
 public void QueryResult_LoadEquipID(Database db, DBResultSet results, const char[] error, any hdl)
@@ -2996,8 +3000,8 @@ public void QueryResult_LoadEquipID(Database db, DBResultSet results, const char
 		return;
 	
 	DataPack pack = view_as<DataPack>(hdl);
-	pack.Reset();	// hashID
-	int client = GetClientFromSerial(pack.ReadCell());
+	pack.Reset();
+	int client = pack.ReadCell();
 	pack.ReadCell();
 	
 	char key[11];
@@ -3024,11 +3028,14 @@ void StatusSelectMenuFuncCS(int client)
 		ReplyToCommand(client, "该功能只允许活着的玩家使用");
 		return;
 	}
-
+	
+	static char buffer[32];
+	
 	Panel menu = CreatePanel();
 	menu.SetTitle("全体传送");
 	menu.DrawText("确定将所有生还者传送到身边？");
-	menu.DrawText(tr("需要 2 硬币，现有 %d 硬币", g_clSkillPoint[client]));
+	FormatEx(buffer, sizeof(buffer), "需要 2 硬币，现有 %d 硬币", g_clSkillPoint[client]);
+	menu.DrawText(buffer);
 	menu.DrawText("警告：传送导致队友受伤会受到惩罚");
 	menu.DrawItem("是");
 	menu.DrawItem("否");
@@ -3083,11 +3090,11 @@ public int MenuHandler_TeamTeleport(Menu menu, MenuAction action, int client, in
 		g_bHasTeleportActived = true;
 
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(client));
+		data.WriteCell(client);
 		data.WriteFloat(position[0]);
 		data.WriteFloat(position[1]);
 		data.WriteFloat(position[2]);
-		
+
 		GiveSkillPoint(client, -2);
 		CreateTimer(5.0, Timer_TeamTeleport, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
 		StatusChooseMenuFunc(client);
@@ -3107,9 +3114,9 @@ public Action Timer_TeamTeleport(Handle timer, any data)
 	DataPack pack = view_as<DataPack>(data);
 	g_bHasTeleportActived = false;
 	pack.Reset();
-	
+
 	float position[3];
-	int client = GetClientFromSerial(pack.ReadCell());
+	int client = pack.ReadCell();
 	position[0] = pack.ReadFloat();
 	position[1] = pack.ReadFloat();
 	position[2] = pack.ReadFloat();
@@ -3140,8 +3147,8 @@ public Action Timer_TeamTeleport(Handle timer, any data)
 	// ClientCommand(client, "play \"%s\"", SOUND_GOOD);
 	EmitAmbientSound(SOUND_WARP, position, client, SNDLEVEL_HELICOPTER);
 	PrintToChat(client, "\x03[\x05提示\x03]\x04 传送完毕。");
-	CreateTimer(5.0, Timer_TeamTeleportCheck, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
-	
+	CreateTimer(5.0, Timer_TeamTeleportCheck, client, TIMER_FLAG_NO_MAPCHANGE);
+
 	return Plugin_Stop;
 }
 
@@ -3167,8 +3174,7 @@ public void Event_PlayerFallDamage(Event event, const char[] eventName, bool don
 public Action Timer_TeamTeleportCheck(Handle timer, any client)
 {
 	g_bHasTeleportActived = false;
-	client = GetClientFromSerial(client);
-	
+
 	if(!IsValidClient(client))
 		return Plugin_Continue;
 
@@ -3288,7 +3294,7 @@ public Action Command_Give(int client, const char[] command, int argc)
 	{
 		// 得等命令执行完才会设置血量
 		if(g_iRoundEvent == 19)
-			RequestFrame(ApplyHealthSwap, GetClientSerial(client));
+			RequestFrame(ApplyHealthSwap, client);
 	}
 	
 	return Plugin_Continue;
@@ -3296,8 +3302,6 @@ public Action Command_Give(int client, const char[] command, int argc)
 
 public void ApplyHealthSwap(any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidAliveClient(client) || GetEntProp(client, Prop_Send, "m_isIncapacitated", 1))
 		return;
 	
@@ -3343,8 +3347,11 @@ public Action Command_RandEvent(int client, int argc)
 
 void StatusChooseMenuFunc(int client, int pg = -1)
 {
+	static char buffer[32];
+	
 	Menu menu = CreateMenu(MenuHandler_MainMenu);
-	menu.SetTitle(tr("天启•天赋•装备系统(!lv)\n当前硬币：%d", g_clSkillPoint[client]));
+	FormatEx(buffer, sizeof(buffer), "天启•天赋•装备系统(!lv)\n当前硬币：%d", g_clSkillPoint[client]);
+	menu.SetTitle(buffer);
 	menu.AddItem("1", "一级天赋(1币)");
 	menu.AddItem("2", "二级天赋(2币)");
 	menu.AddItem("3", "三级天赋(3币)");
@@ -3445,14 +3452,18 @@ void RespawnOther(int client, bool msg = true)
 
 	Menu menu = CreateMenu(MenuHandler_RespawnOther);
 	menu.SetTitle("========= 复活队友 =========\n需要 3 硬币，现有 %d 硬币", g_clSkillPoint[client]);
-
+	
+	char buffer1[8], buffer2[MAX_NAME_LENGTH];
+	
 	int team = GetClientTeam(client);
 	for(int i = 1; i <= MaxClients; ++i)
 	{
 		if(!IsValidClient(i) || IsPlayerAlive(i) || GetClientTeam(i) != team || i == client || g_timerRespawn[i] != null)
 			continue;
-
-		menu.AddItem(tr("%d", i), tr("%N", i));
+		
+		IntToString(GetClientUserId(i), buffer1, sizeof(buffer1));
+		GetClientName(i, buffer2, sizeof(buffer2));
+		menu.AddItem(buffer1, buffer2);
 	}
 
 	if(menu.ItemCount <= 0)
@@ -3486,10 +3497,11 @@ public int MenuHandler_RespawnOther(Menu menu, MenuAction action, int client, in
 		RespawnOther(client, false);
 		return 0;
 	}
-
+	
 	char info[8];
 	menu.GetItem(selected, info, 8);
-	int subject = StringToInt(info);
+	int subject = GetClientOfUserId(StringToInt(info));
+	
 	if(!IsValidClient(subject))
 	{
 		PrintToChat(client, "\x03[提示]\x01 无效的选择：%s", info);
@@ -3505,7 +3517,7 @@ public int MenuHandler_RespawnOther(Menu menu, MenuAction action, int client, in
 	}
 
 	GiveSkillPoint(client, -3);
-	g_timerRespawn[subject] = CreateTimer(3.0, Timer_RespawnPlayer, GetClientSerial(subject), TIMER_FLAG_NO_MAPCHANGE);
+	g_timerRespawn[subject] = CreateTimer(3.0, Timer_RespawnPlayer, subject, TIMER_FLAG_NO_MAPCHANGE);
 	PrintToChat(client, "\x03[提示]\x01 你选择的玩家 \x04%N\x01 将会在 \x053\x01 秒后复活。", subject);
 	PrintHintText(subject, "有个神秘的队友对你进行续命\n你将会在 3 秒后活过来");
 
@@ -3574,7 +3586,7 @@ public int MenuHandler_Respawn(Menu menu, MenuAction action, int client, int sel
 
 		GiveSkillPoint(client, -1);
 		g_bHasFirstJoin[client] = false;
-		g_timerRespawn[client] = CreateTimer(3.0, Timer_RespawnPlayer, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(3.0, Timer_RespawnPlayer, client, TIMER_FLAG_NO_MAPCHANGE);
 		PrintToChat(client, "\x03[提示]\x01 你将会在 \x053\x01 秒后复活。");
 
 		StatusChooseMenuFunc(client);
@@ -3672,7 +3684,7 @@ void HandleBotBuy(int client)
 	{
 		g_clSkillPoint[client] -= 2;
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(client));
+		data.WriteCell(client);
 		data.WriteCell(3);
 		data.WriteString("first_aid_kit");
 		data.WriteString("pain_pills");
@@ -3691,7 +3703,7 @@ void HandleBotBuy(int client)
 		{
 			g_clSkillPoint[client] -= 2;
 			DataPack data = CreateDataPack();
-			data.WriteCell(GetClientSerial(client));
+			data.WriteCell(client);
 			data.WriteCell(3);
 			data.WriteString("defibrillator");
 			data.WriteString("pain_pills");
@@ -3713,7 +3725,7 @@ void HandleBotBuy(int client)
 	{
 		g_clSkillPoint[client] -= 2;
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(client));
+		data.WriteCell(client);
 		data.WriteCell(3);
 		data.WriteString("rifle_ak47");
 		data.WriteString("molotov");
@@ -3729,7 +3741,7 @@ void HandleBotBuy(int client)
 		{
 			g_clSkillPoint[client] -= 2;
 			DataPack data = CreateDataPack();
-			data.WriteCell(GetClientSerial(client));
+			data.WriteCell(client);
 			data.WriteCell(3);
 			data.WriteString("gascan");
 			data.WriteString("grenade_launcher");
@@ -3745,13 +3757,12 @@ public Action Timer_HandleGiveItem(Handle timer, any pack)
 	DataPack data = view_as<DataPack>(pack);
 	data.Reset();
 	
-	int client = GetClientFromSerial(data.ReadCell());
+	int client = data.ReadCell();
 	if(!IsValidAliveClient(client))
 		return Plugin_Stop;
 	
 	char item[32];
 	int argc = data.ReadCell();
-	
 	for(int i = 0; i < argc; ++i)
 	{
 		data.ReadString(item, sizeof(item));
@@ -3764,6 +3775,8 @@ public Action Timer_HandleGiveItem(Handle timer, any pack)
 	return Plugin_Stop;
 }
 
+#define FORMAT_MENU_ITEM_AM(%1,%2)	FormatEx(buffer, sizeof(buffer), %2..."%s", ((g_clAngryMode[client] == %1) ? "√" : "")), menu.AddItem("%1", buffer)
+
 void StatusSelectMenuFuncNCJ(int client)
 {
 	if(!g_pCvarAS.BoolValue)
@@ -3773,15 +3786,17 @@ void StatusSelectMenuFuncNCJ(int client)
 		return;
 	}
 	
+	static char buffer[64];
+	
 	Menu menu = CreateMenu(MenuHandler_Angry);
 	menu.SetTitle("怒气系统\n怒气值：%d/100", g_clAngryPoint[client]);
-	menu.AddItem("1", mps("王者之仁德",g_clAngryMode[client]==1));
-	menu.AddItem("2", mps("霸者之号令",g_clAngryMode[client]==2));
-	menu.AddItem("3", mps("智者之教诲",g_clAngryMode[client]==3));
-	menu.AddItem("4", mps("强者之霸气",g_clAngryMode[client]==4));
-	menu.AddItem("5", mps("热血沸腾",g_clAngryMode[client]==5));
-	menu.AddItem("6", mps("背水一战",g_clAngryMode[client]==6));
-	menu.AddItem("7", mps("嗜血如命",g_clAngryMode[client]==7));
+	FORMAT_MENU_ITEM_AM(1,"王者之仁德");
+	FORMAT_MENU_ITEM_AM(2,"霸者之号令");
+	FORMAT_MENU_ITEM_AM(3,"智者之教诲");
+	FORMAT_MENU_ITEM_AM(4,"强者之霸气");
+	FORMAT_MENU_ITEM_AM(5,"热血沸腾");
+	FORMAT_MENU_ITEM_AM(6,"背水一战");
+	FORMAT_MENU_ITEM_AM(7,"嗜血如命");
 
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -3914,28 +3929,33 @@ public int MenuHandler_Angry(Menu menu, MenuAction action, int client, int selec
 	return 0;
 }
 
+#define FORMAT_MENU_ITEM_1(%1,%2)	FormatEx(buffer1, sizeof(buffer1), "1_%d", %1), FormatEx(buffer2, sizeof(buffer2), %2..."%s", ((g_clSkill_1[client] & %1) ? "√" : "")), menu.AddItem(buffer1, buffer2)
+
 void StatusSelectMenuFuncA(int client, int page = -1)
 {
-	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("一级天赋(1硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
+	static char buffer1[16], buffer2[64];
 	
-	menu.AddItem(tr("1_%d",SKL_1_MaxHealth), mps("血量上限+50",(g_clSkill_1[client]&SKL_1_MaxHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_Movement), mps("移动速度+1%",(g_clSkill_1[client]&SKL_1_Movement)));
-	menu.AddItem(tr("1_%d",SKL_1_ReviveHealth), mps("倒地救起血量+20",(g_clSkill_1[client]&SKL_1_ReviveHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_DmgExtra), mps("暴击率+5‰",(g_clSkill_1[client]&SKL_1_DmgExtra)));
-	menu.AddItem(tr("1_%d",SKL_1_MagnumInf), mps("手枪无限子弹",(g_clSkill_1[client]&SKL_1_MagnumInf)));
-	menu.AddItem(tr("1_%d",SKL_1_Gravity), mps("跳得更高",(g_clSkill_1[client]&SKL_1_Gravity)));
-	menu.AddItem(tr("1_%d",SKL_1_Firendly), mps("「谨慎」队友伤害降低至1点",(g_clSkill_1[client]&SKL_1_Firendly)));
-	menu.AddItem(tr("1_%d",SKL_1_RapidFire), mps("手枪自动连发",(g_clSkill_1[client]&SKL_1_RapidFire)));
-	menu.AddItem(tr("1_%d",SKL_1_Armor), mps("「护甲」护甲+100",(g_clSkill_1[client]&SKL_1_Armor)));
-	menu.AddItem(tr("1_%d",SKL_1_NoRecoil), mps("自带激光/无后坐力",(g_clSkill_1[client]&SKL_1_NoRecoil)));
-	menu.AddItem(tr("1_%d",SKL_1_KeepClip), mps("填装保留弹匣/可中断",(g_clSkill_1[client]&SKL_1_KeepClip)));
-	menu.AddItem(tr("1_%d",SKL_1_ReviveBlock), mps("拉起不被打断",(g_clSkill_1[client]&SKL_1_ReviveBlock)));
-	menu.AddItem(tr("1_%d",SKL_1_DisplayHealth), mps("显示血量/伤害",(g_clSkill_1[client]&SKL_1_DisplayHealth)));
-	menu.AddItem(tr("1_%d",SKL_1_MultiUpgrade), mps("弹药包叠加/补充子弹",(g_clSkill_1[client]&SKL_1_MultiUpgrade)));
-	menu.AddItem(tr("1_%d",SKL_1_Button), mps("开机关时间减少2/3",(g_clSkill_1[client]&SKL_1_Button)));
-	menu.AddItem(tr("1_%d",SKL_1_GettingUP), mps("起身/失衡时免疫伤害",(g_clSkill_1[client]&SKL_1_GettingUP)));
-	menu.AddItem(tr("1_%d",SKL_1_NightVision), mps("连按两下F切换夜视仪",(g_clSkill_1[client]&SKL_1_NightVision)));
+	Menu menu = CreateMenu(MenuHandler_Skill);
+	FormatEx(buffer2, sizeof(buffer2), "一级天赋(1硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
+	menu.SetTitle(buffer2);
+	
+	FORMAT_MENU_ITEM_1(SKL_1_MaxHealth,"血量上限+50");
+	FORMAT_MENU_ITEM_1(SKL_1_Movement,"移动速度+1%");
+	FORMAT_MENU_ITEM_1(SKL_1_ReviveHealth,"倒地救起血量+20");
+	FORMAT_MENU_ITEM_1(SKL_1_DmgExtra,"暴击率+5‰");
+	FORMAT_MENU_ITEM_1(SKL_1_MagnumInf,"手枪无限子弹");
+	FORMAT_MENU_ITEM_1(SKL_1_Gravity,"跳得更高");
+	FORMAT_MENU_ITEM_1(SKL_1_Firendly,"「谨慎」队友伤害降低至1点");
+	FORMAT_MENU_ITEM_1(SKL_1_RapidFire,"手枪自动连发");
+	FORMAT_MENU_ITEM_1(SKL_1_Armor,"「护甲」护甲+100");
+	FORMAT_MENU_ITEM_1(SKL_1_NoRecoil,"自带激光/无后坐力");
+	FORMAT_MENU_ITEM_1(SKL_1_KeepClip,"填装保留弹匣/可中断");
+	FORMAT_MENU_ITEM_1(SKL_1_ReviveBlock,"拉起不被打断");
+	FORMAT_MENU_ITEM_1(SKL_1_DisplayHealth,"显示血量/伤害");
+	FORMAT_MENU_ITEM_1(SKL_1_MultiUpgrade,"弹药包叠加/补充子弹");
+	FORMAT_MENU_ITEM_1(SKL_1_Button,"开机关时间减少2/3");
+	FORMAT_MENU_ITEM_1(SKL_1_GettingUP,"起身/失衡时免疫伤害");
+	FORMAT_MENU_ITEM_1(SKL_1_NightVision,"连按两下F切换夜视仪");
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -3945,48 +3965,69 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	else
 		menu.Display(client, MENU_TIME_FOREVER);
 }
+
+#define FORMAT_MENU_ITEM_2(%1,%2)	FormatEx(buffer1, sizeof(buffer1), "2_%d", %1), FormatEx(buffer2, sizeof(buffer2), %2..."%s", ((g_clSkill_2[client] & %1) ? "√" : "")), menu.AddItem(buffer1, buffer2)
 
 void StatusSelectMenuFuncB(int client, int page = -1)
 {
-	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("二级天赋(2硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
-
-	if(g_bHaveWeaponHandling)
-		menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("无限电(链)锯燃油且攻速加快",(g_clSkill_2[client]&SKL_2_Chainsaw)));
-	else
-		menu.AddItem(tr("2_%d",SKL_2_Chainsaw), mps("无限电(链)锯燃油",(g_clSkill_2[client]&SKL_2_Chainsaw)));
+	static char buffer1[16], buffer2[64];
 	
-	menu.AddItem(tr("2_%d",SKL_2_Excited), mps("「热血」爆头杀死特感1/3几率兴奋",(g_clSkill_2[client]&SKL_2_Excited)));
-	menu.AddItem(tr("2_%d",SKL_2_PainPills), mps("「嗜药」每120秒获得一个药丸",(g_clSkill_2[client]&SKL_2_PainPills)));
-	menu.AddItem(tr("2_%d",SKL_2_FullHealth), mps("「永康」吃药恢复的生命值+30",(g_clSkill_2[client]&SKL_2_FullHealth)));
-	menu.AddItem(tr("2_%d",SKL_2_Defibrillator), mps("「电疗」每200秒获得一个电击器",(g_clSkill_2[client]&SKL_2_Defibrillator)));
-	menu.AddItem(tr("2_%d",SKL_2_HealBouns), mps("打包/电击治疗量+50",(g_clSkill_2[client]&SKL_2_HealBouns)));
-	menu.AddItem(tr("2_%d",SKL_2_PipeBomb), mps("「爆破」每100秒获得一个土制",(g_clSkill_2[client]&SKL_2_PipeBomb)));
+	Menu menu = CreateMenu(MenuHandler_Skill);
+	FormatEx(buffer2, sizeof(buffer2), "二级天赋(2硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
+	menu.SetTitle(buffer2);
+	
+	if(g_bHaveWeaponHandling)
+	{
+		FORMAT_MENU_ITEM_2(SKL_2_Chainsaw,"无限电(链)锯燃油且攻速加快");
+	}
+	else
+	{
+		FORMAT_MENU_ITEM_2(SKL_2_Chainsaw,"无限电(链)锯燃油");
+	}
+	
+	FORMAT_MENU_ITEM_2(SKL_2_Excited,"「热血」爆头杀死特感1/3几率兴奋");
+	FORMAT_MENU_ITEM_2(SKL_2_PainPills,"「嗜药」每120秒获得一个药丸");
+	FORMAT_MENU_ITEM_2(SKL_2_FullHealth,"「永康」吃药恢复的生命值+30");
+	FORMAT_MENU_ITEM_2(SKL_2_Defibrillator,"「电疗」每200秒获得一个电击器");
+	FORMAT_MENU_ITEM_2(SKL_2_HealBouns,"打包/电击治疗量+50");
+	FORMAT_MENU_ITEM_2(SKL_2_PipeBomb,"「爆破」每100秒获得一个土制");
 	
 	if(g_bHaveSelfHelp)
-		menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("「顽强」倒地按住Ctrl自救(包/药/针)",(g_clSkill_2[client]&SKL_2_SelfHelp)));
+	{
+		FORMAT_MENU_ITEM_2(SKL_2_SelfHelp,"「顽强」倒地按住Ctrl自救(包/药/针)");
+	}
 	else
-		menu.AddItem(tr("2_%d",SKL_2_SelfHelp), mps("「顽强」倒地1/4几率自救",(g_clSkill_2[client]&SKL_2_SelfHelp)));
+	{
+		FORMAT_MENU_ITEM_2(SKL_2_SelfHelp,"「顽强」倒地1/4几率自救");
+	}
 	
-	menu.AddItem(tr("2_%d",SKL_2_Defensive), mps("倒地推开特感",(g_clSkill_2[client]&SKL_2_Defensive)));
-	menu.AddItem(tr("2_%d",SKL_2_DoubleJump), mps("允许二级跳",(g_clSkill_2[client]&SKL_2_DoubleJump)));
-	menu.AddItem(tr("2_%d",SKL_2_ProtectiveSuit), mps("去除胆汁屏幕遮挡",(g_clSkill_2[client]&SKL_2_ProtectiveSuit)));
+	FORMAT_MENU_ITEM_2(SKL_2_Defensive,"倒地推开特感");
+	FORMAT_MENU_ITEM_2(SKL_2_DoubleJump,"允许二级跳");
+	FORMAT_MENU_ITEM_2(SKL_2_ProtectiveSuit,"去除胆汁屏幕遮挡");
 	
 	if(g_bHaveIncapWeapon)
-		menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("倒地马格南且可用任何武器",(g_clSkill_2[client]&SKL_2_Magnum)));
+	{
+		FORMAT_MENU_ITEM_2(SKL_2_Magnum,"倒地马格南且可用任何武器");
+	}
 	else
-		menu.AddItem(tr("2_%d",SKL_2_Magnum), mps("倒地马格南",(g_clSkill_2[client]&SKL_2_Magnum)));
+	{
+		FORMAT_MENU_ITEM_2(SKL_2_Magnum,"倒地马格南");
+	}
 	
-	menu.AddItem(tr("2_%d",SKL_2_LadderRambos), mps("梯子上掏枪",(g_clSkill_2[client]&SKL_2_LadderRambos)));
-	menu.AddItem(tr("2_%d",SKL_2_ShoveFatigue), mps("推不会疲劳",(g_clSkill_2[client]&SKL_2_ShoveFatigue)));
+	FORMAT_MENU_ITEM_2(SKL_2_LadderRambos,"梯子上掏枪");
+	FORMAT_MENU_ITEM_2(SKL_2_ShoveFatigue,"推不会疲劳");
 	
 	if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
-		menu.AddItem(tr("2_%d",SKL_2_IncapCrawling), mps("倒地爬行",(g_clSkill_2[client]&SKL_2_IncapCrawling)));
+	{
+		FORMAT_MENU_ITEM_2(SKL_2_IncapCrawling,"倒地爬行");
+	}
 	
-	menu.AddItem(tr("2_%d",SKL_2_QuickRevive), mps("「急速」电击器按R快速拉人",(g_clSkill_2[client]&SKL_2_QuickRevive)));
+	FORMAT_MENU_ITEM_2(SKL_2_QuickRevive,"「急速」电击器按R快速拉人");
 	
 	if(g_bHaveGrenades)
-		menu.AddItem(tr("2_%d",SKL_2_PrototypeGrenade), mps("手雷可切换形态",(g_clSkill_2[client]&SKL_2_PrototypeGrenade)));
+	{
+		FORMAT_MENU_ITEM_2(SKL_2_PrototypeGrenade,"手雷可切换形态");
+	}
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -3996,30 +4037,35 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	else
 		menu.Display(client, MENU_TIME_FOREVER);
 }
+
+#define FORMAT_MENU_ITEM_3(%1,%2)	FormatEx(buffer1, sizeof(buffer1), "3_%d", %1), FormatEx(buffer2, sizeof(buffer2), %2..."%s", ((g_clSkill_3[client] & %1) ? "√" : "")), menu.AddItem(buffer1, buffer2)
 
 void StatusSelectMenuFuncC(int client, int page = -1)
 {
+	static char buffer1[16], buffer2[64];
+	
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("三级天赋(3硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
-
-	menu.AddItem(tr("3_%d",SKL_3_Sacrifice), mps("「牺牲」死亡1/3清尸",(g_clSkill_3[client]&SKL_3_Sacrifice)));
-	menu.AddItem(tr("3_%d",SKL_3_Respawn), mps("「永生」复活几率+1/10",(g_clSkill_3[client]&SKL_3_Respawn)));
-	menu.AddItem(tr("3_%d",SKL_3_IncapFire), mps("「纵火」倒地点燃攻击者和周围普感",(g_clSkill_3[client]&SKL_3_IncapFire)));
-	menu.AddItem(tr("3_%d",SKL_3_ReviveBonus), mps("「妙手」帮助队友随机获得奖励",(g_clSkill_3[client]&SKL_3_ReviveBonus)));
-	menu.AddItem(tr("3_%d",SKL_3_Freeze), mps("「释冰」倒地冻结攻击者和周围特感",(g_clSkill_3[client]&SKL_3_Freeze)));
-	menu.AddItem(tr("3_%d",SKL_3_Kickback), mps("「轰炸」暴击时1/3几率附加击退效果",(g_clSkill_3[client]&SKL_3_Kickback)));
-	menu.AddItem(tr("3_%d",SKL_3_GodMode), mps("「无敌」每80秒获得9秒无敌时间",(g_clSkill_3[client]&SKL_3_GodMode)));
-	menu.AddItem(tr("3_%d",SKL_3_SelfHeal), mps("「暴疗」打针治疗量+55",(g_clSkill_3[client]&SKL_3_SelfHeal)));
-	menu.AddItem(tr("3_%d",SKL_3_BunnyHop), mps("自动连跳",(g_clSkill_3[client]&SKL_3_BunnyHop)));
-	menu.AddItem(tr("3_%d",SKL_3_Parachute), mps("按住E可以缓慢落地",(g_clSkill_3[client]&SKL_3_Parachute)));
-	menu.AddItem(tr("3_%d",SKL_3_MoreAmmo), mps("更多携带弹药",(g_clSkill_3[client]&SKL_3_MoreAmmo)));
-	menu.AddItem(tr("3_%d",SKL_3_TempSanctuary), mps("受到伤害时优先使用虚血承担",(g_clSkill_3[client]&SKL_3_TempSanctuary)));
-	menu.AddItem(tr("3_%d",SKL_3_Ricochet), mps("子弹击中墙壁可以反弹",(g_clSkill_3[client]&SKL_3_Ricochet)));
-	menu.AddItem(tr("3_%d",SKL_3_Accurate), mps("第一枪/最后一枪总是暴击",(g_clSkill_3[client]&SKL_3_Accurate)));
-	menu.AddItem(tr("3_%d",SKL_3_Cure), mps("「清醒」打针有1/2几率治疗濒死状态",(g_clSkill_3[client]&SKL_3_Cure)));
-	menu.AddItem(tr("3_%d",SKL_3_Minigun), mps("鼠标中键部署固定机枪",(g_clSkill_3[client]&SKL_3_Minigun)));
-	menu.AddItem(tr("3_%d",SKL_3_HandGrenade), mps("持手枪时按鼠标中键发射榴弹",(g_clSkill_3[client]&SKL_3_HandGrenade)));
-	menu.AddItem(tr("3_%d",SKL_3_AutoReload), mps("武器切换6秒后填充弹匣",(g_clSkill_3[client]&SKL_3_AutoReload)));
+	FormatEx(buffer2, sizeof(buffer2), "三级天赋(3硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
+	menu.SetTitle(buffer2);
+	
+	FORMAT_MENU_ITEM_3(SKL_3_Sacrifice,"「牺牲」死亡1/3清尸");
+	FORMAT_MENU_ITEM_3(SKL_3_Respawn,"「永生」复活几率+1/10");
+	FORMAT_MENU_ITEM_3(SKL_3_IncapFire,"「纵火」倒地点燃攻击者和周围普感");
+	FORMAT_MENU_ITEM_3(SKL_3_ReviveBonus,"「妙手」帮助队友随机获得奖励");
+	FORMAT_MENU_ITEM_3(SKL_3_Freeze,"「释冰」倒地冻结攻击者和周围特感");
+	FORMAT_MENU_ITEM_3(SKL_3_Kickback,"「轰炸」暴击时1/3几率附加击退效果");
+	FORMAT_MENU_ITEM_3(SKL_3_GodMode,"「无敌」每80秒获得9秒无敌时间");
+	FORMAT_MENU_ITEM_3(SKL_3_SelfHeal,"「暴疗」打针治疗量+55");
+	FORMAT_MENU_ITEM_3(SKL_3_BunnyHop,"自动连跳");
+	FORMAT_MENU_ITEM_3(SKL_3_Parachute,"按住E可以缓慢落地");
+	FORMAT_MENU_ITEM_3(SKL_3_MoreAmmo,"更多携带弹药");
+	FORMAT_MENU_ITEM_3(SKL_3_TempSanctuary,"受到伤害时优先使用虚血承担");
+	FORMAT_MENU_ITEM_3(SKL_3_Ricochet,"子弹击中墙壁可以反弹");
+	FORMAT_MENU_ITEM_3(SKL_3_Accurate,"第一枪/最后一枪总是暴击");
+	FORMAT_MENU_ITEM_3(SKL_3_Cure,"「清醒」打针有1/2几率治疗濒死状态");
+	FORMAT_MENU_ITEM_3(SKL_3_Minigun,"鼠标中键部署固定机枪");
+	FORMAT_MENU_ITEM_3(SKL_3_HandGrenade,"持手枪时按鼠标中键发射榴弹");
+	FORMAT_MENU_ITEM_3(SKL_3_AutoReload,"武器切换6秒后填充弹匣");
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4029,40 +4075,53 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	else
 		menu.Display(client, MENU_TIME_FOREVER);
 }
+
+#define FORMAT_MENU_ITEM_4(%1,%2)	FormatEx(buffer1, sizeof(buffer1), "4_%d", %1), FormatEx(buffer2, sizeof(buffer2), %2..."%s", ((g_clSkill_4[client] & %1) ? "√" : "")), menu.AddItem(buffer1, buffer2)
 
 void StatusSelectMenuFuncD(int client, int page = -1)
 {
+	static char buffer1[16], buffer2[64];
+	
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("四级天赋(4硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
-
-	menu.AddItem(tr("4_%d",SKL_4_ClawHeal), mps("被坦克击中恢复生命",(g_clSkill_4[client]&SKL_4_ClawHeal)));
-	menu.AddItem(tr("4_%d",SKL_4_DmgExtra), mps("暴击率+20‰",(g_clSkill_4[client]&SKL_4_DmgExtra)));
-	menu.AddItem(tr("4_%d",SKL_4_DuckShover), mps("「霸气」蹲下推弹开周围特感",(g_clSkill_4[client]&SKL_4_DuckShover)));
-	menu.AddItem(tr("4_%d",SKL_4_FastFired), mps("枪械射速增加",(g_clSkill_4[client]&SKL_4_FastFired)));
-	menu.AddItem(tr("4_%d",SKL_4_SniperExtra), mps("AWP射速加快伤害增加无限备弹",(g_clSkill_4[client]&SKL_4_SniperExtra)));
-	menu.AddItem(tr("4_%d",SKL_4_FastReload), mps("上弹速度提升",(g_clSkill_4[client]&SKL_4_FastReload)));
-	menu.AddItem(tr("4_%d",SKL_4_MachStrafe), mps("M60无限子弹",(g_clSkill_4[client]&SKL_4_MachStrafe)));
-	menu.AddItem(tr("4_%d",SKL_4_MoreDmgExtra), mps("暴击伤害上限+200",(g_clSkill_4[client]&SKL_4_MoreDmgExtra)));
-	menu.AddItem(tr("4_%d",SKL_4_Defensive), mps("被普感锤伤害减半或反伤",(g_clSkill_4[client]&SKL_4_Defensive)));
-	menu.AddItem(tr("4_%d",SKL_4_ClipSize), mps("弹匣容量增加",(g_clSkill_4[client]&SKL_4_ClipSize)));
+	FormatEx(buffer2, sizeof(buffer2), "四级天赋(4硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
+	menu.SetTitle(buffer2);
+	
+	FORMAT_MENU_ITEM_4(SKL_4_ClawHeal,"被坦克击中恢复生命");
+	FORMAT_MENU_ITEM_4(SKL_4_DmgExtra,"暴击率+20‰");
+	FORMAT_MENU_ITEM_4(SKL_4_DuckShover,"「霸气」蹲下推弹开周围特感");
+	FORMAT_MENU_ITEM_4(SKL_4_FastFired,"枪械射速增加");
+	FORMAT_MENU_ITEM_4(SKL_4_SniperExtra,"AWP射速加快伤害增加无限备弹");
+	FORMAT_MENU_ITEM_4(SKL_4_FastReload,"上弹速度提升");
+	FORMAT_MENU_ITEM_4(SKL_4_MachStrafe,"M60无限子弹");
+	FORMAT_MENU_ITEM_4(SKL_4_MoreDmgExtra,"暴击伤害上限+200");
+	FORMAT_MENU_ITEM_4(SKL_4_Defensive,"被普感锤伤害减半或反伤");
+	FORMAT_MENU_ITEM_4(SKL_4_ClipSize,"弹匣容量增加");
 	
 	if(g_pfnOnSwingStart != null)
-		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("可以推牛/倒地可以推",(g_clSkill_4[client]&SKL_4_Shove)));
+	{
+		FORMAT_MENU_ITEM_4(SKL_4_Shove,"可以推牛/倒地可以推");
+	}
 	else
-		menu.AddItem(tr("4_%d",SKL_4_Shove), mps("可以推牛",(g_clSkill_4[client]&SKL_4_Shove)));
+	{
+		FORMAT_MENU_ITEM_4(SKL_4_Shove,"可以推牛");
+	}
 	
-	menu.AddItem(tr("4_%d",SKL_4_TempRespite), mps("虚血会慢慢恢复为实血",(g_clSkill_4[client]&SKL_4_TempRespite)));
-	menu.AddItem(tr("4_%d",SKL_4_Terror), mps("写实显示光圈/胆汁会让特感叛变",(g_clSkill_4[client]&SKL_4_Terror)));
-	menu.AddItem(tr("4_%d",SKL_4_ReviveCount), mps("「坚定」倒地次数+1",(g_clSkill_4[client]&SKL_4_ReviveCount)));
+	FORMAT_MENU_ITEM_4(SKL_4_TempRespite,"虚血会慢慢恢复为实血");
+	FORMAT_MENU_ITEM_4(SKL_4_Terror,"写实显示光圈/胆汁会让特感叛变");
+	FORMAT_MENU_ITEM_4(SKL_4_ReviveCount,"「坚定」倒地次数+1");
 	
 	if(g_bHaveWeaponHandling)
-		menu.AddItem(tr("4_%d",SKL_4_MeleeExtra), mps("两倍近战伤害且攻速加快",(g_clSkill_4[client]&SKL_4_MeleeExtra)));
+	{
+		FORMAT_MENU_ITEM_4(SKL_4_MeleeExtra,"两倍近战伤害且攻速加快");
+	}
 	else
-		menu.AddItem(tr("4_%d",SKL_4_MeleeExtra), mps("三倍近战伤害",(g_clSkill_4[client]&SKL_4_MeleeExtra)));
+	{
+		FORMAT_MENU_ITEM_4(SKL_4_MeleeExtra,"三倍近战伤害");
+	}
 	
-	menu.AddItem(tr("4_%d",SKL_4_MoreGrenade), mps("「节约」手雷有1/3几率不消耗",(g_clSkill_4[client]&SKL_4_MoreGrenade)));
-	menu.AddItem(tr("4_%d",SKL_4_MultiGrenade), mps("「复制」手雷有1/4几率掷出多个",(g_clSkill_4[client]&SKL_4_MultiGrenade)));
-	menu.AddItem(tr("4_%d",SKL_4_LastStand), mps("残血时伤害增加(基于失血量)",(g_clSkill_4[client]&SKL_4_LastStand)));
+	FORMAT_MENU_ITEM_4(SKL_4_MoreGrenade,"「节约」手雷有1/3几率不消耗");
+	FORMAT_MENU_ITEM_4(SKL_4_MultiGrenade,"「复制」手雷有1/4几率掷出多个");
+	FORMAT_MENU_ITEM_4(SKL_4_LastStand,"残血时伤害增加(基于失血量)");
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4073,37 +4132,54 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 		menu.Display(client, MENU_TIME_FOREVER);
 }
 
+#define FORMAT_MENU_ITEM_5(%1,%2)	FormatEx(buffer1, sizeof(buffer1), "5_%d", %1), FormatEx(buffer2, sizeof(buffer2), %2..."%s", ((g_clSkill_5[client] & %1) ? "√" : "")), menu.AddItem(buffer1, buffer2)
+
 void StatusSelectMenuFuncE(int client, int page = -1)
 {
-	Menu menu = CreateMenu(MenuHandler_Skill);
-	menu.SetTitle(tr("五级天赋(5硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]));
+	static char buffer1[16], buffer2[64];
 	
-	menu.AddItem(tr("5_%d",SKL_5_FireBullet), mps("主武器1/4几率发射燃烧子弹",(g_clSkill_5[client]&SKL_5_FireBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_ExpBullet), mps("主武器1/4几率发射高爆子弹",(g_clSkill_5[client]&SKL_5_ExpBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_RetardBullet), mps("主武器/近战击中特感有几率减速",(g_clSkill_5[client]&SKL_5_RetardBullet)));
-	menu.AddItem(tr("5_%d",SKL_5_DmgExtra), mps("牺牲暴击伤害大大增加暴击率",(g_clSkill_5[client]&SKL_5_DmgExtra)));
-	menu.AddItem(tr("5_%d",SKL_5_Vampire), mps("近战攻击回复生命",(g_clSkill_5[client]&SKL_5_Vampire)));
-	menu.AddItem(tr("5_%d",SKL_5_InfAmmo), mps("弹药量低时爆头击杀补充5%",(g_clSkill_5[client]&SKL_5_InfAmmo)));
-	menu.AddItem(tr("5_%d",SKL_5_Overkill), mps("对普感1/4几率暴击",(g_clSkill_5[client]&SKL_5_Overkill)));
-	menu.AddItem(tr("5_%d",SKL_5_RocketDude), mps("允许榴弹跳",(g_clSkill_5[client]&SKL_5_RocketDude)));
-	menu.AddItem(tr("5_%d",SKL_5_ClipHold), mps("冲锋枪25连射后改为消耗备用弹药",(g_clSkill_5[client]&SKL_5_ClipHold)));
-	menu.AddItem(tr("5_%d",SKL_5_Sneak), mps("潜行时降低被攻击几率且有1/3几率暴击",(g_clSkill_5[client]&SKL_5_Sneak)));
+	Menu menu = CreateMenu(MenuHandler_Skill);
+	FormatEx(buffer2, sizeof(buffer2), "五级天赋(5硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
+	menu.SetTitle(buffer2);
+	
+	FORMAT_MENU_ITEM_5(SKL_5_FireBullet,"主武器1/4几率发射燃烧子弹");
+	FORMAT_MENU_ITEM_5(SKL_5_ExpBullet,"主武器1/4几率发射高爆子弹");
+	FORMAT_MENU_ITEM_5(SKL_5_RetardBullet,"主武器/近战击中特感有几率减速");
+	FORMAT_MENU_ITEM_5(SKL_5_DmgExtra,"牺牲暴击伤害大大增加暴击率");
+	FORMAT_MENU_ITEM_5(SKL_5_Vampire,"近战攻击回复生命");
+	FORMAT_MENU_ITEM_5(SKL_5_InfAmmo,"弹药量低时爆头击杀补充5%");
+	FORMAT_MENU_ITEM_5(SKL_5_Overkill,"对普感1/4几率暴击");
+	FORMAT_MENU_ITEM_5(SKL_5_RocketDude,"允许榴弹跳");
+	FORMAT_MENU_ITEM_5(SKL_5_ClipHold,"冲锋枪25连射后改为消耗备用弹药");
+	FORMAT_MENU_ITEM_5(SKL_5_Sneak,"潜行时降低被攻击几率且有1/3几率暴击");
 	
 	if(g_tMeleeRange != null && g_hDetourTestMeleeSwingCollision != null)
-		menu.AddItem(tr("5_%d",SKL_5_MeleeRange), mps("「刀客」增加近战武器攻击范围",(g_clSkill_5[client]&SKL_5_MeleeRange)));
+	{
+		FORMAT_MENU_ITEM_5(SKL_5_MeleeRange,"「刀客」增加近战武器攻击范围");
+	}
 	
 	if(g_tShoveRange != null && g_hDetourTestSwingCollision != null)
-		menu.AddItem(tr("5_%d",SKL_5_ShoveRange), mps("「枪托」增加推的攻击范围",(g_clSkill_5[client]&SKL_5_ShoveRange)));
+	{
+		FORMAT_MENU_ITEM_5(SKL_5_ShoveRange,"「枪托」增加推的攻击范围");
+	}
 	
-	menu.AddItem(tr("5_%d",SKL_5_TempRegen), mps("受伤消耗实血时有1/3几率恢复等量虚血",(g_clSkill_5[client]&SKL_5_TempRegen)));
-	menu.AddItem(tr("5_%d",SKL_5_Resurrect), mps("进入濒死以复活队友(尸体按住E)",(g_clSkill_5[client]&SKL_5_Resurrect)));
+	FORMAT_MENU_ITEM_5(SKL_5_TempRegen,"受伤消耗实血时有1/3几率恢复等量虚血");
+	FORMAT_MENU_ITEM_5(SKL_5_Resurrect,"进入濒死以复活队友(尸体按住E)");
 	
 	if(g_bHaveLethal)
-		menu.AddItem(tr("5_%d",SKL_5_Lethal), mps("AWP蹲下可充能射击",(g_clSkill_5[client]&SKL_5_Lethal)));
+	{
+		FORMAT_MENU_ITEM_5(SKL_5_Lethal,"AWP蹲下可充能射击");
+	}
+	
 	if(g_bHaveProtector)
-		menu.AddItem(tr("5_%d",SKL_5_Machine), mps("输入!gun创建机枪塔",(g_clSkill_5[client]&SKL_5_Machine)));
+	{
+		FORMAT_MENU_ITEM_5(SKL_5_Machine,"输入!gun创建机枪塔");
+	}
+	
 	if(g_bHaveRobot)
-		menu.AddItem(tr("5_%d",SKL_5_Robot), mps("输入!robot创建护卫枪",(g_clSkill_5[client]&SKL_5_Robot)));
+	{
+		FORMAT_MENU_ITEM_5(SKL_5_Robot,"输入!robot创建护卫枪");
+	}
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4186,7 +4262,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
 				m.AddItem(info, "确定");
 				m.AddItem(info, "取消");
-
+				
 				m.ExitButton = true;
 				m.ExitBackButton = true;
 				m.Display(client, MENU_TIME_FOREVER);
@@ -4219,7 +4295,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
 				m.AddItem(info, "确定");
 				m.AddItem(info, "取消");
-
+				
 				m.ExitButton = true;
 				m.ExitBackButton = true;
 				m.Display(client, MENU_TIME_FOREVER);
@@ -4497,9 +4573,12 @@ public int MenuHandler_CancelSkill(Menu menu, MenuAction action, int client, int
 
 void StatusSelectMenuFuncEqment(int client)
 {
+	static char buffer[32];
+	
 	Panel menu = CreatePanel();
 	menu.SetTitle("天启•装备系统");
-	menu.DrawText(tr("当前天启：%s", g_szRoundEvent));
+	FormatEx(buffer, sizeof(buffer), "当前天启：%s", g_szRoundEvent);
+	menu.DrawText(buffer);
 	menu.DrawItem("装备栏");
 	menu.DrawItem("打开天启幸运箱");
 	menu.DrawItem("打开装备幸运箱");
@@ -4786,12 +4865,15 @@ public int MenuHandler_OpenEquipment(Menu menu, MenuAction action, int client, i
 		
 		GiveSkillPoint(client, -3);
 		
-		char key[16];
+		char key[16], buffer[64];
 		IntToString(j, key, sizeof(key));
 		
 		static EquipData_t data;
 		if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
-			PrintToChat(client, "\x03[提示]\x01 你获得了：\x05%s\x01", FormatEquip(client, data));
+		{
+			FormatEquip(client, data, buffer, sizeof(buffer));
+			PrintToChat(client, "\x03[提示]\x01 你获得了：\x05%s\x01", buffer);
+		}
 	}
 
 	if(selected != 10)
@@ -4841,9 +4923,9 @@ public int MenuHandler_OpenLucky(Menu menu, MenuAction action, int client, int s
 }
 
 // char FormatEquip(int client, int index, char[] buffer = "", int len = 0)
-stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len = 0, bool lite = false)
+void FormatEquip(int client, EquipData_t data, char[] buffer = "", int len = 0, bool lite = false)
 {
-	char text[255];
+	static char text[255];
 	if(!data.valid)
 	{
 		strcopy(text, sizeof(text), "<无>");
@@ -4851,7 +4933,7 @@ stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len
 		if(len > 5)
 			strcopy(buffer, len, text);
 
-		return text;
+		return;
 	}
 
 	char extrastr[16] = "";
@@ -4891,8 +4973,6 @@ stock char FormatEquip(int client, EquipData_t data, char[] buffer = "", int len
 
 	if(len > lentex)
 		strcopy(buffer, len, text);
-
-	return text;
 }
 
 void StatusEqmFuncA(int client, bool showEmpty = false)
@@ -4907,7 +4987,7 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 	Menu menu = CreateMenu(MenuHandler_SelectEquip);
 	menu.SetTitle("========= 装备栏 =========");
 	
-	static char key[16];
+	static char key[16], buffer[32];
 	static EquipData_t data;
 	
 	// 已经装备上的排在前面
@@ -4923,7 +5003,8 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 			continue;
 		}
 		
-		menu.AddItem(key, FormatEquip(client, data, _, _, true));
+		FormatEquip(client, data, buffer, sizeof(buffer), true);
+		menu.AddItem(key, buffer);
 	}
 	
 	// 然后是背包里的装备
@@ -4955,7 +5036,8 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 			continue;
 		}
 		
-		menu.AddItem(key, FormatEquip(client, data, _, _, true));
+		FormatEquip(client, data, buffer, sizeof(buffer), true);
+		menu.AddItem(key, buffer);
 	}
 	
 	if(menu.ItemCount > 0)
@@ -4976,8 +5058,11 @@ void StatusEqmFuncA(int client, bool showEmpty = false)
 // void StatusEqmMenu(int client, int index = -1)
 void StatusEqmMenu(int client, char[] key, EquipData_t data)
 {
+	static char buffer[64];
+	
 	Menu menu = CreateMenu(MenuHandler_EquipInfo);
-	menu.SetTitle("装备信息\n%s", FormatEquip(client, data));
+	FormatEquip(client, data, buffer, sizeof(buffer));
+	menu.SetTitle("装备信息\n%s", buffer);
 	menu.AddItem(key, "穿上");
 	menu.AddItem(key, "卸下");
 	menu.AddItem(key, "改类型");
@@ -5233,8 +5318,10 @@ public int MenuHandler_EquipSkill(Menu menu, MenuAction action, int client, int 
 		
 		RebuildEquipStr(data);
 		g_mEquipData[client].SetArray(key, data, sizeof(data));
-
-		PrintToChat(client, "\x03[提示]\x01 锻造后：%s", FormatEquip(client, data));
+		
+		char buffer[64];
+		FormatEquip(client, data, buffer, sizeof(buffer));
+		PrintToChat(client, "\x03[提示]\x01 锻造后：%s", buffer);
 	}
 	else if(selected == 1)
 	{
@@ -5354,7 +5441,10 @@ public int MenuHandler_EquipProperty(Menu menu, MenuAction action, int client, i
 		
 		RebuildEquipStr(data);
 		g_mEquipData[client].SetArray(key, data, sizeof(data));
-		PrintToChat(client, "\x03[提示]\x01 锻造后：%s", FormatEquip(client, data));
+		
+		char buffer[64];
+		FormatEquip(client, data, buffer, sizeof(buffer));
+		PrintToChat(client, "\x03[提示]\x01 锻造后：%s", buffer);
 	}
 	else if(selected == 1)
 	{
@@ -5528,8 +5618,8 @@ void StatusSelectMenuFuncRP(int clientId, bool withMenu = false)
 		{
 			GiveAngryPoint(clientId, 2);
 
-			g_hRPActive = CreateTimer(40.0, Event_RP, GetClientSerial(clientId), TIMER_FLAG_NO_MAPCHANGE);
-			g_hRPColddown[clientId] = CreateTimer(90.0, Client_RP, GetClientSerial(clientId), TIMER_FLAG_NO_MAPCHANGE);
+			g_hRPActive = CreateTimer(40.0, Event_RP, clientId, TIMER_FLAG_NO_MAPCHANGE);
+			g_hRPColddown[clientId] = CreateTimer(90.0, Client_RP, clientId, TIMER_FLAG_NO_MAPCHANGE);
 			g_fLotteryStartTime = GetEngineTime() + 40.0;
 
 			if(g_pCvarAllow.BoolValue)
@@ -6120,7 +6210,7 @@ stock int SpawnCommand(int spawnner, int zClass)
 	return -1;
 }
 
-stock void SpawnCommonZombie(const char[] zombieName, float position[3], const char[] targetName = "")
+stock void SpawnCommonZombie(const char[] zombieName, float position[3])
 {
 	static int iZombieSpawner = INVALID_ENT_REFERENCE;
 	if(iZombieSpawner == INVALID_ENT_REFERENCE || !IsValidEntity(iZombieSpawner))
@@ -6134,11 +6224,7 @@ stock void SpawnCommonZombie(const char[] zombieName, float position[3], const c
 	
 	TeleportEntity(iZombieSpawner, position, NULL_VECTOR, NULL_VECTOR);
 	
-	if(targetName[0] != EOS)
-		SetVariantString(tr("%s,%s", zombieName, targetName));
-	else
-		SetVariantString(zombieName);
-	
+	SetVariantString(zombieName);
 	AcceptEntityInput(iZombieSpawner, "SpawnZombie");
 }
 
@@ -6190,7 +6276,7 @@ stock float GetClientEyeDistance(int client, float origin[3] = NULL_VECTOR, int 
 
 public Action Timer_ResetWeaponSpeed(Handle timer, any weapon)
 {
-	if(weapon == INVALID_ENT_REFERENCE || !IsValidEntity(weapon))
+	if(weapon <= MaxClients || !IsValidEntity(weapon))
 		return Plugin_Continue;
 
 	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", 1.0);
@@ -6735,8 +6821,6 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 
 public Action:EventRevive(Handle:timer, any:client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		if(GetPlayerEffect(client, 20))
@@ -6846,7 +6930,7 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 	
 	if(g_iRoundEvent == 19)
 	{
-		ApplyHealthSwap(GetClientSerial(subject));
+		ApplyHealthSwap(subject);
 	}
 }
 
@@ -6864,6 +6948,8 @@ public Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadcast)
 		L4D2_UseAdrenaline(client, 10.0 * mulEffect, false);
 	}
 	
+	static char buffer[64];
+	
 	if(g_clSkill_2[client] & SKL_2_FullHealth)
 	{
 		if(GetPlayerEffect(client, 26))
@@ -6876,7 +6962,8 @@ public Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadcast)
 			SetEntProp(client, Prop_Data, "m_iHealth", health);
 			SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
 			SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
-			L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, 0));
+			FormatEx(buffer, sizeof(buffer), "PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, 0);
+			L4D2_ExecVScriptCode(buffer);
 		}
 		else
 		{
@@ -6894,7 +6981,8 @@ public Event_PillsUsed(Handle:event, String:event_name[], bool:dontBroadcast)
 			revivecount = 0;
 		
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", revivecount);
-		L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, revivecount));
+		FormatEx(buffer, sizeof(buffer), "PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, revivecount);
+		L4D2_ExecVScriptCode(buffer);
 		PrintToChat(client, "\x03「清醒」\x01治疗了濒死状态。");
 	}
 }
@@ -6918,8 +7006,11 @@ public Event_AdrenalineUsed(Handle:event, String:event_name[], bool:dontBroadcas
 		if(revivecount < 0)
 			revivecount = 0;
 		
+		static char buffer[64];
+		
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", revivecount);
-		L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, revivecount));
+		FormatEx(buffer, sizeof(buffer), "PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, revivecount);
+		L4D2_ExecVScriptCode(buffer);
 		PrintToChat(client, "\x03「清醒」\x01治疗了濒死状态。");
 	}
 	
@@ -6981,7 +7072,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 		int chance = view_as<int>(!g_bHaveSelfHelp) + GetPlayerEffect(client, 17);
 		if(GetRandomInt(0, 3) < chance)
 		{
-			CreateTimer(5.0, EventRevive, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(5.0, EventRevive, client, TIMER_FLAG_NO_MAPCHANGE);
 			
 			if(!IsFakeClient(client))
 				PrintToChat(client, "\x03「顽强」\x01你将会在\x05 5 \x01秒后自救(如果那时没被控)!");
@@ -7114,7 +7205,7 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 			RemoveEntity(weapon);
 		
 		CheatCommand(client, "give", "pistol_magnum");
-		CreateTimer(0.1, Timer_CheckHavePistol, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(0.1, Timer_CheckHavePistol, client, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
 	if(tk && attacker != client)
@@ -7153,8 +7244,6 @@ public Action:Event_PlayerIncapacitated(Handle:event, String:event_name[], bool:
 
 public Action Timer_CheckHavePistol(Handle timer, any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidAliveClient(client))
 		return Plugin_Continue;
 	
@@ -7377,7 +7466,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 					EmitAmbientSound(SOUND_FREEZE, vec, victim, SNDLEVEL_RAIDSIREN);
 					g_fOldMovement[victim] = GetEntPropFloat(victim, Prop_Send, "m_flLaggedMovementValue");
 					SetEntPropFloat(victim, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[victim] * 0.55);
-					CreateTimer(1.0, Timer_StopRetard, GetClientSerial(victim), TIMER_FLAG_NO_MAPCHANGE);
+					CreateTimer(1.0, Timer_StopRetard, victim, TIMER_FLAG_NO_MAPCHANGE);
 				}
 			}
 			
@@ -7405,8 +7494,21 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			
 			if(!(dmg_type & DMG_BUCKSHOT))
 			{
+				static char buffer[64];
+				GetClientName(victim, buffer, sizeof(buffer));
+				if(dmg_type & DMG_CRIT)
+					Format(buffer, sizeof(buffer), "%s|暴击伤害%d", buffer, dmg);
+				else
+					Format(buffer, sizeof(buffer), "%s|伤害%d", buffer, dmg);
+				if(health > 0)
+					Format(buffer, sizeof(buffer), "%s|剩余%d", buffer, health);
+				else if(headshot)
+					StrCat(buffer, sizeof(buffer), "|爆头");
+				else
+					StrCat(buffer, sizeof(buffer), "|击杀");
+				
 				// 非霰弹枪
-				PrintCenterText(attacker, "%N|%s伤害%d|%s", victim, ((dmg_type & DMG_CRIT) ? "暴击" : ""), dmg, ((health<=0) ? (headshot?"爆头":"击杀") : tr("剩余%d", health)));
+				PrintCenterText(attacker, buffer);
 			}
 			else
 			{
@@ -7414,7 +7516,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				if(g_mTotalDamage[attacker] == null)
 				{
 					g_mTotalDamage[attacker] = CreateTrie();
-					RequestFrame(NotifyDamageInfo, GetClientSerial(attacker));
+					RequestFrame(NotifyDamageInfo, attacker);
 				}
 				
 				static char eRef[12];
@@ -7490,13 +7592,11 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	
 	// 此时还未实际受到伤害，必须等待下一帧才需要更新护甲
 	if(attacker > 0 || attackerId > 0)
-		RequestFrame(FillExtraArmor, GetClientSerial(victim));
+		RequestFrame(FillExtraArmor, victim);
 }
 
 public void FillExtraArmor(any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidAliveClient(client))
 		return;
 	
@@ -7610,7 +7710,7 @@ void TriggerAngrySkill(int victim, int mode)
 					if(!IsPlayerIncapped(i) && !IsSurvivorHeld(i))
 						CheatCommand(i, "give", "health");
 					else if(selfhelp || GetPlayerEffect(i, 36))
-						CreateTimer(3.0, EventRevive, GetClientSerial(i), TIMER_FLAG_NO_MAPCHANGE);
+						CreateTimer(3.0, EventRevive, i, TIMER_FLAG_NO_MAPCHANGE);
 				}
 			}
 			
@@ -7818,7 +7918,6 @@ public Action:Timer_StopVampire(Handle:timer, any:client)
 
 public Action:Timer_StopRetard(Handle:timer, any:client)
 {
-	client = GetClientFromSerial(client);
 	if(g_bHasRetarding[client]) g_bHasRetarding[client] = false;
 	if (!client || !IsClientInGame(client) || !IsPlayerAlive(client)) return;
 	SetEntPropFloat(client, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[client]);
@@ -7932,7 +8031,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				int chance = 1 + GetPlayerEffect(victim, 18);
 				if(GetRandomInt(0, 9) < chance)
 				{
-					g_timerRespawn[victim] = CreateTimer(5.0, Timer_RespawnPlayer, GetClientSerial(victim), TIMER_FLAG_NO_MAPCHANGE);
+					CreateTimer(5.0, Timer_RespawnPlayer, victim, TIMER_FLAG_NO_MAPCHANGE);
 					// ClientCommand(victim, "play \"level/loud/wamover.wav\"");
 					EmitSoundToClient(victim, SOUND_RESURRECT, victim);
 					// PrintToChatAll("\x03[\x05提示\x03] %N\x04成功\x03转生\x04,7秒后复活到队友身边!",victim);
@@ -8248,12 +8347,13 @@ void RewardPicker(int client, int reward = -1)
 					}
 					else
 					{
-						static char key[16];
+						static char key[16], buffer[64];
 						IntToString(j, key, sizeof(key));
 						static EquipData_t data;
 						if(g_pCvarAllow.BoolValue && g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
 						{
-							PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01，输入 !lv 查看。", FormatEquip(client, data));
+							FormatEquip(client, data, buffer, sizeof(buffer));
+							PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01，输入 !lv 查看。", buffer);
 						}
 					}
 				}
@@ -8369,14 +8469,15 @@ void RewardPicker(int client, int reward = -1)
 				event.SetInt("type", 0);
 				event.SetString("weapon", "");
 				Event_PlayerIncapacitatedStart(event, "player_incapacitated_start", false);
-				event.Fire();
+				// event.Fire();
+				delete event;
 				
 				SetEntProp(client, Prop_Send, "m_isIncapacitated", 1);
 				SetEntProp(client, Prop_Data, "m_iHealth", cv_incaphealth.IntValue);
 				
 				// 修复倒地没武器
 				// CheatCommand(client, "give", "pistol");
-				CreateTimer(0.2, Timer_GivePistol, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+				CreateTimer(0.2, Timer_GivePistol, client, TIMER_FLAG_NO_MAPCHANGE);
 				
 				event = CreateEvent("player_incapacitated");
 				event.SetInt("userid", GetClientUserId(client));
@@ -8385,7 +8486,8 @@ void RewardPicker(int client, int reward = -1)
 				event.SetInt("type", 0);
 				event.SetString("weapon", "");
 				Event_PlayerIncapacitated(event, "player_incapacitated", false);
-				event.Fire();
+				// event.Fire();
+				delete event;
 				
 				if(g_pCvarAllow.BoolValue)
 					PrintToChatAll("\x03【\x05幸运箱\x03】%N\x04 打开了幸运箱,\x03被里面的玩具拳击倒了\x04.",client);
@@ -8523,8 +8625,6 @@ void RewardPicker(int client, int reward = -1)
 
 public Action Timer_GivePistol(Handle timer, any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidAliveClient(client))
 		return Plugin_Continue;
 	
@@ -8558,8 +8658,6 @@ int CheckTankNumber()
 
 public Action:Timer_RespawnPlayer(Handle:timer, any:client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(client > -1 && client <= MaxClients)
 		g_timerRespawn[client] = null;
 
@@ -8626,7 +8724,7 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 	{
 		g_ttTankKilled ++;
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(attacker));
+		data.WriteCell(attacker);
 		data.WriteCell(solo);
 		data.WriteCell(melee);
 		
@@ -8634,7 +8732,7 @@ public Action:Event_TankKilled(Handle:event, String:event_name[], bool:dontBroad
 			CreateTimer(0.1, Timer_TankDeath, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
 
 		if(g_iRoundEvent == 0)
-			CreateTimer(5.0, Round_Random_Event, 0, TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(5.0, Round_Random_Event, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
 	for(int i = 1; i <= MaxClients; ++i)
@@ -8673,12 +8771,13 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 	DataPack pack = view_as<DataPack>(data);
 	pack.Reset();
 
-	int attacker = GetClientFromSerial(pack.ReadCell());
+	int attacker = pack.ReadCell();
 	bool solo = view_as<bool>(pack.ReadCell());
 	bool melee = view_as<bool>(pack.ReadCell());
 
 	if(IsValidClient(attacker) && !IsFakeClient(attacker) && solo)
 	{
+
 		GiveSkillPoint(attacker, 1);
 		if(IsPlayerAlive(attacker))
 			AttachParticle(attacker, "achieved", 3.0);
@@ -8723,7 +8822,7 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 		
 		if(GetClientTeam(i) == 2)
 		{
-			CreateTimer(1.0, AutoMenuOpen, GetClientSerial(i), TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(1.0, AutoMenuOpen, i, TIMER_FLAG_NO_MAPCHANGE);
 			EmitSoundToClient(i,g_soundLevel);
 			new chance = GetRandomInt(1, 7);
 			if(chance < 6 || CalcPlayerPower(i) < g_pCvarGiveEquipment.IntValue)
@@ -8764,11 +8863,14 @@ public Action:Timer_TankDeath(Handle:timer, any:data)
 					}
 					else
 					{
-						static char key[16];
+						static char key[16], buffer[64];
 						IntToString(j, key, sizeof(key));
 						static EquipData_t ed;
 						if(g_pCvarAllow.BoolValue && !IsFakeClient(i) && g_mEquipData[i].GetArray(key, ed, sizeof(ed)) && ed.valid)
-							PrintToChat(i, "\x03[提示]\x01 获得装备：\x05%s\x01 输入 !lv 查看", FormatEquip(i, ed));
+						{
+							FormatEquip(i, ed, buffer, sizeof(buffer));
+							PrintToChat(i, "\x03[提示]\x01 获得装备：\x05%s\x01 输入 !lv 查看", buffer);
+						}
 					}
 				}
 			}
@@ -8895,7 +8997,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 			RemoveEntity(weapon);
 		
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(subject));
+		data.WriteCell(subject);
 		data.WriteString(g_sLastWeapon[subject]);
 		data.WriteCell(g_bLastWeaponDual[subject]);
 		CreateTimer(0.1, Timer_DelayGivePistol, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
@@ -8921,7 +9023,7 @@ public Action:Event_DefibrillatorUsed(Handle:event, String:event_name[], bool:do
 	
 	if(g_iRoundEvent == 19)
 	{
-		ApplyHealthSwap(GetClientSerial(subject));
+		ApplyHealthSwap(subject);
 	}
 
 	return Plugin_Continue;
@@ -8993,7 +9095,7 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			RemoveEntity(weapon);
 		
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(subject));
+		data.WriteCell(subject);
 		data.WriteString(g_sLastWeapon[subject]);
 		data.WriteCell(g_bLastWeaponDual[subject]);
 		CreateTimer(0.1, Timer_DelayGivePistol, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
@@ -9007,6 +9109,8 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 		AddArmor(subject, 50 * mulEffect);
 	}
 	
+	static char buffer[64];
+	
 	if((g_clSkill_4[subject] & SKL_4_ReviveCount) && g_iMaxReviveCount[subject] > 0 && !WasLedgeHang && lastlife)
 	{
 		int revivecount = GetEntProp(subject, Prop_Send, "m_currentReviveCount");
@@ -9015,7 +9119,8 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 			g_iMaxReviveCount[subject] -= 1;
 			SetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 0);
 			SetEntProp(subject, Prop_Send, "m_currentReviveCount", revivecount - 1);
-			L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", subject, revivecount - 1));
+			FormatEx(buffer, sizeof(buffer), "PlayerInstanceFromIndex(%d).SetReviveCount(%d)", subject, revivecount - 1);
+			L4D2_ExecVScriptCode(buffer);
 			PrintToChat(subject, "\x03「坚定」\x01倒地次数上限增加");
 		}
 	}
@@ -9026,7 +9131,8 @@ public Action:Event_ReviveSuccess(Handle:event, String:event_name[], bool:dontBr
 	{
 		SetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 0);
 		SetEntProp(subject, Prop_Send, "m_isGoingToDie", 0);
-		L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", subject, 0));
+		FormatEx(buffer, sizeof(buffer), "PlayerInstanceFromIndex(%d).SetReviveCount(%d)", subject, 0);
+		L4D2_ExecVScriptCode(buffer);
 	}
 	
 	if(GetEntProp(subject, Prop_Send, "m_bIsOnThirdStrike", 1))
@@ -9103,8 +9209,6 @@ void GiveHelpBouns(int client)
 
 public Action Timer_DelaySetClip(Handle timer, any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidAliveClient(client) || g_iLastWeaponClip[client] < 0)
 		return Plugin_Continue;
 	
@@ -9122,10 +9226,9 @@ public Action Timer_DelayGivePistol(Handle timer, any pack)
 	data.Reset();
 	
 	char classname[64];
-	int subject = GetClientFromSerial(data.ReadCell());
+	int subject = data.ReadCell();
 	data.ReadString(classname, 64);
 	bool dual = data.ReadCell();
-	
 	ReplaceString(classname, 64, "weapon_", "", false);
 	
 	if(!IsValidAliveClient(subject) || classname[0] == EOS)
@@ -9139,7 +9242,7 @@ public Action Timer_DelayGivePistol(Handle timer, any pack)
 			CheatCommand(subject, "give", classname);
 	}
 	
-	CreateTimer(0.1, Timer_DelaySetClip, GetClientSerial(subject), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.1, Timer_DelaySetClip, subject, TIMER_FLAG_NO_MAPCHANGE);
 	return Plugin_Continue;
 }
 
@@ -9587,19 +9690,32 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 		
 		if(!(type & DMG_BUCKSHOT))
 		{
+			static char buffer[64];
 			if(!strcmp(classname, "infected", false))
-				PrintCenterText(client, "普感%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
+				FormatEx(buffer, sizeof(buffer), "普感%d", victim);
 			else if(!strcmp(classname, "witch", false))
-				PrintCenterText(client, "妹%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
+				FormatEx(buffer, sizeof(buffer), "萌妹%d", victim);
 			else
-				PrintCenterText(client, "目标%d|%s伤害%d|%s", victim, ((type & DMG_CRIT) ? "暴击" : ""), damage, ((health-damage<=0) ? (headshot ? "爆头" : "击杀") : tr("剩余%d", health-damage)));
+				FormatEx(buffer, sizeof(buffer), "目标%d", victim);
+			if(type & DMG_CRIT)
+				Format(buffer, sizeof(buffer), "%s|暴击伤害%d", buffer, damage);
+			else
+				Format(buffer, sizeof(buffer), "%s|伤害%d", buffer, damage);
+			if(health - damage > 0)
+				Format(buffer, sizeof(buffer), "%s|剩余%d", buffer, health - damage);
+			else if(headshot)
+				StrCat(buffer, sizeof(buffer), "|爆头");
+			else
+				StrCat(buffer, sizeof(buffer), "|击杀");
+			
+			PrintCenterText(client, buffer);
 		}
 		else
 		{
 			if(g_mTotalDamage[client] == null)
 			{
 				g_mTotalDamage[client] = CreateTrie();
-				RequestFrame(NotifyDamageInfo, GetClientSerial(client));
+				RequestFrame(NotifyDamageInfo, client);
 			}
 			
 			static char eRef[12];
@@ -9628,8 +9744,6 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 
 public void NotifyDamageInfo(any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(g_mTotalDamage[client] == null)
 		return;
 	
@@ -9686,7 +9800,16 @@ public void NotifyDamageInfo(any client)
 				FormatEx(name, sizeof(name), "妹%d", entity);
 		}
 		
-		Format(msg, sizeof(msg), "%s%s|%s伤害%d|%s\n", msg, name, ((td.dmg_type & DMG_CRIT) ? "暴击" : ""), td.dmg, (alive ? tr("剩余%d", health) : (td.headshot ? "爆头" : "击杀")));
+		if(td.dmg_type & DMG_CRIT)
+			Format(msg, sizeof(msg), "%s%s|暴击伤害%d", msg, name, td.dmg);
+		else
+			Format(msg, sizeof(msg), "%s%s|伤害%d", msg, name, td.dmg);
+		if(alive)
+			Format(msg, sizeof(msg), "%s|剩余%d\n", msg, health);
+		else if(td.headshot)
+			StrCat(msg, sizeof(msg), "|爆头\n");
+		else
+			StrCat(msg, sizeof(msg), "|击杀\n");
 	}
 	
 	if(msg[0] != EOS)
@@ -10136,6 +10259,8 @@ public Action Timer_RenderHealthBar(Handle timer, any unused)
 			*/
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 public void Event_PlayerJumpApex(Event event, const char[] eventName, bool dontBroadcast)
@@ -10165,7 +10290,7 @@ public void Event_PlayerJump(Event event, const char[] eventName, bool dontBroad
 	
 	// 在这里是无法获取到向上速度的，必须等待下一帧
 	if(g_fMaxGravityModify[client] >= 0.0)
-		RequestFrame(ApplyJumpVelocity, GetClientSerial(client));
+		RequestFrame(ApplyJumpVelocity, client);
 }
 
 float CaclJumpVelocity(int client)
@@ -10181,8 +10306,6 @@ float CaclJumpVelocity(int client)
 
 public void ApplyJumpVelocity(any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidAliveClient(client) || g_fMaxGravityModify[client] < 0.0)
 		return;
 	
@@ -10341,7 +10464,7 @@ public void Event_SurvivorRescued(Event event, const char[] eventName, bool dont
 	
 	if(g_iRoundEvent == 19)
 	{
-		ApplyHealthSwap(GetClientSerial(subject));
+		ApplyHealthSwap(subject);
 	}
 }
 
@@ -10350,7 +10473,7 @@ public void UpdateWeaponAmmo(any data)
 	DataPack pack = view_as<DataPack>(data);
 	pack.Reset();
 	
-	int client = GetClientFromSerial(pack.ReadCell());
+	int client = pack.ReadCell();
 	static char classname[64], className[64];
 	pack.ReadString(classname, 64);
 	bool fullClip = pack.ReadCell();
@@ -10395,7 +10518,7 @@ public void UpdateLaserSign(any data)
 	DataPack pack = view_as<DataPack>(data);
 	pack.Reset();
 	
-	int client = GetClientFromSerial(pack.ReadCell());
+	int client = pack.ReadCell();
 	delete pack;
 	
 	if(!IsValidAliveClient(client))
@@ -10432,7 +10555,7 @@ public void Event_AmmoPickup(Event event, const char[] eventName, bool dontBroad
 	GetEntityClassname(weapon, classname, sizeof(classname));
 	
 	DataPack data = CreateDataPack();
-	data.WriteCell(GetClientSerial(client));
+	data.WriteCell(client);
 	data.WriteString(classname);
 	data.WriteCell(false);
 	
@@ -10454,7 +10577,7 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 		!strncmp(classname[7], "pistol", 6) || !strncmp(classname[7], "shotgun", 7) || !strncmp(classname[11], "shotgun", 7))
 	{
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(client));
+		data.WriteCell(client);
 		data.WriteString(classname);
 		data.WriteCell(true);
 		
@@ -10465,7 +10588,7 @@ public void Event_WeaponPickuped(Event event, const char[] eventName, bool dontB
 	if((g_clSkill_5[client] & SKL_5_MeleeRange) || (g_clSkill_5[client] & SKL_5_ShoveRange))
 	{
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(client));
+		data.WriteCell(client);
 		data.WriteString(classname);
 		
 		RequestFrame(NotifyWeaponRange, data);
@@ -10502,7 +10625,7 @@ public void Event_PlayerUsed(Event event, const char[] eventName, bool dontBroad
 		if(g_iExtraAmmo[client] < 0)
 			g_iExtraAmmo[client] = 0;
 		
-		RequestFrame(UpdateAmmo, GetClientSerial(client));
+		RequestFrame(UpdateAmmo, client);
 	}
 	else if(!isPistol)
 	{
@@ -10512,7 +10635,7 @@ public void Event_PlayerUsed(Event event, const char[] eventName, bool dontBroad
 	if(g_clSkill_1[client] & SKL_1_NoRecoil)
 	{
 		DataPack data = CreateDataPack();
-		data.WriteCell(GetClientSerial(client));
+		data.WriteCell(client);
 		// data.WriteCell(item);
 		RequestFrame(UpdateLaserSign, data);
 	}
@@ -10522,8 +10645,6 @@ public void Event_PlayerUsed(Event event, const char[] eventName, bool dontBroad
 
 public void UpdateAmmo(any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(IsValidAliveClient(client))
 		AddAmmo(client, 0);
 }
@@ -10551,7 +10672,7 @@ public void Event_WeaponDropped(Event event, const char[] eventName, bool dontBr
 		!strcmp(classname, "grenade_launcher")))
 	{
 		DataPack data = CreateDataPack();
-		data.WriteCell(EntIndexToEntRef(weapon));
+		data.WriteCell(weapon);
 		data.WriteCell(g_iExtraAmmo[client]);
 		RequestFrame(PatchExtraPrimaryAmmo, data);
 	}
@@ -10566,7 +10687,7 @@ public void PatchExtraPrimaryAmmo(any pack)
 	int ammo = data.ReadCell();
 	delete data;
 	
-	if(weapon != INVALID_ENT_REFERENCE && IsValidEntity(weapon) && HasEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo"))
+	if(weapon > MaxClients && IsValidEntity(weapon) && HasEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo"))
 		SetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo", GetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo") + ammo);
 }
 
@@ -10640,8 +10761,8 @@ public void PlayerHook_OnWeaponSwitchPost(int client, int weapon)
 	DataPack data = CreateDataPack();
 	g_hTimerAutoReload[client] = CreateTimer(6.0, Timer_HandleAutoReload, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
 	data.WriteCell(false);
-	data.WriteCell(GetClientSerial(client));
-	data.WriteCell(EntIndexToEntRef(lastWeapon));
+	data.WriteCell(client);
+	data.WriteCell(lastWeapon);
 }
 
 public Action Timer_HandleAutoReload(Handle timer, any pack)
@@ -10650,10 +10771,10 @@ public Action Timer_HandleAutoReload(Handle timer, any pack)
 	data.Reset();
 	
 	bool repeat = data.ReadCell();
-	int client = GetClientFromSerial(data.ReadCell());
-	int weapon = EntRefToEntIndex(data.ReadCell());
+	int client = data.ReadCell();
+	int weapon = data.ReadCell();
 	
-	if(weapon < MaxClients || !IsValidAliveClient(client) || !IsValidEdict(weapon) || !(g_clSkill_3[client] & SKL_3_AutoReload) ||
+	if(!IsValidAliveClient(client) || !IsValidEdict(weapon) || !(g_clSkill_3[client] & SKL_3_AutoReload) ||
 		GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon") == weapon ||
 		(weapon != GetPlayerWeaponSlot(client, 0) && weapon != GetPlayerWeaponSlot(client, 1)))
 	{
@@ -10688,8 +10809,8 @@ public Action Timer_HandleAutoReload(Handle timer, any pack)
 	{
 		data = CreateDataPack();
 		data.WriteCell(true);
-		data.WriteCell(GetClientSerial(client));
-		data.WriteCell(EntIndexToEntRef(weapon));
+		data.WriteCell(client);
+		data.WriteCell(weapon);
 		
 		float interval = 0.1;
 		if(HasEntProp(weapon, Prop_Send, "m_reloadNumShells"))
@@ -10697,7 +10818,6 @@ public Action Timer_HandleAutoReload(Handle timer, any pack)
 		
 		g_hTimerAutoReload[client] = CreateTimer(interval, Timer_HandleAutoReload, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE);
 		KillTimer(timer);
-		EmitSoundToClient(client, SOUND_SHELL_INSERT, client, SNDCHAN_ITEM, SNDLEVEL_HOME);
 	}
 	
 	return Plugin_Continue;
@@ -10709,7 +10829,7 @@ public void NotifyWeaponRange(any pack)
 	data.Reset();
 	
 	char classname[64];
-	int client = GetClientFromSerial(data.ReadCell());
+	int client = data.ReadCell();
 	data.ReadString(classname, 64);
 	delete data;
 	
@@ -10836,7 +10956,7 @@ public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool don
 	
 	/*
 	if(g_clSkill_2[client] & SKL_2_ProtectiveSuit)
-		RequestFrame(UpdateVomitDuration, GetClientSerial(client));
+		RequestFrame(UpdateVomitDuration, client);
 	*/
 	
 	if(IsValidAliveClient(attacker) && (g_clSkill_4[attacker] & SKL_4_Terror) && GetClientTeam(attacker) == 2 && GetClientTeam(client) == 3)
@@ -10936,7 +11056,7 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 		
 		FormatEx(msg, sizeof(msg), "%N\n战斗力：%d|攻击+%d％|生命+%d％|速度+%d％|跳跃+%d％|暴击+%d‰", victim, power, damage, health, speed, gravity, crit);
 		if(GetEntProp(victim, Prop_Send, "m_bIsOnThirdStrike"))
-			Format(msg, sizeof(msg), "%s\n黑白状态", msg);
+			StrCat(msg, sizeof(msg), "\n黑白状态");
 		
 		PrintHintText(attacker, msg);
 	}
@@ -11095,7 +11215,7 @@ public Action L4D_OnVomitedUpon(int victim, int &attacker, bool &boomerExplosion
 	
 	if(g_clSkill_2[victim] & SKL_2_ProtectiveSuit)
 	{
-		UpdateVomitDuration(GetClientSerial(victim));
+		UpdateVomitDuration(victim);
 		
 		if(!g_bIsOnBile[victim])
 		{
@@ -11117,7 +11237,8 @@ public Action L4D_OnVomitedUpon(int victim, int &attacker, bool &boomerExplosion
 			}
 			
 			Event_PlayerHitByVomit(event, "player_now_it", false);
-			event.Fire();
+			// event.Fire();
+			delete event;
 		}
 		
 		return Plugin_Handled;
@@ -11133,7 +11254,7 @@ public Action L4D2_OnHitByVomitJar(int victim, int &attacker)
 	
 	if(g_clSkill_2[victim] & SKL_2_ProtectiveSuit)
 	{
-		UpdateVomitDuration(GetClientSerial(victim));
+		UpdateVomitDuration(victim);
 		
 		if(!g_bIsOnBile[victim])
 		{
@@ -11150,7 +11271,8 @@ public Action L4D2_OnHitByVomitJar(int victim, int &attacker)
 			event.SetBool("by_boomer", false);
 			
 			Event_PlayerHitByVomit(event, "player_now_it", false);
-			event.Fire();
+			// event.Fire();
+			delete event;
 		}
 		
 		return Plugin_Handled;
@@ -11161,8 +11283,6 @@ public Action L4D2_OnHitByVomitJar(int victim, int &attacker)
 
 void UpdateVomitDuration(any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidAliveClient(client))
 		return;
 	
@@ -11200,42 +11320,31 @@ void UpdateVomitDuration(any client)
 	if(g_hChaseTimer[client] != null)
 		delete g_hChaseTimer[client];
 	
-	g_hChaseTimer[client] = CreateTimer(cv_bile_duration.FloatValue, Timer_UnVimit, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+	g_hChaseTimer[client] = CreateTimer(cv_bile_duration.FloatValue, Timer_UnVimit, client, TIMER_FLAG_NO_MAPCHANGE);
 	// L4D_OnITExpired(client);
+	
+	static char buffer[64];
 	
 	// 刷尸潮
 	CheatCommand(client, "z_spawn_old", "mob");
-	L4D2_RunScript(tr("RushVictim(PlayerInstanceFromIndex(%d),1024.0)", client));
-	
-	// PrintToChat(client, "\x03「防化服」\x01 去除胆汁视觉影响。");
-	EmitSoundToAll(SOUND_BILE_OTHER, client, SNDCHAN_AUTO);
-	EmitSoundToClient(client, SOUND_BILE_VICTIM, _, SNDCHAN_AUTO);
+	FormatEx(buffer, sizeof(buffer), "RushVictim(PlayerInstanceFromIndex(%d),1024.0)", client);
+	L4D2_RunScript(buffer);
 }
 
 public Action Timer_UnVimit(Handle timer, any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidClient(client))
 		return Plugin_Continue;
 	
 	g_hChaseTimer[client] = null;
-	
-	if(g_iChaseEntity[client] != INVALID_ENT_REFERENCE && IsValidEntity(g_iChaseEntity[client]))
-		RemoveEntity(g_iChaseEntity[client]);
-	
+	RemoveEntity(g_iChaseEntity[client]);
 	g_iChaseEntity[client] = INVALID_ENT_REFERENCE;
-	
-	// EmitSoundToAll(SOUND_BILE_OTHER, client, SNDCHAN_AUTO, _, SND_STOP);
-	// EmitSoundToClient(client, SOUND_BILE_VICTIM, _, SNDCHAN_AUTO, _, SND_STOP);
 	
 	Event event = CreateEvent("player_no_longer_it");
 	event.SetInt("userid", GetClientUserId(client));
+	Event_PlayerVomitTimeout(event, "player_no_longer_it", true);
+	delete event;
 	
-	Event_PlayerVomitTimeout(event, "player_no_longer_it", false);
-	event.Fire();
-	
-	// PrintToChat(client, "\x03「防化服」\x01 胆汁效果结束。");
 	return Plugin_Continue;
 }
 
@@ -11277,13 +11386,13 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 		{
 			// ClientSaveToFileLoad(client);
 			// RegPlayerHook(client, false);
-			CreateTimer(0.6, Timer_RegPlayerHook, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(0.6, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 			// PrintToServer("读取 %N 的数据，原因：加入队伍");
 		}
 		else if(oldTeam >= 2 && newTeam >= 2)
 		{
 			// RegPlayerHook(client, false);
-			CreateTimer(0.1, Timer_RegPlayerHook, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+			CreateTimer(0.1, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		}
 		else if(oldTeam >= 2 && newTeam == 1)
 		{
@@ -11294,14 +11403,14 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	{
 		GenerateRandomStats(client, g_pCvarSurvivorBot.IntValue);
 		// RegPlayerHook(client, false);
-		CreateTimer(1.0, Timer_RegPlayerHook, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", client, CalcPlayerPower(client));
 	}
 	else if(newTeam == 3 && g_pCvarInfectedBot.BoolValue)
 	{
 		GenerateRandomStats(client, g_pCvarInfectedBot.IntValue);
 		// RegPlayerHook(client, false);
-		CreateTimer(1.0, Timer_RegPlayerHook, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+		CreateTimer(1.0, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 		PrintToServer("为生还者机器人 %N 生成随机属性，战斗力 %d", client, CalcPlayerPower(client));
 	}
 	
@@ -11319,10 +11428,10 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 
 public Action Timer_RegPlayerHook(Handle timer, any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(IsValidAliveClient(client))
 		RegPlayerHook(client, false);
+	
+	return Plugin_Continue;
 }
 
 public void Event_PlayerEnterStartArea(Event event, const char[] eventName, bool dontBroadcast)
@@ -11343,7 +11452,7 @@ public void Event_PlayerReplaceBot(Event event, const char[] eventName, bool don
 	// g_bHasFirstJoin[client] = false;
 	g_bHasJumping[client] = false;
 	// RegPlayerHook(client, false);
-	CreateTimer(0.1, Timer_RegPlayerHook, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.1, Timer_RegPlayerHook, client, TIMER_FLAG_NO_MAPCHANGE);
 	
 	// 修复数值不正常
 	g_iExtraAmmo[client] = 0;
@@ -11397,7 +11506,7 @@ public void Event_BotReplacePlayer(Event event, const char[] eventName, bool don
 			g_clCurEquip[bot][i] = 0;
 	}
 	
-	CreateTimer(0.1, Timer_RegPlayerHook, GetClientSerial(bot), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.1, Timer_RegPlayerHook, bot, TIMER_FLAG_NO_MAPCHANGE);
 	PrintToServer("%N copy to %N", client, bot);
 }
 
@@ -11536,7 +11645,10 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		// 脱离黑白状态
 		SetEntProp(client, Prop_Send, "m_currentReviveCount", 0);
 		SetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 0);
-		L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, 0));
+		
+		static char buffer[64];
+		FormatEx(buffer, sizeof(buffer), "PlayerInstanceFromIndex(%d).SetReviveCount(%d)", client, 0);
+		L4D2_ExecVScriptCode(buffer);
 	}
 	else if(g_bFirstLoaded[client])
 	{
@@ -11839,9 +11951,7 @@ public Action:TankEventEndx1(Handle:timer)
 
 public Action:CommandSlapPlayer(Handle:timer, any:client)
 {
-	client = GetClientFromSerial(client);
-	
-	if(g_bIsGamePlaying && g_csSlapCount[client] >= 0 && IsValidAliveClient(client))
+	if(g_bIsGamePlaying && g_csSlapCount[client] >= 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		// ServerCommand("sm_slap \"%N\" \"1\"",client);
 		SlapPlayer(client, 1, true);
@@ -11856,9 +11966,7 @@ public Action:CommandSlapPlayer(Handle:timer, any:client)
 
 public Action:CommandSlapTank(Handle:timer, any:client)
 {
-	client = GetClientFromSerial(client);
-	
-	if(g_bIsGamePlaying && g_csSlapCount[client] >= 0 && IsValidAliveClient(client))
+	if(g_bIsGamePlaying && g_csSlapCount[client] >= 0 && IsClientInGame(client) && IsPlayerAlive(client))
 	{
 		// ServerCommand("sm_slap \"%N\" \"0\"",client);
 		SlapPlayer(client, 0, true);
@@ -12372,7 +12480,7 @@ void HookPlayerReload(int client, int clipSize)
 		g_iReloadWeaponOldClip[client] = 0;
 		
 		// 设置填装数量
-		RequestFrame(ApplyInsertShells, GetClientSerial(client));
+		RequestFrame(ApplyInsertShells, client);
 	}
 	
 	// 跟踪填装完成
@@ -12389,13 +12497,13 @@ public Action Timer_ResetWeaponClip(Handle timer, any data)
 	DataPack dp = view_as<DataPack>(data);
 	dp.Reset();
 	
-	int client = GetClientFromSerial(dp.ReadCell());
+	int client = dp.ReadCell();
 	int weapon = dp.ReadCell();
 	int clip = dp.ReadCell();
 	
 	if(g_iReloadWeaponOldClip[client] == clip)
 	{
-		if(weapon != INVALID_ENT_REFERENCE && IsValidEdict(weapon))
+		if(IsValidEdict(weapon))
 			SetEntProp(weapon, Prop_Send, "m_iClip1", clip);
 		
 		g_iReloadWeaponOldClip[client] = 0;
@@ -12406,8 +12514,6 @@ public Action Timer_ResetWeaponClip(Handle timer, any data)
 
 public void ApplyInsertShells(any client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(!IsValidAliveClient(client) || GetClientTeam(client) != 2 || IsSurvivorHeld(client) ||
 		GetEntityMoveType(client) == MOVETYPE_LADDER || IsSurvivorThirdPerson(client))
 		return;
@@ -12546,8 +12652,8 @@ SoH_OnReload (iCid)
 		if (!strcmp(stClass[7],"autoshotgun"))
 		{
 			new Handle:hPack = CreateDataPack();
-			WritePackCell(hPack, GetClientSerial(iCid));
-			WritePackCell(hPack, EntIndexToEntRef(iEntid));
+			WritePackCell(hPack, iCid);
+			WritePackCell(hPack, iEntid);
 
 			CreateTimer(0.1,SoH_AutoshotgunStart,hPack, TIMER_DATA_HNDL_CLOSE);
 			return;
@@ -12556,8 +12662,8 @@ SoH_OnReload (iCid)
 		else if (!strcmp(stClass[7],"shotgun_spas"))
 		{
 			new Handle:hPack = CreateDataPack();
-			WritePackCell(hPack, GetClientSerial(iCid));
-			WritePackCell(hPack, EntIndexToEntRef(iEntid));
+			WritePackCell(hPack, iCid);
+			WritePackCell(hPack, iEntid);
 
 			CreateTimer(0.1,SoH_SpasShotgunStart,hPack, TIMER_DATA_HNDL_CLOSE);
 			return;
@@ -12566,8 +12672,8 @@ SoH_OnReload (iCid)
 		else if (!strcmp(stClass[7],"pumpshotgun",false) || !strcmp(stClass[7],"shotgun_chrome"))
 		{
 			new Handle:hPack = CreateDataPack();
-			WritePackCell(hPack, GetClientSerial(iCid));
-			WritePackCell(hPack, EntIndexToEntRef(iEntid));
+			WritePackCell(hPack, iCid);
+			WritePackCell(hPack, iEntid);
 
 			CreateTimer(0.1,SoH_PumpshotgunStart,hPack, TIMER_DATA_HNDL_CLOSE);
 			return;
@@ -12587,10 +12693,10 @@ SoH_MagStart (iEntid, iCid)
 	new Float:flNextTime_calc = ( flNextTime_ret - flGameTime ) * g_flSoH_rate ;
 
 	SetEntDataFloat(iEntid, g_iPlayRateO, 1.0/g_flSoH_rate, true);
-	CreateTimer( flNextTime_calc, SoH_MagEnd, EntIndexToEntRef(iEntid), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer( flNextTime_calc, SoH_MagEnd, iEntid, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
 
 	new Handle:hPack = CreateDataPack();
-	WritePackCell(hPack, GetClientSerial(iCid));
+	WritePackCell(hPack, iCid);
 	new Float:flStartTime_calc = flGameTime - ( flNextTime_ret - flGameTime ) * ( 1 - g_flSoH_rate ) ;
 	WritePackFloat(hPack, flStartTime_calc);
 	if ( (flNextTime_calc - 0.4) > 0 ) CreateTimer( flNextTime_calc - 0.4 , SoH_MagEnd2, hPack, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
@@ -12604,25 +12710,24 @@ SoH_MagStart (iEntid, iCid)
 public Action:SoH_AutoshotgunStart (Handle:timer, Handle:hPack)
 {
 	ResetPack(hPack);
-	new iCid = GetClientFromSerial(ReadPackCell(hPack));
+	new iCid = ReadPackCell(hPack);
 	new iEntid = ReadPackCell(hPack);
-	
+	hPack = CreateDataPack();
+	WritePackCell(hPack, iCid);
+	WritePackCell(hPack, iEntid);
+
 	if (iCid <= 0
-		|| iEntid == INVALID_ENT_REFERENCE
+		|| iEntid <= 0
 		|| IsValidEntity(iCid)==false
 		|| IsValidEntity(iEntid)==false
 		|| IsClientInGame(iCid)==false)
 		return Plugin_Stop;
-	
+
 	SetEntDataFloat(iEntid,	g_iShotStartDurO,	g_flSoHAutoS*g_flSoH_rate,	true);
 	SetEntDataFloat(iEntid,	g_iShotInsertDurO,	g_flSoHAutoI*g_flSoH_rate,	true);
 	SetEntDataFloat(iEntid,	g_iShotEndDurO,		g_flSoHAutoE*g_flSoH_rate,	true);
 	SetEntDataFloat(iEntid, g_iPlayRateO, 1.0/g_flSoH_rate, true);
-	
-	hPack = CreateDataPack();
-	WritePackCell(hPack, GetClientSerial(iCid));
-	WritePackCell(hPack, iEntid);
-	
+
 	CreateTimer(0.3,SoH_ShotgunEnd,hPack,TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE);
 	return Plugin_Stop;
 }
@@ -12630,11 +12735,14 @@ public Action:SoH_AutoshotgunStart (Handle:timer, Handle:hPack)
 public Action:SoH_SpasShotgunStart (Handle:timer, Handle:hPack)
 {
 	ResetPack(hPack);
-	new iCid = GetClientFromSerial(ReadPackCell(hPack));
+	new iCid = ReadPackCell(hPack);
 	new iEntid = ReadPackCell(hPack);
-	
+	hPack = CreateDataPack();
+	WritePackCell(hPack, iCid);
+	WritePackCell(hPack, iEntid);
+
 	if (iCid <= 0
-		|| iEntid == INVALID_ENT_REFERENCE
+		|| iEntid <= 0
 		|| IsValidEntity(iCid)==false
 		|| IsValidEntity(iEntid)==false
 		|| IsClientInGame(iCid)==false)
@@ -12644,11 +12752,7 @@ public Action:SoH_SpasShotgunStart (Handle:timer, Handle:hPack)
 	SetEntDataFloat(iEntid,	g_iShotInsertDurO,	g_flSoHSpasI*g_flSoH_rate,	true);
 	SetEntDataFloat(iEntid,	g_iShotEndDurO,		g_flSoHSpasE*g_flSoH_rate,	true);
 	SetEntDataFloat(iEntid, g_iPlayRateO, 1.0/g_flSoH_rate, true);
-	
-	hPack = CreateDataPack();
-	WritePackCell(hPack, GetClientSerial(iCid));
-	WritePackCell(hPack, iEntid);
-	
+
 	CreateTimer(0.3,SoH_ShotgunEnd,hPack,TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE);
 	return Plugin_Stop;
 }
@@ -12656,11 +12760,14 @@ public Action:SoH_SpasShotgunStart (Handle:timer, Handle:hPack)
 public Action:SoH_PumpshotgunStart (Handle:timer, Handle:hPack)
 {
 	ResetPack(hPack);
-	new iCid = GetClientFromSerial(ReadPackCell(hPack));
+	new iCid = ReadPackCell(hPack);
 	new iEntid = ReadPackCell(hPack);
-	
+	hPack = CreateDataPack();
+	WritePackCell(hPack, iCid);
+	WritePackCell(hPack, iEntid);
+
 	if (iCid <= 0
-		|| iEntid == INVALID_ENT_REFERENCE
+		|| iEntid <= 0
 		|| IsValidEntity(iCid)==false
 		|| IsValidEntity(iEntid)==false
 		|| IsClientInGame(iCid)==false)
@@ -12670,18 +12777,14 @@ public Action:SoH_PumpshotgunStart (Handle:timer, Handle:hPack)
 	SetEntDataFloat(iEntid,	g_iShotInsertDurO,	g_flSoHPumpI*g_flSoH_rate,	true);
 	SetEntDataFloat(iEntid,	g_iShotEndDurO,		g_flSoHPumpE*g_flSoH_rate,	true);
 	SetEntDataFloat(iEntid, g_iPlayRateO, 1.0/g_flSoH_rate, true);
-	
-	hPack = CreateDataPack();
-	WritePackCell(hPack, GetClientSerial(iCid));
-	WritePackCell(hPack, iEntid);
-	
+
 	CreateTimer(0.3,SoH_ShotgunEnd,hPack,TIMER_FLAG_NO_MAPCHANGE|TIMER_REPEAT|TIMER_DATA_HNDL_CLOSE);
 	return Plugin_Stop;
 }
 
 public Action:SoH_MagEnd (Handle:timer, any:iEntid)
 {
-	if (iEntid == INVALID_ENT_REFERENCE || IsValidEntity(iEntid)==false) return Plugin_Stop;
+	if (iEntid <= 0 || IsValidEntity(iEntid)==false) return Plugin_Stop;
 
 	SetEntDataFloat(iEntid, g_iPlayRateO, 1.0, true);
 
@@ -12691,7 +12794,7 @@ public Action:SoH_MagEnd (Handle:timer, any:iEntid)
 public Action:SoH_MagEnd2 (Handle:timer, Handle:hPack)
 {
 	ResetPack(hPack);
-	new iCid = GetClientFromSerial(ReadPackCell(hPack));
+	new iCid = ReadPackCell(hPack);
 	new Float:flStartTime_calc = ReadPackFloat(hPack);
 
 	if (iCid <= 0
@@ -12708,11 +12811,11 @@ public Action:SoH_MagEnd2 (Handle:timer, Handle:hPack)
 public Action:SoH_ShotgunEnd (Handle:timer, Handle:hPack)
 {
 	ResetPack(hPack);
-	new iCid = GetClientFromSerial(ReadPackCell(hPack));
+	new iCid = ReadPackCell(hPack);
 	new iEntid = ReadPackCell(hPack);
 
 	if (iCid <= 0
-		|| iEntid == INVALID_ENT_REFERENCE
+		|| iEntid <= 0
 		|| IsValidEntity(iCid)==false
 		|| IsValidEntity(iEntid)==false
 		|| IsClientInGame(iCid)==false)
@@ -12738,11 +12841,11 @@ public Action:SoH_ShotgunEnd (Handle:timer, Handle:hPack)
 public Action:SoH_ShotgunEndCock (Handle:timer, any:hPack)
 {
 	ResetPack(hPack);
-	new iCid = GetClientFromSerial(ReadPackCell(hPack));
+	new iCid = ReadPackCell(hPack);
 	new iEntid = ReadPackCell(hPack);
 
 	if (iCid <= 0
-		|| iEntid == INVALID_ENT_REFERENCE
+		|| iEntid <= 0
 		|| IsValidEntity(iCid)==false
 		|| IsValidEntity(iEntid)==false
 		|| IsClientInGame(iCid)==false)
@@ -13503,8 +13606,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							
 							DataPack dp = CreateDataPack();
 							CreateTimer(0.2, Timer_ResetWeaponClip, dp, TIMER_DATA_HNDL_CLOSE);
-							dp.WriteCell(GetClientSerial(client));
-							dp.WriteCell(EntIndexToEntRef(weaponId));
+							dp.WriteCell(client);
+							dp.WriteCell(weaponId);
 							dp.WriteCell(clip);
 						}
 					}
@@ -13653,7 +13756,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				if(isAmmo || isSpawnner)
 				{
 					DataPack data = CreateDataPack();
-					data.WriteCell(GetClientSerial(client));
+					data.WriteCell(client);
 					data.WriteString(weaponName);
 					data.WriteCell(isSpawnner);
 					
@@ -13751,8 +13854,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						DispatchKeyValue(button, "spawnflags", "0");
 						DispatchKeyValue(button, "auto_disable", "1");
 						DispatchKeyValue(button, "use_time", "5.0");
-						DispatchKeyValue(button, "use_string", tr("正在救赎 %N", owner));
-						DispatchKeyValue(button, "use_sub_string", "*以黑白为代价*");
+						// DispatchKeyValue(button, "use_string", tr("正在救赎 %N", owner));
+						// DispatchKeyValue(button, "use_sub_string", "*以黑白为代价*");
 						DispatchSpawn(button);
 						AcceptEntityInput(button, "Enable");
 						AcceptEntityInput(button, "Unlock");
@@ -13845,7 +13948,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				{
 					DataPack data = CreateDataPack();
 					g_hTimerMinigun[client] = CreateTimer(5.0, Timer_DestroyMinigun, data, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
-					data.WriteCell(GetClientSerial(client));
+					data.WriteCell(client);
 					data.WriteCell(EntIndexToEntRef(machine));	// 可能会内存泄漏
 				}
 				else
@@ -14081,10 +14184,10 @@ public Action Timer_DestroyMinigun(Handle timer, any pack)
 	DataPack data = view_as<DataPack>(pack);
 	data.Reset();
 	
-	int client = GetClientFromSerial(data.ReadCell());
+	int client = data.ReadCell();
 	int machine = data.ReadCell();
 	
-	if(machine != INVALID_ENT_REFERENCE && IsValidEntity(machine))
+	if(IsValidEntity(machine))
 	{
 		// 过热时不删除机枪，避免刷冷却
 		if(GetEntProp(machine, Prop_Send, "m_overheated"))
@@ -14238,19 +14341,21 @@ void ShowStatusPanel(int client)
 	// menu.SetTitle("状态信息");
 	float time = GetEngineTime();
 	
+	static char buffer[64];
+	
 	// 惩罚
 	if(g_csSlapCount[client] > 0)
-		menu.DrawText(tr("拍打%d", g_csSlapCount[client]));
+		FormatEx(buffer, sizeof(buffer), "拍打%d", g_csSlapCount[client]), menu.DrawText(buffer);
 	if(g_fFreezeTime[client] > time)
-		menu.DrawText(tr("冻结%.0fs", g_fFreezeTime[client] - time));
+		FormatEx(buffer, sizeof(buffer), "冻结%.0fs", g_fFreezeTime[client] - time), menu.DrawText(buffer);
 	if(g_fLotteryStartTime > 0.0)
-		menu.DrawText(tr("人品%.0fs", g_fLotteryStartTime - time));
+		FormatEx(buffer, sizeof(buffer), "人品%.0fs", g_fLotteryStartTime - time), menu.DrawText(buffer);
 	if(g_fForgiveOfTK[client] > time)
-		menu.DrawText(tr("电击%.0fs", g_fForgiveOfTK[client] - time));
+		FormatEx(buffer, sizeof(buffer), "电击%.0fs", g_fForgiveOfTK[client] - time), menu.DrawText(buffer);
 	if(g_fForgiveOfFF[client] > time)
-		menu.DrawText(tr("打包%.0fs", g_fForgiveOfFF[client] - time));
+		FormatEx(buffer, sizeof(buffer), "打包%.0fs", g_fForgiveOfFF[client] - time), menu.DrawText(buffer);
 	if(g_iMaxReviveCount[client] > 0)
-		menu.DrawText(tr("倒地%d", g_iMaxReviveCount[client]));
+		FormatEx(buffer, sizeof(buffer), "倒地%d", g_iMaxReviveCount[client]), menu.DrawText(buffer);
 	menu.DrawText(" ");
 	
 	// 统计
@@ -14258,15 +14363,15 @@ void ShowStatusPanel(int client)
 	int health = GetEntProp(client, Prop_Data, "m_iHealth") + RoundToZero(L4D_GetTempHealth(client));
 	int maxHealth = GetEntProp(client, Prop_Data, "m_iMaxHealth");
 	if(maxHealth > GetMaxHealth(client) || health > GetMaxHealth(client))
-		menu.DrawText(tr("血量%d/%d", health, maxHealth));
+		FormatEx(buffer, sizeof(buffer), "血量%d/%d", health, maxHealth), menu.DrawText(buffer);
 	
 	int armor = GetEntProp(client, Prop_Send, "m_ArmorValue") + g_iExtraArmor[client];
 	int maxArmor = ((g_clSkill_1[client] & SKL_1_Armor) ? 100 : 0) + (100 * GetPlayerEffect(client, 33));
 	if(armor > 0 || g_iExtraArmor[client] > 0)
-		menu.DrawText(tr("护甲%d/%d", armor, maxArmor));
+		FormatEx(buffer, sizeof(buffer), "护甲%d/%d", armor, maxArmor), menu.DrawText(buffer);
 	
 	if(g_clAngryPoint[client] > 0 && !g_bIsAngryActive && g_clAngryMode[client] > 0 && g_pCvarAS.BoolValue)
-		menu.DrawText(tr("怒气%d/100", g_clAngryPoint[client]));
+		FormatEx(buffer, sizeof(buffer), "怒气%d/100", g_clAngryPoint[client]), menu.DrawText(buffer);
 	
 	int weapon = GetPlayerWeaponSlot(client, 0);
 	if(g_iExtraAmmo[client] > 0)
@@ -14280,7 +14385,7 @@ void ShowStatusPanel(int client)
 			if(g_clSkill_3[client] & SKL_3_MoreAmmo)
 				scale += 1.0;
 			maxAmmo = RoundToZero(maxAmmo * scale);
-			menu.DrawText(tr("弹药%d/%d", ammo, maxAmmo));
+			FormatEx(buffer, sizeof(buffer), "弹药%d/%d", ammo, maxAmmo), menu.DrawText(buffer);
 		}
 	}
 	
@@ -14293,62 +14398,68 @@ void ShowStatusPanel(int client)
 		int maxDamage = g_iDamageChanceMax[client];
 		int base = g_iDamageBase[client];
 		if(weapon > MaxClients && (g_clSkill_3[client] & SKL_3_Accurate) && (g_fNextAccurateShot[client] <= time || g_iIsInCombat[client] == 0) && g_fAccurateShot[client] > time)
-			menu.DrawText(tr("攻击+%d%% 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage));
+			FormatEx(buffer, sizeof(buffer), "攻击+%d%% 暴击100%%(%d~%d) 瞄准中", base, minDamage, maxDamage), menu.DrawText(buffer);
 		else
-			menu.DrawText(tr("攻击+%d%% 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage));
+			FormatEx(buffer, sizeof(buffer), "攻击+%d%% 暴击%.1f%%(%d~%d)", base, chance, minDamage, maxDamage), menu.DrawText(buffer);
 	}
 	menu.DrawText(" ");
 	
 	// 计时技能
 	if((g_clSkill_2[client] & SKL_2_PainPills) && g_ctPainPills[client] > 0.0)
-		menu.DrawText(tr("嗜药%.0fs", g_ctPainPills[client] - time));
+		FormatEx(buffer, sizeof(buffer), "嗜药%.0fs", g_ctPainPills[client] - time), menu.DrawText(buffer);
 	if((g_clSkill_2[client] & SKL_2_Defibrillator) && g_ctDefibrillator[client] > 0.0)
-		menu.DrawText(tr("电疗%.0fs", g_ctDefibrillator[client] - time));
+		FormatEx(buffer, sizeof(buffer), "电疗%.0fs", g_ctDefibrillator[client] - time), menu.DrawText(buffer);
 	if((g_clSkill_2[client] & SKL_2_PipeBomb) && g_ctPipeBomb[client] > 0.0)
-		menu.DrawText(tr("爆破%.0fs", g_ctPipeBomb[client] - time));
+		FormatEx(buffer, sizeof(buffer), "爆破%.0fs", g_ctPipeBomb[client] - time), menu.DrawText(buffer);
 	/*
 	if((g_clSkill_2[client] & SKL_2_FullHealth) && g_ctFullHealth[client] > 0.0)
-		menu.DrawText(tr("永康%.0fs", g_ctFullHealth[client] - time));
+		FormatEx(buffer, sizeof(buffer), "永康%.0fs", g_ctFullHealth[client] - time), menu.DrawText(buffer);
 	*/
 	/*
 	if((g_clSkill_3[client] & SKL_3_SelfHeal) && g_ctSelfHeal[client] > 0.0)
-		menu.DrawText(tr("暴疗%.0fs", g_ctSelfHeal[client] - time));
+		FormatEx(buffer, sizeof(buffer), "暴疗%.0fs", g_ctSelfHeal[client] - time), menu.DrawText(buffer);
 	*/
 	if((g_clSkill_3[client] & SKL_3_GodMode) && g_ctGodMode[client] != 0.0)
-		menu.DrawText(tr("无敌%.0fs", (g_ctGodMode[client] > 0.0 ? g_ctGodMode[client] - time : time - g_ctGodMode[client])));
+		FormatEx(buffer, sizeof(buffer), "无敌%.0fs", (g_ctGodMode[client] > 0.0 ? g_ctGodMode[client] - time : time - g_ctGodMode[client])), menu.DrawText(buffer);
 	if((g_clSkill_4[client] & SKL_4_DuckShover) && g_fNextGunShover[client] > time)
-		menu.DrawText(tr("霸气%.0fs", g_fNextGunShover[client] - time));
+		FormatEx(buffer, sizeof(buffer), "霸气%.0fs", g_fNextGunShover[client] - time), menu.DrawText(buffer);
 	if((g_clSkill_3[client] & SKL_3_HandGrenade) && g_fNextHandGrenade[client] > time)
-		menu.DrawText(tr("手雷%.0fs", g_fNextHandGrenade[client] - time));
+		FormatEx(buffer, sizeof(buffer), "手雷%.0fs", g_fNextHandGrenade[client] - time), menu.DrawText(buffer);
 	menu.DrawText(" ");
 	
 	// 奖励进度
 	if(g_ttCommonKilled[client] > 0 && g_pCvarCommonKilled.IntValue > 0)
-		menu.DrawText(tr("普感%d/%d", g_ttCommonKilled[client], g_pCvarCommonKilled.IntValue));
+		FormatEx(buffer, sizeof(buffer), "普感%d/%d", g_ttCommonKilled[client], g_pCvarCommonKilled.IntValue), menu.DrawText(buffer);
 	if(g_ttSpecialKilled[client] > 0 && g_pCvarSpecialKilled.IntValue > 0)
-		menu.DrawText(tr("特感%d/%d", g_ttSpecialKilled[client], g_pCvarSpecialKilled.IntValue));
+		FormatEx(buffer, sizeof(buffer), "特感%d/%d", g_ttSpecialKilled[client], g_pCvarSpecialKilled.IntValue), menu.DrawText(buffer);
 	if(g_ttOtherRevived[client] > 0 && g_pCvarOtherRevived.IntValue > 0)
-		menu.DrawText(tr("拉起%d/%d", g_ttOtherRevived[client], g_pCvarOtherRevived.IntValue));
+		FormatEx(buffer, sizeof(buffer), "拉起%d/%d", g_ttOtherRevived[client], g_pCvarOtherRevived.IntValue), menu.DrawText(buffer);
 	if(g_ttProtected[client] > 0 && g_pCvarProtected.IntValue > 0)
-		menu.DrawText(tr("保护%d/%d", g_ttProtected[client], g_pCvarProtected.IntValue));
+		FormatEx(buffer, sizeof(buffer), "保护%d/%d", g_ttProtected[client], g_pCvarProtected.IntValue), menu.DrawText(buffer);
 	if(g_ttGivePills[client] > 0 && g_pCvarGivePills.IntValue > 0)
-		menu.DrawText(tr("递药%d/%d", g_ttGivePills[client], g_pCvarGivePills.IntValue));
+		FormatEx(buffer, sizeof(buffer), "递药%d/%d", g_ttGivePills[client], g_pCvarGivePills.IntValue), menu.DrawText(buffer);
 	if(g_ttDefibUsed[client] > 0 && g_pCvarDefibUsed.IntValue > 0)
-		menu.DrawText(tr("治愈%d/%d", g_ttDefibUsed[client], g_pCvarDefibUsed.IntValue));
+		FormatEx(buffer, sizeof(buffer), "治愈%d/%d", g_ttDefibUsed[client], g_pCvarDefibUsed.IntValue), menu.DrawText(buffer);
 	if(g_ttPaincEvent[client] > 0 && g_pCvarPaincEvent.IntValue > 0)
-		menu.DrawText(tr("尸潮%d/%d", g_ttPaincEvent[client], g_pCvarPaincEvent.IntValue));
+		FormatEx(buffer, sizeof(buffer), "尸潮%d/%d", g_ttPaincEvent[client], g_pCvarPaincEvent.IntValue), menu.DrawText(buffer);
 	if(g_ttRescued[client] > 0 && g_pCvarRescued.IntValue > 0)
-		menu.DrawText(tr("开门%d/%d", g_ttRescued[client], g_pCvarRescued.IntValue));
+		FormatEx(buffer, sizeof(buffer), "开门%d/%d", g_ttRescued[client], g_pCvarRescued.IntValue), menu.DrawText(buffer);
 	if(g_ttCleared[client] > 0 && g_pCvarCleared.IntValue > 0)
-		menu.DrawText(tr("清尸%d/%d", g_ttCleared[client], g_pCvarCleared.IntValue));
+		FormatEx(buffer, sizeof(buffer), "清尸%d/%d", g_ttCleared[client], g_pCvarCleared.IntValue), menu.DrawText(buffer);
 	menu.DrawText(" ");
 	
 	menu.Send(client, MenuHandler_Null, 1);
+	CreateTimer(1.1, Timer_Null, menu, TIMER_DATA_HNDL_CLOSE);
 }
 
 public int MenuHandler_Null(Menu menu, MenuAction action, int client, int selected)
 {
 	return 0;
+}
+
+public Action Timer_Null(Handle timer, any hdl)
+{
+	return Plugin_Continue;
 }
 
 bool:IsMoving(client)
@@ -14411,7 +14522,7 @@ stock void ForceDropVictim(int client, int target, int stagger = 3)
 	TeleportEntity(target, vPos, NULL_VECTOR, NULL_VECTOR);
 	AcceptEntityInput(target, "ClearParent");
 	
-	CreateTimer(0.3, Timer_FixAnim, GetClientSerial(target), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(0.3, Timer_FixAnim, GetClientUserId(target), TIMER_FLAG_NO_MAPCHANGE);
 	
 	if( stagger & (1<<0) )
 	{
@@ -14428,9 +14539,8 @@ stock void ForceDropVictim(int client, int target, int stagger = 3)
 
 public Action Timer_FixAnim(Handle t, any target)
 {
-	target = GetClientFromSerial(target);
-	
-	if( IsValidAliveClient(target) )
+	target = GetClientOfUserId(target);
+	if( target && IsPlayerAlive(target) )
 	{
 		int seq = GetEntProp(target, Prop_Send, "m_nSequence");
 		if( seq == 650 || seq == 665 || seq == 661 || seq == 651 || seq == 554 || seq == 551 ) // Coach, Ellis, Nick, Rochelle, Francis/Zoey, Bill/Louis
@@ -14441,6 +14551,8 @@ public Action Timer_FixAnim(Handle t, any target)
 			TeleportEntity(target, vPos, NULL_VECTOR, view_as<float>({0.0, 0.0, 0.0}));
 		}
 	}
+	
+	return Plugin_Continue;
 }
 
 stock bool IsVisibleThreats(int client)
@@ -14609,7 +14721,8 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 					event.SetInt("userid", GetClientUserId(target));
 					event.SetInt("attacker", GetClientUserId(client));
 					Event_PlayerShoved(event, "player_shoved", false);
-					event.Fire();
+					// event.Fire();
+					delete event;
 					
 					hit = true;
 				}
@@ -14633,8 +14746,8 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 						
 						DataPack data = CreateDataPack();
 						CreateDataTimer(0.08099996692352168753182763521876539546387561293452167352197635123678125317623518549426, Timer_ShoveInfected, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
-						data.WriteCell(GetClientSerial(client));
-						data.WriteCell(EntIndexToEntRef(target));
+						data.WriteCell(client);
+						data.WriteCell(target);
 					}
 					
 					// 声音
@@ -14642,10 +14755,12 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 						SNDCHAN_BODY, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vLoc);
 					
 					// 事件
+					/*
 					Event event = CreateEvent("entity_shoved");
 					event.SetInt("entityid", target);
 					event.SetInt("attacker", GetClientUserId(client));
 					event.Fire();
+					*/
 					
 					hit = true;
 				}
@@ -14666,8 +14781,8 @@ public Action Timer_ShoveInfected(Handle timer, any pack)
 	DataPack data = view_as<DataPack>(pack);
 	data.Reset();
 	
-	int client = GetClientFromSerial(data.ReadCell());
-	int infected = EntRefToEntIndex(data.ReadCell());
+	int client = data.ReadCell();
+	int infected = data.ReadCell();
 	
 	if(!IsValidAliveClient(client) || !IsValidEdict(infected))
 		return Plugin_Continue;
@@ -14851,7 +14966,6 @@ public Action L4D2_OnStagger(int target, int source)
 	if(GetPlayerEffect(target, 22))
 		return Plugin_Handled;
 	
-	/*
 	int team = GetClientTeam(target);
 	// 生还者失衡
 	if(team == 2)
@@ -14931,7 +15045,6 @@ public Action L4D2_OnStagger(int target, int source)
 			}
 		}
 	}
-	*/
 	
 	return Plugin_Continue;
 }
@@ -14960,53 +15073,16 @@ public Action OnAbilityTouch(const char[] ability, int infected, int& survivor)
 	return Plugin_Continue;
 }
 
-public Action L4D_OnPouncedOnSurvivor(int victim, int attacker)
-{
-	return OnAbilityTouch("ability_lunge", attacker, victim);
-}
-
-public Action L4D_OnGrabWithTongue(int victim, int attacker)
-{
-	if(!IsValidAliveClient(victim))
-		return Plugin_Continue;
-	
-	if((g_clSkill_1[victim] & SKL_1_GettingUP) &&
-		!GetEntProp(victim, Prop_Send, "m_isIncapacitated", 1) &&
-		!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1) &&
-		GetCurrentAttacker(victim) == -1 &&
-		(IsGettingUp(victim) || IsStaggering(victim)))
-		return Plugin_Handled;
-	
-	float time = GetEngineTime();
-	if((g_ctGodMode[victim] < -time || g_fFreezeTime[victim] > time) &&
-		GetPlayerEffect(victim, 57))
-		return Plugin_Handled;
-	
-	return Plugin_Continue;
-}
-
-public Action L4D2_OnJockeyRide(int victim, int attacker)
-{
-	return L4D_OnGrabWithTongue(victim, attacker);
-}
-
-public Action L4D2_OnStartCarryingVictim(int victim, int attacker)
-{
-	return L4D_OnGrabWithTongue(victim, attacker);
-}
-
 public OnClientPostAdminCheck(client)
 {
-	CreateTimer(5.0, AutoMenuOpen, GetClientSerial(client), TIMER_FLAG_NO_MAPCHANGE);
+	CreateTimer(5.0, AutoMenuOpen, client, TIMER_FLAG_NO_MAPCHANGE);
 }
 
 public Action:AutoMenuOpen(Handle:timer, any:client)
 {
 	if(!GetConVarInt(g_Cvarautomenu))
 		return;
-	
-	client = GetClientFromSerial(client);
-	
+
 	if(!client) return;
 	if(!IsClientInGame(client)) return;
 	if(!IsClientConnected(client)) return;
@@ -15030,7 +15106,7 @@ stock bool:AttachParticle(ent, String:particleType[], Float:time=10.0)
 		GetEntPropVector(ent, Prop_Send, "m_vecOrigin", pos);
 		pos[2] += 60;
 
-		Format(tName, sizeof(tName), "target%i", ent);
+		FormatEx(tName, sizeof(tName), "target%i", ent);
 		DispatchKeyValue(ent, "targetname", tName);
 
 		DispatchKeyValue(particle, "targetname", "l4d2_dlc2_levelup_particle");
@@ -15041,17 +15117,7 @@ stock bool:AttachParticle(ent, String:particleType[], Float:time=10.0)
 			TeleportEntity(particle, pos, NULL_VECTOR, NULL_VECTOR);
 			SetVariantString(tName);
 			AcceptEntityInput(particle, "SetParent", particle, particle, 0);
-
-			/*
-			SetVariantString("OnUser1 !self,Start,,0.0,-1");
-			AcceptEntityInput(particle, "AddOutput");
-			SetVariantString("OnUser2 !self,Stop,,4.0,-1");
-			AcceptEntityInput(particle, "AddOutput");
-			ActivateEntity(particle);
-			AcceptEntityInput(particle, "FireUser1");
-			AcceptEntityInput(particle, "FireUser2");
-			*/
-
+			
 			// SetVariantString("OnUser2 !self:Stop::4:-1");
 			// AcceptEntityInput(particle, "AddOutput", ent, particle);
 			SetVariantString("OnUser3 !self:FireUser2::4:-1");
@@ -15062,23 +15128,12 @@ stock bool:AttachParticle(ent, String:particleType[], Float:time=10.0)
 			HookSingleEntityOutput(particle, "OnUser2", ParticleHook_OnThink);
 
 			AcceptEntityInput(particle, "Start", ent, particle);
-			SetVariantString(tr("OnUser1 !self:Kill::%.2f:1", time));
+			
+			FormatEx(tName, sizeof(tName), "OnUser1 !self:Kill::%.2f:1", time);
+			SetVariantString(tName);
 			AcceptEntityInput(particle, "AddOutput", ent, particle);
 			AcceptEntityInput(particle, "FireUser1", ent, particle);
-
-			/*
-			new Handle:pack;
-			CreateDataTimer(time, DeleteParticle, pack);
-			WritePackCell(pack, particle);
-			WritePackString(pack, particleType);
-			WritePackCell(pack, ent);
-
-			new Handle:packLoop;
-			hTimerLoopEffect[ent] = CreateDataTimer(4.2, LoopParticleEffect, packLoop, TIMER_REPEAT);
-			WritePackCell(packLoop, particle);
-			WritePackCell(packLoop, ent);
-			*/
-
+			
 			return true;
 		}
 		else
@@ -15245,7 +15300,7 @@ stock void SetWeaponSpeed(int weapon, float speed)
 stock void SetWeaponSpeed2(int weapon, float speed)
 {
 	DataPack data = CreateDataPack();
-	data.WriteCell(EntIndexToEntRef(weapon));
+	data.WriteCell(weapon);
 	data.WriteFloat(speed);
 
 	RequestFrame(AttachWeaponSpeed, data);
@@ -15253,7 +15308,7 @@ stock void SetWeaponSpeed2(int weapon, float speed)
 
 stock void AdjustWeaponSpeed(int weapon, float speed)
 {
-	if(weapon == INVALID_ENT_REFERENCE || !IsValidEntity(weapon) || !IsValidEdict(weapon)/* ||
+	if(weapon <= MaxClients || !IsValidEntity(weapon) || !IsValidEdict(weapon)/* ||
 		!IsValidAliveClient(GetEntProp(weapon, Prop_Send, "m_hOwnerEntity"))*/)
 		return;
 	
@@ -15405,8 +15460,6 @@ public Action GlowHook_SetTransmit(int entity, int client)
 
 public Action:Event_RP(Handle:timer, any:client)
 {
-	client = GetClientFromSerial(client);
-	
 	if(IsValidAliveClient(client) && GetClientTeam(client) == TEAM_SURVIVORS)
 	{
 		TriggerRP(client);
@@ -15629,7 +15682,7 @@ void TriggerRP(int client, int RandomRP = -1)
 			{
 				EmitSoundToAll(SOUND_BAD,client);
 				g_csSlapCount[client] = 30;
-				CreateTimer(0.1, CommandSlapPlayer, GetClientSerial(client), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+				CreateTimer(0.1, CommandSlapPlayer, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04作业没写完就跑去网吧玩求生之路,被老爹狠打屁股30下.", client);
 			}
 		}
@@ -15670,7 +15723,7 @@ void TriggerRP(int client, int RandomRP = -1)
 			{
 				EmitSoundToAll(SOUND_BAD,client);
 				g_csSlapCount[client] += 300;
-				CreateTimer(0.1, CommandSlapTank, GetClientSerial(client), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+				CreateTimer(0.1, CommandSlapTank, client, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 				PrintToChatAll("\x03[\x05RP\x03]%N\x04决定游行太空,记得打开你的降落伞以免落地过猛!", client);
 			}
 		}
@@ -15857,7 +15910,7 @@ void TriggerRP(int client, int RandomRP = -1)
 				if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_INFECTED)
 				{
 					g_csSlapCount[i] += 100;
-					CreateTimer(0.2, CommandSlapTank, GetClientSerial(i), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+					CreateTimer(0.2, CommandSlapTank, i, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 				}
 			}
 			PrintToChatAll("\x03[\x05RP\x03]%N\x04憋出不可见之手,将所以特感拍上天了", client);
@@ -16043,11 +16096,14 @@ void TriggerRP(int client, int RandomRP = -1)
 						PrintToChat(client, "\x01[装备]你的装备栏已满,无法再获得装备.");
 					else
 					{
-						static char key[16];
+						static char key[16], buffer[64];
 						IntToString(j, key, sizeof(key));
 						static EquipData_t data;
 						if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
-							PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01 输入 !lv 查看", FormatEquip(client, data));
+						{
+							FormatEquip(client, data, buffer, sizeof(buffer));
+							PrintToChat(client, "\x03[提示]\x01 装备获得：\x05%s\x01 输入 !lv 查看", buffer);
+						}
 					}
 				}
 			}
@@ -16155,7 +16211,7 @@ void TriggerRP(int client, int RandomRP = -1)
 					if(IsClientInGame(i) && IsPlayerAlive(i) && GetClientTeam(i) == TEAM_SURVIVORS)
 					{
 						g_csSlapCount[i] += 30;
-						CreateTimer(0.5, CommandSlapPlayer, GetClientSerial(i), TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
+						CreateTimer(0.5, CommandSlapPlayer, i, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE);
 						EmitSoundToClient(i,SOUND_BAD,client);
 					}
 				}
@@ -16299,7 +16355,6 @@ void TriggerRP(int client, int RandomRP = -1)
 
 public Action:Client_RP(Handle:timer, any:client)
 {
-	client = GetClientFromSerial(client);
 	g_hRPColddown[client] = null;
 }
 
@@ -16444,10 +16499,7 @@ public ShowParticle(Float:pos[3], String:particlename[], Float:time)
 		DispatchSpawn(particle);
 		ActivateEntity(particle);
 		AcceptEntityInput(particle, "start");
-		
-		SetVariantString(tr("OnUser1 !self:Kill::%.2f:1", time));
-		AcceptEntityInput(particle, "AddOutput", particle, particle);
-		AcceptEntityInput(particle, "FireUser1", particle, particle);
+		CreateTimer(time, DeleteParticles, particle, TIMER_FLAG_NO_MAPCHANGE);
 	}
 }
 
@@ -16462,10 +16514,19 @@ public PrecacheParticle(String:particlename[])
 		DispatchSpawn(particle);
 		ActivateEntity(particle);
 		AcceptEntityInput(particle, "start");
-		
-		SetVariantString("OnUser1 !self:Kill::0.01:1");
-		AcceptEntityInput(particle, "AddOutput", particle, particle);
-		AcceptEntityInput(particle, "FireUser1", particle, particle);
+		CreateTimer(0.01, DeleteParticles, particle, TIMER_FLAG_NO_MAPCHANGE);
+	}
+}
+
+public Action:DeleteParticles(Handle:timer, any:particle)
+{
+	/* Delete particle */
+	if (IsValidEntity(particle))
+	{
+		new String:classname[64];
+		GetEdictClassname(particle, classname, sizeof(classname));
+		if (!strcmp(classname, "info_particle_system", false))
+		RemoveEdict(particle);
 	}
 }
 
@@ -16598,9 +16659,12 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 	int entity = CreateEntityByName("env_explosion");
 	if(entity == -1)
 		return;
-
-	DispatchKeyValue(entity, "iMagnitude", tr("%.0f", damage));
-	DispatchKeyValue(entity, "iRadiusOverride", tr("%.0f", radius));
+	
+	char buffer[16];
+	FloatToString(damage, buffer, sizeof(buffer));
+	DispatchKeyValue(entity, "iMagnitude", buffer);
+	FloatToString(radius, buffer, sizeof(buffer));
+	DispatchKeyValue(entity, "iRadiusOverride", buffer);
 	DispatchKeyValue(entity, "spawnflags", "6146");
 	DispatchKeyValueVector(entity, "origin", origin);
 	DispatchKeyValueFloat(entity, "DamageForce", force);
@@ -16628,15 +16692,17 @@ stock void CreateExplosion(int attacker = -1, float damage, float origin[3], flo
 
 stock bool IsGettingUp(int client)
 {
-	char result[64];
-	L4D2_GetVScriptOutput(tr("PlayerInstanceFromIndex(%d).IsGettingUp()", client), result, sizeof(result));
+	static char result[64];
+	FormatEx(result, sizeof(result), "PlayerInstanceFromIndex(%d).IsGettingUp()", client);
+	L4D2_GetVScriptOutput(result, result, sizeof(result));
 	return !strcmp(result, "true");
 }
 
 stock bool IsStaggering(int client)
 {
-	char result[64];
-	L4D2_GetVScriptOutput(tr("PlayerInstanceFromIndex(%d).IsStaggering()", client), result, sizeof(result));
+	static char result[64];
+	FormatEx(result, sizeof(result), "PlayerInstanceFromIndex(%d).IsStaggering()", client);
+	L4D2_GetVScriptOutput(result, result, sizeof(result));
 	return !strcmp(result, "true");
 }
 
@@ -17054,9 +17120,9 @@ stock void CalcPlayerAttr(int client, int& damage = 0, int& health = 0, int& spe
 	}
 }
 
-char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
+void StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 {
-	char buffer[64];
+	static char buffer[64];
 	RestoreConVar();
 
 	if(event == -1)
@@ -17073,7 +17139,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 			refResult = Plugin_Continue;
 		
 		if(refResult >= Plugin_Handled)
-			return buffer;
+			return;
 		
 		if(refResult == Plugin_Changed)
 			event = refEvent;
@@ -17199,7 +17265,9 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 				// SetEntProp(i, Prop_Send, "m_currentReviveCount", 0);
 				SetEntProp(i, Prop_Send, "m_bIsOnThirdStrike", 0);
 				SetEntProp(i, Prop_Send, "m_isGoingToDie", 0);
-				L4D2_ExecVScriptCode(tr("PlayerInstanceFromIndex(%d).SetReviveCount(%d)", i, 0));
+				
+				FormatEx(buffer, sizeof(buffer), "PlayerInstanceFromIndex(%d).SetReviveCount(%d)", i, 0);
+				L4D2_ExecVScriptCode(buffer);
 			}
 
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "死亡之门");
@@ -17241,7 +17309,7 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 				if(!IsValidAliveClient(i) || GetClientTeam(i) != 2)
 					continue;
 				
-				ApplyHealthSwap(GetClientSerial(i));
+				ApplyHealthSwap(i);
 			}
 			
 			strcopy(g_szRoundEvent, sizeof(g_szRoundEvent), "血流不止");
@@ -17265,15 +17333,6 @@ char StartRoundEvent(int event = -1, char[] text = "", int len = 0)
 
 	if(len > strlen(buffer))
 		strcopy(text, len, buffer);
-
-	return buffer;
-}
-
-char tr(const char[] text, any ...)
-{
-	char line[1024];
-	VFormat(line, sizeof(line), text, 2);
-	return line;
 }
 
 /*
@@ -17934,10 +17993,10 @@ public void TopMenuItem_GiveEquipment(TopMenu topmenu, TopMenuAction action, Top
 	
 	Menu menu = CreateMenu(MenuHandler_AdminMenu_GiveEquipment);
 	menu.SetTitle("给玩家装备 - 选择部位");
-	menu.AddItem(tr("%d", EquipPart_Body), "身");
-	menu.AddItem(tr("%d", EquipPart_Foot), "鞋");
-	menu.AddItem(tr("%d", EquipPart_Hand), "手");
-	menu.AddItem(tr("%d", EquipPart_Head), "头");
+	menu.AddItem("0", "头");
+	menu.AddItem("1", "身");
+	menu.AddItem("2", "手");
+	menu.AddItem("3", "鞋");
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	menu.Display(client, MENU_TIME_FOREVER);
@@ -18002,13 +18061,18 @@ public int MenuHandler_AdminMenu2nd_GiveEquipment(Menu menu, MenuAction action, 
 		return 0;
 	}
 	
-	static char key[16];
+	static char key[16], buffer[64];
 	IntToString(eq, key, sizeof(key));
 	static EquipData_t data;
 	if(g_mEquipData[client].GetArray(key, data, sizeof(data)) && data.valid)
-		PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 装备 \x05%s\x01。", target, FormatEquip(target, data));
+	{
+		FormatEquip(target, data, buffer, sizeof(buffer));
+		PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 装备 \x05%s\x01。", target, buffer);
+	}
 	else
-		PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 装备成功。", target);
+	{
+		PrintToChat(client, "\x03[提示]\x01 给予玩家 \x04%N\x01 装备错误。", target);
+	}
 	
 	menu.DisplayAt(client, menu.Selection, MENU_TIME_FOREVER);
 	return 0;

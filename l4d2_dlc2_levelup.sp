@@ -2103,7 +2103,7 @@ public void OnClientDisconnect(int client)
 	if(!IsFakeClient(client))
 	{
 		ClientSaveToFileSave(client);
-		CreateHideMotd(client);
+		// CreateHideMotd(client);
 	}
 	
 	Initialization(client, true);
@@ -2978,7 +2978,7 @@ void StatusSelectMenuFuncCS(int client)
 		return;
 	}
 	
-	static char buffer[32];
+	static char buffer[48];
 	
 	Panel menu = CreatePanel();
 	menu.SetTitle("全体传送");
@@ -2996,15 +2996,16 @@ void StatusSelectMenuFuncCS(int client)
 	menu.DrawItem("", ITEMDRAW_NOTEXT);
 	menu.DrawItem("返回（Back）", ITEMDRAW_CONTROL);
 	menu.DrawItem("退出（Exit）", ITEMDRAW_CONTROL);
-
-	menu.Send(client, MenuHandler_TeamTeleport, MENU_TIME_FOREVER);
+	
+	menu.Send(client, MenuHandler_TeamTeleport, 16);
+	CreateTimer(16.1, Timer_Null, menu, TIMER_DATA_HNDL_CLOSE);
 }
 
 public int MenuHandler_TeamTeleport(Menu menu, MenuAction action, int client, int selected)
 {
 	if(!IsValidClient(client) || action != MenuAction_Select)
 		return 0;
-
+	
 	if(selected == 1)
 	{
 		if(!IsPlayerAlive(client))
@@ -3297,11 +3298,8 @@ public Action Command_RandEvent(int client, int argc)
 
 void StatusChooseMenuFunc(int client, int pg = -1)
 {
-	static char buffer[32];
-	
 	Menu menu = CreateMenu(MenuHandler_MainMenu);
-	FormatEx(buffer, sizeof(buffer), "天启•天赋•装备系统(!lv)\n当前硬币：%d", g_clSkillPoint[client]);
-	menu.SetTitle(buffer);
+	menu.SetTitle("天启•天赋•装备系统(!lv)\n当前硬币：%d", g_clSkillPoint[client]);
 	menu.AddItem("1", "一级天赋(1币)");
 	menu.AddItem("2", "二级天赋(2币)");
 	menu.AddItem("3", "三级天赋(3币)");
@@ -3495,7 +3493,7 @@ void FirstJoinRespawn(int client)
 	}
 
 	CreateConfirmPanel("========= 复活 =========", "你确定要复活么？\n需要 1 硬币，现有 %d 硬币",
-		g_clSkillPoint[client]).Send(client, MenuHandler_Respawn, MENU_TIME_FOREVER);
+		g_clSkillPoint[client]).Send(client, MenuHandler_Respawn, 32);
 }
 
 public int MenuHandler_Respawn(Menu menu, MenuAction action, int client, int selected)
@@ -3886,8 +3884,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	static char buffer1[16], buffer2[64];
 	
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	FormatEx(buffer2, sizeof(buffer2), "一级天赋(1硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
-	menu.SetTitle(buffer2);
+	menu.SetTitle("一级天赋(1硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
 	
 	FORMAT_MENU_ITEM_1(SKL_1_MaxHealth,"血量上限+50");
 	FORMAT_MENU_ITEM_1(SKL_1_Movement,"移动速度+1％");
@@ -3923,8 +3920,7 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 	static char buffer1[16], buffer2[64];
 	
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	FormatEx(buffer2, sizeof(buffer2), "二级天赋(2硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
-	menu.SetTitle(buffer2);
+	menu.SetTitle("二级天赋(2硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
 	
 	if(g_bHaveWeaponHandling)
 	{
@@ -3995,8 +3991,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	static char buffer1[16], buffer2[64];
 	
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	FormatEx(buffer2, sizeof(buffer2), "三级天赋(3硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
-	menu.SetTitle(buffer2);
+	menu.SetTitle("三级天赋(3硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
 	
 	FORMAT_MENU_ITEM_3(SKL_3_Sacrifice,"「牺牲」死亡1/3清尸");
 	FORMAT_MENU_ITEM_3(SKL_3_Respawn,"「永生」复活几率+1/10");
@@ -4033,8 +4028,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 	static char buffer1[16], buffer2[64];
 	
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	FormatEx(buffer2, sizeof(buffer2), "四级天赋(4硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
-	menu.SetTitle(buffer2);
+	menu.SetTitle("四级天赋(4硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
 	
 	FORMAT_MENU_ITEM_4(SKL_4_ClawHeal,"被坦克击中恢复生命");
 	FORMAT_MENU_ITEM_4(SKL_4_DmgExtra,"暴击率+20‰");
@@ -4089,14 +4083,13 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 	static char buffer1[16], buffer2[64];
 	
 	Menu menu = CreateMenu(MenuHandler_Skill);
-	FormatEx(buffer2, sizeof(buffer2), "五级天赋(5硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
-	menu.SetTitle(buffer2);
+	menu.SetTitle("五级天赋(5硬币)\n你现在有 %d 硬币", g_clSkillPoint[client]);
 	
 	FORMAT_MENU_ITEM_5(SKL_5_FireBullet,"主武器1/4几率发射燃烧子弹");
 	FORMAT_MENU_ITEM_5(SKL_5_ExpBullet,"主武器1/4几率发射高爆子弹");
 	FORMAT_MENU_ITEM_5(SKL_5_RetardBullet,"主武器/近战击中特感有几率减速");
 	FORMAT_MENU_ITEM_5(SKL_5_DmgExtra,"牺牲暴击伤害大大增加暴击率");
-	FORMAT_MENU_ITEM_5(SKL_5_Vampire,"近战攻击回复生命");
+	FORMAT_MENU_ITEM_5(SKL_5_Vampire,"近战攻击特感回复生命");
 	FORMAT_MENU_ITEM_5(SKL_5_InfAmmo,"弹药量低时爆头击杀补充5％");
 	FORMAT_MENU_ITEM_5(SKL_5_Overkill,"对普感1/4几率暴击");
 	FORMAT_MENU_ITEM_5(SKL_5_RocketDude,"允许榴弹跳");
@@ -4539,21 +4532,16 @@ void StatusSelectMenuFuncEqment(int client)
 	menu.DrawItem("", ITEMDRAW_NOTEXT);
 	menu.DrawItem("返回（Back）", ITEMDRAW_CONTROL);
 	menu.DrawItem("退出（Exit）", ITEMDRAW_CONTROL);
-
-	menu.Send(client, MenuHandler_EquipMain, MENU_TIME_FOREVER);
+	
+	menu.Send(client, MenuHandler_EquipMain, 24);
+	CreateTimer(24.1, Timer_Null, menu, TIMER_DATA_HNDL_CLOSE);
 }
 
 public int MenuHandler_EquipMain(Menu menu, MenuAction action, int client, int selected)
 {
 	if(!IsValidClient(client) || action != MenuAction_Select)
 		return 0;
-
-	if(selected == 9)
-	{
-		StatusChooseMenuFunc(client);
-		return 0;
-	}
-
+	
 	switch(selected)
 	{
 		case 1: StatusEqmFuncA(client, true);
@@ -4572,8 +4560,9 @@ public int MenuHandler_EquipMain(Menu menu, MenuAction action, int client, int s
 			
 			StatusSelectMenuFuncEqment(client);
 		}
+		case 9: StatusChooseMenuFunc(client);
 	}
-
+	
 	return 0;
 }
 
@@ -4669,14 +4658,15 @@ void StatusEqmFuncD(int client)
 	menu.DrawItem("返回（Back）", ITEMDRAW_CONTROL);
 	menu.DrawItem("退出（Exit）", ITEMDRAW_CONTROL);
 
-	menu.Send(client, MenuHandler_EquipDescription, MENU_TIME_FOREVER);
+	menu.Send(client, MenuHandler_EquipDescription, 24);
+	CreateTimer(24.1, Timer_Null, menu, TIMER_DATA_HNDL_CLOSE);
 }
 
 public int MenuHandler_EquipDescription(Menu menu, MenuAction action, int client, int selected)
 {
 	if(!IsValidClient(client) || action != MenuAction_Select)
 		return 0;
-
+	
 	if(selected == 9)
 	{
 		StatusSelectMenuFuncEqment(client);
@@ -4737,6 +4727,8 @@ stock Panel CreateConfirmPanel(const char[] title, const char[] text = "", any .
 	menu.DrawItem("", ITEMDRAW_NOTEXT);
 	menu.DrawItem("返回（Back）", ITEMDRAW_CONTROL);
 	menu.DrawItem("退出（Exit）", ITEMDRAW_CONTROL);
+	
+	CreateTimer(32.1, Timer_Null, menu, TIMER_DATA_HNDL_CLOSE);
 	return menu;
 }
 
@@ -4768,7 +4760,7 @@ void StatusEqmFuncB(int client)
 	
 	CreateConfirmPanel("========= 天启幸运箱 =========",
 		"确定打开天启幸运箱？\n需要 1 币，现有 %d 币",
-		g_clSkillPoint[client]).Send(client, MenuHandler_OpenLucky, MENU_TIME_FOREVER);
+		g_clSkillPoint[client]).Send(client, MenuHandler_OpenLucky, 32);
 }
 
 void StatusEqmFuncC(int client)
@@ -4782,7 +4774,7 @@ void StatusEqmFuncC(int client)
 	
 	CreateConfirmPanel("========= 装备幸运箱 =========",
 		"确定打开装备幸运箱？\n需要 3 币，现有 %d 币",
-		g_clSkillPoint[client]).Send(client, MenuHandler_OpenEquipment, MENU_TIME_FOREVER);
+		g_clSkillPoint[client]).Send(client, MenuHandler_OpenEquipment, 32);
 }
 
 public int MenuHandler_OpenEquipment(Menu menu, MenuAction action, int client, int selected)
@@ -6201,29 +6193,6 @@ stock int GetClientEyeAiming(int client, float origin[3] = NULL_VECTOR, int mask
 	return entity;
 }
 
-// 获取玩家瞄准的位置的距离
-stock float GetClientEyeDistance(int client, float origin[3] = NULL_VECTOR, int mask = MASK_SHOT)
-{
-	if(!IsValidClient(client) || !IsPlayerAlive(client))
-		return 0.0;
-
-	float eye[3], angle[3];
-	GetClientEyePosition(client, eye);
-	GetClientEyeAngles(client, angle);
-
-	Handle trace = TR_TraceRayFilterEx(eye, angle, mask, RayType_Infinite, TraceFilter_NonPlayerOtherAny, client);
-
-	float distance = 0.0;
-	if(TR_DidHit(trace))
-	{
-		TR_GetEndPosition(origin, trace);
-		distance = GetVectorDistance(eye, origin, false);
-	}
-
-	trace.Close();
-	return distance;
-}
-
 public Action Timer_ResetWeaponSpeed(Handle timer, any weapon)
 {
 	if(weapon <= MaxClients || !IsValidEntity(weapon))
@@ -7437,7 +7406,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			// 【嗜血如命】激活时允许主武器触发，否则只能由近战武器触发
 			if ((g_bIsAngryBloodthirstyActive || isMeleeHack) && (g_bIsAngryBloodthirstyActive || (g_clSkill_5[attacker] & SKL_5_Vampire)))
 			{
-				AddHealth(attacker, 10);
+				AddHealth(attacker, 25);
 			}
 		}
 		
@@ -11228,20 +11197,6 @@ public Action Timer_UnVimit(Handle timer, any userid)
 	return Plugin_Continue;
 }
 
-stock void PrintToChatTeam(int team, const char[] text, any ...)
-{
-	char buffer[255];
-	VFormat(buffer, sizeof(buffer), text, 3);
-
-	for(int i = 1; i <= MaxClients; ++i)
-	{
-		if(!IsValidClient(i) || IsFakeClient(i) || GetClientTeam(i) != team)
-			continue;
-
-		PrintToChat(i, buffer);
-	}
-}
-
 public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -11257,7 +11212,7 @@ public void Event_PlayerTeam(Event event, const char[] eventName, bool dontBroad
 	if(!bot && (disconnect || newTeam <= 1))
 	{
 		// PrintToServer("玩家 %N 不再进行游戏了。", client);
-		CreateHideMotd(client);
+		// CreateHideMotd(client);
 	}
 
 	if(!IsFakeClient(client))
@@ -14439,25 +14394,6 @@ public Action Timer_FixAnim(Handle t, any target)
 	return Plugin_Continue;
 }
 
-stock bool IsVisibleThreats(int client)
-{
-	if(!IsValidAliveClient(client))
-		return false;
-	
-	return (GetEntProp(client, Prop_Send, "m_hasVisibleThreats", 1) != 0 ||
-		GetEntProp(client, Prop_Send, "m_clientIntensity") > 0);
-	
-	/*
-	return (GetEntProp(client, Prop_Send, "m_hasVisibleThreats") > 0 ||
-		GetEntProp(client, Prop_Send, "m_clientIntensity") >= 10 ||
-		GetEntPropEnt(client, Prop_Send, "m_jockeyAttacker") > 0 ||
-		GetEntPropEnt(client, Prop_Send, "m_pummelAttacker") > 0 ||
-		GetEntPropEnt(client, Prop_Send, "m_pounceAttacker") ||
-		GetEntPropEnt(client, Prop_Send, "m_tongueOwner") > 0 ||
-		GetEntPropEnt(client, Prop_Send, "m_carryAttacker") > 0);
-	*/
-}
-
 stock int GetCurrentAttacker(int client)
 {
 	if(!IsValidAliveClient(client))
@@ -14975,7 +14911,7 @@ public Action AutoMenuOpen(Handle timer, any userid)
 	if(!IsPlayerAlive(client) || g_clSkillPoint[client] <= 0) return Plugin_Continue;
 	if(IsFakeClient(client)) return Plugin_Continue;
 	if(GetClientTeam(client) == TEAM_SURVIVORS) StatusChooseMenuFunc(client);
-	CreateHideMotd(client);
+	// CreateHideMotd(client);
 	
 	return Plugin_Continue;
 }
@@ -16346,6 +16282,7 @@ public Action Timer_RestoreDefault(Handle timer, any client)
 // 以隐藏的方式打开一个 MOTD 浏览器（也可以用于关闭）
 // 这个浏览器将会在客户端后台运行
 // 也就是如果这个网页播放的声音客户端听得到，但是看不到网页
+/*
 stock void CreateHideMotd(int client, const char[] url = "about:blank", const char[] title = "这是一个标题")
 {
 	if(!IsValidClient(client))
@@ -16368,6 +16305,7 @@ stock void CreateHideMotd(int client, const char[] url = "about:blank", const ch
 
 	ShowVGUIPanel(client, "info", kv, false);
 }
+*/
 
 stock void CreateExplosion(int attacker = -1, float damage, float origin[3], float radius, const char[] classname = "", int inflictor = -1, float force = 0.0)
 {

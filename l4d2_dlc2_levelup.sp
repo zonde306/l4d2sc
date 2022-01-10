@@ -50,6 +50,7 @@ public Plugin:myinfo =
 #define SOUND_CROW					"ambient/animal/crow_2.wav"
 #define SOUND_EXPLOSIVE				"weapons/hegrenade/explode5.wav"
 #define SOUND_GIFT					"ui/gift_drop.wav"
+#define SOUND_BILE_BGM				"music/terror/pukricide.wav"
 
 #define g_flSoH_rate 0.4
 #define ZC_SMOKER			1
@@ -218,6 +219,7 @@ const int SKL_5_Resurrect = (1 << 13);
 const int SKL_5_Lethal = (1 << 14);
 const int SKL_5_Machine = (1 << 15);
 const int SKL_5_Robot = (1 << 16);
+const int SKL_5_ThrowMelee = (1 << 17);
 
 new g_ttTankKilled		= 0;
 new g_iNextPAttO		= -1;
@@ -692,12 +694,13 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	MarkNativeAsOptional("IncapWeapon_SetAllowedClient");
 	MarkNativeAsOptional("SelfHelp_SetAllowedClient");
 	MarkNativeAsOptional("PrototypeGrenade_SetAllowedClient");
+	MarkNativeAsOptional("ThrowMelee_SetAllowedClient");
 	
 	return APLRes_Success;
 }
 
 bool g_bHaveLethal = false, g_bHaveProtector = false, g_bHaveRobot = false, g_bHaveIncapWeapon = false,
-	g_bHaveWeaponHandling = false, g_bHaveSelfHelp = false, g_bHaveGrenades = false;
+	g_bHaveWeaponHandling = false, g_bHaveSelfHelp = false, g_bHaveGrenades = false, g_bHaveMelee = false;
 
 // 这几个暂时没有 inc 文件
 native bool Lethal_SetAllowedClient(int client, bool enable);
@@ -706,6 +709,7 @@ native bool Robot_SetAllowedClient(int client, bool enable);
 native bool IncapWeapon_SetAllowedClient(int client, bool enable);
 native bool SelfHelp_SetAllowedClient(int client, bool enable);
 native bool PrototypeGrenade_SetAllowedClient(int client, bool enable);
+native bool ThrowMelee_SetAllowedClient(int client, bool enable);
 
 public void OnAllPluginsLoaded()
 {
@@ -716,6 +720,7 @@ public void OnAllPluginsLoaded()
 	g_bHaveWeaponHandling = LibraryExists("WeaponHandling");
 	g_bHaveSelfHelp = LibraryExists("self_help_includes");
 	g_bHaveGrenades = LibraryExists("prototype_grenades_includes");
+	g_bHaveMelee = LibraryExists("throwmelee_helpers");
 }
 
 public void OnLibraryAdded(const char[] libary)
@@ -734,6 +739,8 @@ public void OnLibraryAdded(const char[] libary)
 		g_bHaveSelfHelp = true;
 	else if(!strcmp(libary, "prototype_grenades_includes"))
 		g_bHaveGrenades = true;
+	else if(!strcmp(libary, "throwmelee_helpers"))
+		g_bHaveMelee = true;
 }
 
 public void OnLibraryRemoved(const char[] libary)
@@ -752,6 +759,8 @@ public void OnLibraryRemoved(const char[] libary)
 		g_bHaveSelfHelp = false;
 	else if(!strcmp(libary, "prototype_grenades_includes"))
 		g_bHaveGrenades = false;
+	else if(!strcmp(libary, "throwmelee_helpers"))
+		g_bHaveMelee = false;
 }
 
 public void OnPluginStart()
@@ -765,8 +774,8 @@ public void OnPluginStart()
 	g_Cvarhppack = CreateConVar("lv_hppack", "0", "是否开启开局自动回血", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarSaveStats = CreateConVar("lv_save_stats", "0", "保存奖励计数(进度)", FCVAR_NONE, true, 0.0, true, 1.0);
 	g_pCvarEquipment = CreateConVar("lv_enable_eq", "1", "是否开启装备功能", FCVAR_NONE, true, 0.0, true, 1.0);
-	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "0", "为生还者机器人生存随机属性.0=禁用.1/2/4/8/16=技能.32/64/128/256=装备.262144=怒气技(或许)\n512/1024/2048/4096=满级装备.8192/16384/32768/65536/131702=满级技能.524288=怒气技(必然)", FCVAR_NONE, true, 0.0, true, 2.0);
-	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "0", "为感染者机器人生存随机属性.0=禁用.1/2/4/8/16=技能.32/64/128/256=装备.262144=怒气技(或许)\n512/1024/2048/4096=满级装备.8192/16384/32768/65536/131702=满级技能.524288=怒气技(必然)", FCVAR_NONE, true, 0.0, true, 2.0);
+	g_pCvarSurvivorBot = CreateConVar("lv_survivor_bot", "0", "为生还者机器人生存随机属性.0=禁用.1/2/4/8/16=技能.32/64/128/256=装备.262144=怒气技(或许)\n512/1024/2048/4096=满级装备.8192/16384/32768/65536/131702=满级技能.524288=怒气技(必然)", FCVAR_NONE, true, 0.0, true, 1048575.0);
+	g_pCvarInfectedBot = CreateConVar("lv_infected_bot", "0", "为感染者机器人生存随机属性.0=禁用.1/2/4/8/16=技能.32/64/128/256=装备.262144=怒气技(或许)\n512/1024/2048/4096=满级装备.8192/16384/32768/65536/131702=满级技能.524288=怒气技(必然)", FCVAR_NONE, true, 0.0, true, 1048575.0);
 	g_CvarSoundLevel = CreateConVar("lv_sound_level", "items/suitchargeok1.wav", "天赋技能选单声音文件途径");
 	cv_particle = CreateConVar("lv_portals_particle", "electrical_arc_01_system", "存读点特效", FCVAR_NONE);
 	cv_sndPortalERROR = CreateConVar("lv_portals_sounderror","buttons/blip2.wav", "存点声音文件途径", FCVAR_NONE);
@@ -880,7 +889,7 @@ public void OnPluginStart()
 	AddCommandListener(Command_Give, "give");
 	AddCommandListener(Command_Away, "go_away_from_keyboard");
 	// AddCommandListener(Command_Scripted, "scripted_user_func");
-
+	
 	// HookEvent("tank_spawn", Event_TankSpawn);
 	HookEvent("pills_used", Event_PillsUsed);
 	HookEvent("adrenaline_used", Event_AdrenalineUsed);
@@ -1385,8 +1394,9 @@ public void OnMapStart()
 	g_iModelBeam = PrecacheModel("materials/vgui/white_additive.vmt");
 
 	GetConVarString(g_CvarSoundLevel, g_soundLevel, sizeof(g_soundLevel));
-	PrecacheSound(g_soundLevel, true);
-	PrecacheSound(SOUND_GIFT, true);
+	PrecacheSound(g_soundLevel);
+	PrecacheSound(SOUND_GIFT);
+	PrecacheSound(SOUND_BILE_BGM);
 	
 	for(int i = 0; i < sizeof(g_sndShoveInfected); ++i)
 		PrecacheSound(g_sndShoveInfected[i], true);
@@ -1400,15 +1410,15 @@ public void OnMapStart()
 	PrecacheParticle(g_particle);
 	PrecacheParticle(PARTICLE_BLOOD);
 	
-	PrecacheSound(g_sndPortalERROR, true);
-	PrecacheSound(g_sndPortalFX, true);
-	PrecacheSound(SOUND_FREEZE, true);
-	PrecacheSound(SOUND_GOOD, true);
-	PrecacheSound(SOUND_BAD, true);
-	PrecacheSound(SOUND_BCLAW, true);
-	PrecacheSound(SOUND_WARP, true);
-	PrecacheSound(SOUND_Ball, true);
-	PrecacheSound(SOUND_Bomb, true);
+	PrecacheSound(g_sndPortalERROR);
+	PrecacheSound(g_sndPortalFX);
+	PrecacheSound(SOUND_FREEZE);
+	PrecacheSound(SOUND_GOOD);
+	PrecacheSound(SOUND_BAD);
+	PrecacheSound(SOUND_BCLAW);
+	PrecacheSound(SOUND_WARP);
+	PrecacheSound(SOUND_Ball);
+	PrecacheSound(SOUND_Bomb);
 	// PrecacheSound(SOUND_IMPACT1);
 	// PrecacheSound(SOUND_IMPACT2);
 	PrecacheSound(SOUND_STEEL);
@@ -1576,6 +1586,8 @@ public void Event_RoundEnd(Event event, const char[] event_name, bool dontBroadc
 	g_bIsGamePlaying = false;
 	// g_aDoorHandled.Clear();
 	
+	bool stats = g_pCvarSaveStats.BoolValue;
+	
 	for(new i = 1; i <= MaxClients; i++)
 	{
 		ClientSaveToFileSave(i);
@@ -1604,6 +1616,13 @@ public void Event_RoundEnd(Event event, const char[] event_name, bool dontBroadc
 			g_fFreezeTime[i] = 0.0;
 		if(g_hTimerMinigun[i] != null)
 			delete g_hTimerMinigun[i];
+		
+		if(!stats)
+		{
+			g_ttCommonKilled[i] = g_ttDefibUsed[i] = g_ttGivePills[i] = g_ttOtherRevived[i] =
+				g_ttProtected[i] = g_ttSpecialKilled[i] = g_csSlapCount[i] = g_ttCleared[i] =
+				g_ttPaincEvent[i] = g_ttRescued[i] = 0;
+		}
 	}
 	
 	RestoreConVar();
@@ -2287,7 +2306,7 @@ void Initialization(int client, bool invalid = false)
 	// SDKUnhook(client, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	// SDKUnhook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
-	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
+	// SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKUnhook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
@@ -2305,6 +2324,8 @@ void Initialization(int client, bool invalid = false)
 		SelfHelp_SetAllowedClient(client, false);
 	if(g_bHaveGrenades && NATIVE_EXISTS("PrototypeGrenade_SetAllowedClient"))
 		PrototypeGrenade_SetAllowedClient(client, false);
+	if(g_bHaveMelee && NATIVE_EXISTS("ThrowMelee_SetAllowedClient"))
+		ThrowMelee_SetAllowedClient(client, false);
 	
 	if(toDelete1 != null)
 		delete toDelete1;
@@ -4124,6 +4145,11 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 		FORMAT_MENU_ITEM_5(SKL_5_Robot,"输入!robot创建护卫枪");
 	}
 	
+	if(g_bHaveMelee)
+	{
+		FORMAT_MENU_ITEM_5(SKL_5_ThrowMelee,"近战武器可以投掷(中键)");
+	}
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	
@@ -5607,8 +5633,6 @@ stock void FreezePlayer(int client, float time)
 			time = refTime;
 	}
 	
-	g_fFreezeTime[client] = GetEngineTime() + time;
-	
 	if(!IsFakeClient(client))
 	{
 		// ClientCommand(client, "play \"physics/glass/glass_impact_bullet4.wav\"");
@@ -5616,12 +5640,16 @@ stock void FreezePlayer(int client, float time)
 		PrintHintText(client, "你被冻结 %.0f 秒", time);
 	}
 	
-	// CheatCommandEx(client, "stopsound");
-	SetEntPropFloat(client, Prop_Send, "m_TimeForceExternalView", 99999.3);
-	// SetEntityMoveType(client, MOVETYPE_NONE);
-	SetEntityRenderColor(client, 0, 128, 255, 192);
-	SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0xFFFFFFFF);
-	SetEntityFlags(client, GetEntityFlags(client) | FL_FROZEN | FL_FREEZING);
+	{
+		g_fFreezeTime[client] = GetEngineTime() + time;
+		
+		// CheatCommandEx(client, "stopsound");
+		SetEntPropFloat(client, Prop_Send, "m_TimeForceExternalView", 99999.3);
+		// SetEntityMoveType(client, MOVETYPE_NONE);
+		SetEntityRenderColor(client, 0, 128, 255, 192);
+		SetEntProp(client, Prop_Data, "m_afButtonDisabled", 0xFFFFFFFF);
+		SetEntityFlags(client, GetEntityFlags(client) | FL_FROZEN | FL_FREEZING);
+	}
 }
 
 public void OnGameFrame()
@@ -6462,7 +6490,7 @@ public void OnEntityDestroyed(int entity)
 	// SDKUnhook(entity, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(entity, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	// SDKUnhook(entity, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
-	SDKUnhook(entity, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
+	// SDKUnhook(entity, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(entity, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(entity, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKUnhook(entity, SDKHook_PreThink, PlayerHook_OnReloadThink);
@@ -11165,17 +11193,21 @@ void UpdateVomitDuration(any client)
 	}
 	
 	if(g_hChaseTimer[client] != null)
+	{
 		delete g_hChaseTimer[client];
+	}
+	else	// 避免刷出多次尸潮
+	{
+		// 刷尸潮
+		static char buffer[64];
+		CheatCommand(client, "z_spawn_old", "mob");
+		FormatEx(buffer, sizeof(buffer), "RushVictim(PlayerInstanceFromIndex(%d),1024.0)", client);
+		L4D2_RunScript(buffer);
+	}
 	
+	EmitSoundToClient(client, SOUND_BILE_BGM, _, _, _, SND_STOP);
 	g_hChaseTimer[client] = CreateTimer(cv_bile_duration.FloatValue, Timer_UnVimit, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 	// L4D_OnITExpired(client);
-	
-	static char buffer[64];
-	
-	// 刷尸潮
-	CheatCommand(client, "z_spawn_old", "mob");
-	FormatEx(buffer, sizeof(buffer), "RushVictim(PlayerInstanceFromIndex(%d),1024.0)", client);
-	L4D2_RunScript(buffer);
 }
 
 public Action Timer_UnVimit(Handle timer, any userid)
@@ -11503,7 +11535,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	// SDKUnhook(client, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
 	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
 	// SDKUnhook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
-	SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
+	// SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKUnhook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
@@ -11514,8 +11546,10 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	// SDKHook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
 	SDKHook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 	
+	/*
 	if(g_fMaxSpeedModify[client] != 1.0 || GetPlayerEffect(client, 38))
 		SDKHook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
+	*/
 	
 	if(g_clSkill_1[client] & SKL_1_NoRecoil)
 		SDKHook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
@@ -11550,6 +11584,8 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		SelfHelp_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_SelfHelp));
 	if(g_bHaveGrenades && NATIVE_EXISTS("PrototypeGrenade_SetAllowedClient"))
 		PrototypeGrenade_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_PrototypeGrenade));
+	if(g_bHaveMelee && NATIVE_EXISTS("ThrowMelee_SetAllowedClient"))
+		ThrowMelee_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_ThrowMelee));
 }
 
 public void PlayerHook_OnPostThinkPost(int client)
@@ -11567,6 +11603,7 @@ public void PlayerHook_OnPostThinkPost(int client)
 	}
 }
 
+/*
 public void PlayerHook_OnPreThinkPost(int client)
 {
 	if(GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) ||
@@ -11597,10 +11634,20 @@ public void PlayerHook_OnPreThinkPost(int client)
 	
 	SetEntPropFloat(client, Prop_Send, "m_flMaxspeed", maxspeed);
 }
+*/
 
-/*
 public Action L4D_OnGetRunTopSpeed(int client, float &retVal)
 {
+	if(!GetEntProp(client, Prop_Send, "m_bAdrenalineActive", 1) &&
+		GetClientTeam(client) == 2 && GetPlayerEffect(client, 38))
+	{
+		static ConVar survivor_speed;
+		if(survivor_speed == null)
+			survivor_speed = FindConVar("survivor_speed");
+		if(retVal < survivor_speed.FloatValue)
+			retVal = survivor_speed.FloatValue;
+	}
+	
 	if(g_fMaxSpeedModify[client] >= 0.0)
 	{
 		retVal *= g_fMaxSpeedModify[client];
@@ -11631,7 +11678,6 @@ public Action L4D_OnGetWalkTopSpeed(int client, float &retVal)
 	
 	return Plugin_Continue;
 }
-*/
 
 public int PlayerHook_OnGetMaxHealth(int client)
 {
@@ -12747,6 +12793,8 @@ void OnSkillAttach(int client, int level, int skill)
 		PrintHintText(client, "***聊天框输入!gun创建哨塔***");
 	else if(level == 5 && skill == SKL_5_Robot)
 		PrintHintText(client, "***聊天框输入!robot创建护卫***");
+	else if(level == 5 && skill == SKL_5_ThrowMelee)
+		PrintHintText(client, "***手持近战武器按鼠标中键可投掷***");
 	else if(level == 2 && skill == SKL_2_QuickRevive)
 		CheatCommand(client, "give", "defibrillator");
 	else if(level == 2 && skill == SKL_2_PrototypeGrenade)

@@ -36,6 +36,7 @@ Fixed - Corrected an issue with admins triggering jump protection
 #include <sourcemod>
 #include <sdktools>
 #include <sdkhooks>
+#include <left4dhooks>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -172,7 +173,7 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 
 		if (IsValidClient(attacker) && IsClientInGame(attacker) && GetClientTeam(attacker) == 2 && !IsClientAdmin(attacker) && !IsFakeClient(attacker))
 		{
-			if (damage <= 0.0 || GetEngineTime() < fFirstSpawn[attacker])
+			if (damage <= 0.0 || GetEngineTime() < fFirstSpawn[attacker] || !L4D_HasAnySurvivorLeftSafeArea() || L4D_IsInFirstCheckpoint(victim))
 			{
 				if (attacker == victim || GetEngineTime() < fFirstSpawnImmunity[attacker])
 					return Plugin_Handled;
@@ -271,7 +272,7 @@ stock void HandleClient(int client)
 {
 	if (GetConVarInt(KickType) == 1)
 	{
-		PrintToChatAll("\x05玩家 \x04%N \x05因为搞事情而被送走", client);
+		// PrintToChatAll("\x05玩家 \x04%N \x05因为搞事情而被送走", client);
 		KickClient(client, sMessage);	
 	}
 	else if (GetConVarInt(KickType) == 2)

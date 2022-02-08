@@ -19,7 +19,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.2.3",
+	version = "1.2.4",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -478,8 +478,8 @@ new g_stFallDamageKilled = 0;
 bool g_bHasTeleportActived = false;
 bool g_bHasFirstJoin[MAXPLAYERS+1];
 bool g_bHasJumping[MAXPLAYERS+1];
-bool g_bIsPaincEvent = false;
-bool g_bIsPaincIncap = false;
+// bool g_bIsPaincEvent = false;
+// bool g_bIsPaincIncap = false;
 int g_iChaseEntity[MAXPLAYERS+1];
 Handle g_hChaseTimer[MAXPLAYERS+1];
 
@@ -527,7 +527,7 @@ int g_iCommonHealth = 50;
 bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS,
 	g_pCvarSaveStats, g_pCvarBotRP, g_pCvarBotBuy;
-Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/;
+Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/, g_hDetourAmmoMaxCarry = null;
 Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null;
 GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
 	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent, g_fwOnAngrySkill, g_fwOnAngryPoint;
@@ -926,7 +926,7 @@ public void OnPluginStart()
 	HookEvent("mission_lost", Event_MissionLost, EventHookMode_PostNoCopy);
 	HookEvent("player_falldamage", Event_PlayerFallDamage);
 	HookEvent("award_earned", Event_AwardEarned);
-	HookEvent("player_complete_sacrifice", Event_PlayerSacrifice);
+	// HookEvent("player_complete_sacrifice", Event_PlayerSacrifice);
 	// HookEvent("charger_killed", Event_ChargerKilled);
 	// HookEvent("hunter_headshot", Event_HunterKilled);
 	HookEvent("scavenge_match_finished", Event_VersusFinish);
@@ -941,10 +941,10 @@ public void OnPluginStart()
 	// HookEvent("rescue_door_open", Event_RescueDoorOpen);
 	// HookEvent("success_checkpoint_button_used", Event_ButtonPressed);
 	// HookEvent("witch_killed", Event_WitchKilled);
-	HookEvent("area_cleared", Event_AreaCleared);
+	// HookEvent("area_cleared", Event_AreaCleared);
 	// HookEvent("vomit_bomb_tank", Event_VomitjarTank);
-	HookEvent("create_panic_event", Event_PaincEventStart, EventHookMode_PostNoCopy);
-	HookEvent("panic_event_finished", Event_PaincEventStop, EventHookMode_PostNoCopy);
+	// HookEvent("create_panic_event", Event_PaincEventStart, EventHookMode_PostNoCopy);
+	// HookEvent("panic_event_finished", Event_PaincEventStop, EventHookMode_PostNoCopy);
 	// HookEvent("strongman_bell_knocked_off", Event_StrongmanTrigged);
 	// HookEvent("molotov_thrown", Event_MolotovThrown);
 	// HookEvent("stashwhacker_game_won", Event_StashwhackerTrigged);
@@ -973,8 +973,8 @@ public void OnPluginStart()
 	HookEvent("player_left_safe_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("start_holdout", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	HookEvent("versus_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
-	HookEvent("survival_at_30min", Event_SurvivalAt30Min, EventHookMode_PostNoCopy);
-	HookEvent("survival_at_10min", Event_SurvivalAt10Min, EventHookMode_PostNoCopy);
+	// HookEvent("survival_at_30min", Event_SurvivalAt30Min, EventHookMode_PostNoCopy);
+	// HookEvent("survival_at_10min", Event_SurvivalAt10Min, EventHookMode_PostNoCopy);
 	HookEvent("tongue_grab", Event_PlayerGrabbed);
 	HookEvent("lunge_pounce", Event_PlayerGrabbed);
 	HookEvent("jockey_ride", Event_PlayerGrabbed);
@@ -987,11 +987,11 @@ public void OnPluginStart()
 	HookEvent("pounce_stopped", Event_PlayerReleased);
 	HookEvent("pounce_end", Event_PlayerReleased);
 	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabbed);
-	HookEvent("revive_begin", Event_PlayerReviveBegging);
+	// HookEvent("revive_begin", Event_PlayerReviveBegging);
 	HookEvent("revive_end", Event_PlayerReviveEnded);
-	HookEvent("achievement_earned", Event_AchievementEarend);
-	HookEvent("stashwhacker_game_won", Event_StashwhackerWon);
-	HookEvent("strongman_bell_knocked_off", Event_StrongmanBell);
+	// HookEvent("achievement_earned", Event_AchievementEarend);
+	// HookEvent("stashwhacker_game_won", Event_StashwhackerWon);
+	// HookEvent("strongman_bell_knocked_off", Event_StrongmanBell);
 	
 	// 检查第一回合用
 	// HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
@@ -1202,6 +1202,21 @@ public void OnPluginStart()
 			StartPrepSDKCall(SDKCall_Entity);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "ResetEntityState"))
 				g_pfnResetEntityState = EndPrepSDKCall();
+			
+			delete hGameData;
+		}
+	}
+	
+	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4d_reservecontrol");
+	if( FileExists(sPath) )
+	{
+		Handle hGameData = LoadGameConfigFile("l4d_reservecontrol");
+		if( hGameData )
+		{
+			g_hDetourAmmoMaxCarry = DHookCreateFromConf(hGameData, "CAmmoDef::MaxCarry");
+			if(g_hDetourAmmoMaxCarry == null ||
+				!DHookEnableDetour(g_hDetourAmmoMaxCarry, true, AmmoDefMaxCarryPost))
+				LogError("l4d2_dlc2_levelup: CAmmoDef::MaxCarry Not Found.");
 			
 			delete hGameData;
 		}
@@ -1703,6 +1718,7 @@ public void Event_MissionLost(Event event, const char[] event_name, bool dontBro
 	RestoreConVar();
 }
 
+/*
 public void Event_SurvivalAt10Min(Event event, const char[] event_name, bool dontBroadcast)
 {
 	int num_humans = 0;
@@ -1744,6 +1760,7 @@ public void Event_SurvivalAt30Min(Event event, const char[] event_name, bool don
 			PrintToChat(i, "\x03[提示]\x01 你因为生存了 30 分钟而获得 %d 硬币。", num_humans * 3);
 	}
 }
+*/
 
 public void Event_PlayerLeftStartArea(Event event, const char[] event_name, bool dontBroadcast)
 {
@@ -1959,6 +1976,7 @@ public void Event_PlayerReleased(Event event, const char[] event_name, bool dont
 		}
 		else if(!strcmp(event_name, "charger_carry_end", false))
 		{
+			// 触发 charger_carry_end 后并不会立即触发 charger_pummel_start
 			CreateTimer(3.0, Timer_CheckPummelState, GetClientUserId(attacker), TIMER_FLAG_NO_MAPCHANGE);
 		}
 		else
@@ -2024,6 +2042,7 @@ public void Event_PlayerLedgeGrabbed(Event event, const char[] event_name, bool 
 	CreateGlowModel(client, 0x80FFFF);
 }
 
+/*
 public void Event_PlayerReviveBegging(Event event, const char[] event_name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("subject"));
@@ -2033,6 +2052,7 @@ public void Event_PlayerReviveBegging(Event event, const char[] event_name, bool
 	// 正在被救援
 	RemoveGlowModel(client);
 }
+*/
 
 public void Event_PlayerReviveEnded(Event event, const char[] event_name, bool dontBroadcast)
 {
@@ -2052,6 +2072,7 @@ public void Event_PlayerReviveEnded(Event event, const char[] event_name, bool d
 	}
 }
 
+/*
 public void Event_AchievementEarend(Event event, const char[] event_name, bool dontBroadcast)
 {
 	int client = event.GetInt("player");
@@ -2084,6 +2105,7 @@ public void Event_StrongmanBell(Event event, const char[] event_name, bool dontB
 	if(g_pCvarAllow.BoolValue)
 		PrintToChat(client, "\x03[提示]\x01 你因为触发奖励而获得 \x051\x01 枚硬币。");
 }
+*/
 
 public Action Timer_RoundStartPost(Handle timer, any data)
 {
@@ -3019,7 +3041,7 @@ void StatusSelectMenuFuncCS(int client)
 	menu.DrawItem("退出（Exit）", ITEMDRAW_CONTROL);
 	
 	menu.Send(client, MenuHandler_TeamTeleport, 16);
-	CreateTimer(16.1, Timer_Null, menu, TIMER_DATA_HNDL_CLOSE);
+	CreateTimer(16.1, Timer_Null, menu, TIMER_DATA_HNDL_CLOSE);	// 修复泄漏
 }
 
 public int MenuHandler_TeamTeleport(Menu menu, MenuAction action, int client, int selected)
@@ -3687,8 +3709,9 @@ void HandleBotBuy(int client)
 	int weapon = GetPlayerWeaponSlot(client, 0);
 	if(weapon > MaxClients)
 	{
-		ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType"));
-		maxAmmo = GetDefaultAmmo(weapon);
+		int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+		ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
+		maxAmmo = CalcPlayerAmmo(client, ammoType);
 	}
 	if(weapon < MaxClients || ammo / float(maxAmmo) < 0.25)
 	{
@@ -6651,31 +6674,6 @@ public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor
 	if(HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") == DAMAGE_NO)
 		return Plugin_Continue;
 	
-	/*
-	// 忽略非主武器的攻击
-	if(ammotype <= 2 || ammotype >= 12 || !(damagetype & (DMG_BULLET|DMG_BUCKSHOT)))
-		return Plugin_Continue;
-	*/
-	
-	// 狙击枪伤害增加
-	// 某次更新后 inflictor 不表示武器了...
-	/*
-	if(ammotype == AMMOTYPE_SNIPERRIFLE && (g_clSkill_4[attacker] & SKL_4_SniperExtra))
-	{
-		static char className[64];
-		if(IsValidEntity(inflictor) && IsValidEdict(inflictor))
-		{
-			GetEntityClassname(inflictor, className, sizeof(className));
-			if(!strcmp(className, "weapon_sniper_awp", false))
-				damage *= 3;
-			else if(!strcmp(className, "weapon_sniper_scout", false))
-				damage *= 2;
-		}
-		
-		// PrintToChat(attacker, "ammotype %d, classname %s, hitbox %d, hitgroup %d", ammotype, className, hitbox, hitgroup);
-	}
-	*/
-	
 	int chance = g_iDamageChance[attacker];
 	int minChDmg = g_iDamageChanceMin[attacker];
 	int maxChDmg = g_iDamageChanceMax[attacker];
@@ -7030,7 +7028,7 @@ public void Event_PlayerIncapacitated(Event event, const char[] event_name, bool
 		}
 	}
 
-	g_bIsPaincIncap = true;
+	// g_bIsPaincIncap = true;
 	g_ttPaincEvent[client] = 0;
 	bool tk = (IsValidAliveClient(attacker) && GetClientTeam(attacker) == 2);
 
@@ -7982,7 +7980,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				}
 			}
 			
-			g_bIsPaincIncap = true;
+			// g_bIsPaincIncap = true;
 		}
 		else if(team == TEAM_INFECTED)
 		{
@@ -8062,7 +8060,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 				{
 					int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 					int ammo = GetEntProp(attacker, Prop_Send, "m_iAmmo", _, ammoType);
-					int maxAmmo = GetDefaultAmmo(weapon);
+					int maxAmmo = CalcPlayerAmmo(attacker, ammoType);
 					if(float(ammo) / maxAmmo < 0.4)
 					{
 						AddAmmo(attacker, RoundToCeil(maxAmmo * 0.05), ammoType);
@@ -9255,6 +9253,7 @@ public void Event_AwardEarned(Event event, const char[] eventName, bool dontBroa
 	}
 }
 
+/*
 public void Event_PlayerSacrifice(Event event, const char[] eventName, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("userid"));
@@ -9276,6 +9275,7 @@ public void Event_PlayerSacrifice(Event event, const char[] eventName, bool dont
 			PrintToChat(client, "\x03[提示]\x01 你因为救援关牺牲而获得 \x05%d\x01 硬币。", count);
 	}
 }
+*/
 
 #if defined _skilldetect_included_
 public int OnSkeet(int survivor, int hunter)
@@ -9535,7 +9535,7 @@ public void Event_InfectedDeath(Event event, const char[] eventName, bool dontBr
 		{
 			int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
 			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
-			int maxAmmo = GetDefaultAmmo(weapon);
+			int maxAmmo = CalcPlayerAmmo(client, ammoType);
 			if(float(ammo) / maxAmmo < 0.4)
 			{
 				AddAmmo(client, RoundToCeil(maxAmmo * 0.05), ammoType);
@@ -10249,6 +10249,7 @@ public Action Command_BotRP(int client, int argc)
 	return Plugin_Handled;
 }
 
+/*
 public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(!g_bIsGamePlaying)
@@ -10269,15 +10270,11 @@ public void Event_AreaCleared(Event event, const char[] eventName, bool dontBroa
 			PrintToChat(client, "\x03[提示]\x01 你因为把一些地方的僵尸清干净而获得 \x051\x01 硬币。");
 	}
 }
+*/
 
+/*
 public void Event_PaincEventStart(Event event, const char[] eventName, bool dontBroadcast)
 {
-	/*
-	int client = GetClientOfUserId(event.GetInt("userid"));
-	if(!IsValidAliveClient(client))
-		return;
-	*/
-	
 	g_bIsPaincEvent = true;
 	g_bIsPaincIncap = false;
 	// PrintToChatTeam(2, "\x03[提示]\x01 玩家 \x04%N\x01 搞了一波尸潮。", client);
@@ -10309,6 +10306,7 @@ public void Event_PaincEventStop(Event event, const char[] eventName, bool dontB
 
 	g_bIsPaincIncap = false;
 }
+*/
 
 public void Event_SurvivorRescued(Event event, const char[] eventName, bool dontBroadcast)
 {
@@ -12905,7 +12903,7 @@ stock bool AddHealth(int client, int amount, bool limit = true, bool conv = fals
 	return true;
 }
 
-stock int GetDefaultAmmo(int weapon, int ammoType = -1)
+stock int GetDefaultAmmo(int weapon = -1, int ammoType = -1)
 {
 	ConVar cv_rifle, cv_autoshotgun, cv_grenadelauncher, cv_huntingrifle, cv_m60, cv_shotgun, cv_smg, cv_sniper;
 	if(cv_rifle == null)
@@ -12946,6 +12944,19 @@ stock int GetDefaultAmmo(int weapon, int ammoType = -1)
 	return -1;
 }
 
+stock int CalcPlayerAmmo(int client, int ammoType)
+{
+	int ammo = GetDefaultAmmo(-1, ammoType);
+	if(ammo <= 0) return -1;
+	
+	float scale = 1.0;
+	if(g_clSkill_3[client] & SKL_3_MoreAmmo)
+		scale += 1.0;
+	scale += GetPlayerEffect(client, 15) * 0.25;
+	
+	return RoundToZero(ammo * scale);
+}
+
 stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = false, bool limit = true)
 {
 	if(!IsValidAliveClient(client))
@@ -12959,17 +12970,7 @@ stock bool AddAmmo(int client, int amount, int ammoType = -1, bool noSound = fal
 	
 	if(limit)
 	{
-		maxAmmo = GetDefaultAmmo(primary, ammoType);
-		if(maxAmmo < 0)
-			return false;
-		
-		float scale = 1.0;
-		scale += GetPlayerEffect(client, 15) * 0.25;
-		
-		if(g_clSkill_3[client] & SKL_3_MoreAmmo)
-			scale += 1.0;
-		
-		maxAmmo = RoundToZero(maxAmmo * scale);
+		maxAmmo = CalcPlayerAmmo(client, ammoType);
 	}
 	else
 	{
@@ -14265,13 +14266,9 @@ void ShowStatusPanel(int client)
 	{
 		if(weapon > MaxClients)
 		{
-			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType")) + g_iExtraAmmo[client];
-			int maxAmmo = GetDefaultAmmo(weapon);
-			float scale = 1.0;
-			scale += GetPlayerEffect(client, 15) * 0.25;
-			if(g_clSkill_3[client] & SKL_3_MoreAmmo)
-				scale += 1.0;
-			maxAmmo = RoundToZero(maxAmmo * scale);
+			int ammoType = GetEntProp(weapon, Prop_Send, "m_iPrimaryAmmoType");
+			int ammo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType) + g_iExtraAmmo[client];
+			int maxAmmo = CalcPlayerAmmo(client, ammoType);
 			FormatEx(buffer, sizeof(buffer), "弹药%d/%d", ammo, maxAmmo), menu.DrawText(buffer);
 		}
 	}
@@ -14775,6 +14772,32 @@ public MRESReturn TestSwingCollisionPost(int pThis, Handle hReturn)
 	{
 		g_hCvarChargerShove.IntValue = g_iOldShoveCharger;
 		g_iOldShoveCharger = -1;
+	}
+	
+	return MRES_Ignored;
+}
+
+public MRESReturn AmmoDefMaxCarryPost(DHookReturn hReturn, DHookParam hParams)
+{
+	// int ammoType = hParams.Get(1);
+	int client = hParams.Get(2);
+	
+	int weapon = GetPlayerWeaponSlot(client, 0);
+	if(weapon < MaxClients || !IsValidEdict(weapon))
+		return MRES_Ignored;
+	
+	float scale = 1.0;
+	if(g_clSkill_3[client] & SKL_3_MoreAmmo)
+		scale += 1.0;
+	scale += GetPlayerEffect(client, 15) * 0.25;
+	
+	if(scale > 1.0)
+	{
+		int ammo = RoundToZero(hReturn.Value * scale);
+		if(ammo > g_iMaxAmmo)
+			ammo = g_iMaxAmmo;
+		hReturn.Value = ammo;
+		return MRES_Override;
 	}
 	
 	return MRES_Ignored;

@@ -1,0 +1,65 @@
+////  Thanks to Psykotikism's repo! I suck at these but being able to use them is great
+// Signature Source (and fetch steps):
+// https://github.com/Psykotikism/L4D1-2_Signatures
+"Games"
+{
+	"#default"
+	{
+		"#supported"
+		{
+			"game" "left4dead"
+			"game" "left4dead2"
+		}
+		// DHooks Detour
+		"Functions"
+		{
+			// Params: (int,CBaseCombatCharacter const*)
+			"CAmmoDef::MaxCarry"
+			{
+				"signature"	"CAmmoDef::MaxCarry"
+				"callconv"	"thiscall"
+				"return"	"int"
+				"this"		"ignore"
+				"arguments"
+				{
+					"ammoindex"
+					{
+						"type"	"int"
+					}
+					"self"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+		}
+	}
+	"left4dead"
+	{
+		"Signatures"
+		{
+			// Params: (int,CBaseCombatCharacter const*)
+			"CAmmoDef::MaxCarry"
+			{
+				"library"	"server"
+				"linux"		"@_ZN8CAmmoDef8MaxCarryEiPK20CBaseCombatCharacter"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x7C\x2A\x3B\x2A\x2A\x7D\x2A\x6B\x2A\x2A\x03\x2A\x8B\x2A\x2A\x83\x2A\x2A\x75\x2A\x8B\x2A\x2A\x85\x2A\x74\x2A\x8B\x2A\x2A\x8B\x2A\x2A\xC2"
+							/* ? ? ? ? ? ? ? 7C ? 3B ? ? 7D ? 6B ? ? 03 ? 8B ? ? 83 ? ? 75 ? 8B ? ? 85 ? 74 ? 8B ? ? 8B ? ? C2 */
+			}
+		}
+	}
+	"left4dead2"
+	{
+		"Signatures"
+		{
+			// Params: (int,CBaseCombatCharacter const*)
+			"CAmmoDef::MaxCarry"
+			{
+				"library"	"server"
+				"linux"		"@_ZN8CAmmoDef8MaxCarryEiPK20CBaseCombatCharacter"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x83\x2A\x2A\x7C\x2A\x3B\x2A\x2A\x7D\x2A\x6B\x2A\x2A\x03\x2A\x8B\x2A\x2A\x83\x2A\x2A\x75\x2A\x8B\x2A\x2A\x85\x2A\x74\x2A\x8B\x2A\x2A\x8B\x2A\x2A\x5D"
+							/* ? ? ? ? ? ? 83 ? ? 7C ? 3B ? ? 7D ? 6B ? ? 03 ? 8B ? ? 83 ? ? 75 ? 8B ? ? 85 ? 74 ? 8B ? ? 8B ? ? 5D */
+			}
+		}
+	}
+}

@@ -182,6 +182,7 @@ const int SKL_3_Accurate = (1 << 13);
 const int SKL_3_Cure = (1 << 14);
 const int SKL_3_Minigun = (1 << 15);
 const int SKL_3_HandGrenade = (1 << 16);
+const int SKL_3_DamageScale = (1 << 17);
 
 const int SKL_4_ClawHeal = (1 << 0);
 const int SKL_4_DmgExtra = (1 << 1);
@@ -4055,6 +4056,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	FORMAT_MENU_ITEM_3(SKL_3_Minigun,"鼠标中键部署固定机枪");
 	FORMAT_MENU_ITEM_3(SKL_3_HandGrenade,"持手枪时按鼠标中键发射榴弹");
 	FORMAT_MENU_ITEM_3(SKL_3_AutoReload,"武器切换6秒后填充弹匣");
+	FORMAT_MENU_ITEM_3(SKL_3_DamageScale,"枪械伤害不会减少");
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -6253,22 +6255,6 @@ public Action Timer_ResetWeaponSpeed(Handle timer, any weapon)
 	// SetEntProp(weapon, Prop_Send, "m_nSequence", 0);
 	// SetEntPropFloat(weapon, Prop_Send, "m_flCycle", 0.0);
 	
-	/*
-	int client = GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity");
-	if(IsValidAliveClient(client))
-	{
-		int model = GetEntPropEnt(client, Prop_Send, "m_hViewModel");
-		if(model > MaxClients && IsValidEntity(model) && IsValidEdict(model))
-		{
-			// 停止重复抛壳动画
-			// SetEntPropFloat(model, Prop_Send, "m_flPlaybackRate", 1.0);
-			SetEntPropFloat(model, Prop_Send, "m_flLayerStartTime", 0.0);
-			// SetEntProp(model, Prop_Send, "m_nLayerSequence", 0);
-			// SetEntPropFloat(model, Prop_Send, "m_flCycle", 0.0);
-		}
-	}
-	*/
-	
 	return Plugin_Continue;
 }
 
@@ -6469,10 +6455,53 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 				}
 			}
 		}
+		
+		if((damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
+			IsValidAliveClient(attacker) &&
+			(g_clSkill_3[attacker] & SKL_3_DamageScale) &&
+			GetClientTeam(victim) == 3 &&
+			GetClientTeam(attacker) == 2)
+		{
+			int wpn = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+			if((weapon > MaxClients && IsValidEdict(weapon) && GetEdictClassname(weapon, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
+				(inflictor > MaxClients && IsValidEdict(inflictor) && GetEdictClassname(inflictor, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
+				(wpn > MaxClients && IsValidEdict(wpn) && GetEdictClassname(wpn, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)))
+			{
+				int dmg = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage);
+				if(damage < dmg)
+					damage = float(dmg);
+			}
+		}
 	}
 	
 	// g_iOldRealHealth[victim] = GetEntProp(victim, Prop_Data, "m_iHealth");
 	return Plugin_Changed;
+}
+
+public Action ZombieHook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
+	int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+	if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) || damage <= 0.0 || !IsValidAliveClient(attacker) || GetClientTeam(attacker) != 2)
+		return Plugin_Continue;
+	
+	if(g_clSkill_3[attacker] & SKL_3_DamageScale)
+	{
+		static char classname[64];
+		int wpn = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+		if((weapon > MaxClients && IsValidEdict(weapon) && GetEdictClassname(weapon, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
+			(inflictor > MaxClients && IsValidEdict(inflictor) && GetEdictClassname(inflictor, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
+			(wpn > MaxClients && IsValidEdict(wpn) && GetEdictClassname(wpn, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)))
+		{
+			int dmg = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage);
+			if(damage < dmg)
+			{
+				damage = float(dmg);
+				return Plugin_Changed;
+			}
+		}
+	}
+	
+	return Plugin_Continue;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -6507,6 +6536,7 @@ public void OnEntityDestroyed(int entity)
 {
 	SDKUnhook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
 	SDKUnhook(entity, SDKHook_TraceAttack, ZombieHook_OnTraceAttack);
+	SDKUnhook(entity, SDKHook_OnTakeDamage, ZombieHook_OnTakeDamage);
 	// SDKUnhook(entity, SDKHook_TraceAttackPost, ZombieHook_OnTraceAttackPost);
 	// SDKUnhook(entity, SDKHook_OnTakeDamageAlivePost, ZombieHook_OnTakeDamagePost);
 	SDKUnhook(entity, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
@@ -6596,6 +6626,9 @@ public void ZombieHook_OnSpawned(int entity)
 	SDKHook(entity, SDKHook_TraceAttack, ZombieHook_OnTraceAttack);
 	// SDKHook(entity, SDKHook_TraceAttackPost, ZombieHook_OnTraceAttackPost);
 	// SDKHook(entity, SDKHook_OnTakeDamageAlivePost, ZombieHook_OnTakeDamagePost);
+	
+	if(HasEntProp(entity, Prop_Send, "m_bIsBurning"))
+		SDKHook(entity, SDKHook_OnTakeDamage, ZombieHook_OnTakeDamage);
 }
 
 // 临时、根据情况的不在这里计算

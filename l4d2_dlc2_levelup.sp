@@ -6359,12 +6359,14 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge") &&
 		GetCurrentAttacker(victim) == -1 && (IsGettingUp(victim) || IsStaggering(victim)))
 	{
+		// 起身/失衡时免疫伤害
 		damage = 0.0;
 		return Plugin_Changed;
 	}
 	
 	if((g_clSkill_1[victim] & SKL_1_GettingUP) && IsValidAliveClient(attacker) && IsStaggering(attacker))
 	{
+		// 起身/失衡时免疫伤害
 		damage = 0.0;
 		return Plugin_Changed;
 	}
@@ -6381,7 +6383,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		if(IsPlayerIncapped(victim) && IsValidAliveClient(reviver) && health + tempHealth > damage &&
 			((g_clSkill_1[victim] & SKL_1_ReviveBlock) || (g_clSkill_1[reviver] & SKL_1_ReviveBlock)))
 		{
-			// 将伤害类型替换为不会打断
+			// 拉起不被打断
 			damagetype = (DMG_ENERGYBEAM|DMG_RADIATION);
 		}
 		
@@ -6389,6 +6391,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		{
 			if(damage > 1.0 && (health + tempHealth <= damage || GetRandomInt(0, 1)))
 			{
+				// 伤害减半
 				damage /= 2.0;
 				if(damage < 1.0)
 					damage = 1.0;
@@ -6403,11 +6406,12 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		if(GetPlayerEffect(victim, 37) && !strcmp(classname, "infected", false))
 		{
 			// 取消攻击者，避免减速效果
-			attacker = inflictor = 0;
+			attacker = inflictor = weapon = 0;
 		}
 		
 		if(GetEntProp(victim, Prop_Send, "m_bAdrenalineActive"))
 		{
+			// 伤害减半
 			int effect = GetPlayerEffect(victim, 43);
 			if(effect > 0)
 				damage /= (effect + 1);
@@ -6421,6 +6425,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 		{
 			if((g_clSkill_3[victim] & SKL_3_TempSanctuary) && tempHealth > 0)
 			{
+				// 虚血承受伤害
 				if(tempHealth >= damage)
 				{
 					tempHealth -= RoundToCeil(damage);
@@ -6446,6 +6451,7 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 			// 不能交换顺序，否则就看不到效果了
 			if((g_clSkill_5[victim] & SKL_5_TempRegen) && damage > 0.0 && !GetRandomInt(0, 2))
 			{
+				// 受伤恢复生命
 				if(health + tempHealth + damage <= maxHealth)
 				{
 					tempHealth += RoundToCeil(damage);
@@ -6455,22 +6461,24 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 				}
 			}
 		}
-		
-		if((damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
-			IsValidAliveClient(attacker) &&
-			(g_clSkill_3[attacker] & SKL_3_DamageScale) &&
-			GetClientTeam(victim) == 3 &&
-			GetClientTeam(attacker) == 2)
+	}
+	
+	if((damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
+		IsValidAliveClient(attacker) &&
+		(g_clSkill_3[attacker] & SKL_3_DamageScale) &&
+		GetClientTeam(victim) == 3 &&
+		GetClientTeam(attacker) == 2)
+	{
+		// 武器伤害调整
+		static char classname[64];
+		int wpn = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+		if((weapon > MaxClients && IsValidEdict(weapon) && GetEdictClassname(weapon, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
+			(inflictor > MaxClients && IsValidEdict(inflictor) && GetEdictClassname(inflictor, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
+			(wpn > MaxClients && IsValidEdict(wpn) && GetEdictClassname(wpn, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)))
 		{
-			int wpn = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
-			if((weapon > MaxClients && IsValidEdict(weapon) && GetEdictClassname(weapon, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
-				(inflictor > MaxClients && IsValidEdict(inflictor) && GetEdictClassname(inflictor, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
-				(wpn > MaxClients && IsValidEdict(wpn) && GetEdictClassname(wpn, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)))
-			{
-				int dmg = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage);
-				if(damage < dmg)
-					damage = float(dmg);
-			}
+			int dmg = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage);
+			if(damage < dmg)
+				damage = float(dmg);
 		}
 	}
 	
@@ -6493,6 +6501,9 @@ public Action ZombieHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 			(wpn > MaxClients && IsValidEdict(wpn) && GetEdictClassname(wpn, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)))
 		{
 			int dmg = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage);
+			if((damagetype & DMG_BUCKSHOT) && HasEntProp(victim, Prop_Send, "m_rage") && GetEntPropFloat(victim, Prop_Send, "m_rage") < 1.0)
+				dmg *= 4;	// 游戏自带功能：喷子对 Witch 四倍伤害
+			
 			if(damage < dmg)
 			{
 				damage = float(dmg);

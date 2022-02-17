@@ -14,8 +14,6 @@
 				
 				"mac"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
 				"macos"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
-				
-				// Linux 版的又没有符号，谁知道对不对
 				"linux"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
 			}
 		}

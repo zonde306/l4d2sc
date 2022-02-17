@@ -41,6 +41,25 @@
 				"return"		"bool"
 				"this"			"entity"
 			}
+			
+			"CDirectorChallengeMode::ScriptAllowDamage"
+			{
+				"signature"		"CDirectorChallengeMode::ScriptAllowDamage"
+				"callconv"		"thiscall"
+				"return"		"bool"
+				"this"			"ignore"
+				"arguments"
+				{
+					"victim"
+					{
+						"type"	"cbaseentity"
+					}
+					"dmgInfo"
+					{
+						"type"	"objectptr"
+					}
+				}
+			}
 		}
 
 		"Signatures"
@@ -154,6 +173,21 @@
 				"linux"		"@_ZN12CHolidayGift6CreateERK6VectorRK6QAngleS5_S2_P20CBaseCombatCharacter"
 				"windows"	"\x53\x8B\x2A\x83\x2A\x2A\x83\x2A\x2A\x83\x2A\x2A\x55\x8B\x2A\x2A\x89\x2A\x2A\x2A\x8B\x2A\x8B\x2A\x2A\x8B\x2A\x2A\x8B\x2A\x2A\x83\x2A\x2A\x56\x57"
 				/* 53 8B ? 83 ? ? 83 ? ? 83 ? ? 55 8B ? ? 89 ? ? ? 8B ? 8B ? ? 8B ? ? 8B ? ? 83 ? ? 56 57 */
+			}
+			
+			/*
+			 *	bool CDirectorChallengeMode::ScriptAllowDamage(CDirectorChallengeMode *this, CBaseEntity *victim, CTakeDamageInfo *dmgInfo)
+			 * 	Search: Failed to call AllowTakeDamage though we think we have one!
+			*/
+			"CDirectorChallengeMode::ScriptAllowDamage"
+			{
+				"library"	"server"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x30\x53\x56\x8B\xF1\x8B\x86"
+				/* 55 8B EC 83 EC 30 53 56 8B F1 8B 86 */
+				
+				"mac"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
+				"macos"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
+				"linux"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
 			}
 		}
 	}

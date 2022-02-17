@@ -19,7 +19,7 @@ public Plugin:myinfo =
 	name = "娱乐插件",
 	author = "zonde306",
 	description = "",
-	version = "1.2.4",
+	version = "1.2.5",
 	url = "https://forums.alliedmods.net/",
 };
 
@@ -528,7 +528,8 @@ int g_iCommonHealth = 50;
 bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS,
 	g_pCvarSaveStats, g_pCvarBotRP, g_pCvarBotBuy;
-Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/, g_hDetourAmmoMaxCarry = null;
+Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/,
+	g_hDetourAmmoMaxCarry = null, g_hDetourScriptAllowDamage = null;
 Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null;
 GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
 	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent, g_fwOnAngrySkill, g_fwOnAngryPoint;
@@ -701,7 +702,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 }
 
 bool g_bHaveLethal = false, g_bHaveProtector = false, g_bHaveRobot = false, g_bHaveIncapWeapon = false,
-	g_bHaveWeaponHandling = false, g_bHaveSelfHelp = false, g_bHaveGrenades = false, g_bHaveMelee = false;
+	g_bHaveWeaponHandling = false, g_bHaveSelfHelp = false, g_bHaveGrenades = false, g_bHaveMelee = false,
+	g_bHaveDamageHook = false;
 
 // 这几个暂时没有 inc 文件
 native bool Lethal_SetAllowedClient(int client, bool enable);
@@ -1117,6 +1119,16 @@ public void OnPluginStart()
 				LogMessage("l4d2_dlc2_levelup: CTerrorPlayer::IsInvulnerable Hooked.");
 			}
 			*/
+			
+			g_hDetourScriptAllowDamage = DHookCreateFromConf(hGameData, "CDirectorChallengeMode::ScriptAllowDamage");
+			if(DHookEnableDetour(g_hDetourScriptAllowDamage, true, ScriptAllowDamagePost))
+			{
+				g_bHaveDamageHook = true;
+			}
+			else
+			{
+				LogError("l4d2_dlc2_levelup: CDirectorChallengeMode::ScriptAllowDamage Error.");
+			}
 			
 			StartPrepSDKCall(SDKCall_Entity);
 			if(PrepSDKCall_SetFromConf(hGameData, SDKConf_Signature, "CTerrorWeapon::OnSwingStart"))
@@ -2326,9 +2338,6 @@ void Initialization(int client, bool invalid = false)
 		g_mEquipData[client].Clear();
 	
 	SDKUnhook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
-	// SDKUnhook(client, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
-	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
-	// SDKUnhook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
 	// SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
@@ -6258,229 +6267,421 @@ public Action Timer_ResetWeaponSpeed(Handle timer, any weapon)
 	return Plugin_Continue;
 }
 
-public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
-	int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+public MRESReturn ScriptAllowDamagePost(DHookReturn hReturn, DHookParam hParams)
 {
-	if(!IsValidAliveClient(victim) || damage <= 0.0)
-		return Plugin_Continue;
+	// 伤害被脚本给屏蔽了
+	if(!hReturn.Value)
+		return MRES_Ignored;
 	
-	// 榴弹炸自己
-	if(attacker == victim && (g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
-	{
-		static char classname[32];
-		if(GetEdictClassname(inflictor, classname, sizeof(classname)) &&
-			!strcmp(classname, "grenade_launcher_projectile", false))
-		{
-			float vPos[3], vDir[3], vVel[3], nVel[3], nDir[3];
-			GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
-			// GetClientAbsOrigin(victim, vDir);
-			GetEntPropVector(victim, Prop_Send, "m_vecOrigin", vDir);
-			GetEntDataVector(victim, g_iVelocityO, vVel);
-			
-			SubtractVectors(vDir, vPos, vDir);
-			NormalizeVector(vDir, vDir);
-			
-			NormalizeVector(vVel, nVel);
-			nDir[0] = vDir[0]; nDir[1] = vDir[1]; nDir[2] = 0.0; nVel[2] = 0.0;
-			
-			ScaleVector(vDir, 300.0);
-			vDir[2] *= 1.5;
-			
-			if(GetVectorDotProduct(nVel, nDir) >= 0.0)
-			{
-				// 方向相同
-				AddVectors(vVel, vDir, vVel);
-			}
-			else
-			{
-				// 方向相反
-				vDir[0] = -vDir[0]; vDir[1] = -vDir[1];
-				AddVectors(vVel, vDir, vVel);
-			}
-			
-			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vVel);
-			// SetEntPropVector(victim, Prop_Send, "m_vecBaseVelocity", vVel);
-			
-			// 避免掉落伤害、榴弹伤害降低
-			g_bOnRocketDude[victim] = true;
-			// damage /= 4.0;
-			// return Plugin_Continue;
-		}
-	}
+	float damage = hParams.GetObjectVar(2, 60, ObjectValueType_Float);
+	if(damage <= 0.0)
+		return MRES_Ignored;
 	
-	if((damagetype & DMG_FALL) || attacker <= 0)
-	{
-		// 火箭跳免疫掉落伤害
-		if(g_bOnRocketDude[victim] && damage > 1.0)
-		{
-			damage = 1.0;
-			return Plugin_Changed;
-		}
-		
-		return Plugin_Continue;
-	}
+	int victim = hParams.Get(1);	// 这个是上一层的 this，改不了的
+	int attacker = hParams.GetObjectVar(2, 52, ObjectValueType_Ehandle);
+	int inflictor = hParams.GetObjectVar(2, 48, ObjectValueType_Ehandle);
+	int damagetype = hParams.GetObjectVar(2, 72, ObjectValueType_Int);
+	int weapon = hParams.GetObjectVar(2, 56, ObjectValueType_Ehandle);
 	
-	if(IsValidClient(attacker) && GetClientTeam(attacker) == GetClientTeam(victim) && damage > 1.0 &&
-		((g_clSkill_1[attacker] & SKL_1_Firendly) || (g_clSkill_1[victim] & SKL_1_Firendly)))
-	{
-		// 队友和自己的伤害
-		if(GetPlayerEffect(victim, 45) || GetPlayerEffect(attacker, 45))
-			damage = 0.0;
-		else if(damagetype & DMG_BUCKSHOT)
-			damage = 0.5;
-		else
-			damage = 1.0;
-		
-		return Plugin_Changed;
-	}
+	/*
+	if(IsValidClient(attacker) && GetUserFlagBits(attacker))
+		PrintToChat(attacker, ">> victim=%d, attacker=%d, inflictor=%d, damage=%f, damagetype=%d, weapon=%d", victim, attacker, inflictor, damage, damagetype, weapon);
+	if(IsValidClient(victim) && GetUserFlagBits(victim))
+		PrintToChat(victim, "<< victim=%d, attacker=%d, inflictor=%d, damage=%f, damagetype=%d, weapon=%d", victim, attacker, inflictor, damage, damagetype, weapon);
+	*/
 	
+	/*
+	float damagePosition[3], damageForce[3];
+	hParams.GetObjectVarVector(2, 12, ObjectValueType_Vector, damagePosition);
+	hParams.GetObjectVarVector(2, 0, ObjectValueType_Vector, damageForce);		// 猜的，不确定是否正确
+	*/
+	
+	hReturn.Value = HandleTakeDamage(victim, attacker, inflictor, damage, damagetype, weapon/*, damageForce, damagePosition*/);
+	hParams.SetObjectVar(2, 52, ObjectValueType_Ehandle, attacker);
+	hParams.SetObjectVar(2, 48, ObjectValueType_Ehandle, inflictor);
+	hParams.SetObjectVar(2, 60, ObjectValueType_Float, damage);
+	hParams.SetObjectVar(2, 72, ObjectValueType_Int, damagetype);
+	// hParams.SetObjectVar(2, 56, ObjectValueType_Ehandle, weapon);	// 为什么这个会报错？
+	
+	/*
+	hParams.SetObjectVarVector(2, 12, ObjectValueType_Vector, damagePosition);
+	hParams.SetObjectVarVector(2, 0, ObjectValueType_Vector, damageForce);
+	*/
+	
+	return MRES_ChangedOverride;
+}
+
+bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, int &damagetype,
+	int& weapon/*, float damageForce[3], float damagePosition[3]*/)
+{
+	float originalDamage = damage;
+	int victimTeam = GetEntProp(victim, Prop_Send, "m_iTeamNum");
 	float time = GetEngineTime();
-	if((g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -time) || (g_fFreezeTime[victim] > time && GetPlayerEffect(victim, 29)))
-	{
-		// 无敌模式伤害免疫
-		/*
-		if(!IsNullVector(damagePosition) && (g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0))
-			EmitAmbientSound(SOUND_STEEL, damagePosition, victim, SNDLEVEL_HOME);
-		*/
-		
-		if(damage >= 1.0)
-		{
-			float effect = float(GetPlayerEffect(victim, 46));
-			if(effect > 0.0)
-				AddHealth(victim, RoundToZero(damage >= effect ? effect : damage));
-		}
-		
-		damage = 0.0;
-		return Plugin_Changed;
-	}
 	
-	if((g_clSkill_1[victim] & SKL_1_GettingUP) && GetClientTeam(victim) == 2 &&
-		!GetEntProp(victim, Prop_Send, "m_isIncapacitated") &&
-		!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge") &&
-		GetCurrentAttacker(victim) == -1 && (IsGettingUp(victim) || IsStaggering(victim)))
+	if(IsValidAliveClient(attacker))
 	{
-		// 起身/失衡时免疫伤害
-		damage = 0.0;
-		return Plugin_Changed;
-	}
-	
-	if((g_clSkill_1[victim] & SKL_1_GettingUP) && IsValidAliveClient(attacker) && IsStaggering(attacker))
-	{
-		// 起身/失衡时免疫伤害
-		damage = 0.0;
-		return Plugin_Changed;
-	}
-	
-	if(attacker > 0 && IsValidEntity(attacker))
-	{
-		static char classname[64];
-		GetEdictClassname(attacker, classname, sizeof(classname));
+		int chance = g_iDamageChance[attacker];			// 基础暴击率
+		int minChDmg = g_iDamageChanceMin[attacker];	// 最小暴击伤害
+		int maxChDmg = g_iDamageChanceMax[attacker];	// 最大暴击伤害
+		int baseDmg = g_iDamageBase[attacker];			// 基础伤害加成(来自装备)
+		int attackerTeam = GetClientTeam(attacker);
 		
-		int reviver = GetEntPropEnt(victim, Prop_Send, "m_reviveOwner");
-		// int tempHealth = GetPlayerTempHealth(victim);
-		float tempHealth = L4D_GetTempHealth(victim);
-		int health = GetEntProp(victim, Prop_Data, "m_iHealth");
-		if(IsPlayerIncapped(victim) && IsValidAliveClient(reviver) && health + tempHealth > damage &&
-			((g_clSkill_1[victim] & SKL_1_ReviveBlock) || (g_clSkill_1[reviver] & SKL_1_ReviveBlock)))
+		// 生还者专属的暴击加成
+		if(attackerTeam == 2)
 		{
-			// 拉起不被打断
-			damagetype = (DMG_ENERGYBEAM|DMG_RADIATION);
-		}
-		
-		if((g_clSkill_4[victim] & SKL_4_Defensive) && !strcmp(classname, "infected", false))
-		{
-			if(damage > 1.0 && (health + tempHealth <= damage || GetRandomInt(0, 1)))
+			// 技能：枪械伤害不会减少
+			if((damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
+				(g_clSkill_3[attacker] & SKL_3_DamageScale) && victimTeam == 3)
 			{
-				// 伤害减半
-				damage /= 2.0;
-				if(damage < 1.0)
-					damage = 1.0;
+				float dmg = float(GetWeaponDamage(attacker, inflictor, weapon));
+				
+				// 游戏自带功能：喷子扰妹四倍伤害
+				if((damagetype & DMG_BUCKSHOT) &&
+					HasEntProp(victim, Prop_Send, "m_rage") &&
+					GetEntPropFloat(victim, Prop_Send, "m_rage") < 1.0)
+					dmg *= 4;
+				
+				if(damage < dmg)
+					/*originalDamage = */damage = dmg;
 			}
-			else
+			
+			// 怒气技：霸者之号令
+			if(g_bIsAngryCritActive)
+				chance += 500;
+			
+			// 潜行时的偷袭暴击率加成
+			if((g_clSkill_5[attacker] & SKL_5_Sneak) && g_iIsSneaking[attacker] == 0)
+				chance += 333;
+			
+			if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
 			{
-				// 附加同等伤害
-				SDKHooks_TakeDamage(attacker, 0, victim, damage * 3.0, damagetype);
+				// 装备效果：兴奋时暴击率+200
+				chance += GetPlayerEffect(attacker, 42) * 200;
+				
+				// 装备效果：兴奋时攻击伤害加倍
+				damage += GetPlayerEffect(attacker, 44) * originalDamage;
 			}
-		}
-		
-		if(GetPlayerEffect(victim, 37) && !strcmp(classname, "infected", false))
-		{
-			// 取消攻击者，避免减速效果
-			attacker = inflictor = weapon = 0;
-		}
-		
-		if(GetEntProp(victim, Prop_Send, "m_bAdrenalineActive"))
-		{
-			// 伤害减半
-			int effect = GetPlayerEffect(victim, 43);
-			if(effect > 0)
-				damage /= (effect + 1);
-		}
-		
-		int maxHealth = GetEntProp(victim, Prop_Send, "m_iMaxHealth");
-		if(tempHealth + damage <= 200.0 && health + tempHealth <= maxHealth &&
-			(g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0) &&
-			!GetEntProp(victim, Prop_Send, "m_isIncapacitated", 1) &&
-			!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
-		{
-			if((g_clSkill_3[victim] & SKL_3_TempSanctuary) && tempHealth > 0)
+			
+			// 技能：两倍近战伤害且攻速加快/三倍近战伤害
+			if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
+				damage += originalDamage * (g_bHaveWeaponHandling ? 1 : 2);
+			
+			if(victim > MaxClients)
 			{
-				// 虚血承受伤害
-				if(tempHealth >= damage)
+				if(HasEntProp(victim, Prop_Send, "m_bIsBurning"))
 				{
-					tempHealth -= RoundToCeil(damage);
-					// health += RoundToCeil(damage);
-					damage = 0.0;
-					// SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", tempHealth);
-					// SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
-					L4D_SetTempHealth(victim, tempHealth);
-					// SetEntProp(victim, Prop_Data, "m_iHealth", health);
+					// 技能：对普感1/4几率暴击
+					if((g_clSkill_5[attacker] & SKL_5_Overkill) &&
+						(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
+						!GetRandomInt(0, 3))
+						chance += 250;
 				}
 				else
 				{
-					damage -= tempHealth;
-					// health += tempHealth;
-					tempHealth = 0.0;
-					// SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", 0.0);
-					// SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
-					L4D_SetTempHealth(victim, 0.0);
-					// SetEntProp(victim, Prop_Data, "m_iHealth", health);
+					// 增加对 机关/墙体/BOSS 的伤害
+					if(g_clSkill_1[attacker] & SKL_1_Button)
+						damage += originalDamage * 2;
 				}
 			}
-			
-			// 不能交换顺序，否则就看不到效果了
-			if((g_clSkill_5[victim] & SKL_5_TempRegen) && damage > 0.0 && !GetRandomInt(0, 2))
+			// 技能：允许榴弹跳
+			else if(victim == attacker && (g_clSkill_5[attacker] & SKL_5_RocketDude) && inflictor > MaxClients)
 			{
-				// 受伤恢复生命
-				if(health + tempHealth + damage <= maxHealth)
+				// 太长了，所以分开来实现
+				HandleRocketDude(victim, inflictor);
+			}
+		}
+		
+		// 技能：残血时伤害增加(基于失血量)
+		if(g_clSkill_4[attacker] & SKL_4_LastStand)
+		{
+			int maxHealth = GetEntProp(attacker, Prop_Data, "m_iMaxHealth");
+			float health = GetEntProp(attacker, Prop_Data, "m_iHealth") + L4D_GetTempHealth(attacker);
+			float bonus = 0.4 - health / maxHealth;
+			if(bonus > 0.0)
+				damage += originalDamage * bonus;
+		}
+		
+		// 生还者攻击感染者伤害加成，仅限常规伤害
+		if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED && (damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
+		{
+			// 暴击
+			if(g_fAccurateShot[attacker] > time || GetRandomInt(1, 1000) <= chance)
+			{
+				if(!IsFakeClient(attacker))
 				{
-					tempHealth += RoundToCeil(damage);
-					// SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", tempHealth);
-					// SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
-					L4D_SetTempHealth(victim, tempHealth);
+					if(g_fAccurateShot[attacker] > time)
+						EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
+					else
+						EmitSoundToClient(attacker, SOUND_AWARD_LITTLE, victim);
+				}
+				
+				// 暴击伤害加成
+				damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
+				damagetype |= DMG_HEADSHOT|DMG_CRIT;	// DMG_HEADSHOT 真的有用嘛
+				// g_fAccurateShot[attacker] -= 1;
+				
+				// 技能：「轰炸」暴击时1/3几率附加击退效果
+				if((g_clSkill_3[attacker] & SKL_3_Kickback) && !GetRandomInt(0, 2))
+				{
+					float vAng[3], vDir[3];
+					GetClientEyeAngles(attacker, vAng);
+					GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
+					ScaleVector(vDir, 300.0 * (1 + GetPlayerEffect(attacker, 23)));
+					TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
+				}
+				
+				/*
+				// 调试用
+				if(g_pCvarAllow.BoolValue)
+					PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
+				*/
+			}
+			
+			// 装备伤害加成
+			damage += originalDamage * baseDmg / 100.0;
+		}
+		// 特感攻击生还者伤害加成，仅限常规伤害
+		else if(attackerTeam == TEAM_INFECTED && victimTeam == TEAM_SURVIVORS && !(damagetype & (DMG_BURN|DMG_BLAST|DMG_BLAST_SURFACE|DMG_BULLET|DMG_BUCKSHOT|DMG_SLOWBURN)))
+		{
+			if(GetRandomInt(1, 1000) <= chance)
+			{
+				if(!IsFakeClient(attacker))
+					EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
+				
+				// 技能：「轰炸」暴击时1/3几率附加击退效果
+				damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
+				damagetype |= DMG_HEADSHOT|DMG_CRIT;
+				
+				// 技能：「轰炸」暴击时1/3几率附加击退效果
+				if((g_clSkill_3[attacker] & SKL_3_Kickback) && IsValidAliveClient(victim) && !IsSurvivorHeld(victim))
+				{
+					int RanChance = 2;
+					if(GetRandomInt(1,4) > RanChance)
+						Charge(victim, attacker);
+				}
+				
+				/*
+				// 调试用
+				if(g_pCvarAllow.BoolValue)
+					PrintCenterText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage / 10, extraDamage / 5);
+				*/
+			}
+			
+			damage += originalDamage * baseDmg / 100.0;
+		}
+	}
+	
+	if(IsValidAliveClient(victim))
+	{
+		bool validAttacker = IsValidClient(attacker);
+		int attackerTeam = (validAttacker ? GetClientTeam(attacker) : 0);
+		
+		// 技能：「无敌」每80秒获得9秒无敌时间
+		// 装备效果：被冻结时不会受到伤害
+		if((g_ctGodMode[victim] < 0.0 && g_ctGodMode[victim] < -time) ||
+			(g_fFreezeTime[victim] > time && GetPlayerEffect(victim, 29)))
+		{
+			if(damage >= 1.0)
+			{
+				// 装备效果：「无敌」激活时受伤回复血量1点
+				float effect = float(GetPlayerEffect(victim, 46));
+				if(effect > 0.0)
+					AddHealth(victim, RoundToZero(damage >= effect ? effect : damage));
+			}
+			
+			damage = 0.0;
+		}
+		
+		// 技能：「谨慎」队友伤害降低至1点
+		if(validAttacker && victimTeam == attackerTeam && damage > 1.0 &&
+			(g_clSkill_1[victim] & SKL_1_Firendly) || (g_clSkill_1[attacker] & SKL_1_Firendly))
+		{
+			// 装备效果：「谨慎」队友伤害降低至0点
+			if(GetPlayerEffect(victim, 45) || GetPlayerEffect(attacker, 45))
+				damage = 0.0;
+			else if(damagetype & DMG_BUCKSHOT)
+				damage = 0.5;
+			else
+				damage = 1.0;
+		}
+		
+		if(victimTeam == 2)
+		{
+			// 技能：允许榴弹跳 附加 掉落伤害减少
+			if((damagetype & DMG_FALL) && g_bOnRocketDude[victim] && damage > 1.0)
+				damage = 1.0;
+			
+			// 技能：起身/失衡时免疫伤害
+			if((g_clSkill_1[victim] & SKL_1_GettingUP) &&
+				!GetEntProp(victim, Prop_Send, "m_isIncapacitated") &&
+				!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge") &&
+				!IsSurvivorHeld(victim) && (IsGettingUp(victim) || IsStaggering(victim)))
+				damage = 0.0;
+			
+			// 技能：起身/失衡时免疫伤害
+			if((g_clSkill_1[victim] & SKL_1_GettingUP) &&
+				validAttacker && IsPlayerAlive(attacker) && IsStaggering(attacker))
+				damage = 0.0;
+			
+			if(attacker > 0 && (validAttacker || IsValidEdict(attacker)))
+			{
+				static char classname[64];
+				GetEdictClassname(attacker, classname, sizeof(classname));
+				
+				float tempHealth = L4D_GetTempHealth(victim);
+				int health = GetEntProp(victim, Prop_Data, "m_iHealth");
+				
+				// 技能：拉起不被打断
+				int reviver = GetEntPropEnt(victim, Prop_Send, "m_reviveOwner");
+				if(IsPlayerIncapped(victim) && IsValidAliveClient(reviver) && health + tempHealth > damage &&
+					((g_clSkill_1[victim] & SKL_1_ReviveBlock) || (g_clSkill_1[reviver] & SKL_1_ReviveBlock)))
+				{
+					// 拉起不被打断的伤害类型
+					damagetype = (DMG_ENERGYBEAM|DMG_RADIATION);
+				}
+				
+				// 技能：被普感锤伤害减半或反伤
+				if((g_clSkill_4[victim] & SKL_4_Defensive) && !strcmp(classname, "infected", false))
+				{
+					if(damage > 1.0 && (health + tempHealth <= damage || GetRandomInt(0, 1)))
+					{
+						// 伤害减半
+						damage /= 2.0;
+						if(damage < 1.0)
+							damage = 1.0;
+					}
+					else
+					{
+						// 附加同等伤害
+						SDKHooks_TakeDamage(attacker, 0, victim, damage * 3.0, damagetype);
+					}
+				}
+				
+				// 装备效果：兴奋时受到伤害减半
+				if(GetEntProp(victim, Prop_Send, "m_bAdrenalineActive"))
+				{
+					// 伤害减半
+					int effect = GetPlayerEffect(victim, 43);
+					if(effect > 0)
+						damage /= (effect + 1);
+				}
+				
+				int maxHealth = GetEntProp(victim, Prop_Send, "m_iMaxHealth");
+				if(tempHealth + damage <= 200.0 && health + tempHealth <= maxHealth &&
+					(g_pfnIsInvulnerable == null || SDKCall(g_pfnIsInvulnerable, victim) <= 0) &&
+					!GetEntProp(victim, Prop_Send, "m_isIncapacitated", 1) &&
+					!GetEntProp(victim, Prop_Send, "m_isHangingFromLedge", 1))
+				{
+					// 技能：受到伤害时优先使用虚血承担
+					if((g_clSkill_3[victim] & SKL_3_TempSanctuary) && tempHealth > 0)
+					{
+						if(tempHealth >= damage)
+						{
+							tempHealth -= RoundToCeil(damage);
+							// health += RoundToCeil(damage);
+							damage = 0.0;
+							// SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", tempHealth);
+							// SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
+							L4D_SetTempHealth(victim, tempHealth);
+							// SetEntProp(victim, Prop_Data, "m_iHealth", health);
+						}
+						else
+						{
+							damage -= tempHealth;
+							// health += tempHealth;
+							tempHealth = 0.0;
+							// SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", 0.0);
+							// SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
+							L4D_SetTempHealth(victim, 0.0);
+							// SetEntProp(victim, Prop_Data, "m_iHealth", health);
+						}
+					}
+					
+					// 技能：受伤消耗实血时有1/3几率恢复等量虚血
+					if((g_clSkill_5[victim] & SKL_5_TempRegen) && damage > 0.0 && !GetRandomInt(0, 2))
+					{
+						// 受伤恢复生命
+						if(health + tempHealth + damage <= maxHealth)
+						{
+							tempHealth += RoundToCeil(damage);
+							// SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", tempHealth);
+							// SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
+							L4D_SetTempHealth(victim, tempHealth);
+						}
+					}
+				}
+				
+				// 装备效果：被僵尸锤不减速
+				if(GetPlayerEffect(victim, 37) && !strcmp(classname, "infected", false))
+				{
+					// 取消攻击者，避免减速效果
+					attacker = inflictor = 0;
 				}
 			}
 		}
 	}
 	
-	if((damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
-		IsValidAliveClient(attacker) &&
-		(g_clSkill_3[attacker] & SKL_3_DamageScale) &&
-		GetClientTeam(victim) == 3 &&
-		GetClientTeam(attacker) == 2)
+	return true;
+}
+
+bool HandleRocketDude(int victim, int inflictor)
+{
+	static char classname[32];
+	if(!GetEdictClassname(inflictor, classname, sizeof(classname)) ||
+		strcmp(classname, "grenade_launcher_projectile", false))
+		return false;
+	
+	float vPos[3], vDir[3], vVel[3], nVel[3], nDir[3];
+	GetEntPropVector(inflictor, Prop_Send, "m_vecOrigin", vPos);
+	// GetClientAbsOrigin(victim, vDir);
+	GetEntPropVector(victim, Prop_Send, "m_vecOrigin", vDir);
+	GetEntDataVector(victim, g_iVelocityO, vVel);
+	
+	SubtractVectors(vDir, vPos, vDir);
+	NormalizeVector(vDir, vDir);
+	
+	NormalizeVector(vVel, nVel);
+	nDir[0] = vDir[0]; nDir[1] = vDir[1]; nDir[2] = 0.0; nVel[2] = 0.0;
+	
+	ScaleVector(vDir, 300.0);
+	vDir[2] *= 1.5;
+	
+	if(GetVectorDotProduct(nVel, nDir) >= 0.0)
 	{
-		// 武器伤害调整
-		static char classname[64];
-		int wpn = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
-		if((weapon > MaxClients && IsValidEdict(weapon) && GetEdictClassname(weapon, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
-			(inflictor > MaxClients && IsValidEdict(inflictor) && GetEdictClassname(inflictor, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
-			(wpn > MaxClients && IsValidEdict(wpn) && GetEdictClassname(wpn, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)))
-		{
-			int dmg = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage);
-			if(damage < dmg)
-				damage = float(dmg);
-		}
+		// 方向相同
+		AddVectors(vVel, vDir, vVel);
 	}
+	else
+	{
+		// 方向相反
+		vDir[0] = -vDir[0]; vDir[1] = -vDir[1];
+		AddVectors(vVel, vDir, vVel);
+	}
+	
+	TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vVel);
+	// SetEntPropVector(victim, Prop_Send, "m_vecBaseVelocity", vVel);
+	
+	// 避免掉落伤害、榴弹伤害降低
+	g_bOnRocketDude[victim] = true;
+	return true;
+}
+
+int GetWeaponDamage(int attacker, int inflictor, int weapon)
+{
+	static char classname[64];
+	int wpn = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+	if((weapon > MaxClients && IsValidEdict(weapon) && GetEdictClassname(weapon, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
+		(inflictor > MaxClients && IsValidEdict(inflictor) && GetEdictClassname(inflictor, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
+		(wpn > MaxClients && IsValidEdict(wpn) && GetEdictClassname(wpn, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)))
+		return L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage);
+	return 0;
+}
+
+public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
+	int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+	if(!HandleTakeDamage(victim, attacker, inflictor, damage, damagetype, weapon/*, damageForce, damagePosition*/))
+		return Plugin_Handled;
 	
 	// g_iOldRealHealth[victim] = GetEntProp(victim, Prop_Data, "m_iHealth");
 	return Plugin_Changed;
@@ -6489,30 +6690,10 @@ public Action PlayerHook_OnTakeDamage(int victim, int &attacker, int &inflictor,
 public Action ZombieHook_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
 	int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
-	if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) || damage <= 0.0 || !IsValidAliveClient(attacker) || GetClientTeam(attacker) != 2)
-		return Plugin_Continue;
+	if(!HandleTakeDamage(victim, attacker, inflictor, damage, damagetype, weapon/*, damageForce, damagePosition*/))
+		return Plugin_Handled;
 	
-	if(g_clSkill_3[attacker] & SKL_3_DamageScale)
-	{
-		static char classname[64];
-		int wpn = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
-		if((weapon > MaxClients && IsValidEdict(weapon) && GetEdictClassname(weapon, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
-			(inflictor > MaxClients && IsValidEdict(inflictor) && GetEdictClassname(inflictor, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)) ||
-			(wpn > MaxClients && IsValidEdict(wpn) && GetEdictClassname(wpn, classname, sizeof(classname)) && !strncmp(classname, "weapon_", 7)))
-		{
-			int dmg = L4D2_GetIntWeaponAttribute(classname, L4D2IWA_Damage);
-			if((damagetype & DMG_BUCKSHOT) && HasEntProp(victim, Prop_Send, "m_rage") && GetEntPropFloat(victim, Prop_Send, "m_rage") < 1.0)
-				dmg *= 4;	// 游戏自带功能：喷子对 Witch 四倍伤害
-			
-			if(damage < dmg)
-			{
-				damage = float(dmg);
-				return Plugin_Changed;
-			}
-		}
-	}
-	
-	return Plugin_Continue;
+	return Plugin_Changed;
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -6546,14 +6727,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 public void OnEntityDestroyed(int entity)
 {
 	SDKUnhook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
-	SDKUnhook(entity, SDKHook_TraceAttack, ZombieHook_OnTraceAttack);
 	SDKUnhook(entity, SDKHook_OnTakeDamage, ZombieHook_OnTakeDamage);
-	// SDKUnhook(entity, SDKHook_TraceAttackPost, ZombieHook_OnTraceAttackPost);
-	// SDKUnhook(entity, SDKHook_OnTakeDamageAlivePost, ZombieHook_OnTakeDamagePost);
 	SDKUnhook(entity, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
-	// SDKUnhook(entity, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
-	SDKUnhook(entity, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
-	// SDKUnhook(entity, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
 	// SDKUnhook(entity, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(entity, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(entity, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
@@ -6634,12 +6809,11 @@ public void GrenadeHook_OnSpawned(int entity)
 public void ZombieHook_OnSpawned(int entity)
 {
 	SDKUnhook(entity, SDKHook_SpawnPost, ZombieHook_OnSpawned);
-	SDKHook(entity, SDKHook_TraceAttack, ZombieHook_OnTraceAttack);
-	// SDKHook(entity, SDKHook_TraceAttackPost, ZombieHook_OnTraceAttackPost);
-	// SDKHook(entity, SDKHook_OnTakeDamageAlivePost, ZombieHook_OnTakeDamagePost);
 	
-	if(HasEntProp(entity, Prop_Send, "m_bIsBurning"))
+	if(!g_bHaveDamageHook)
+	{
 		SDKHook(entity, SDKHook_OnTakeDamage, ZombieHook_OnTakeDamage);
+	}
 }
 
 // 临时、根据情况的不在这里计算
@@ -6703,109 +6877,6 @@ void CalcDamageExtra(int attacker, int& chance, int& minChDmg, int& maxChDmg, in
 		minChDmg /= 3;
 		maxChDmg /= 3;
 	}
-}
-
-public Action ZombieHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
-	int &ammotype, int hitbox, int hitgroup)
-{
-	if(!IsValidEdict(victim) || !IsValidClient(attacker) || damage <= 0.0/* || GetClientTeam(attacker) != 2*/ || (damagetype & DMG_FALL))
-		return Plugin_Continue;
-	
-	// 子弹、钢珠弹(霰弹)、砍击、钝击
-	if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
-		return Plugin_Continue;
-	
-	if(HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") == DAMAGE_NO)
-		return Plugin_Continue;
-	
-	int chance = g_iDamageChance[attacker];
-	int minChDmg = g_iDamageChanceMin[attacker];
-	int maxChDmg = g_iDamageChanceMax[attacker];
-	int baseDmg = g_iDamageBase[attacker];
-	float originalDamage = damage;
-	
-	if(victim > MaxClients)
-	{
-		if(HasEntProp(victim, Prop_Send, "m_bIsBurning"))
-		{
-			// 可能不需要马格南，因为这个已经是可以秒普感了
-			if((g_clSkill_5[attacker] & SKL_5_Overkill) &&
-				(damagetype & (DMG_BULLET|DMG_BUCKSHOT)) &&
-				ammotype >= AMMOTYPE_PISTOL && ammotype <= AMMOTYPE_TURRET && !GetRandomInt(0, 3))
-				chance += 250;
-		}
-		else
-		{
-			// 增加对 机关/墙体/BOSS 的伤害
-			if(g_clSkill_1[attacker] & SKL_1_Button)
-				damage += originalDamage * 2;
-		}
-	}
-	
-	if(g_bIsAngryCritActive)
-		chance += 500;
-	
-	if((g_clSkill_5[attacker] & SKL_5_Sneak) && g_iIsSneaking[attacker] == 0)
-		chance += 333;
-	
-	if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
-	{
-		chance += GetPlayerEffect(attacker, 42) * 200;
-		damage += GetPlayerEffect(attacker, 44) * originalDamage;
-	}
-	
-	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
-		damage += originalDamage * (g_bHaveWeaponHandling ? 1 : 2);
-	
-	if(g_clSkill_4[attacker] & SKL_4_LastStand)
-	{
-		int maxHealth = GetEntProp(attacker, Prop_Data, "m_iMaxHealth");
-		float health = GetEntProp(attacker, Prop_Data, "m_iHealth") + L4D_GetTempHealth(attacker);
-		float bonus = 0.4 - health / maxHealth;
-		if(bonus > 0.0)
-			damage += originalDamage * bonus;
-	}
-	
-	float time = GetEngineTime();
-	if(g_fAccurateShot[attacker] > time || GetRandomInt(1, 1000) <= chance)
-	{
-		// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
-		
-		if(!IsFakeClient(attacker))
-		{
-			if(g_fAccurateShot[attacker] > time)
-			{
-				EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
-			}
-			else
-			{
-				EmitSoundToClient(attacker, SOUND_AWARD_LITTLE, victim);
-			}
-		}
-		
-		damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
-		damagetype |= DMG_HEADSHOT|DMG_CRIT;
-		// g_fAccurateShot[attacker] -= 1;
-	}
-	
-	damage += originalDamage * baseDmg / 100.0;
-	
-	// 用于伤害显示
-	if(victim > MaxClients && !HasEntProp(victim, Prop_Send, "m_mobRush")
-		&& HasEntProp(victim, Prop_Data, "m_takedamage") && GetEntProp(victim, Prop_Data, "m_takedamage") != DAMAGE_NO &&
-		HasEntProp(victim, Prop_Data, "m_iHealth") && GetEntProp(victim, Prop_Data, "m_iHealth") > 0)
-	{
-		Event event = CreateEvent("infected_hurt");
-		event.SetInt("attacker", GetClientUserId(attacker));
-		event.SetInt("entityid", victim);
-		event.SetInt("amount", RoundToCeil(damage));
-		event.SetInt("type", damagetype);
-		event.SetInt("hitgroup", hitgroup);
-		Event_InfectedHurt(event, "entity_hurt", true);
-		delete event;
-	}
-	
-	return Plugin_Changed;
 }
 
 public Action EventRevive(Handle timer, any userid)
@@ -7243,157 +7314,6 @@ public Action Timer_CheckHavePistol(Handle timer, any client)
 	int weapon = GetPlayerWeaponSlot(client, 1);
 	if(weapon == -1 || !IsValidEntity(weapon))
 		CheatCommand(client, "give", "pistol_magnum");
-	
-	return Plugin_Continue;
-}
-
-public Action PlayerHook_OnTraceAttack(int victim, int &attacker, int &inflictor, float &damage, int &damagetype,
-	int &ammotype, int hitbox, int hitgroup)
-{
-	if(!IsValidAliveClient(victim) || !IsValidClient(attacker) || (damagetype & DMG_FALL))
-		return Plugin_Continue;
-	
-	if(damage <= 0.0 || hitbox <= 0)
-		return Plugin_Continue;
-	
-	int attackerTeam = GetClientTeam(attacker);
-	int victimTeam = GetClientTeam(victim);
-	
-	int chance = g_iDamageChance[attacker];
-	int minChDmg = g_iDamageChanceMin[attacker];
-	int maxChDmg = g_iDamageChanceMax[attacker];
-	int baseDmg = g_iDamageBase[attacker];
-	float originalDamage = damage;
-	
-	if(g_bIsAngryCritActive)
-		chance += 500;
-	
-	if((g_clSkill_5[attacker] & SKL_5_Sneak) && g_iIsSneaking[attacker] == 0)
-		chance += 333;
-	
-	if(GetEntProp(attacker, Prop_Send, "m_bAdrenalineActive"))
-	{
-		chance += GetPlayerEffect(attacker, 42) * 200;
-		damage += GetPlayerEffect(attacker, 44) * originalDamage;
-	}
-	
-	if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
-		damage += originalDamage * (g_bHaveWeaponHandling ? 1 : 2);
-	
-	if(g_clSkill_4[attacker] & SKL_4_LastStand)
-	{
-		int maxHealth = GetEntProp(attacker, Prop_Data, "m_iMaxHealth");
-		float health = GetEntProp(attacker, Prop_Data, "m_iHealth") + L4D_GetTempHealth(attacker);
-		float bonus = 0.4 - health / maxHealth;
-		if(bonus > 0.0)
-			damage += originalDamage * bonus;
-	}
-	
-	// 生还者攻击特感
-	if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED)
-	{
-		// 子弹、钢珠弹(霰弹)、砍击、钝击
-		if(!(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
-			return Plugin_Continue;
-		
-		float time = GetEngineTime();
-		if(g_fAccurateShot[attacker] > time || GetRandomInt(1, 1000) <= chance)
-		{
-			if(!IsFakeClient(victim))
-			{
-				// ClientCommand(victim, "play \"plats/churchbell_end.wav\"");
-				EmitSoundToClient(victim, SOUND_STUN, attacker);
-			}
-			// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
-			
-			if(!IsFakeClient(attacker))
-			{
-				if(g_fAccurateShot[attacker] > time)
-				{
-					// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
-					EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
-				}
-				else
-				{
-					// ClientCommand(attacker, "play \"ui/littlereward.wav\"");
-					EmitSoundToClient(attacker, SOUND_AWARD_LITTLE, victim);
-				}
-			}
-			
-			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
-			damagetype |= DMG_HEADSHOT|DMG_CRIT;
-			// g_fAccurateShot[attacker] -= 1;
-			
-			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !GetRandomInt(0, 2))
-			{
-				float vAng[3], vDir[3];
-				GetClientEyeAngles(attacker, vAng);
-				GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
-				ScaleVector(vDir, 300.0 * (1 + GetPlayerEffect(attacker, 23)));
-				TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
-			}
-			
-			/*
-			if(g_pCvarAllow.BoolValue)
-				PrintHintText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage, extraDamage);
-			*/
-		}
-		
-		damage += originalDamage * baseDmg / 100.0;
-		return Plugin_Changed;
-	}
-	// 特感攻击生还者
-	else if(attackerTeam == TEAM_INFECTED && victimTeam == TEAM_SURVIVORS)
-	{
-		// 子弹、钢珠弹(霰弹)、燃烧、野火、电击
-		if(damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_BURN|DMG_SLOWBURN|DMG_SHOCK))
-			return Plugin_Continue;
-		
-		if(GetRandomInt(1, 1000) <= chance)
-		{
-			if(!IsFakeClient(victim))
-			{
-				// ClientCommand(victim, "play \"plats/churchbell_end.wav\"");
-				EmitSoundToClient(victim, SOUND_STUN, attacker);
-			}
-			
-			if(!IsFakeClient(attacker))
-			{
-				// ClientCommand(attacker, "play \"ui/pickup_secret01.wav\"");
-				EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
-			}
-			
-			damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
-			damagetype |= DMG_HEADSHOT|DMG_CRIT;
-			
-			if((g_clSkill_3[attacker] & SKL_3_Kickback) && !IsSurvivorHeld(victim))
-			{
-				new RanChance = 2;
-				if(GetRandomInt(1,4) > RanChance)
-					Charge(victim, attacker);
-			}
-			
-			/*
-			if(g_pCvarAllow.BoolValue)
-				PrintCenterText(attacker, "暴击伤害：%d丨额外伤害：%d", extraChanceDamage / 10, extraDamage / 5);
-			*/
-		}
-		
-		damage += originalDamage * baseDmg / 100.0;
-		return Plugin_Changed;
-	}
-	/*
-	else if(attackerTeam == victimTeam && ((g_clSkill_5[attacker] & SKL_5_RocketDude) || (g_clSkill_5[victim] & SKL_5_RocketDude)) && inflictor > MaxClients)
-	{
-		static char classname[32];
-		GetEdictClassname(inflictor, classname, sizeof(classname));
-		if(!strcmp(classname, "grenade_launcher_projectile", false))
-		{
-			damage /= 4.0;
-			return Plugin_Changed;
-		}
-	}
-	*/
 	
 	return Plugin_Continue;
 }
@@ -11574,18 +11494,13 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	}
 	
 	SDKUnhook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
-	// SDKUnhook(client, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
-	SDKUnhook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
-	// SDKUnhook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
 	// SDKUnhook(client, SDKHook_PreThinkPost, PlayerHook_OnPreThinkPost);
 	SDKUnhook(client, SDKHook_PostThinkPost, PlayerHook_OnPostThinkPost);
 	SDKUnhook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	SDKUnhook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 	SDKUnhook(client, SDKHook_WeaponSwitchPost, PlayerHook_OnWeaponSwitchPost);
-	SDKHook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
-	// SDKHook(client, SDKHook_OnTakeDamageAlivePost, PlayerHook_OnTakeDamagePost);
-	SDKHook(client, SDKHook_TraceAttack, PlayerHook_OnTraceAttack);
-	// SDKHook(client, SDKHook_TraceAttackPost, PlayerHook_OnTraceAttackPost);
+	if(!g_bHaveDamageHook)
+		SDKHook(client, SDKHook_OnTakeDamageAlive, PlayerHook_OnTakeDamage);
 	SDKHook(client, SDKHook_WeaponCanUse, PlayerHook_OnWeaponCanUse);
 	
 	/*
@@ -14718,7 +14633,7 @@ stock bool IsChargerCharging(int client)
 	return false;
 }
 
-public MRESReturn TestMeleeSwingCollisionPre(int pThis, Handle hReturn)
+public MRESReturn TestMeleeSwingCollisionPre(int pThis, DHookReturn hReturn)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
@@ -14747,7 +14662,7 @@ public MRESReturn TestMeleeSwingCollisionPre(int pThis, Handle hReturn)
 	return MRES_Ignored;
 }
 
-public MRESReturn TestMeleeSwingCollisionPost(int pThis, Handle hReturn)
+public MRESReturn TestMeleeSwingCollisionPost(int pThis, DHookReturn hReturn)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
@@ -14761,7 +14676,7 @@ public MRESReturn TestMeleeSwingCollisionPost(int pThis, Handle hReturn)
 	return MRES_Ignored;
 }
 
-public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
+public MRESReturn TestSwingCollisionPre(int pThis, DHookReturn hReturn)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
@@ -14801,7 +14716,7 @@ public MRESReturn TestSwingCollisionPre(int pThis, Handle hReturn)
 	return MRES_Ignored;
 }
 
-public MRESReturn TestSwingCollisionPost(int pThis, Handle hReturn)
+public MRESReturn TestSwingCollisionPost(int pThis, DHookReturn hReturn)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
@@ -14848,7 +14763,7 @@ public MRESReturn AmmoDefMaxCarryPost(DHookReturn hReturn, DHookParam hParams)
 }
 
 /*
-public MRESReturn IsInvulnerablePre(int pThis, Handle hReturn)
+public MRESReturn IsInvulnerablePre(int pThis, DHookReturn hReturn)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
@@ -14856,7 +14771,7 @@ public MRESReturn IsInvulnerablePre(int pThis, Handle hReturn)
 	return MRES_Ignored;
 }
 
-public MRESReturn IsInvulnerablePost(int pThis, Handle hReturn)
+public MRESReturn IsInvulnerablePost(int pThis, DHookReturn hReturn)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;

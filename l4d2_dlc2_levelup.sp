@@ -287,6 +287,7 @@ float g_fMinigunTime[MAXPLAYERS+1];
 Handle g_hTimerMinigun[MAXPLAYERS+1];
 float g_fNightVision[MAXPLAYERS+1];
 bool g_bFirstLoaded[MAXPLAYERS+1];
+bool g_bHasGuilty[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -893,7 +894,6 @@ public void OnPluginStart()
 	AddCommandListener(Command_Away, "go_away_from_keyboard");
 	// AddCommandListener(Command_Scripted, "scripted_user_func");
 	
-	// HookEvent("tank_spawn", Event_TankSpawn);
 	HookEvent("pills_used", Event_PillsUsed);
 	HookEvent("adrenaline_used", Event_AdrenalineUsed);
 	HookEvent("heal_success", Event_HealSuccess);
@@ -903,7 +903,6 @@ public void OnPluginStart()
 	// HookEvent("player_first_spawn", Event_PlayerSpawnNotify);
 	HookEvent("bot_player_replace", Event_PlayerReplaceBot);
 	HookEvent("player_bot_replace", Event_BotReplacePlayer);
-	// HookEvent("spit_burst", Event_SpitBurst);
 	HookEvent("player_incapacitated", Event_PlayerIncapacitated);
 	HookEvent("player_incapacitated_start", Event_PlayerIncapacitatedStart);
 	HookEvent("player_death", Event_PlayerDeath);
@@ -930,28 +929,16 @@ public void OnPluginStart()
 	HookEvent("player_falldamage", Event_PlayerFallDamage);
 	HookEvent("award_earned", Event_AwardEarned);
 	// HookEvent("player_complete_sacrifice", Event_PlayerSacrifice);
-	// HookEvent("charger_killed", Event_ChargerKilled);
-	// HookEvent("hunter_headshot", Event_HunterKilled);
 	HookEvent("scavenge_match_finished", Event_VersusFinish);
 	HookEvent("versus_match_finished", Event_VersusFinish);
 	HookEvent("player_jump", Event_PlayerJump);
 	HookEvent("player_jump_apex", Event_PlayerJumpApex);
-	// HookEvent("door_unlocked", Event_DoorUnlocked);
 	HookEvent("door_open", Event_DoorEvent);
 	HookEvent("door_close", Event_DoorEvent);
 	HookEvent("all_weapons_out_of_ammo", Event_DoorEvent);
-	// HookEvent("door_moving", Event_DoorMoving);
-	// HookEvent("rescue_door_open", Event_RescueDoorOpen);
-	// HookEvent("success_checkpoint_button_used", Event_ButtonPressed);
-	// HookEvent("witch_killed", Event_WitchKilled);
 	// HookEvent("area_cleared", Event_AreaCleared);
-	// HookEvent("vomit_bomb_tank", Event_VomitjarTank);
 	// HookEvent("create_panic_event", Event_PaincEventStart, EventHookMode_PostNoCopy);
 	// HookEvent("panic_event_finished", Event_PaincEventStop, EventHookMode_PostNoCopy);
-	// HookEvent("strongman_bell_knocked_off", Event_StrongmanTrigged);
-	// HookEvent("molotov_thrown", Event_MolotovThrown);
-	// HookEvent("stashwhacker_game_won", Event_StashwhackerTrigged);
-	// HookEvent("scavenge_gas_can_destroyed", Event_GascanDestoryed);
 	HookEvent("survivor_rescued", Event_SurvivorRescued);
 	HookEvent("weapon_drop", Event_WeaponDropped);
 	HookEvent("ammo_pickup", Event_AmmoPickup);
@@ -995,10 +982,7 @@ public void OnPluginStart()
 	// HookEvent("achievement_earned", Event_AchievementEarend);
 	// HookEvent("stashwhacker_game_won", Event_StashwhackerWon);
 	// HookEvent("strongman_bell_knocked_off", Event_StrongmanBell);
-	
-	// 检查第一回合用
-	// HookEvent("player_first_spawn", Event__PlayerSpawnFirst);
-	// HookEvent("player_team", Event__PlayerTeam);
+	HookEvent("friendly_fire", Event_FriendlyFire);
 	
 	L4D2_InitWeaponNameTrie();
 	
@@ -2085,6 +2069,23 @@ public void Event_PlayerReviveEnded(Event event, const char[] event_name, bool d
 	}
 }
 
+public void Event_FriendlyFire(Event event, const char[] event_name, bool dontBroadcast)
+{
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	int victim = GetClientOfUserId(event.GetInt("victim"));
+	int guilty = GetClientOfUserId(event.GetInt("guilty"));
+	if(victim < 1 || victim > MaxClients || attacker < 1 || attacker > MaxClients)
+		return;
+	
+	g_bHasGuilty[victim] = (guilty == victim);
+	RequestFrame(ResetGuilty, victim);
+}
+
+public void ResetGuilty(any client)
+{
+	g_bHasGuilty[client] = false;
+}
+
 /*
 public void Event_AchievementEarend(Event event, const char[] event_name, bool dontBroadcast)
 {
@@ -2312,6 +2313,7 @@ void Initialization(int client, bool invalid = false)
 	g_iIsSneaking[client] = 0;
 	g_iUserID[client] = 0;
 	g_bFirstLoaded[client] = false;
+	g_bHasGuilty[client] = false;
 	g_iChaseEntity[client] = INVALID_ENT_REFERENCE;
 	Handle toDelete4 = g_hTimerMinigun[client];
 	g_hTimerMinigun[client] = null;
@@ -3087,21 +3089,21 @@ public int MenuHandler_TeamTeleport(Menu menu, MenuAction action, int client, in
 			StatusSelectMenuFuncCS(client);
 			return 0;
 		}
-
+		
 		float position[3];
 		GetClientAbsOrigin(client, position);
 		g_bHasTeleportActived = true;
-
+		
 		DataPack data = CreateDataPack();
 		data.WriteCell(GetClientUserId(client));
 		data.WriteFloat(position[0]);
 		data.WriteFloat(position[1]);
 		data.WriteFloat(position[2]);
-
+		
 		GiveSkillPoint(client, -2);
 		CreateTimer(5.0, Timer_TeamTeleport, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
 		StatusChooseMenuFunc(client);
-
+		
 		if(g_pCvarAllow.BoolValue)
 			PrintToChatAll("\x03[\x05提示\x03]\x05 %N\x04使用了\x03全员传送\x04,\x035秒后\x04所有队友将会传送到他身边开会...", client);
 	}
@@ -3212,22 +3214,24 @@ public Action Command_Away(int client, const char[] command, int argc)
 	return Plugin_Continue;
 }
 
+/*
 public Action Command_Scripted(int client, const char[] command, int argc)
 {
 	if(!IsValidClient(client) || argc < 1)
 		return Plugin_Continue;
-
+	
 	char cmdArg[255];
 	GetCmdArgString(cmdArg, 255);
 	ReplaceStringEx(cmdArg, 255, "scripted_user_func", "", _, _, false);
 	TrimString(cmdArg);
 	ReplaceString(cmdArg, 255, " ", ",");
-
+	
 	CheatCommandEx(client, "script", "::UserConsoleCommand(GetPlayerFromUserID(%d),\"%s\")",
 		GetClientUserId(client), cmdArg);
-
+	
 	return Plugin_Handled;
 }
+*/
 
 public Action Command_Say(int client, const char[] command, int argc)
 {
@@ -3250,7 +3254,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 			StatusSelectMenuFuncBuy(client, false);
 			return Plugin_Handled;
 		}
-
+		
 		if(!strcmp(sayText, "rp", false) || !strcmp(sayText, "ldw", false))
 		{
 			StatusSelectMenuFuncRP(client);
@@ -3264,7 +3268,7 @@ public Action Command_Say(int client, const char[] command, int argc)
 	ReplaceStringEx(cmdArg, 255, command, "", _, _, false);
 	TrimString(cmdArg);
 	ReplaceString(cmdArg, 255, " ", ",");
-
+	
 	CheatCommandEx(client, "script", "::InterceptChat(\"%s\",GetPlayerFromUserID(%d))",
 		cmdArg, GetClientUserId(client));
 	*/
@@ -6315,9 +6319,10 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 	int& weapon/*, float damageForce[3], float damagePosition[3]*/)
 {
 	float originalDamage = damage;
-	int victimTeam = GetEntProp(victim, Prop_Send, "m_iTeamNum");
+	int victimTeam = (HasEntProp(victim, Prop_Send, "m_iTeamNum") ? GetEntProp(victim, Prop_Send, "m_iTeamNum") : 0);
 	float time = GetEngineTime();
 	
+	// 攻击者加伤害
 	if(IsValidAliveClient(attacker))
 	{
 		int chance = g_iDamageChance[attacker];			// 基础暴击率
@@ -6471,10 +6476,12 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 		}
 	}
 	
+	// 受害者减伤害
 	if(IsValidAliveClient(victim))
 	{
-		bool validAttacker = IsValidClient(attacker);
-		int attackerTeam = (validAttacker ? GetClientTeam(attacker) : 0);
+		bool playerAttacker = IsValidClient(attacker);
+		int attackerTeam = (playerAttacker ? GetClientTeam(attacker) : 0);
+		victimTeam = GetClientTeam(victim);
 		
 		// 技能：「无敌」每80秒获得9秒无敌时间
 		// 装备效果：被冻结时不会受到伤害
@@ -6493,8 +6500,8 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 		}
 		
 		// 技能：「谨慎」队友伤害降低至1点
-		if(validAttacker && victimTeam == attackerTeam && damage > 1.0 &&
-			(g_clSkill_1[victim] & SKL_1_Firendly) || (g_clSkill_1[attacker] & SKL_1_Firendly))
+		if(playerAttacker && victimTeam == attackerTeam && damage > 1.0 &&
+			((g_clSkill_1[victim] & SKL_1_Firendly) || (g_clSkill_1[attacker] & SKL_1_Firendly)))
 		{
 			// 装备效果：「谨慎」队友伤害降低至0点
 			if(GetPlayerEffect(victim, 45) || GetPlayerEffect(attacker, 45))
@@ -6519,11 +6526,11 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 				damage = 0.0;
 			
 			// 技能：起身/失衡时免疫伤害
-			if((g_clSkill_1[victim] & SKL_1_GettingUP) &&
-				validAttacker && IsPlayerAlive(attacker) && IsStaggering(attacker))
+			if((g_clSkill_1[victim] & SKL_1_GettingUP) && attackerTeam == 3 &&
+				playerAttacker && IsPlayerAlive(attacker) && IsStaggering(attacker))
 				damage = 0.0;
 			
-			if(attacker > 0 && (validAttacker || IsValidEdict(attacker)))
+			if(attacker > 0 && (playerAttacker || IsValidEdict(attacker)))
 			{
 				static char classname[64];
 				GetEdictClassname(attacker, classname, sizeof(classname));
@@ -7202,7 +7209,7 @@ public void Event_PlayerIncapacitated(Event event, const char[] event_name, bool
 		}
 	}
 
-	if((g_clSkill_3[client] & SKL_3_IncapFire))
+	if(g_clSkill_3[client] & SKL_3_IncapFire)
 	{
 		char classname[64];
 		float radius = 175.0 * (1 + GetPlayerEffect(client, 25));
@@ -7272,7 +7279,7 @@ public void Event_PlayerIncapacitated(Event event, const char[] event_name, bool
 		CreateTimer(0.1, Timer_CheckHavePistol, client, TIMER_FLAG_NO_MAPCHANGE);
 	}
 	
-	if(tk && attacker != client)
+	if(tk && attacker != client && !g_bHasGuilty[client])
 	{
 		GiveSkillPoint(attacker, -1);
 		g_fForgiveOfFF[attacker] = GetEngineTime() + 45.0;
@@ -7827,9 +7834,9 @@ public Action Timer_StopRetard(Handle timer, any userid)
 // 只处理特感/生还，不处理普感/萌妹
 public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroadcast)
 {
-	new attacker = GetClientOfUserId(event.GetInt("attacker"));
-	new victim = GetClientOfUserId(event.GetInt("userid"));
-
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	int victim = GetClientOfUserId(event.GetInt("userid"));
+	
 	if(IsValidClient(victim))
 	{
 		int team = GetClientTeam(victim);
@@ -7854,7 +7861,7 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 						PrintToChat(victim, "\x03[提示]\x01 你死亡前死亡前引爆炸弹对 \x04%N\x01 造成 \x05%d\x01 伤害。", attacker, 3000 * mulEffect);
 					}
 				}
-				else
+				else if(attacker != victim && !g_bHasGuilty[victim])
 				{
 					GiveSkillPoint(attacker, -3);
 					g_fForgiveOfTK[attacker] = GetEngineTime() + 45.0;
@@ -9712,6 +9719,7 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	bool full = (si || sur || (g_Cvarhppack.BoolValue && !g_bIsGamePlaying));
 	RegPlayerHook(client, full);
 	g_bFirstLoaded[client] = false;
+	g_bHasGuilty[client] = false;
 	
 	if(g_clSkill_1[client] & SKL_1_Armor)
 	{
@@ -9739,6 +9747,7 @@ public void Event_PlayerSpawn(Event event, const char[] eventName, bool dontBroa
 	*/
 }
 
+/*
 public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool dontBroadcast)
 {
 	if(!g_bIsGamePlaying)
@@ -9806,6 +9815,7 @@ public void Event_PlayerSpawnNotify(Event event, const char[] eventName, bool do
 		}
 	}
 }
+*/
 
 bool IsVisibleTo(int client, int target)
 {
@@ -13796,7 +13806,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					DataPack data = CreateDataPack();
 					g_hTimerMinigun[client] = CreateTimer(5.0, Timer_DestroyMinigun, data, TIMER_REPEAT|TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
 					data.WriteCell(GetClientUserId(client));
-					data.WriteCell(EntIndexToEntRef(machine));	// 可能会内存泄漏
+					data.WriteCell(EntIndexToEntRef(machine));
 				}
 				else
 				{
@@ -13818,16 +13828,22 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			static char classname[64];
 			int machine = GetEntPropEnt(client, Prop_Send, "m_hUseEntity");
-			if(machine > MaxClients && IsValidEdict(machine) && GetEdictClassname(machine, classname, sizeof(classname)) && 
+			if(machine > MaxClients && IsValidEdict(machine) &&
+				GetEntProp(machine, Prop_Data, "m_iHammerID") == -1 &&
+				GetEdictClassname(machine, classname, sizeof(classname)) && 
 				(!strcmp(classname, "prop_minigun", false) || !strcmp(classname, "prop_minigun_l4d1", false)))
 			{
 				float eyeAngles[3], gunAngles[3];
 				GetClientEyeAngles(client, eyeAngles);
 				GetEntPropVector(machine, Prop_Send, "m_angRotation", gunAngles);
 				eyeAngles[0] = gunAngles[0] = 0.0;
-				float diff = GetAngle(eyeAngles, gunAngles) * 180.0 / 3.14159265358979323846;
+				float diff = GetAngleDiff(eyeAngles, gunAngles) * 180.0 / 3.14159265358979323846;
 				if(diff > 89.0)
+				{
 					TeleportEntity(machine, NULL_VECTOR, eyeAngles, NULL_VECTOR);
+					// AcceptEntityInput(machine, "TurnOn", client, machine);
+					AcceptEntityInput(machine, "Enable", client, machine);
+				}
 			}
 		}
 		*/
@@ -14014,7 +14030,7 @@ public void OutputHook_OnResurrect(const char[] output, int caller, int activato
 }
 
 /*
-Float:GetAngle(Float:x1[3], Float:x2[3])
+Float:GetAngleDiff(Float:x1[3], Float:x2[3])
 {
 	decl Float:a[3];
 	decl Float:b[3];
@@ -14034,7 +14050,7 @@ public Action Timer_DestroyMinigun(Handle timer, any pack)
 	int client = GetClientOfUserId(data.ReadCell());
 	int machine = data.ReadCell();
 	
-	if(IsValidEntity(machine))
+	if(machine != INVALID_ENT_REFERENCE && IsValidEntity(machine))
 	{
 		// 过热时不删除机枪，避免刷冷却
 		if(GetEntProp(machine, Prop_Send, "m_overheated"))
@@ -14044,10 +14060,11 @@ public Action Timer_DestroyMinigun(Handle timer, any pack)
 		for(int i = 1; i <= MaxClients; ++i)
 			if(IsValidAliveClient(i) && GetEntPropEnt(i, Prop_Send, "m_hUseEntity") == index)
 				return Plugin_Continue;
+		
+		RemoveEntity(machine);
 	}
 	
 	g_hTimerMinigun[client] = null;
-	RemoveEntity(machine);
 	return Plugin_Stop;
 }
 
@@ -14157,6 +14174,7 @@ stock int CreateMiniGun(int client, int type = 1, bool mount = true)
 	
 	// 禁用碰撞
 	SetEntProp(index, Prop_Data, "m_CollisionGroup", 2);
+	SetEntProp(index, Prop_Data, "m_iHammerID", -1);
 	
 	TeleportEntity(index, VecOrigin, NULL_VECTOR, NULL_VECTOR);
 	
@@ -14180,6 +14198,54 @@ stock int CreateMiniGun(int client, int type = 1, bool mount = true)
 	}
 	
 	return index;
+}
+
+stock int CloneMinigun(int machine, int mount = -1)
+{
+	char model[42];
+	GetEntPropString(machine, Prop_Data, "m_ModelName", model, sizeof(model));
+	
+	int newMachine = -1;
+	if(model[24] == '5')	// models/w_models/weapons/50cal.mdl
+		newMachine = CreateEntityByName("prop_minigun");
+	else if(model[24] == 'w')	// models/w_models/weapons/w_minigun.mdl
+		newMachine = CreateEntityByName("prop_minigun_l4d1");
+	if(newMachine <= MaxClients)
+		return -1;
+	
+	if(model[24] == '5')
+		SetEntityModel(newMachine, "models/w_models/weapons/50cal.mdl");
+	else if(model[24] == 'w')
+		SetEntityModel(newMachine, "models/w_models/weapons/w_minigun.mdl");
+	
+	DispatchKeyValueFloat(newMachine, "MaxPitch", 360.00);
+	DispatchKeyValueFloat(newMachine, "MinPitch", -360.00);
+	DispatchKeyValueFloat(newMachine, "MaxYaw", 190.00);
+	
+	DispatchSpawn(newMachine);
+	
+	float origin[3], angles[3];
+	GetEntPropVector(machine, Prop_Data, "m_vecOrigin", origin);
+	GetEntPropVector(machine, Prop_Data, "m_angRotation", angles);
+	TeleportEntity(newMachine, origin, angles, NULL_VECTOR);
+	
+	// 安装在物体上面，让机枪可以跟随物体移动
+	if(mount > MaxClients)
+	{
+		static char targetname[64];
+		GetEntPropString(mount, Prop_Data, "m_iName", targetname, sizeof(targetname));
+		
+		if(targetname[0] == EOS)
+		{
+			FormatEx(targetname, sizeof(targetname), "mounted_%d", newMachine);
+			DispatchKeyValue(mount, "targetname", targetname);
+		}
+		
+		SetVariantString(targetname);
+		AcceptEntityInput(newMachine, "SetParent", newMachine, newMachine);
+	}
+	
+	return newMachine;
 }
 
 void ShowStatusPanel(int client)

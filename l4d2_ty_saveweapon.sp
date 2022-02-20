@@ -53,6 +53,7 @@ bool    g_bCanAppropriate = true;
 int 	g_iWeaponInfo[MAXPLAYERS+1][17];
 char 	g_sWeaponInfo[MAXPLAYERS+1][6][64];
 bool    g_bValidMapChange = false;
+StringMap g_tWeaponInfo;
 
 ConVar 	g_hNoob, g_hClearAfterCampaign, g_hFullHealth;
 
@@ -62,7 +63,7 @@ ConVar 	g_hNoob, g_hClearAfterCampaign, g_hFullHealth;
 public Plugin myinfo =
 {
 	name = "过关保存角色",
-	author = "MAKS, Electr0, Merudo",
+	author = "MAKS, Electr0, Merudo, zonde306",
 	description = "L4D2 coop save weapon",
 	version = PLUGIN_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?p=2398822#post2398822"
@@ -92,6 +93,8 @@ public void OnPluginStart()
 	RegAdminCmd("sm_load_weap_all", 		CMD_LoadWeapAll, 	ADMFLAG_CHEATS, "Load equipment of all survivors");
 	
 	AutoExecConfig(true, "l4d2_ty_saveweapon");
+	
+	g_tWeaponInfo = CreateTrie();
 }
 
 // --------------------------------------
@@ -297,7 +300,26 @@ void CopyWeaponFromTo(int Fclient, int Tclient)
 	}
 	for (int i = 0; i < sizeof(g_sWeaponInfo[]) ; i++)
 	{
-		 strcopy(g_sWeaponInfo[Tclient][i], sizeof(g_sWeaponInfo[][]), g_sWeaponInfo[Fclient][i]);
+		strcopy(g_sWeaponInfo[Tclient][i], sizeof(g_sWeaponInfo[][]), g_sWeaponInfo[Fclient][i]);
+	}
+	
+	if(IsClientConnected(Fclient) && IsClientConnected(Tclient))
+	{
+		char buffer[32];
+		IntToString(GetClientUserId(Fclient), buffer, sizeof(buffer));
+		
+		StringMap handle = null;
+		if(g_tWeaponInfo.GetValue(buffer, handle) && handle != null)
+		{
+			g_tWeaponInfo.Remove(buffer);
+			
+			IntToString(GetClientUserId(Tclient), buffer, sizeof(buffer));
+			
+			StringMap temp = null;
+			if(g_tWeaponInfo.GetValue(buffer, temp) && temp != null)
+				delete temp;
+			g_tWeaponInfo.SetValue(buffer, handle, true);
+		}
 	}
 }
 
@@ -386,6 +408,21 @@ void TySaveWeapon(int client)
 	if (iSlot2 > 0) GetEdictClassname(iSlot2, g_sWeaponInfo[client][2], 64);
 	if (iSlot3 > 0) GetEdictClassname(iSlot3, g_sWeaponInfo[client][3], 64);
 	if (iSlot4 > 0) GetEdictClassname(iSlot4, g_sWeaponInfo[client][4], 64);
+	
+	char buffer[32];
+	IntToString(GetClientUserId(client), buffer, sizeof(buffer));
+	
+	StringMap data = null;
+	if(!g_tWeaponInfo.GetValue(buffer, data) || data == null)
+		g_tWeaponInfo.SetValue(buffer, (data = CreateTrie()), true);
+	
+	data.SetArray("g_iWeaponInfo[]", g_iWeaponInfo[client], sizeof(g_iWeaponInfo[]), true);
+	
+	for(int i = 0; i < sizeof(g_sWeaponInfo[]); ++i)
+	{
+		FormatEx(buffer, sizeof(buffer), "g_sWeaponInfo[][%d]", i);
+		data.SetString(buffer, g_sWeaponInfo[client][i], true);
+	}
 }
 
 // --------------------------------------
@@ -398,7 +435,7 @@ void TySaveSlot1(int client, int iSlot1)
 	
 	GetEdictClassname(iSlot1, className, sizeof(className));
 	
-	if 		(!strcmp(className, "weapon_melee", true)) // if melee
+	if (!strcmp(className, "weapon_melee", true)) // if melee
 	{
 		GetEntPropString(iSlot1, Prop_Data, "m_strMapSetScriptName", g_sWeaponInfo[client][Slot1], 64);
 	} 
@@ -461,7 +498,24 @@ char survivor_models[8][] =
 
 void TyGiveWeapon(int client)
 {
-	if (!IsClientInGame(client) || g_iWeaponInfo[client][iRecorded] == 0) return;
+	if (!IsClientInGame(client)) return;
+	
+	char buffer[32];
+	IntToString(GetClientUserId(client), buffer, sizeof(buffer));
+	
+	StringMap data = null;
+	if(g_tWeaponInfo.GetValue(buffer, data) && data != null)
+	{
+		data.GetArray("g_iWeaponInfo[]", g_iWeaponInfo[client], sizeof(g_iWeaponInfo[]));
+		
+		for(int i = 0; i < sizeof(g_sWeaponInfo[]); ++i)
+		{
+			FormatEx(buffer, sizeof(buffer), "g_sWeaponInfo[][%d]", i);
+			data.GetString(buffer, g_sWeaponInfo[client][i], sizeof(g_sWeaponInfo[][]));
+		}
+	}
+	
+	if(g_iWeaponInfo[client][iRecorded] == 0) return;
 	
 	g_iWeaponInfo[client][iSpawned] = 1;
 	
@@ -587,6 +641,19 @@ void TyCleanW(int client)
 	g_sWeaponInfo[client][Slot3][0] = '\0';
 	g_sWeaponInfo[client][Slot4][0] = '\0';
 	g_sWeaponInfo[client][Model][0] = '\0';	
+	
+	if(IsClientConnected(client))
+	{
+		char buffer[8];
+		IntToString(GetClientUserId(client), buffer, sizeof(buffer));
+		
+		StringMap handle = null;
+		if(g_tWeaponInfo.GetValue(buffer, handle) && handle != null)
+		{
+			g_tWeaponInfo.Remove(buffer);
+			delete handle;
+		}
+	}
 }
 
 void TyCleanAll()

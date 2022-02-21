@@ -53,17 +53,17 @@
 				"this"			"entity"
 				"arguments"
 				{
-					"time1"
+					"z_gun_swing_interval"
 					{
 						"type"	"float"
 						"flags"	"byval"
 					}
-					"time2"
+					"z_gun_swing_duration"
 					{
 						"type"	"float"
 						"flags"	"byval"
 					}
-					"range"
+					"z_gun_range"
 					{
 						"type"	"float"
 						"flags"	"byval"

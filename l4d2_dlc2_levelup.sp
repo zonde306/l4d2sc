@@ -14769,7 +14769,7 @@ public MRESReturn TrySwingPre(int pThis, DHookParam hParams)
 				{
 					g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
 					g_hCvarShovRange.IntValue = range;
-					hParams.Set(3, range);
+					hParams.Set(3, float(range));	// 注意是 float
 					changed = true;
 				}
 			}

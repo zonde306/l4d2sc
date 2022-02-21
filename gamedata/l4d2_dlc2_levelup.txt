@@ -12,9 +12,9 @@
 				"this"			"entity"
 				"arguments"
 				{
-					"CTerrorMeleeWeapon"
+					"dir"
 					{
-						"type"	"cbaseentity"
+						"type"	"vectorptr"
 					}
 				}
 			}
@@ -27,9 +27,46 @@
 				"this"			"entity"
 				"arguments"
 				{
-					"CTerrorWeapon"
+					"dir"
 					{
-						"type"	"cbaseentity"
+						"type"	"vectorptr"
+					}
+				}
+			}
+			
+			"CTerrorWeapon::DoSwing"
+			{
+				"signature"		"CTerrorWeapon::DoSwing"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+				"arguments"
+				{
+				}
+			}
+			
+			"CTerrorWeapon::TrySwing"
+			{
+				"signature"		"CTerrorWeapon::TrySwing"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"entity"
+				"arguments"
+				{
+					"time1"
+					{
+						"type"	"float"
+						"flags"	"byval"
+					}
+					"time2"
+					{
+						"type"	"float"
+						"flags"	"byval"
+					}
+					"range"
+					{
+						"type"	"float"
+						"flags"	"byval"
 					}
 				}
 			}
@@ -109,13 +146,13 @@
 			
 			/*
 			 *	CTerrorWeapon::TestSwingCollision(Vector const&)
-			 *	Search: "Weapon.Swing" for "CTerrorWeapon::OnSwingStart", vtable down, called from "CTerrorWeapon::DoSwing"
+			 *	Search: "Weapon.Swing" for "CTerrorWeapon::OnSwingStart", vtable down 2, called from "CTerrorWeapon::DoSwing"
 			 */
 			"CTerrorWeapon::TestSwingCollision"
 			{
 				"library"		"server"
 				"linux"			"@_ZN13CTerrorWeapon18TestSwingCollisionERK6Vector"
-				"mac"			"@__ZN13CTerrorWeapon18TestSwingCollisionERK6Vector"
+				"mac"			"@_ZN13CTerrorWeapon18TestSwingCollisionERK6Vector"
 				
 				/* 53 8B DC 83 EC 08 83 E4 F0 83 C4 04 55 8B 6B 04 89 6C 24 04 8B EC 81 EC ? ? ? ? A1 ? ? ? ? 33 C5 89 45 FC 56 57 8B 7B 08 89 4D 98 89 7D 80 E8 ? ? ? ? 8B F0 89 75 84 85 F6 */
 				"windows"		"\x53\x8B\xDC\x83\xEC\x08\x83\xE4\xF0\x83\xC4\x04\x55\x8B\x6B\x04\x89\x6C\x24\x04\x8B\xEC\x81\xEC****\xA1****\x33\xC5\x89\x45\xFC\x56\x57\x8B\x7B\x08\x89\x4D\x98\x89\x7D\x80\xE8****\x8B\xF0\x89\x75\x84\x85\xF6"
@@ -186,8 +223,35 @@
 				/* 55 8B EC 83 EC 30 53 56 8B F1 8B 86 */
 				
 				"mac"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
-				"macos"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
 				"linux"		"@_ZN22CDirectorChallengeMode17ScriptAllowDamageEP11CBaseEntityR15CTakeDamageInfo"
+			}
+			
+			/*
+			 *	CTerrorWeapon::DoSwing(void)
+			 *	Search: "Weapon.Swing" for "CTerrorWeapon::OnSwingStart", vtable down 2
+			 */
+			"CTerrorWeapon::DoSwing"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorWeapon7DoSwingEv"
+				"mac"			"@_ZN13CTerrorWeapon7DoSwingEv"
+				
+				/* 55 8B EC 83 EC 3C 53 56 8B F1 E8 ? ? ? ? 8B D8 89 5D F4 */
+				"windows"		"\x55\x8B\xEC\x83\xEC\x3C\x53\x56\x8B\xF1\xE8****\x8B\xD8\x89\x5D\xF4"
+			}
+			
+			/*
+			 *	CTerrorWeapon::TrySwing(float, float, float)
+			 *	Search: "Weapon.Swing" for "CTerrorWeapon::OnSwingStart", vtable up 2
+			 */
+			"CTerrorWeapon::TrySwing"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorWeapon8TrySwingEfff"
+				"mac"			"@_ZN13CTerrorWeapon8TrySwingEfff"
+				
+				/* 55 8B EC 83 EC 14 56 8B F1 8B 06 8B 90 ? ? ? ? FF D2 84 C0 */
+				"windows"		"\x55\x8B\xEC\x83\xEC\x14\x56\x8B\xF1\x8B\x06\x8B\x90****\xFF\xD2\x84\xC0"
 			}
 		}
 	}

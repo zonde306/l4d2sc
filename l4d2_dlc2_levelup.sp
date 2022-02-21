@@ -529,7 +529,7 @@ int g_iCommonHealth = 50;
 bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS,
 	g_pCvarSaveStats, g_pCvarBotRP, g_pCvarBotBuy;
-Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTestSwingCollision = null/*, g_hDetourIsInvulnerable = null*/,
+Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTrySwing = null/*, g_hDetourIsInvulnerable = null*/,
 	g_hDetourAmmoMaxCarry = null, g_hDetourScriptAllowDamage = null;
 Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null;
 GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
@@ -1035,9 +1035,9 @@ public void OnPluginStart()
 				LogError("l4d2_dlc2_levelup: CTerrorMeleeWeapon::TestMeleeSwingCollision Error.");
 			}
 			
-			g_hDetourTestSwingCollision = DHookCreateFromConf(hGameData, "CTerrorWeapon::TestSwingCollision");
-			if(DHookEnableDetour(g_hDetourTestSwingCollision, false, TestSwingCollisionPre) &&
-				DHookEnableDetour(g_hDetourTestSwingCollision, true, TestSwingCollisionPost))
+			g_hDetourTrySwing = DHookCreateFromConf(hGameData, "CTerrorWeapon::TrySwing");
+			if(DHookEnableDetour(g_hDetourTrySwing, false, TrySwingPre) &&
+				DHookEnableDetour(g_hDetourTrySwing, true, TrySwingPost))
 			{
 				// 推的攻击范围
 				g_tShoveRange = CreateTrie();
@@ -1089,11 +1089,11 @@ public void OnPluginStart()
 				g_tShoveRange.SetValue("weapon_upgradepack_explosive",		90);
 				*/
 				
-				// LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Hooked.");
+				// LogMessage("l4d2_dlc2_levelup: CTerrorWeapon::TrySwing Hooked.");
 			}
 			else
 			{
-				LogError("l4d2_dlc2_levelup: CTerrorWeapon::TestSwingCollision Error.");
+				LogError("l4d2_dlc2_levelup: CTerrorWeapon::TrySwing Error.");
 			}
 			
 			/*
@@ -1256,10 +1256,10 @@ public void OnPluginEnd()
 		DHookDisableDetour(g_hDetourTestMeleeSwingCollision, true, TestMeleeSwingCollisionPost);
 	}
 	
-	if(g_hDetourTestSwingCollision)
+	if(g_hDetourTrySwing)
 	{
-		DHookDisableDetour(g_hDetourTestSwingCollision, false, TestSwingCollisionPre);
-		DHookDisableDetour(g_hDetourTestSwingCollision, true, TestSwingCollisionPost);
+		DHookDisableDetour(g_hDetourTrySwing, false, TrySwingPre);
+		DHookDisableDetour(g_hDetourTrySwing, true, TrySwingPost);
 	}
 	
 	for(int i = 1; i <= MaxClients; ++i)
@@ -4160,7 +4160,7 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 		FORMAT_MENU_ITEM_5(SKL_5_MeleeRange,"「刀客」增加近战武器攻击范围");
 	}
 	
-	if(g_tShoveRange != null && g_hDetourTestSwingCollision != null)
+	if(g_tShoveRange != null && g_hDetourTrySwing != null)
 	{
 		FORMAT_MENU_ITEM_5(SKL_5_ShoveRange,"「枪托」增加推的攻击范围");
 	}
@@ -6305,7 +6305,7 @@ public MRESReturn ScriptAllowDamagePost(DHookReturn hReturn, DHookParam hParams)
 	hParams.SetObjectVar(2, 48, ObjectValueType_Ehandle, inflictor);
 	hParams.SetObjectVar(2, 60, ObjectValueType_Float, damage);
 	hParams.SetObjectVar(2, 72, ObjectValueType_Int, damagetype);
-	// hParams.SetObjectVar(2, 56, ObjectValueType_Ehandle, weapon);	// 为什么这个会报错？
+	// hParams.SetObjectVar(2, 56, ObjectValueType_Ehandle, weapon);
 	
 	/*
 	hParams.SetObjectVarVector(2, 12, ObjectValueType_Vector, damagePosition);
@@ -6316,7 +6316,7 @@ public MRESReturn ScriptAllowDamagePost(DHookReturn hReturn, DHookParam hParams)
 }
 
 bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, int &damagetype,
-	int& weapon/*, float damageForce[3], float damagePosition[3]*/)
+	int weapon/*, float damageForce[3], float damagePosition[3]*/)
 {
 	float originalDamage = damage;
 	int victimTeam = (HasEntProp(victim, Prop_Send, "m_iTeamNum") ? GetEntProp(victim, Prop_Send, "m_iTeamNum") : 0);
@@ -14699,7 +14699,7 @@ stock bool IsChargerCharging(int client)
 	return false;
 }
 
-public MRESReturn TestMeleeSwingCollisionPre(int pThis, DHookReturn hReturn)
+public MRESReturn TestMeleeSwingCollisionPre(int pThis)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
@@ -14728,7 +14728,7 @@ public MRESReturn TestMeleeSwingCollisionPre(int pThis, DHookReturn hReturn)
 	return MRES_Ignored;
 }
 
-public MRESReturn TestMeleeSwingCollisionPost(int pThis, DHookReturn hReturn)
+public MRESReturn TestMeleeSwingCollisionPost(int pThis)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
@@ -14742,7 +14742,7 @@ public MRESReturn TestMeleeSwingCollisionPost(int pThis, DHookReturn hReturn)
 	return MRES_Ignored;
 }
 
-public MRESReturn TestSwingCollisionPre(int pThis, DHookReturn hReturn)
+public MRESReturn TrySwingPre(int pThis, DHookParam hParams)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
@@ -14764,10 +14764,11 @@ public MRESReturn TestSwingCollisionPre(int pThis, DHookReturn hReturn)
 					range = g_iUnknownShoveRange;
 				
 				range += RoundToZero(range * 0.1 * GetPlayerEffect(owner, 56));
-				if(range > g_hCvarShovRange.IntValue)
+				if(range > view_as<float>(hParams.Get(3)))
 				{
 					g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
 					g_hCvarShovRange.IntValue = range;
+					hParams.Set(3, range);
 				}
 			}
 			
@@ -14779,10 +14780,10 @@ public MRESReturn TestSwingCollisionPre(int pThis, DHookReturn hReturn)
 		}
 	}
 	
-	return MRES_Ignored;
+	return MRES_Handled;
 }
 
-public MRESReturn TestSwingCollisionPost(int pThis, DHookReturn hReturn)
+public MRESReturn TrySwingPost(int pThis)
 {
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;

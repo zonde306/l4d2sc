@@ -14747,6 +14747,7 @@ public MRESReturn TrySwingPre(int pThis, DHookParam hParams)
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
 	
+	bool changed = false;
 	if( IsValidEntity(pThis) )
 	{
 		int owner = GetEntPropEnt(pThis, Prop_Send, "m_hOwnerEntity");
@@ -14769,6 +14770,7 @@ public MRESReturn TrySwingPre(int pThis, DHookParam hParams)
 					g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
 					g_hCvarShovRange.IntValue = range;
 					hParams.Set(3, range);
+					changed = true;
 				}
 			}
 			
@@ -14780,7 +14782,9 @@ public MRESReturn TrySwingPre(int pThis, DHookParam hParams)
 		}
 	}
 	
-	return MRES_Handled;
+	if(changed)
+		return MRES_ChangedHandled;
+	return MRES_Ignored;
 }
 
 public MRESReturn TrySwingPost(int pThis)

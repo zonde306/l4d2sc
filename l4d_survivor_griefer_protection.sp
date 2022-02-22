@@ -37,6 +37,8 @@ Fixed - Corrected an issue with admins triggering jump protection
 #include <sdktools>
 #include <sdkhooks>
 #include <left4dhooks>
+#include <regex>
+#include <SteamWorks>
 
 #pragma semicolon 1
 #pragma newdecls required
@@ -48,7 +50,8 @@ float fFirstSpawn[MAXPLAYERS+1], fFirstSpawnImmunity[MAXPLAYERS+1], fOrigin[MAXP
 		fDamageLimit[MAXPLAYERS+1], fReviveHealthBuff[MAXPLAYERS+1], fHasDominator[MAXPLAYERS+1];
 char sMessage[32];
 
-ConVar JumpAttempts, DamageAllowance, WaitTime, KickMessage, KickType, TimedBan;
+ConVar JumpAttempts, DamageAllowance, WaitTime, KickMessage, KickType, TimedBan, ReverseFF;
+StringMap fsTrie;
 
 public Plugin myinfo =
 {
@@ -77,18 +80,21 @@ public void OnPluginStart()
 {
 	RegAdminCmd("sm_sgpreset", ResetCmd, ADMFLAG_GENERIC, "");
 
-	WaitTime = CreateConVar("l4d_wait_time", "180", "保护持续时间", FCVAR_NOTIFY);
-	KickType = CreateConVar("l4d_kick_type", "1", "惩罚方式.1=踢出.2=封禁.3=起票", FCVAR_NOTIFY);
-	KickMessage = CreateConVar("l4d_kick_message", "不准捣乱", "踢出理由", FCVAR_NOTIFY);
-	JumpAttempts = CreateConVar("l4d_attempts", "3", "跳楼多少次要受到惩罚.0=禁用", FCVAR_NOTIFY);
-	DamageAllowance = CreateConVar("l4d_damage_allowance", "150.0", "黑枪多少伤害要受到惩罚.0=禁用", FCVAR_NOTIFY);
-	TimedBan = CreateConVar("l4d_timed_ban", "0", "封禁时长.0=永久", FCVAR_NOTIFY);
+	WaitTime = CreateConVar("l4d_wait_time", "180", "保护持续时间", FCVAR_NONE, true, 0.0);
+	KickType = CreateConVar("l4d_kick_type", "1", "惩罚方式.1=踢出.2=封禁.3=起票", FCVAR_NONE, true, 0.0, true, 3.0);
+	KickMessage = CreateConVar("l4d_kick_message", "不准捣乱", "踢出理由", FCVAR_NONE);
+	JumpAttempts = CreateConVar("l4d_attempts", "3", "跳楼多少次要受到惩罚.0=禁用", FCVAR_NONE, true, 0.0);
+	DamageAllowance = CreateConVar("l4d_damage_allowance", "150.0", "黑枪多少伤害要受到惩罚.0=禁用", FCVAR_NONE, true, 0.0);
+	TimedBan = CreateConVar("l4d_timed_ban", "0", "封禁时长.0=永久", FCVAR_NONE, true, 0.0);
+	ReverseFF = CreateConVar("l4d_reverse_ff", "1", "黑枪反伤", FCVAR_NONE, true, 0.0, true, 1.0);
 
 	AutoExecConfig(true, "l4d_survivor_griefer_protection");
 
 	HookEvent("player_team", eEvents);
 	HookEvent("player_disconnect", eEvents);
-
+	
+	fsTrie = CreateTrie();
+	
 	if (bLateLoad)
 	{
 		for (int i = 1; i <= MaxClients; i++)
@@ -166,7 +172,9 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 						PrintToChat(victim, "\x05跳楼警告");
 
 					CreateTimer(0.1, Teleport, GetClientUserId(victim), TIMER_FLAG_NO_MAPCHANGE);
-					return Plugin_Handled;
+					
+					damage = 0.0;
+					return Plugin_Changed;
 				}
 			}
 		}
@@ -176,8 +184,11 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 			if (damage <= 0.0 || GetEngineTime() < fFirstSpawn[attacker] || !L4D_HasAnySurvivorLeftSafeArea() || L4D_IsInFirstCheckpoint(victim))
 			{
 				if (attacker == victim || GetEngineTime() < fFirstSpawnImmunity[attacker])
-					return Plugin_Handled;
-
+				{
+					damage = 0.0;
+					return Plugin_Changed;
+				}
+				
 				fDamageLimit[attacker] += damage;
 
 				if (fDamageLimit[attacker] >= (GetConVarFloat(DamageAllowance) - 50.0))
@@ -188,8 +199,15 @@ public Action OnTakeDamage(int victim, int &attacker, int &inflictor, float &dam
 					fDamageLimit[attacker] = 0.0;
 					HandleClient(attacker);
 				}
-
-				return Plugin_Handled;
+				
+				damage = 0.0;
+				return Plugin_Changed;
+			}
+			else if(attacker != victim && ReverseFF.BoolValue)
+			{
+				SDKHooks_TakeDamage(attacker, inflictor, attacker, damage, damagetype, weapon, damageForce, damagePosition);
+				damage = 0.0;
+				return Plugin_Changed;
 			}
 		}
 	}
@@ -363,3 +381,50 @@ stock bool IsClientAdmin(int client)
 {
     return CheckCommandAccess(client, "generic_admin", ADMFLAG_GENERIC, false);
 }
+
+stock bool IsBadGay(int client)
+{
+	static char name[MAX_NAME_LENGTH];
+	GetClientName(client, name, sizeof(name));
+	
+	static Regex number, badchar;
+	if(number == null)
+	{
+		number = CompileRegex("\\d+", PCRE_UTF8);
+		badchar = CompileRegex("[\\u200b\\u200c\\u200d\\u200e\\u200f\\ufeff\\u202a\\u202b\\u202c\\u202d\\u202e]", PCRE_UTF8|PCRE_NO_UTF8_CHECK|PCRE_UCP);
+	}
+	
+	if(number.MatchAll(name) > 0 || badchar.Match(name) > 0)
+		return true;
+	
+	static char auth[32];
+	if(!GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth), true))
+		return true;
+	
+	ReplaceString(auth, sizeof(auth), "STEAM_0", "STEAM_1", false);
+	if(fsTrie.GetString(auth, auth, sizeof(auth)))
+		return true;
+	
+	return false;
+}
+
+public int SW_OnValidateClient(int OwnerSteamID, int ClientSteamID)
+{    
+	if(OwnerSteamID == ClientSteamID)
+		return 0;
+	
+	char oSteamID[32];
+	Format(oSteamID, sizeof(oSteamID),"STEAM_1:%d:%d", (OwnerSteamID & 1), (OwnerSteamID >> 1));
+	
+	char cSteamID[32];
+	Format(cSteamID, sizeof(cSteamID),"STEAM_1:%d:%d", (ClientSteamID & 1), (ClientSteamID >> 1));
+	
+	char SteamIDs[65];
+	Format(SteamIDs, sizeof(SteamIDs), "%s-%s", oSteamID, cSteamID);
+	fsTrie.SetString(cSteamID, oSteamID, true);
+	
+	LogMessage("%s owner is %s", cSteamID, oSteamID);
+	return 0;
+}
+
+

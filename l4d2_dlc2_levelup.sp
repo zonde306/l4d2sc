@@ -339,7 +339,7 @@ new Handle:cv_particle = INVALID_HANDLE;
 // new Handle:sdkCallPushPlayer = INVALID_HANDLE;
 // new Handle:g_hGameConf = INVALID_HANDLE;
 // new Handle: sdkAdrenaline = INVALID_HANDLE;
-int g_iOldMeleeSwingRange = 0, g_iOldShoveSwingRange = 0, g_iOldShoveCharger = -1;
+int g_iOldMeleeSwingRange = 0/*, g_iOldShoveSwingRange = 0*/, g_iOldShoveCharger = -1;
 StringMap g_tMeleeRange, g_tShoveRange, g_tWeaponSkin;
 const int g_iUnknownMeleeRange = 90;
 const int g_iUnknownShoveRange = 90;
@@ -465,7 +465,7 @@ int g_iActiveEffects[MAXPLAYERS+1];
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = { false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 63;	// 上限 255
+const int g_iMaxEqmEffects = 65;	// 上限 255
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
@@ -14767,8 +14767,8 @@ public MRESReturn TrySwingPre(int pThis, DHookParam hParams)
 				range += RoundToZero(range * 0.1 * GetPlayerEffect(owner, 56));
 				if(range > view_as<float>(hParams.Get(3)))
 				{
-					g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
-					g_hCvarShovRange.IntValue = range;
+					// g_iOldShoveSwingRange = g_hCvarShovRange.IntValue;
+					// g_hCvarShovRange.IntValue = range;
 					hParams.Set(3, float(range));	// 注意是 float
 					changed = true;
 				}
@@ -14778,6 +14778,22 @@ public MRESReturn TrySwingPre(int pThis, DHookParam hParams)
 			{
 				g_iOldShoveCharger = g_hCvarChargerShove.IntValue;
 				g_hCvarChargerShove.BoolValue = true;
+			}
+			
+			int effect = GetPlayerEffect(owner, 64);
+			if(effect > 0)
+			{
+				float interval = view_as<float>(hParams.Get(1)) - (0.1 * effect);
+				hParams.Set(1, interval >= 0.1 ? interval : 0.1);
+				changed = true;
+			}
+			
+			effect = GetPlayerEffect(owner, 65);
+			if(effect > 0)
+			{
+				float duration = view_as<float>(hParams.Get(2)) + (0.1 * effect);
+				hParams.Set(2, duration);
+				changed = true;
 			}
 		}
 	}
@@ -14792,11 +14808,13 @@ public MRESReturn TrySwingPost(int pThis)
 	if(!g_bIsGamePlaying)
 		return MRES_Ignored;
 	
+	/*
 	if( g_iOldShoveSwingRange > 0 && g_iOldShoveSwingRange < g_hCvarShovRange.IntValue )
 	{
 		g_hCvarShovRange.IntValue = g_iOldShoveSwingRange;
 		g_iOldShoveSwingRange = 0;
 	}
+	*/
 	
 	if(g_iOldShoveCharger > -1)
 	{
@@ -16772,6 +16790,10 @@ void RebuildEquipStr(EquipData_t data)
 			strcopy(data.sEffect, sizeof(data.sEffect), "人品事件免疫负面效果");
 		case 63:
 			strcopy(data.sEffect, sizeof(data.sEffect), "捡起礼物免疫负面效果");
+		case 64:
+			strcopy(data.sEffect, sizeof(data.sEffect), "推间隔减少0.1秒");
+		case 65:
+			strcopy(data.sEffect, sizeof(data.sEffect), "推作用时间增加0.1秒");
 		default:
 			strcopy(data.sEffect, sizeof(data.sEffect), "");
 	}

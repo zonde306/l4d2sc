@@ -1,53 +1,78 @@
-"Phrases"
+﻿"Phrases"
 {
 	"Announce"
 	{
 		"en" 	"{orange}NOTICE:{lightgreen} This server reverses friendly-fire damage!"
-		"chi" 	"{orange}注意:{lightgreen} 黑枪反伤已启用, 请注意自己的行为!"
 		"fr"	"{orange}AVIS:{lightgreen} Ce serveur sens inverse les dégâts de tir ami!"
+		"es"	"{orange}AVISO:{lightgreen} ¡Este servidor revierte el daño de fuego amigo!"
+		"ru"	"{orange}ВНИМАНИЕ:{lightgreen} Этот сервер реверсировать дружественный огонь урон!"
+		"zho" 	"{orange}警告:{lightgreen} 本伺服器安裝隊友反傷模組！"
 	}
 
 	"AnnounceAll"
 	{
 		"en" 	"{orange}NOTICE:{lightgreen} This server reverses friendly-fire and burn damage!"
-		"chi" 	"{orange}NOTICE:{lightgreen} 友伤反弹已启用, 请注意自己的行为!"
 		"fr"	"{orange}AVIS:{lightgreen} Ce serveur sens inverse les dégâts de tir ami et de brûlure!"
+		"es"	"{orange}AVISO:{lightgreen} ¡Este servidor revierte el fuego amigo y el daño por quemaduras!"
+		"ru"	"{orange}ВНИМАНИЕ:{lightgreen} Этот сервер реверсировать дружественный огонь и урон от ожога!"
+		"zho" 	"{orange}警告:{lightgreen} 本伺服器可以逆轉隊友火力以及燃燒或高爆彈傷害！"
 	}
 
 	"YouAttacked"
 	{
 		"en"	"You attacked"
-		"chi"	"你攻击了"
 		"fr"	"Vous avez attaqué"
+		"es"	"Tu atacaste"
+		"ru"	"Вы напали"
+		"zho"	"您攻擊了"
 	}
 	"SurvivorFF"
 	{
 		"en"	"friendly-fire damage reversed"
-		"chi"	"友伤反弹"
 		"fr"	"les dégâts de tir ami sens inverse"
+		"es"	"daño de fuego amigo revertido"
+		"ru"	"Урон от дружественного огня реверсировать"
+		"zho"	"隊友火力傷害逆轉"
 	}
 	"InfectedFF"
 	{
 		"en"	"team attack damage reversed"
-		"chi"	"友伤反弹"
 		"fr"	"les dégâts d'attaque d'équipe sens inverse"
+		"es"	"daño de ataque en equipo revertido"
+		"ru"	"командная атака повреждать реверсировать"
+		"zho"	"團隊攻擊傷害逆轉"
 	}
 	"Attacked"
 	{
 		"en"	"attacked"
-		"chi"	"攻击了"
 		"fr"	"a attaqué"
+		"es"	"atacó"
+		"ru"	"атаковали"
+		"zho"	"被攻擊"
 	}
 	"ExcessiveFF"
 	{
 		"en"	"Excessive friendly-fire"
-		"chi"	"你是内鬼"
 		"fr"	"Tir ami excessif"
+		"es"	"Fuego amigo excesivo"
+		"ru"	"Чрезмерный дружеский огонь"
+		"zho"	"過度隊友火力"
 	}
 	"ExcessiveTA"
 	{
 		"en"	"Excessive team attacks"
-		"chi"	"你是内鬼"
 		"fr"	"Attaques d'équipe excessif"
+		"es"	"Ataques de equipo excesivos"
+		"ru"	"Чрезмерные командные атаки"
+		"zho"	"過度的團隊攻擊"
+	}
+	"DmgReversed"
+	{
+		"#format"	"{1:N}"
+		"en"		"You attacked {olive}{1}{lightgreen}, friendly-fire damage reversed"
+		"fr"		"Vous avez attaqué {olive}{1}{lightgreen}, les dégâts de tir ami sens inverse"
+		"es"		"Atacaste a {olive}{1}{lightgreen}, daño de fuego amigo revertido"
+		"ru"		"Вы атаковали {olive}{1}{lightgreen}, урон дружественным огнем реверсировать"
+		"zho"		"你攻擊了 {olive}{1}{lightgreen}, 隊友傷害被逆轉"
 	}
 }

@@ -387,14 +387,14 @@ stock bool IsBadGay(int client)
 	static char name[MAX_NAME_LENGTH];
 	GetClientName(client, name, sizeof(name));
 	
-	static Regex number, badchar;
+	static Regex number, best;
 	if(number == null)
 	{
-		number = CompileRegex("\\d+", PCRE_UTF8);
-		badchar = CompileRegex("[\\u200b\\u200c\\u200d\\u200e\\u200f\\ufeff\\u202a\\u202b\\u202c\\u202d\\u202e]", PCRE_UTF8|PCRE_NO_UTF8_CHECK|PCRE_UCP);
+		number = CompileRegex("^\\d+$", PCRE_UTF8);
+		best = CompileRegex("^\\w+$", PCRE_UTF8);
 	}
 	
-	if(number.MatchAll(name) > 0 || badchar.Match(name) > 0)
+	if(number.MatchAll(name) > 0 || best.MatchAll(name) < 1)
 		return true;
 	
 	static char auth[32];
@@ -414,17 +414,23 @@ public int SW_OnValidateClient(int OwnerSteamID, int ClientSteamID)
 		return 0;
 	
 	char oSteamID[32];
-	Format(oSteamID, sizeof(oSteamID),"STEAM_1:%d:%d", (OwnerSteamID & 1), (OwnerSteamID >> 1));
+	FormatEx(oSteamID, sizeof(oSteamID),"STEAM_1:%d:%d", (OwnerSteamID & 1), (OwnerSteamID >> 1));
 	
 	char cSteamID[32];
-	Format(cSteamID, sizeof(cSteamID),"STEAM_1:%d:%d", (ClientSteamID & 1), (ClientSteamID >> 1));
+	FormatEx(cSteamID, sizeof(cSteamID),"STEAM_1:%d:%d", (ClientSteamID & 1), (ClientSteamID >> 1));
 	
-	char SteamIDs[65];
-	Format(SteamIDs, sizeof(SteamIDs), "%s-%s", oSteamID, cSteamID);
 	fsTrie.SetString(cSteamID, oSteamID, true);
-	
 	LogMessage("%s owner is %s", cSteamID, oSteamID);
+	
 	return 0;
 }
 
-
+public void OnClientDisconnect(int client)
+{
+	static char auth[32];
+	if(!GetClientAuthId(client, AuthId_Steam2, auth, sizeof(auth), true))
+		return;
+	
+	ReplaceString(auth, sizeof(auth), "STEAM_0", "STEAM_1", false);
+	fsTrie.Remove(auth);
+}

@@ -163,7 +163,7 @@ const int SKL_2_IncapCrawling = (1 << 13);
 const int SKL_2_ShoveFatigue = (1 << 14);
 const int SKL_2_QuickRevive = (1 << 15);
 const int SKL_2_PrototypeGrenade = (1 << 16);
-const int SKL_3_AutoReload = (1 << 17);
+const int SKL_2_AutoReload = (1 << 17);
 
 const int SKL_3_Sacrifice = (1 << 0);
 const int SKL_3_Respawn = (1 << 1);
@@ -530,7 +530,7 @@ bool /*g_bRoundFirstStarting = false, */g_bLateLoad = false;
 ConVar g_pCvarKickSteamId, g_pCvarAllow, g_pCvarValidity, g_pCvarGiftChance, g_pCvarStartPoints, g_pCvarRP, g_pCvarRE, g_pCvarAS,
 	g_pCvarSaveStats, g_pCvarBotRP, g_pCvarBotBuy;
 Handle g_hDetourTestMeleeSwingCollision = null, g_hDetourTrySwing = null/*, g_hDetourIsInvulnerable = null*/,
-	g_hDetourAmmoMaxCarry = null, g_hDetourScriptAllowDamage = null;
+	/*g_hDetourAmmoMaxCarry = null, */g_hDetourScriptAllowDamage = null;
 Handle g_pfnOnSwingStart = null, g_pfnOnPummelEnded = null, g_pfnEndCharge = null, g_pfnOnCarryEnded = null, g_pfnIsInvulnerable = null, g_pfnCreateGift = null;
 GlobalForward g_fwOnUpdateStatus, g_fwOnGiveHealth, g_fwOnGiveAmmo, g_fwOnGiveArmor, g_fwOnGivePoints, g_fwOnGiveEquipment, g_fwOnSkillLearn, g_fwOnSkillForget,
 	g_fwOnFreeze, g_fwOnGiftPickup, g_fwOnLottery, g_fwOnRoundEvent, g_fwOnAngrySkill, g_fwOnAngryPoint;
@@ -1204,6 +1204,7 @@ public void OnPluginStart()
 		}
 	}
 	
+	/*
 	BuildPath(Path_SM, sPath, sizeof(sPath), "gamedata/%s.txt", "l4d_reservecontrol");
 	if( FileExists(sPath) )
 	{
@@ -1218,6 +1219,7 @@ public void OnPluginStart()
 			delete hGameData;
 		}
 	}
+	*/
 	
 	LoadTranslations("common.phrases");
 	
@@ -4033,6 +4035,8 @@ void StatusSelectMenuFuncB(int client, int page = -1)
 		FORMAT_MENU_ITEM_2(SKL_2_PrototypeGrenade,"手雷可切换形态");
 	}
 	
+	FORMAT_MENU_ITEM_2(SKL_2_AutoReload,"武器切换6秒后填充弹匣");
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	
@@ -4068,7 +4072,6 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	FORMAT_MENU_ITEM_3(SKL_3_Cure,"「清醒」打针有1/2几率治疗濒死状态");
 	FORMAT_MENU_ITEM_3(SKL_3_Minigun,"鼠标中键部署固定机枪");
 	FORMAT_MENU_ITEM_3(SKL_3_HandGrenade,"持手枪时按鼠标中键发射榴弹");
-	FORMAT_MENU_ITEM_3(SKL_3_AutoReload,"武器切换6秒后填充弹匣");
 	FORMAT_MENU_ITEM_3(SKL_3_DamageScale,"枪械伤害不会减少");
 	
 	menu.ExitButton = true;
@@ -10538,6 +10541,7 @@ public void PatchExtraPrimaryAmmo(any pack)
 		SetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo", GetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo") + ammo);
 }
 
+// 处理捡起相同武器
 public Action PlayerHook_OnWeaponCanUse(int client, int weapon)
 {
 	if(!IsValidAliveClient(client))
@@ -10562,6 +10566,7 @@ public Action PlayerHook_OnWeaponCanUse(int client, int weapon)
 	int ammoType = GetEntProp(primary, Prop_Send, "m_iPrimaryAmmoType");
 	int currentAmmo = GetEntProp(client, Prop_Send, "m_iAmmo", _, ammoType);
 	
+	// 补满弹药
 	if(isSpawnner)
 	{
 		int defaultAmmo = GetDefaultAmmo(primary, ammoType);
@@ -10573,6 +10578,7 @@ public Action PlayerHook_OnWeaponCanUse(int client, int weapon)
 			return Plugin_Handled;
 		}
 	}
+	// 捡起另一把同名武器
 	else
 	{
 		int extraAmmo = GetEntProp(weapon, Prop_Send, "m_iExtraPrimaryAmmo");
@@ -10594,7 +10600,7 @@ public Action PlayerHook_OnWeaponCanUse(int client, int weapon)
 
 public void PlayerHook_OnWeaponSwitchPost(int client, int weapon)
 {
-	if(!(g_clSkill_3[client] & SKL_3_AutoReload))
+	if(!(g_clSkill_2[client] & SKL_2_AutoReload))
 		return;
 	
 	if(g_hTimerAutoReload[client] != null)
@@ -10603,6 +10609,11 @@ public void PlayerHook_OnWeaponSwitchPost(int client, int weapon)
 	int lastWeapon = GetEntPropEnt(client, Prop_Send, "m_hLastWeapon");
 	if(lastWeapon <= MaxClients || lastWeapon == weapon || !IsValidEdict(lastWeapon) || GetDefaultClip(lastWeapon) < 1 ||
 		(lastWeapon != GetPlayerWeaponSlot(client, 0) && lastWeapon != GetPlayerWeaponSlot(client, 1)))
+		return;
+	
+	int clip = GetEntProp(lastWeapon, Prop_Send, "m_iClip1");
+	int maxClip = CalcPlayerClip(client, lastWeapon);
+	if(clip >= maxClip)
 		return;
 	
 	DataPack data = CreateDataPack();
@@ -10621,7 +10632,7 @@ public Action Timer_HandleAutoReload(Handle timer, any pack)
 	int client = GetClientOfUserId(data.ReadCell());
 	int weapon = EntRefToEntIndex(data.ReadCell());
 	
-	if(!IsValidAliveClient(client) || !IsValidEdict(weapon) || !(g_clSkill_3[client] & SKL_3_AutoReload) ||
+	if(!IsValidAliveClient(client) || !IsValidEdict(weapon) || !(g_clSkill_2[client] & SKL_2_AutoReload) ||
 		GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon") == weapon ||
 		(weapon != GetPlayerWeaponSlot(client, 0) && weapon != GetPlayerWeaponSlot(client, 1)))
 	{
@@ -11524,7 +11535,7 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	if(maxHealth > baseMaxHealth)
 		SDKHook(client, SDKHook_GetMaxHealth, PlayerHook_OnGetMaxHealth);
 	
-	if(g_clSkill_3[client] & SKL_3_AutoReload)
+	if(g_clSkill_2[client] & SKL_2_AutoReload)
 		SDKHook(client, SDKHook_WeaponSwitchPost, PlayerHook_OnWeaponSwitchPost);
 	
 	if(GetClientTeam(client) == 2)
@@ -15657,7 +15668,7 @@ void TriggerRP(int client, int RandomRP = -1)
 			{
 				if(IsClientInGame(i))
 				{
-					GiveSkillPoint(client, 1);
+					GiveSkillPoint(i, 1);
 					EmitSoundToClient(i,SOUND_GOOD,client);
 				}
 			}

@@ -1647,6 +1647,9 @@ public void Event_RoundEnd(Event event, const char[] event_name, bool dontBroadc
 	UnhookEntityOutput("point_script_use_target", "OnUseStarted", OutputHook_OnTargetUseStarted);
 	UnhookEntityOutput("point_script_use_target", "OnUseCanceled", OutputHook_OnTargetUseCanceled);
 	UnhookEntityOutput("point_script_use_target", "OnUseFinished", OutputHook_OnTargetUseCanceled);
+	UnhookEntityOutput("point_prop_use_target", "OnUseStarted", OutputHook_OnPourUseStarted);
+	// UnhookEntityOutput("point_prop_use_target", "OnUseCancelled", OutputHook_OnPourUseCanceled);
+	// UnhookEntityOutput("point_prop_use_target", "OnUseFinished", OutputHook_OnPourUseCanceled);
 	
 	if(g_hTimerSurvival != null)
 		delete g_hTimerSurvival;
@@ -1871,6 +1874,29 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 	HookEntityOutput("point_script_use_target", "OnUseStarted", OutputHook_OnTargetUseStarted);
 	HookEntityOutput("point_script_use_target", "OnUseCanceled", OutputHook_OnTargetUseCanceled);
 	HookEntityOutput("point_script_use_target", "OnUseFinished", OutputHook_OnTargetUseCanceled);
+	HookEntityOutput("point_prop_use_target", "OnUseStarted", OutputHook_OnPourUseStarted);
+	// HookEntityOutput("point_prop_use_target", "OnUseCancelled", OutputHook_OnPourUseCanceled);
+	// HookEntityOutput("point_prop_use_target", "OnUseFinished", OutputHook_OnPourUseCanceled);
+	
+	int ent = -1;
+	while((ent = FindEntityByClassname(ent, "func_button_timed")) > -1)
+	{
+		HookSingleEntityOutput(ent, "OnPressed", OutputHook_OnButtonPressed);
+		HookSingleEntityOutput(ent, "OnUnPressed", OutputHook_OnButtonUnPressed);
+		HookSingleEntityOutput(ent, "OnTimeUp", OutputHook_OnButtonUnPressed);
+	}
+	while((ent = FindEntityByClassname(ent, "point_script_use_target")) > -1)
+	{
+		HookSingleEntityOutput(ent, "OnUseStarted", OutputHook_OnTargetUseStarted);
+		HookSingleEntityOutput(ent, "OnUseCanceled", OutputHook_OnTargetUseCanceled);
+		HookSingleEntityOutput(ent, "OnUseFinished", OutputHook_OnTargetUseCanceled);
+	}
+	while((ent = FindEntityByClassname(ent, "point_prop_use_target")) > -1)
+	{
+		HookSingleEntityOutput(ent, "OnUseStarted", OutputHook_OnPourUseStarted);
+		// HookSingleEntityOutput(ent, "OnUseCancelled", OutputHook_OnPourUseCanceled);
+		// HookSingleEntityOutput(ent, "OnUseFinished", OutputHook_OnPourUseCanceled);
+	}
 	
 	g_bIsGamePlaying = true;
 	PrintToServer("游戏开始");
@@ -1921,6 +1947,46 @@ public void OutputHook_OnButtonUnPressed(const char[] output, int caller, int ac
 		SetEntProp(caller, Prop_Data, "m_nUseTime", RoundToCeil(g_fTimedButton[caller]));
 		g_fTimedButton[caller] = -1.0;
 	}
+}
+
+public void OutputHook_OnPourUseStarted(const char[] output, int caller, int activator, float delay)
+{
+	if(IsValidAliveClient(activator) && (g_clSkill_1[activator] & SKL_1_Button))
+	{
+		static ConVar gas_can_use_duration;
+		if(gas_can_use_duration == null)
+			gas_can_use_duration = FindConVar("gas_can_use_duration");
+		
+		float oldValue = gas_can_use_duration.FloatValue;
+		if(GetEntProp(activator, Prop_Send, "m_bAdrenalineActive"))
+			gas_can_use_duration.FloatValue = 0.5;
+		else
+			gas_can_use_duration.FloatValue = 1.0;
+		RequestFrame(ResetGascanUseDuration, oldValue);
+	}
+}
+
+public void OutputHook_OnPourUseCanceled(const char[] output, int caller, int activator, float delay)
+{
+	if(caller > MaxClients && caller <= 2048 && g_fTimedButton[caller] > 0.0)
+	{
+		static ConVar gas_can_use_duration;
+		if(gas_can_use_duration == null)
+			gas_can_use_duration = FindConVar("gas_can_use_duration");
+		
+		// gas_can_use_duration.IntValue = 2;
+		gas_can_use_duration.RestoreDefault(false, false);
+		g_fTimedButton[caller] = -1.0;
+	}
+}
+
+public void ResetGascanUseDuration(any value)
+{
+	static ConVar gas_can_use_duration;
+	if(gas_can_use_duration == null)
+		gas_can_use_duration = FindConVar("gas_can_use_duration");
+	// gas_can_use_duration.FloatValue = view_as<float>(value);
+	gas_can_use_duration.RestoreDefault(false, false);
 }
 
 public void Event_RoundStart(Event event, const char[] event_name, bool dontBroadcast)
@@ -7897,20 +7963,16 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 						counter += 1;
 					}
 					
-					int numEdict = GetMaxEntities();
-					for(int i = MaxClients + 1; i < numEdict; ++i)
+					int i = -1;
+					while((i = FindEntityByClassname(i, "infected")) > -1)
 					{
-						if(!IsValidEdict(i))
-							continue;
-						
-						static char classname[64];
-						GetEdictClassname(i, classname, sizeof(classname));
-						if(!strcmp(classname, "infected", false) || !strcmp(classname, "witch", false))
-						{
-							SetEntProp(i, Prop_Data, "m_iHealth", 1);
-							DealDamage(victim, i, 999, DMG_PLASMA);
-							counter += 1;
-						}
+						DealDamage(victim, i, GetEntProp(i, Prop_Data, "m_iHealth"), DMG_PLASMA);
+						counter += 1;
+					}
+					while((i = FindEntityByClassname(i, "witch")) > -1)
+					{
+						DealDamage(victim, i, GetEntProp(i, Prop_Data, "m_iHealth"), DMG_PLASMA);
+						counter += 1;
 					}
 					
 					PrintToChat(victim, "\x03「牺牲」\x01已清理僵尸 \x05%d\x01 只。", counter);
@@ -13329,82 +13391,19 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	int flags = GetEntityFlags(client);
 	bool isGrabbed = IsSurvivorHeld(client);
 	bool isDown = (GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) || GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1));
+	int team = GetClientTeam(client);
+	bool isTP = (team == 2 ? IsSurvivorThirdPerson(client) : IsInfectedThirdPerson(client));
+	bool isCarried = (GetPlayerWeaponSlot(client, 5) > MaxClients);
 	
-	if(GetClientTeam(client) == 2 && !isGrabbed)
+	if(team == 2 && !isGrabbed)
 	{
-		if((buttons & IN_USE) && !isGrabbed)
+		if(((buttons & IN_USE) || ((buttons & IN_ATTACK) && isCarried && (g_clSkill_1[client] & SKL_1_Button))) && !isGrabbed)
 		{
 			useTarget = GetClientAimTarget(client, false);
 			if(useTarget <= MaxClients || !IsValidEntity(useTarget) || !IsValidEdict(useTarget))
 				useTarget = FindUseEntity(client);
 		}
 		
-		if ((g_clSkill_4[client] & SKL_4_DuckShover) && g_fNextGunShover[client] <= time && !isGrabbed &&
-			(flags & FL_DUCKING) && (buttons & IN_ATTACK2) && (buttons & IN_DUCK))
-		{
-			new Float:pos[3];
-			// GetClientAbsOrigin(client, pos);
-			GetClientEyePosition(client, pos);
-
-			// EmitSoundToAll(SOUND_BCLAW, client);
-			EmitAmbientSound(SOUND_BCLAW, pos, client);
-			float radius = 500.0 * (1 + GetPlayerEffect(client, 32));
-
-			for (new i = 1; i <= MaxClients; i++)
-			{
-				if(!IsValidAliveClient(i) || GetClientTeam(i) != 3)
-					continue;
-
-				decl Float:vec[3], Float:dir[3];
-				GetClientAbsOrigin(i, vec);
-				if(GetVectorDistance(vec, pos) > radius)
-					continue;
-				
-				SubtractVectors(vec, pos, dir);
-				
-				Charge(i, client, 750.0);
-				SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
-			}
-			
-			if(GetPlayerEffect(client, 30))
-			{
-				int numEdict = GetMaxEntities();
-				for(int i = MaxClients + 1; i < numEdict; ++i)
-				{
-					if(!IsValidEdict(i) || !IsValidEntity(i))
-						continue;
-					
-					// 只要普感，不要 Witch
-					if(!HasEntProp(i, Prop_Send, "m_bIsBurning") || HasEntProp(i, Prop_Send, "m_rage"))
-						continue;
-					
-					decl Float:vec[3], Float:dir[3];
-					GetEntPropVector(i, Prop_Send, "m_vecOrigin", vec);
-					if(GetVectorDistance(vec, pos) > radius)
-						continue;
-					
-					SubtractVectors(vec, pos, dir);
-					SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 30)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
-				}
-			}
-			
-			g_fNextGunShover[client] = time + 15.0;
-			
-			if(g_pCvarAllow.BoolValue)
-			{
-				new newcolor1[4];
-				newcolor1[0] = GetRandomInt(0,255);
-				newcolor1[1] = GetRandomInt(0,255);
-				newcolor1[2] = GetRandomInt(0,255);
-				newcolor1[3] = 225;
-				pos[2] += 10;
-				
-				//(目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
-				TE_SetupBeamRingPoint(pos, 2.0, radius, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, newcolor1, 0, 0);
-				TE_SendToAll();
-			}
-		}
-
 		int weaponId = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
 		if(IsValidEntity(weaponId))
 		{
@@ -13412,6 +13411,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			GetEdictClassname(weaponId, classname, sizeof(classname));
 			int clip = GetEntProp(weaponId, Prop_Send, "m_iClip1");
 			bool isReloading = view_as<bool>(GetEntProp(weaponId, Prop_Send, "m_bInReload"));
+			
+			if ((g_clSkill_4[client] & SKL_4_DuckShover) && g_fNextGunShover[client] <= time && !isGrabbed &&
+				(flags & FL_DUCKING) && (buttons & IN_ATTACK2) && (buttons & IN_DUCK) && !isDown && !isTP)
+			{
+				HandleGunShover(client, weaponId);
+				g_fNextGunShover[client] = time + 15.0;
+			}
 			
 			if((buttons & IN_ATTACK) && (g_clSkill_1[client] & SKL_1_RapidFire) && !isReloading &&
 				GetEntityMoveType(client) != MOVETYPE_LADDER &&
@@ -13426,9 +13432,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				// ChangeEdictState(weaponId, FindDataMapInfo(weaponId, "m_isHoldingFireButton"));
 			}
 			
-			if(!(buttons & IN_ATTACK) || clip <= 0 || GetEntProp(weaponId, Prop_Send, "m_bInReload") ||
-				GetEntityMoveType(client) == MOVETYPE_LADDER || strncmp(classname[7], "smg", 3) ||
-				IsSurvivorThirdPerson(client))
+			if(!(buttons & IN_ATTACK) || clip <= 0 || isTP || isGrabbed || GetEntProp(weaponId, Prop_Send, "m_bInReload") ||
+				GetEntityMoveType(client) == MOVETYPE_LADDER || strncmp(classname[7], "smg", 3))
 			{
 				if(g_iBulletFired[client] != 0)
 				{
@@ -13454,7 +13459,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 			
 			if((g_clSkill_4[client] & SKL_4_ClipSize) && !isReloading && (buttons & IN_RELOAD) && !(buttons & IN_ATTACK) &&
-				defaultClip > 0 && clip >= defaultClip)
+				defaultClip > 0 && clip >= defaultClip && !isGrabbed)
 			{
 				int maxClip = CalcPlayerClip(client, weaponId);
 				int ammoType = GetEntProp(weaponId, Prop_Send, "m_iPrimaryAmmoType");
@@ -13509,7 +13514,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			if((g_clSkill_4[client] & SKL_4_Shove) && (buttons & IN_ATTACK2) && !(buttons & IN_FORWARD) &&
 				GetEntProp(client, Prop_Send, "m_isIncapacitated", 1) && !GetEntProp(client, Prop_Send, "m_isHangingFromLedge", 1) &&
-				GetEntPropFloat(client, Prop_Send, "m_flNextShoveTime") <= GetGameTime())
+				GetEntPropFloat(client, Prop_Send, "m_flNextShoveTime") <= GetGameTime() && !isGrabbed)
 			{
 				ForceSwingStart(weaponId);
 				
@@ -13537,7 +13542,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				DoShoveSimulation(client, weaponId);
 			}
 			
-			if((g_clSkill_2[client] & SKL_2_ShoveFatigue) && (buttons & IN_ATTACK2))
+			if((g_clSkill_2[client] & SKL_2_ShoveFatigue) && (buttons & IN_ATTACK2) && !isDown && !isGrabbed)
 			{
 				SetEntProp(client, Prop_Send, "m_iShovePenalty", 0);
 			}
@@ -13552,7 +13557,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				PlayerHook_OnReloadStopped(client, weaponId);
 			}
 			
-			if((g_clSkill_2[client] & SKL_2_QuickRevive) && (buttons & IN_RELOAD) && !isDown && !strcmp(classname[7], "defibrillator"))
+			if((g_clSkill_2[client] & SKL_2_QuickRevive) && (buttons & IN_RELOAD) && !isDown && !strcmp(classname[7], "defibrillator") && !isGrabbed)
 			{
 				int revivee = FindUseEntity(client);
 				if(IsValidAliveClient(revivee))
@@ -13574,7 +13579,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 		
 		if((g_clSkill_3[client] & SKL_3_HandGrenade) && (buttons & IN_ZOOM) && useTarget <= MaxClients &&
-			g_fNextHandGrenade[client] <= time && weaponId > MaxClients && IsValidEdict(weaponId))
+			g_fNextHandGrenade[client] <= time && weaponId > MaxClients && IsValidEdict(weaponId) && !isGrabbed)
 		{
 			static char className[64];
 			GetEntityClassname(weaponId, className, sizeof(className));
@@ -13701,7 +13706,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 		
 		if((g_clSkill_5[client] & SKL_5_Resurrect) && (buttons & IN_USE) && useTarget < 1 && GetVectorLength(vel, true) < 1.0 &&
-			!GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1) && !IsSurvivorThirdPerson(client))
+			!GetEntProp(client, Prop_Send, "m_bIsOnThirdStrike", 1) && !isTP && !isGrabbed)
 		{
 			static char classname[32];
 			int model = GetAimDeathModel(client);
@@ -13712,47 +13717,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				if(IsValidClient(owner) && !IsPlayerAlive(owner) && GetClientTeam(owner) == 2 &&
 					(!g_iDeathModel[model] || g_iDeathModel[model] == INVALID_ENT_REFERENCE || !IsValidEntity(g_iDeathModel[model])))
 				{
-					int button = CreateEntityByName("func_button_timed");
+					int button = CreateModelButton(model);
 					if(button > MaxClients)
 					{
-						FormatEx(classname, sizeof(classname), "resurrect_%d", model);
-						DispatchKeyValue(model, "targetname", classname);
-						DispatchKeyValue(button, "glow", classname);
-						DispatchKeyValue(button, "rendermode", "3");
-						DispatchKeyValue(button, "spawnflags", "0");
-						DispatchKeyValue(button, "auto_disable", "1");
-						DispatchKeyValue(button, "use_time", "5.0");
-						// DispatchKeyValue(button, "use_string", tr("正在救赎 %N", owner));
-						// DispatchKeyValue(button, "use_sub_string", "*以黑白为代价*");
-						DispatchSpawn(button);
-						AcceptEntityInput(button, "Enable");
-						AcceptEntityInput(button, "Unlock");
-						ActivateEntity(button);
-						
-						SetVariantString(classname);
-						AcceptEntityInput(button, "SetParent", button, button);
-						TeleportEntity(button, Float:{0.0, 0.0, 0.0}, NULL_VECTOR, NULL_VECTOR);
-						
-						SetEntProp(button, Prop_Send, "m_nSolidType", 0, 1);
-						SetEntProp(button, Prop_Send, "m_usSolidFlags", 4, 2);
-						SetEntProp(button, Prop_Send, "m_CollisionGroup", 1);
-						SetEntPropEnt(button, Prop_Send, "m_hOwnerEntity", model);
-						// SetEntProp(button, Prop_Send, "m_Gender", model);
-						
-						float vMins[3], vMaxs[3];
-						GetEntPropVector(model, Prop_Send, "m_vecMins", vMins);
-						GetEntPropVector(model, Prop_Send, "m_vecMaxs", vMaxs);
-						SetEntPropVector(button, Prop_Send, "m_vecMins", vMins);
-						SetEntPropVector(button, Prop_Send, "m_vecMaxs", vMaxs);
-						
-						SetVariantString("OnTimeUp !self:Kill::0.1:1");
-						AcceptEntityInput(button, "AddOutput");
-						SetVariantString("OnUnPressed !self:Kill::0.1:1");
-						AcceptEntityInput(button, "AddOutput");
-						SetVariantString("OnUser1 !self:Kill::6:1");
-						AcceptEntityInput(button, "AddOutput");
-						AcceptEntityInput(button, "FireUser1");
-						
 						PrintHintText(client, "正在救赎 %N\n***以濒死为代价***", owner);
 						HookSingleEntityOutput(button, "OnTimeUp", OutputHook_OnResurrect, true);
 						g_iDeathModel[model] = EntIndexToEntRef(button);
@@ -13761,6 +13728,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
+		// 牺牲主动去世
 		if((g_clSkill_3[client] & SKL_3_Sacrifice) && (buttons & IN_SPEED) && isDown && GetEntPropEnt(client, Prop_Send, "m_reviveOwner") <= 0)
 		{
 			if(g_fSacrificeTime[client] <= 0.0)
@@ -13783,20 +13751,22 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			SetEntPropFloat(client, Prop_Send, "m_flProgressBarDuration", 0.0);
 		}
 		
-		if((g_clSkill_1[client] & SKL_1_Button) && (buttons & IN_USE) && useTarget > MaxClients && useTarget <= 2048)
+		if((g_clSkill_1[client] & SKL_1_Button) && (buttons & (IN_USE|IN_ATTACK)) && useTarget > MaxClients && !isTP && !isGrabbed)
 		{
-			static char classname[32];
-			if(GetEdictClassname(useTarget, classname, sizeof(classname)))
+			static char targetname[32];
+			if(GetEdictClassname(useTarget, targetname, sizeof(targetname)))
 			{
-				if(!strcmp(classname, "func_button_timed", false))
-					OutputHook_OnButtonPressed("OnPressed", useTarget, client, 0.0);
-				else if(!strcmp(classname, "point_script_use_target", false))
-					OutputHook_OnTargetUseStarted("OnUseStarted", useTarget, client, 0.0);
+				if((buttons & IN_USE) && !strcmp(targetname, "func_button_timed", false))
+					OutputHook_OnButtonPressed("OnUse", useTarget, client, 0.0);
+				else if((buttons & IN_USE) && !strcmp(targetname, "point_script_use_target", false))
+					OutputHook_OnTargetUseStarted("OnUse", useTarget, client, 0.0);
+				else if((buttons & (IN_USE|IN_ATTACK)) && !strcmp(targetname, "point_prop_use_target", false) && isCarried)
+					OutputHook_OnPourUseStarted("OnUse", useTarget, client, 0.0);
 			}
 		}
 		
 		if((g_clSkill_3[client] & SKL_3_Minigun) && (buttons & IN_ZOOM) && useTarget <= MaxClients &&
-			g_hTimerMinigun[client] == null && (flags & FL_ONGROUND) && !IsSurvivorThirdPerson(client))
+			g_hTimerMinigun[client] == null && (flags & FL_ONGROUND) && !isTP && !isGrabbed)
 		{
 			if(g_fMinigunTime[client] <= 0.0)
 			{
@@ -13871,8 +13841,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				buttons |= IN_ATTACK2;
 		}
 	}
-
-	if(!(flags & FL_ONGROUND) && (buttons & IN_USE) && (g_clSkill_3[client] & SKL_3_Parachute))
+	
+	if(!(flags & FL_ONGROUND) && (buttons & IN_USE) && (g_clSkill_3[client] & SKL_3_Parachute) && !isGrabbed)
 	{
 		float velocity[3];
 		// GetEntPropVector(client, Prop_Send, "m_vecVelocity[0]", velocity);
@@ -13996,6 +13966,108 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	*/
 	
 	return Plugin_Changed;
+}
+
+void HandleGunShover(int client, int weapon)
+{
+	float pos[3], vec[3], dir[3];
+	// GetClientAbsOrigin(client, pos);
+	GetClientEyePosition(client, pos);
+	
+	// EmitSoundToAll(SOUND_BCLAW, client);
+	EmitAmbientSound(SOUND_BCLAW, pos, client);
+	float radius = 500.0 * (1 + GetPlayerEffect(client, 32));
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if(!IsValidAliveClient(i) || GetClientTeam(i) != 3)
+			continue;
+		
+		GetClientAbsOrigin(i, vec);
+		if(GetVectorDistance(vec, pos) > radius)
+			continue;
+		
+		SubtractVectors(vec, pos, dir);
+		
+		Charge(i, client, 750.0);
+		SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
+	}
+	
+	if(GetPlayerEffect(client, 30))
+	{
+		int i = -1;
+		while((i = FindEntityByClassname(i, "infected")) > -1)
+		{
+			GetEntPropVector(i, Prop_Send, "m_vecOrigin", vec);
+			if(GetVectorDistance(vec, pos) > radius)
+				continue;
+			
+			SubtractVectors(vec, pos, dir);
+			SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 30)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
+		}
+	}
+	
+	if(g_pCvarAllow.BoolValue)
+	{
+		int newcolor1[4];
+		newcolor1[0] = GetRandomInt(0,255);
+		newcolor1[1] = GetRandomInt(0,255);
+		newcolor1[2] = GetRandomInt(0,255);
+		newcolor1[3] = 225;
+		pos[2] += 10;
+		
+		//(目标, 初始半径, 最终半径, 效果1, 效果2, 渲染贴, 渲染速率, 持续时间, 播放宽度(20.0),播放振幅, 颜色, 播放速度(10), 标识(0))
+		TE_SetupBeamRingPoint(pos, 2.0, radius, g_BeamSprite, g_HaloSprite, 0, 15, 1.0, 12.0, 1.0, newcolor1, 0, 0);
+		TE_SendToAll();
+	}
+}
+
+int CreateModelButton(int model)
+{
+	int button = CreateEntityByName("func_button_timed");
+	if(button > MaxClients)
+	{
+		char buffer[64];
+		FormatEx(buffer, sizeof(buffer), "resurrect_%d", model);
+		DispatchKeyValue(model, "targetname", buffer);
+		DispatchKeyValue(button, "glow", buffer);
+		DispatchKeyValue(button, "rendermode", "3");
+		DispatchKeyValue(button, "spawnflags", "0");
+		DispatchKeyValue(button, "auto_disable", "1");
+		DispatchKeyValue(button, "use_time", "5.0");
+		// DispatchKeyValue(button, "use_string", tr("正在救赎 %N", owner));
+		// DispatchKeyValue(button, "use_sub_string", "*以黑白为代价*");
+		DispatchSpawn(button);
+		AcceptEntityInput(button, "Enable");
+		AcceptEntityInput(button, "Unlock");
+		ActivateEntity(button);
+		
+		SetVariantString(buffer);
+		AcceptEntityInput(button, "SetParent", button, button);
+		TeleportEntity(button, Float:{0.0, 0.0, 0.0}, NULL_VECTOR, NULL_VECTOR);
+		
+		SetEntProp(button, Prop_Send, "m_nSolidType", 0, 1);
+		SetEntProp(button, Prop_Send, "m_usSolidFlags", 4, 2);
+		SetEntProp(button, Prop_Send, "m_CollisionGroup", 1);
+		SetEntPropEnt(button, Prop_Send, "m_hOwnerEntity", model);
+		// SetEntProp(button, Prop_Send, "m_Gender", model);
+		
+		float vMins[3], vMaxs[3];
+		GetEntPropVector(model, Prop_Send, "m_vecMins", vMins);
+		GetEntPropVector(model, Prop_Send, "m_vecMaxs", vMaxs);
+		SetEntPropVector(button, Prop_Send, "m_vecMins", vMins);
+		SetEntPropVector(button, Prop_Send, "m_vecMaxs", vMaxs);
+		
+		SetVariantString("OnTimeUp !self:Kill::0.1:1");
+		AcceptEntityInput(button, "AddOutput");
+		SetVariantString("OnUnPressed !self:Kill::0.1:1");
+		AcceptEntityInput(button, "AddOutput");
+		SetVariantString("OnUser1 !self:Kill::6:1");
+		AcceptEntityInput(button, "AddOutput");
+		AcceptEntityInput(button, "FireUser1");
+	}
+	
+	return button;
 }
 
 public void OutputHook_OnResurrect(const char[] output, int caller, int activator, float delay)

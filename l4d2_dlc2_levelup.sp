@@ -465,7 +465,7 @@ int g_iActiveEffects[MAXPLAYERS+1];
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = { false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 65;	// 上限 255
+const int g_iMaxEqmEffects = 66;	// 上限 255
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
@@ -955,6 +955,7 @@ public void OnPluginStart()
 	HookEvent("player_now_it", Event_PlayerHitByVomit);
 	HookEvent("player_no_longer_it", Event_PlayerVomitTimeout);
 	HookEvent("player_shoved", Event_PlayerShoved);
+	HookEvent("entity_shoved", Event_EntityShoved);
 	HookEvent("bullet_impact", Event_BulletImpact);
 	HookEvent("christmas_gift_grab", Event_GiftPickup);
 	HookEvent("player_left_start_area", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
@@ -965,20 +966,20 @@ public void OnPluginStart()
 	HookEvent("versus_round_start", Event_PlayerLeftStartArea, EventHookMode_PostNoCopy);
 	// HookEvent("survival_at_30min", Event_SurvivalAt30Min, EventHookMode_PostNoCopy);
 	// HookEvent("survival_at_10min", Event_SurvivalAt10Min, EventHookMode_PostNoCopy);
-	HookEvent("tongue_grab", Event_PlayerGrabbed);
-	HookEvent("lunge_pounce", Event_PlayerGrabbed);
-	HookEvent("jockey_ride", Event_PlayerGrabbed);
-	HookEvent("charger_pummel_start", Event_PlayerGrabbed);
-	HookEvent("charger_carry_start", Event_PlayerGrabbed);
-	HookEvent("jockey_ride_end", Event_PlayerReleased);
-	HookEvent("charger_pummel_end", Event_PlayerReleased);
-	HookEvent("charger_carry_end", Event_PlayerReleased);
-	HookEvent("tongue_release", Event_PlayerReleased);
-	HookEvent("pounce_stopped", Event_PlayerReleased);
-	HookEvent("pounce_end", Event_PlayerReleased);
-	HookEvent("player_ledge_grab", Event_PlayerLedgeGrabbed);
+	// HookEvent("tongue_grab", Event_PlayerGrabbed);
+	// HookEvent("lunge_pounce", Event_PlayerGrabbed);
+	// HookEvent("jockey_ride", Event_PlayerGrabbed);
+	// HookEvent("charger_pummel_start", Event_PlayerGrabbed);
+	// HookEvent("charger_carry_start", Event_PlayerGrabbed);
+	// HookEvent("jockey_ride_end", Event_PlayerReleased);
+	// HookEvent("charger_pummel_end", Event_PlayerReleased);
+	// HookEvent("charger_carry_end", Event_PlayerReleased);
+	// HookEvent("tongue_release", Event_PlayerReleased);
+	// HookEvent("pounce_stopped", Event_PlayerReleased);
+	// HookEvent("pounce_end", Event_PlayerReleased);
+	// HookEvent("player_ledge_grab", Event_PlayerLedgeGrabbed);
 	// HookEvent("revive_begin", Event_PlayerReviveBegging);
-	HookEvent("revive_end", Event_PlayerReviveEnded);
+	// HookEvent("revive_end", Event_PlayerReviveEnded);
 	// HookEvent("achievement_earned", Event_AchievementEarend);
 	// HookEvent("stashwhacker_game_won", Event_StashwhackerWon);
 	// HookEvent("strongman_bell_knocked_off", Event_StrongmanBell);
@@ -1999,6 +2000,7 @@ public void Event_RoundStart(Event event, const char[] event_name, bool dontBroa
 	CreateTimer(1.0, Timer_RoundStartPost, 0, TIMER_FLAG_NO_MAPCHANGE);
 }
 
+/*
 public void Event_PlayerGrabbed(Event event, const char[] event_name, bool dontBroadcast)
 {
 	int attacker = GetClientOfUserId(event.GetInt("userid"));
@@ -2106,6 +2108,7 @@ public void Event_PlayerLedgeGrabbed(Event event, const char[] event_name, bool 
 	// 倒地/挂边 黄色
 	CreateGlowModel(client, 0x80FFFF);
 }
+*/
 
 /*
 public void Event_PlayerReviveBegging(Event event, const char[] event_name, bool dontBroadcast)
@@ -2119,6 +2122,7 @@ public void Event_PlayerReviveBegging(Event event, const char[] event_name, bool
 }
 */
 
+/*
 public void Event_PlayerReviveEnded(Event event, const char[] event_name, bool dontBroadcast)
 {
 	int client = GetClientOfUserId(event.GetInt("subject"));
@@ -2136,6 +2140,7 @@ public void Event_PlayerReviveEnded(Event event, const char[] event_name, bool d
 		RemoveGlowModel(client);
 	}
 }
+*/
 
 public void Event_FriendlyFire(Event event, const char[] event_name, bool dontBroadcast)
 {
@@ -6437,7 +6442,7 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 			}
 			
 			// 技能：两倍近战伤害且攻速加快/三倍近战伤害
-			if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB)))
+			if((g_clSkill_4[attacker] & SKL_4_MeleeExtra) && (damagetype & (DMG_SLASH|DMG_CLUB|DMG_MELEE)))
 				damage += originalDamage * (g_bHaveWeaponHandling ? 1 : 2);
 			
 			if(victim > MaxClients)
@@ -6476,7 +6481,7 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 		}
 		
 		// 生还者攻击感染者伤害加成，仅限常规伤害
-		if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED && (damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)))
+		if(attackerTeam == TEAM_SURVIVORS && victimTeam == TEAM_INFECTED && (damagetype & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB|DMG_MELEE)))
 		{
 			// 暴击
 			if(g_fAccurateShot[attacker] > time || GetRandomInt(1, 1000) <= chance)
@@ -6497,11 +6502,15 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 				// 技能：「轰炸」暴击时1/3几率附加击退效果
 				if((g_clSkill_3[attacker] & SKL_3_Kickback) && !GetRandomInt(0, 2))
 				{
+					/*
 					float vAng[3], vDir[3];
 					GetClientEyeAngles(attacker, vAng);
 					GetAngleVectors(vAng, vDir, NULL_VECTOR, NULL_VECTOR);
 					ScaleVector(vDir, 300.0 * (1 + GetPlayerEffect(attacker, 23)));
 					TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vDir);
+					*/
+					
+					Kickback(attacker, victim, 300.0 * (1 + GetPlayerEffect(attacker, 23)), 0.0);
 				}
 				
 				/*
@@ -6522,16 +6531,13 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 				if(!IsFakeClient(attacker))
 					EmitSoundToClient(attacker, SOUND_AWARD_BIG, victim);
 				
-				// 技能：「轰炸」暴击时1/3几率附加击退效果
 				damage += originalDamage * GetRandomInt(minChDmg, maxChDmg) / 100.0;
 				damagetype |= DMG_HEADSHOT|DMG_CRIT;
 				
 				// 技能：「轰炸」暴击时1/3几率附加击退效果
-				if((g_clSkill_3[attacker] & SKL_3_Kickback) && IsValidAliveClient(victim) && !IsSurvivorHeld(victim))
+				if((g_clSkill_3[attacker] & SKL_3_Kickback) && IsValidAliveClient(victim) && !IsSurvivorHeld(victim) && !GetRandomInt(0, 2))
 				{
-					int RanChance = 2;
-					if(GetRandomInt(1,4) > RanChance)
-						Charge(victim, attacker);
+					Charge(victim, attacker);
 				}
 				
 				/*
@@ -7190,8 +7196,8 @@ public void Event_PlayerIncapacitatedStart(Event event, const char[] event_name,
 
 public void Event_PlayerIncapacitated(Event event, const char[] event_name, bool dontBroadcast)
 {
-	new attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	
 	if (!IsValidAliveClient(client))
 		return;
@@ -7364,6 +7370,7 @@ public void Event_PlayerIncapacitated(Event event, const char[] event_name, bool
 		g_fFreezeTime[client] = time;
 	}
 	
+	/*
 	if(GetCurrentAttacker(client) > 0)
 	{
 		// 被控 橙色
@@ -7374,6 +7381,7 @@ public void Event_PlayerIncapacitated(Event event, const char[] event_name, bool
 		// 倒地 黄色
 		CreateGlowModel(client, 0x80FFFF);
 	}
+	*/
 	
 	if(g_iRoundEvent == 14)
 	{
@@ -7414,7 +7422,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 	{
 		if ((g_clSkill_4[victim] & SKL_4_ClawHeal))
 		{
-			new hp = dmg * GetRandomInt(20, 90) / 100;
+			int hp = dmg * GetRandomInt(20, 90) / 100;
 			// SetEntProp(victim,Prop_Send,"m_iHealth",GetEntProp(victim,Prop_Send,"m_iHealth")+hp);
 			AddHealth(victim, hp);
 			
@@ -7476,7 +7484,7 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			}
 		}
 		
-		if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && (isGunShot || isMeleeHack || (dmg_type & (DMG_BUCKSHOT|DMG_BULLET|DMG_SLASH|DMG_CLUB))) && !IsFakeClient(attacker))
+		if((g_clSkill_1[attacker] & SKL_1_DisplayHealth) && (isGunShot || isMeleeHack || (dmg_type & (DMG_MELEE|DMG_BUCKSHOT|DMG_BULLET|DMG_SLASH|DMG_CLUB))) && !IsFakeClient(attacker))
 		{
 			int health = GetEventInt(event, "health");
 			bool headshot = event.GetBool("headshot");
@@ -7530,6 +7538,15 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				g_mTotalDamage[attacker].SetArray(eRef, td, sizeof(td));
 			}
 		}
+		
+		/*
+		if((g_clSkill_2[attacker] & SKL_2_Chainsaw) && !strcmp(weapon, "chainsaw"))
+		{
+			// 电锯定身
+			TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, view_as<float>({0.0, 0.0, 0.0}));
+			SetEntPropFloat(victim, Prop_Send, "m_flNextAttack", GetGameTime() + 1.0);
+		}
+		*/
 	}
 	else if(attackPlayer && GetClientTeam(victim) == 2 && GetClientTeam(attacker) == 3 && IsPlayerAlive(attacker))
 	{
@@ -8948,7 +8965,7 @@ public void Event_ReviveSuccess(Event event, const char[] event_name, bool dontB
 	
 	if(IsValidClient(client) && !WasLedgeHang)
 	{
-		new extrahp = 0;
+		int extrahp = 0;
 		if((g_clSkill_1[subject] & SKL_1_ReviveHealth))
 		{
 			extrahp += 20;
@@ -9594,7 +9611,7 @@ public void Event_InfectedHurt(Event event, const char[] eventName, bool dontBro
 	static char classname[64];
 	GetEdictClassname(victim, classname, sizeof(classname));
 	
-	if((g_clSkill_1[client] & SKL_1_DisplayHealth) && (type & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB)) && !IsFakeClient(client))
+	if((g_clSkill_1[client] & SKL_1_DisplayHealth) && (type & (DMG_BULLET|DMG_BUCKSHOT|DMG_SLASH|DMG_CLUB|DMG_MELEE)) && !IsFakeClient(client))
 	{
 		int health = GetEntProp(victim, Prop_Data, "m_iHealth");
 		bool headshot = (hitgroup == 1);
@@ -10885,7 +10902,7 @@ public void Event_PlayerHitByVomit(Event event, const char[] eventName, bool don
 	g_bIsOnBile[client] = true;
 	
 	// 胆汁效果紫色
-	CreateGlowModel(client, 0xFF80FF);
+	// CreateGlowModel(client, 0xFF80FF);
 }
 
 public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool dontBroadcast)
@@ -10897,6 +10914,7 @@ public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool d
 	g_bIsHitByVomit[client] = false;
 	g_bIsOnBile[client] = false;
 	
+	/*
 	int team = GetClientTeam(client);
 	if(team == 3)
 	{
@@ -10929,6 +10947,7 @@ public void Event_PlayerVomitTimeout(Event event, const char[] eventName, bool d
 		// 未知状态
 		RemoveGlowModel(client);
 	}
+	*/
 }
 
 public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBroadcast)
@@ -10959,7 +10978,10 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 			// 停止冲锋
 			if(IsChargerCharging(victim))
 			{
-				TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
+				float vel[3];
+				GetEntDataVector(victim, g_iVelocityO, vel);
+				NegateVector(vel);
+				TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, vel);
 				
 				if(g_pfnEndCharge != null)
 					SDKCall(g_pfnEndCharge, GetEntPropEnt(victim, Prop_Send, "m_customAbility"));
@@ -10980,6 +11002,49 @@ public void Event_PlayerShoved(Event event, const char[] eventName, bool dontBro
 		
 		PrintHintText(attacker, msg);
 	}
+}
+
+public void Event_EntityShoved(Event event, const char[] eventName, bool dontBroadcast)
+{
+	int attacker = GetClientOfUserId(GetEventInt(event, "attacker"));
+	int victim = GetEventInt(event, "entityid");
+	
+	if(!IsValidAliveClient(attacker) || victim < 1 || !IsValidEdict(victim))
+		return;
+	
+	if(HasEntProp(victim, Prop_Send, "m_iTeamNum") && GetEntProp(victim, Prop_Send, "m_iTeamNum") == GetClientTeam(attacker))
+		return;
+	
+	int weapon = GetEntPropEnt(attacker, Prop_Send, "m_hActiveWeapon");
+	if(weapon <= MaxClients || !IsValidEdict(weapon))
+		return;
+	
+	float damage = 15.0 * GetPlayerEffect(attacker, 66);
+	
+	if((g_clSkill_2[attacker] & SKL_2_Chainsaw) && HasEntProp(weapon, Prop_Send, "m_bHitting"))
+	{
+		damage += 50.0;
+		Kickback(attacker, victim);
+	}
+	
+	if(damage > 0.0)
+		SDKHooks_TakeDamage(victim, weapon, attacker, damage, DMG_STUMBLE|DMG_MELEE|DMG_SLASH|DMG_CLUB, weapon);
+}
+
+void Kickback(int attacker, int victim, float force = 500.0, float height = 500.0)
+{
+	float dir[3];
+	GetClientEyeAngles(attacker, dir);
+	GetAngleVectors(dir, dir, NULL_VECTOR, NULL_VECTOR);
+	ScaleVector(dir, force);
+	
+	if(height >= 0.0)
+		dir[2] = height;
+	
+	if(HasEntProp(victim, Prop_Send, "m_hGroundEntity"))
+		SetEntPropEnt(victim, Prop_Send, "m_hGroundEntity", -1);
+	
+	TeleportEntity(victim, NULL_VECTOR, NULL_VECTOR, dir);
 }
 
 public void Event_BulletImpact(Event event, const char[] eventName, bool dontBroadcast)
@@ -11626,6 +11691,33 @@ void RegPlayerHook(int client, bool fullHealth = false)
 		PrototypeGrenade_SetAllowedClient(client, !!(g_clSkill_2[client] & SKL_2_PrototypeGrenade));
 	if(g_bHaveMelee && NATIVE_EXISTS("ThrowMelee_SetAllowedClient"))
 		ThrowMelee_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_ThrowMelee));
+	
+	if(g_clSkill_2[client] & SKL_2_IncapCrawling)
+		g_hCvarIncapCrawling.ReplicateToClient(client, "1");
+	else if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
+		g_hCvarIncapCrawling.ReplicateToClient(client, "0");
+	
+	static ConVar sv_disable_glow_faritems, sv_disable_glow_survivors, sv_glowenable;
+	if(sv_disable_glow_faritems == null)
+	{
+		sv_disable_glow_faritems = FindConVar("sv_disable_glow_faritems");
+		sv_disable_glow_survivors = FindConVar("sv_disable_glow_survivors");
+		sv_glowenable = FindConVar("sv_glowenable");
+	}
+	if(g_clSkill_4[client] & SKL_4_Terror)
+	{
+		sv_disable_glow_faritems.ReplicateToClient(client, "0");
+		sv_disable_glow_survivors.ReplicateToClient(client, "0");
+		sv_glowenable.ReplicateToClient(client, "1");
+	}
+	else
+	{
+		sv_disable_glow_faritems.ReplicateToClient(client, sv_disable_glow_faritems.BoolValue ? "1" : "0");
+		sv_disable_glow_survivors.ReplicateToClient(client, sv_disable_glow_survivors.BoolValue ? "1" : "0");
+		sv_glowenable.ReplicateToClient(client, sv_glowenable.BoolValue ? "1" : "0");
+	}
+	
+	// SetEntProp(client, Prop_Data, "m_afButtonDisabled", GetEntProp(client, Prop_Data, "m_afButtonDisabled") & ~IN_FORWARD);
 }
 
 public void PlayerHook_OnPostThinkPost(int client)
@@ -12148,7 +12240,7 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			else
 			{
 				int rn = GetRandomInt(0, 3);
-				int flag = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec", 1) & ~3;
+				int flag = GetEntProp(weapon, Prop_Send, "m_upgradeBitVec", 1) & ~3;	// 激光
 				switch(rn)
 				{
 					case 1:
@@ -13699,10 +13791,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
-		if(!(g_clSkill_2[client] & SKL_2_IncapCrawling) && !g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue && isDown)
+		if(!(g_clSkill_2[client] & SKL_2_IncapCrawling) && (buttons & IN_FORWARD) && !g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue && isDown)
 		{
 			// 禁止自带的倒地爬行
 			buttons &= ~IN_FORWARD;
+			// SetEntProp(client, Prop_Data, "m_afButtonDisabled", GetEntProp(client, Prop_Data, "m_afButtonDisabled") | IN_FORWARD);
 		}
 		
 		if((g_clSkill_5[client] & SKL_5_Resurrect) && (buttons & IN_USE) && useTarget < 1 && GetVectorLength(vel, true) < 1.0 &&
@@ -14679,7 +14772,10 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 					// 停止冲锋
 					if(IsChargerCharging(target))
 					{
-						TeleportEntity(target, NULL_VECTOR, NULL_VECTOR, Float:{0.0, 0.0, 0.0});
+						float vel[3];
+						GetEntDataVector(target, g_iVelocityO, vel);
+						NegateVector(vel);
+						TeleportEntity(target, NULL_VECTOR, NULL_VECTOR, vel);
 						
 						if(g_pfnEndCharge != null)
 							SDKCall(g_pfnEndCharge, GetEntPropEnt(target, Prop_Send, "m_customAbility"));
@@ -14728,12 +14824,12 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 						SNDCHAN_BODY, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vLoc);
 					
 					// 事件
-					/*
 					Event event = CreateEvent("entity_shoved");
 					event.SetInt("entityid", target);
 					event.SetInt("attacker", GetClientUserId(client));
-					event.Fire();
-					*/
+					Event_EntityShoved(event, "entity_shoved", false);
+					// event.Fire();
+					delete event;
 					
 					hit = true;
 				}
@@ -14988,6 +15084,7 @@ public Action L4D2_OnStagger(int target, int source)
 	if(GetPlayerEffect(target, 22))
 		return Plugin_Handled;
 	
+	/*
 	int team = GetClientTeam(target);
 	// 生还者失衡
 	if(team == 2)
@@ -15067,6 +15164,7 @@ public Action L4D2_OnStagger(int target, int source)
 			}
 		}
 	}
+	*/
 	
 	return Plugin_Continue;
 }
@@ -16432,23 +16530,43 @@ stock RevivePlayer(iTarget)
 
 void Charge(int target, int sender, float force = 500.0, float height = 500.0)
 {
-	decl Float:tpos[3], Float:spos[3];
-	decl Float:distance[3], Float:ratio[3], Float:addVel[3], Float:tvec[3];
-	GetClientAbsOrigin(target, tpos);
-	GetClientAbsOrigin(sender, spos);
+	float tpos[3], spos[3];
+	float distance[3], ratio[3], addVel[3]/*, tvec[3]*/;
+	
+	if(1 <= target <= MaxClients)
+		GetClientAbsOrigin(target, tpos);
+	else
+		GetEntPropVector(target, Prop_Send, "m_vecOrigin", tpos);
+	if(1 <= sender <= MaxClients)
+		GetClientAbsOrigin(sender, spos);
+	else
+		GetEntPropVector(sender, Prop_Send, "m_vecOrigin", spos);
+	
 	distance[0] = (spos[0] - tpos[0]);
 	distance[1] = (spos[1] - tpos[1]);
 	distance[2] = (spos[2] - tpos[2]);
-	GetEntPropVector(target, Prop_Data, "m_vecVelocity", tvec);
+	
+	/*
+	if(1 <= target <= MaxClients)
+		GetEntDataVector(target, g_iVelocityO, tvec);
+	else
+		GetEntPropVector(target, Prop_Data, "m_vecVelocity", tvec);
+	*/
+	
 	ratio[0] =	(distance[0] / (SquareRoot(distance[1]*distance[1] + distance[0]*distance[0])));//Ratio x/hypo
 	ratio[1] =	(distance[1] / (SquareRoot(distance[1]*distance[1] + distance[0]*distance[0])));//Ratio y/hypo
 
 	addVel[0] = ((ratio[0]*-1) * force);
 	addVel[1] = ((ratio[1]*-1) * force);
 	addVel[2] = height;
-
+	
 	// SDKCall(sdkCallPushPlayer, target, addVel, 76, sender, 7.0);
-	L4D2_CTerrorPlayer_Fling(target, sender, addVel);
+	// SetEntPropEnt(target, Prop_Send, "m_hGroundEntity", -1);
+	
+	if(1 <= target <= MaxClients)
+		L4D2_CTerrorPlayer_Fling(target, sender, addVel);
+	else
+		TeleportEntity(target, NULL_VECTOR, NULL_VECTOR, addVel);
 }
 
 DealDamage(attacker=0,victim,damage,dmg_type=0)
@@ -16874,9 +16992,11 @@ void RebuildEquipStr(EquipData_t data)
 		case 63:
 			strcopy(data.sEffect, sizeof(data.sEffect), "捡起礼物免疫负面效果");
 		case 64:
-			strcopy(data.sEffect, sizeof(data.sEffect), "推间隔减少0.1秒");
+			strcopy(data.sEffect, sizeof(data.sEffect), "枪托(推)隔减少0.1秒");
 		case 65:
-			strcopy(data.sEffect, sizeof(data.sEffect), "推作用时间增加0.1秒");
+			strcopy(data.sEffect, sizeof(data.sEffect), "枪托(推)用时间增加0.1秒");
+		case 66:
+			strcopy(data.sEffect, sizeof(data.sEffect), "枪托(推)伤害+15");
 		default:
 			strcopy(data.sEffect, sizeof(data.sEffect), "");
 	}

@@ -145,6 +145,7 @@ const int SKL_1_MultiUpgrade = (1 << 13);
 const int SKL_1_Button = (1 << 14);
 const int SKL_1_GettingUP = (1 << 15);
 const int SKL_1_NightVision = (1 << 16);
+const int SKL_1_QuickUse = (1 << 17);
 
 const int SKL_2_Chainsaw = (1 << 0);
 const int SKL_2_Excited = (1 << 1);
@@ -288,6 +289,7 @@ Handle g_hTimerMinigun[MAXPLAYERS+1];
 float g_fNightVision[MAXPLAYERS+1];
 bool g_bFirstLoaded[MAXPLAYERS+1];
 bool g_bHasGuilty[MAXPLAYERS+1];
+float g_fQuickUse[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -465,7 +467,7 @@ int g_iActiveEffects[MAXPLAYERS+1];
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = { false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 66;	// 上限 255
+const int g_iMaxEqmEffects = 71;	// 上限 255
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
@@ -2381,6 +2383,7 @@ void Initialization(int client, bool invalid = false)
 	g_fSacrificeTime[client] = 0.0;
 	g_fMinigunTime[client] = 0.0;
 	g_fNightVision[client] = 0.0;
+	g_fQuickUse[client] = 0.0;
 	g_iIsInBattlefield[client] = 0;
 	g_iIsInCombat[client] = 0;
 	g_iIsSneaking[client] = 0;
@@ -4033,7 +4036,8 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	FORMAT_MENU_ITEM_1(SKL_1_MultiUpgrade,"弹药包叠加/补充子弹");
 	FORMAT_MENU_ITEM_1(SKL_1_Button,"开机关时间减少2/3");
 	FORMAT_MENU_ITEM_1(SKL_1_GettingUP,"起身/失衡时免疫伤害");
-	FORMAT_MENU_ITEM_1(SKL_1_NightVision,"连按两下F切换夜视仪");
+	FORMAT_MENU_ITEM_1(SKL_1_NightVision,"双击F切换夜视仪");
+	FORMAT_MENU_ITEM_1(SKL_1_QuickUse,"双击可快速吃药扔雷");
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4196,7 +4200,7 @@ void StatusSelectMenuFuncD(int client, int page = -1)
 		FORMAT_MENU_ITEM_4(SKL_4_MeleeExtra,"三倍近战伤害");
 	}
 	
-	FORMAT_MENU_ITEM_4(SKL_4_MoreGrenade,"「节约」手雷有1/3几率不消耗");
+	FORMAT_MENU_ITEM_4(SKL_4_MoreGrenade,"「再生」手雷有1/3几率不消耗");
 	FORMAT_MENU_ITEM_4(SKL_4_MultiGrenade,"「复制」手雷有1/4几率掷出多个");
 	FORMAT_MENU_ITEM_4(SKL_4_LastStand,"残血时伤害增加(基于失血量)");
 	
@@ -6857,7 +6861,7 @@ public void GrenadeHook_OnSpawned(int entity)
 			if(!strncmp(weapon[7], projectile, strlen(weapon[7])))
 			{
 				SetEntProp(client, Prop_Send, "m_iAmmo", 1, _, GetEntProp(slot, Prop_Send, "m_iPrimaryAmmoType"));
-				PrintToChat(client, "\x03「节约」\x01触发，投掷武器不消耗。");
+				PrintToChat(client, "\x03「再生」\x01触发，投掷武器不消耗。");
 			}
 		}
 	}
@@ -7058,6 +7062,12 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 		SetEntProp(subject, Prop_Data, "m_iHealth", GetEntProp(subject, Prop_Data, "m_iHealth") + 50);
 	}
 	
+	if(g_bIsGamePlaying && (g_clSkill_4[client] & SKL_4_MoreGrenade) && GetPlayerEffect(client, 69) && !GetRandomInt(0, 2))
+	{
+		CheatCommand(client, "give", "first_aid_kit");
+		PrintToChat(client, "\x03「再生•改」\x01触发，医疗包不消耗。");
+	}
+	
 	if(g_bIsGamePlaying && (g_clSkill_3[client] & SKL_3_ReviveBonus) && client != subject)
 		GiveHelpBouns(client);
 	
@@ -7082,7 +7092,7 @@ public void Event_HealSuccess(Event event, const char[] eventName, bool dontBroa
 
 public void Event_PillsUsed(Event event, const char[] event_name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	new client = GetClientOfUserId(GetEventInt(event, "subject"));
 	if (!client || !IsClientInGame(client)) return;
 	
 	int mulEffect = GetPlayerEffect(client, 2);
@@ -7131,11 +7141,17 @@ public void Event_PillsUsed(Event event, const char[] event_name, bool dontBroad
 		L4D2_ExecVScriptCode(buffer);
 		PrintToChat(client, "\x03「清醒」\x01治疗了濒死状态。");
 	}
+	
+	if(g_bIsGamePlaying && (g_clSkill_4[client] & SKL_4_MoreGrenade) && GetPlayerEffect(client, 67) && !GetRandomInt(0, 2))
+	{
+		CheatCommand(client, "give", "pain_pills");
+		PrintToChat(client, "\x03「再生•改」\x01触发，止痛药不消耗。");
+	}
 }
 
 public void Event_AdrenalineUsed(Event event, const char[] event_name, bool dontBroadcast)
 {
-	new client = GetClientOfUserId(GetEventInt(event, "userid"));
+	int client = GetClientOfUserId(GetEventInt(event, "userid"));
 	if (!client || !IsClientInGame(client)) return;
 	
 	if(g_clSkill_3[client] & SKL_3_SelfHeal)
@@ -7168,6 +7184,12 @@ public void Event_AdrenalineUsed(Event event, const char[] event_name, bool dont
 			duration = g_hCvarAdrenTime.FloatValue;
 		// Terror_SetAdrenalineTime(client, duration + effect * 10.0);
 		L4D2_UseAdrenaline(client, duration + effect * 10.0, false);
+	}
+	
+	if(g_bIsGamePlaying && (g_clSkill_4[client] & SKL_4_MoreGrenade) && GetPlayerEffect(client, 68) && !GetRandomInt(0, 2))
+	{
+		CheatCommand(client, "give", "adrenaline");
+		PrintToChat(client, "\x03「再生•改」\x01触发，肾上腺素不消耗。");
 	}
 }
 
@@ -7937,14 +7959,14 @@ public void Event_PlayerDeath(Event event, const char[] eventName, bool dontBroa
 					int mulEffect = GetPlayerEffect(victim, 10);
 					if(mulEffect > 0)
 					{
-						DealDamage(victim, attacker, 3000 * mulEffect, 0);
+						DealDamage(victim, attacker, 1000 * mulEffect, 0);
 						// ClientCommand(victim, "play \"level/loud/climber.wav\"");
 						EmitSoundToClient(victim, SOUND_FLYING, attacker);
 						
 						// new String:name[32];
 						// GetClientName(attacker, name, 32);
 						// PrintToChatAll("\x03[\x05提示\x03]%N\x04死亡前引爆自身炸弹给予\x03%s\x043000点伤害!",victim,name);
-						PrintToChat(victim, "\x03[提示]\x01 你死亡前死亡前引爆炸弹对 \x04%N\x01 造成 \x05%d\x01 伤害。", attacker, 3000 * mulEffect);
+						PrintToChat(victim, "\x03[提示]\x01 你死亡前死亡前引爆炸弹对 \x04%N\x01 造成 \x05%d\x01 伤害。", attacker, 1000 * mulEffect);
 					}
 				}
 				else if(attacker != victim && !g_bHasGuilty[victim])
@@ -8931,6 +8953,12 @@ public void Event_DefibrillatorUsed(Event event, const char[] event_name, bool d
 		CreateTimer(0.1, Timer_DelayGivePistol, data, TIMER_FLAG_NO_MAPCHANGE|TIMER_DATA_HNDL_CLOSE);
 		
 		g_sLastWeapon[subject][0] = EOS;
+	}
+	
+	if(g_bIsGamePlaying && (g_clSkill_4[client] & SKL_4_MoreGrenade) && GetPlayerEffect(client, 70) && !GetRandomInt(0, 2))
+	{
+		CheatCommand(client, "give", "defibrillator");
+		PrintToChat(client, "\x03「再生•改」\x01触发，电击器不消耗。");
 	}
 	
 	if(g_bIsGamePlaying && IsValidClient(client) && (g_clSkill_3[client] & SKL_3_ReviveBonus) && client != subject)
@@ -11692,31 +11720,33 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	if(g_bHaveMelee && NATIVE_EXISTS("ThrowMelee_SetAllowedClient"))
 		ThrowMelee_SetAllowedClient(client, !!(g_clSkill_5[client] & SKL_5_ThrowMelee));
 	
-	if(g_clSkill_2[client] & SKL_2_IncapCrawling)
-		g_hCvarIncapCrawling.ReplicateToClient(client, "1");
-	else if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
-		g_hCvarIncapCrawling.ReplicateToClient(client, "0");
-	
-	static ConVar sv_disable_glow_faritems, sv_disable_glow_survivors, sv_glowenable;
-	if(sv_disable_glow_faritems == null)
+	if(!IsFakeClient(client))
 	{
-		sv_disable_glow_faritems = FindConVar("sv_disable_glow_faritems");
-		sv_disable_glow_survivors = FindConVar("sv_disable_glow_survivors");
-		sv_glowenable = FindConVar("sv_glowenable");
+		if(g_clSkill_2[client] & SKL_2_IncapCrawling)
+			g_hCvarIncapCrawling.ReplicateToClient(client, "1");
+		else if(!g_bIsPluginCrawling && g_hCvarIncapCrawling.BoolValue)
+			g_hCvarIncapCrawling.ReplicateToClient(client, "0");
+		
+		static ConVar sv_disable_glow_faritems, sv_disable_glow_survivors/*, sv_glowenable*/;
+		if(sv_disable_glow_faritems == null)
+		{
+			sv_disable_glow_faritems = FindConVar("sv_disable_glow_faritems");
+			sv_disable_glow_survivors = FindConVar("sv_disable_glow_survivors");
+			// sv_glowenable = FindConVar("sv_glowenable");
+		}
+		if(g_clSkill_4[client] & SKL_4_Terror)
+		{
+			sv_disable_glow_faritems.ReplicateToClient(client, "0");
+			sv_disable_glow_survivors.ReplicateToClient(client, "0");
+			// sv_glowenable.ReplicateToClient(client, "1");
+		}
+		else
+		{
+			sv_disable_glow_faritems.ReplicateToClient(client, sv_disable_glow_faritems.BoolValue ? "1" : "0");
+			sv_disable_glow_survivors.ReplicateToClient(client, sv_disable_glow_survivors.BoolValue ? "1" : "0");
+			// sv_glowenable.ReplicateToClient(client, sv_glowenable.BoolValue ? "1" : "0");
+		}
 	}
-	if(g_clSkill_4[client] & SKL_4_Terror)
-	{
-		sv_disable_glow_faritems.ReplicateToClient(client, "0");
-		sv_disable_glow_survivors.ReplicateToClient(client, "0");
-		sv_glowenable.ReplicateToClient(client, "1");
-	}
-	else
-	{
-		sv_disable_glow_faritems.ReplicateToClient(client, sv_disable_glow_faritems.BoolValue ? "1" : "0");
-		sv_disable_glow_survivors.ReplicateToClient(client, sv_disable_glow_survivors.BoolValue ? "1" : "0");
-		sv_glowenable.ReplicateToClient(client, sv_glowenable.BoolValue ? "1" : "0");
-	}
-	
 	// SetEntProp(client, Prop_Data, "m_afButtonDisabled", GetEntProp(client, Prop_Data, "m_afButtonDisabled") & ~IN_FORWARD);
 }
 
@@ -11770,7 +11800,8 @@ public void PlayerHook_OnPreThinkPost(int client)
 
 public Action L4D_OnGetRunTopSpeed(int client, float &retVal)
 {
-	if(!GetEntProp(client, Prop_Send, "m_bAdrenalineActive", 1) &&
+	if(IsValidAliveClient(client) &&
+		!GetEntProp(client, Prop_Send, "m_bAdrenalineActive", 1) &&
 		GetClientTeam(client) == 2 && GetPlayerEffect(client, 38))
 	{
 		static ConVar survivor_speed;
@@ -12366,8 +12397,26 @@ public void Event_WeaponFire(Event event, const char[] eventName, bool dontBroad
 			pipe_bomb_timer_duration = FindConVar("pipe_bomb_timer_duration");
 		
 		int ov = pipe_bomb_timer_duration.IntValue;
-		pipe_bomb_timer_duration.IntValue = ov * pbDuration;
+		pipe_bomb_timer_duration.IntValue += 10 * pbDuration;
 		RequestFrame(ResetPipeBombDuration, ov);
+	}
+	
+	pbDuration = GetPlayerEffect(client, 71);
+	if(pbDuration > 0)
+	{
+		static ConVar vomitjar_duration_infected_bot, vomitjar_duration_infected_pz, vomitjar_duration_survivor;
+		if(vomitjar_duration_infected_bot == null)
+		{
+			vomitjar_duration_infected_bot = FindConVar("vomitjar_duration_infected_bot");
+			vomitjar_duration_infected_pz = FindConVar("vomitjar_duration_infected_pz");
+			vomitjar_duration_survivor = FindConVar("vomitjar_duration_survivor");
+		}
+		
+		int ov = vomitjar_duration_infected_bot.IntValue;
+		vomitjar_duration_infected_bot.IntValue += 10 * pbDuration;
+		vomitjar_duration_infected_pz.IntValue += 10 * pbDuration;
+		vomitjar_duration_survivor.IntValue += 10 * pbDuration;
+		RequestFrame(ResetVomitjarDuration, ov);
 	}
 	
 	// 只对单发有效，三连发无效
@@ -12474,7 +12523,22 @@ public void ResetPipeBombDuration(any data)
 	if(pipe_bomb_timer_duration == null)
 		pipe_bomb_timer_duration = FindConVar("pipe_bomb_timer_duration");
 	
-	pipe_bomb_timer_duration.IntValue = view_as<int>(data);
+	pipe_bomb_timer_duration.RestoreDefault(false, false);
+}
+
+public void ResetVomitjarDuration(any data)
+{
+	static ConVar vomitjar_duration_infected_bot, vomitjar_duration_infected_pz, vomitjar_duration_survivor;
+	if(vomitjar_duration_infected_bot == null)
+	{
+		vomitjar_duration_infected_bot = FindConVar("vomitjar_duration_infected_bot");
+		vomitjar_duration_infected_pz = FindConVar("vomitjar_duration_infected_pz");
+		vomitjar_duration_survivor = FindConVar("vomitjar_duration_survivor");
+	}
+	
+	vomitjar_duration_infected_bot.RestoreDefault(false, false);
+	vomitjar_duration_infected_pz.RestoreDefault(false, false);
+	vomitjar_duration_survivor.RestoreDefault(false, false);
 }
 
 void HookPlayerReload(int client, int clipSize)
@@ -13693,6 +13757,24 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
+		if((g_clSkill_1[client] & SKL_1_QuickUse) && !isDown && !isGrabbed && !isTP)
+		{
+			if(g_fQuickUse[client] > time && weapon == weaponId)
+			{
+				g_fQuickUse[client] = 0.0;
+				if(weaponId == GetPlayerWeaponSlot(client, 2) || weaponId == GetPlayerWeaponSlot(client, 4))
+					QuickUse(client);
+			}
+			else if(g_fQuickUse[client] < -time && weapon <= MaxClients)
+			{
+				g_fQuickUse[client] = time + 0.3;
+			}
+			else if(weaponId != weapon && weapon > MaxClients)
+			{
+				g_fQuickUse[client] = -time - 0.3;
+			}
+		}
+		
 		weaponId = GetPlayerWeaponSlot(client, 0);
 		if(((g_clSkill_3[client] & SKL_3_MoreAmmo) || (g_clSkill_4[client] & SKL_4_ClipSize)) && (buttons & IN_USE) &&
 			weaponId > MaxClients && IsValidEntity(weaponId) &&
@@ -14070,6 +14152,7 @@ void HandleGunShover(int client, int weapon)
 	// EmitSoundToAll(SOUND_BCLAW, client);
 	EmitAmbientSound(SOUND_BCLAW, pos, client);
 	float radius = 500.0 * (1 + GetPlayerEffect(client, 32));
+	float damage = 25.0 + 100 * GetPlayerEffect(client, 7);
 	
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -14083,7 +14166,7 @@ void HandleGunShover(int client, int weapon)
 		SubtractVectors(vec, pos, dir);
 		
 		Charge(i, client, 750.0);
-		SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 50)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
+		SDKHooks_TakeDamage(i, 0, client, damage, DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
 	}
 	
 	if(GetPlayerEffect(client, 30))
@@ -14096,7 +14179,7 @@ void HandleGunShover(int client, int weapon)
 				continue;
 			
 			SubtractVectors(vec, pos, dir);
-			SDKHooks_TakeDamage(i, 0, client, float(GetRandomInt(1, 30)), DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
+			SDKHooks_TakeDamage(i, 0, client, damage, DMG_STUMBLE|DMG_MELEE, weapon, dir, pos);
 		}
 	}
 	
@@ -14544,6 +14627,121 @@ public int MenuHandler_Null(Menu menu, MenuAction action, int client, int select
 
 public Action Timer_Null(Handle timer, any hdl)
 {
+	return Plugin_Continue;
+}
+
+void QuickUse(int client)
+{
+	int weapon = GetEntPropEnt(client, Prop_Send, "m_hActiveWeapon");
+	float time = GetGameTime();
+	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
+	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
+	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", 3.0);
+	SetEntProp(client, Prop_Data, "m_afButtonForced", IN_ATTACK);
+	CreateTimer(0.1, Timer_EndQuickUse, weapon);
+}
+
+public Action Timer_EndQuickUse(Handle timer, any weapon)
+{
+	if(weapon == INVALID_ENT_REFERENCE || !IsValidEdict(weapon))
+		return Plugin_Continue;
+	
+	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", 1.0);
+	
+	int client = GetEntPropEnt(weapon, Prop_Send, "m_hOwnerEntity");
+	if(!IsValidAliveClient(client))
+		return Plugin_Continue;
+	
+	SetEntProp(client, Prop_Data, "m_afButtonForced", 0);
+	
+	char classname[64];
+	GetEdictClassname(weapon, classname, sizeof(classname));
+	
+	if(!strcmp(classname, "weapon_pain_pills"))
+	{
+		static ConVar pain_pills_health_value;
+		if(pain_pills_health_value == null)
+			pain_pills_health_value = FindConVar("pain_pills_health_value");
+		
+		AddHealth(client, pain_pills_health_value.IntValue);
+		
+		Event event = CreateEvent("pills_used");
+		event.SetInt("userid", GetClientUserId(client));
+		event.SetInt("subject", GetClientUserId(client));
+		Event_PillsUsed(event, "pills_used", false);
+		delete event;
+	}
+	else if(!strcmp(classname, "weapon_adrenaline"))
+	{
+		static ConVar adrenaline_health_buffer, adrenaline_duration;
+		if(adrenaline_health_buffer == null)
+		{
+			adrenaline_health_buffer = FindConVar("adrenaline_health_buffer");
+			adrenaline_duration = FindConVar("adrenaline_duration");
+		}
+		
+		AddHealth(client, adrenaline_health_buffer.IntValue);
+		L4D2_UseAdrenaline(client, adrenaline_duration.FloatValue, false);
+		
+		Event event = CreateEvent("adrenaline_used");
+		event.SetInt("userid", GetClientUserId(client));
+		Event_AdrenalineUsed(event, "adrenaline_used", false);
+		delete event;
+	}
+	else if(!strcmp(classname, "weapon_pipe_bomb") || !strcmp(classname, "weapon_molotov") || !strcmp(classname, "weapon_vomitjar"))
+	{
+		static ConVar player_throwforce;
+		if(player_throwforce == null)
+			player_throwforce = FindConVar("player_throwforce");
+		
+		float pos[3], dir[3];
+		GetClientEyePosition(client, pos);
+		GetClientEyeAngles(client, dir);
+		GetAngleVectors(dir, dir, NULL_VECTOR, NULL_VECTOR);
+		ScaleVector(dir, player_throwforce.FloatValue);
+		
+		int ent = -1;
+		switch(classname[7])
+		{
+			case 'p':
+				ent = L4D_PipeBombPrj(client, pos, dir);
+			case 'm':
+				ent = L4D_MolotovPrj(client, pos, dir);
+			case 'v':
+				ent = L4D2_VomitJarPrj(client, pos, dir);
+		}
+		
+		if(ent <= MaxClients)
+			return Plugin_Continue;
+	}
+	else if(!strcmp(classname, "weapon_upgradepack_incendiary") || !strcmp(classname, "weapon_upgradepack_explosive"))
+	{
+		float pos[3];
+		GetClientAbsOrigin(client, pos);
+		
+		int ent = -1;
+		switch(classname[19])
+		{
+			case 'i':
+				ent = CreateEntityByName("upgrade_ammo_incendiary");
+			case 'e':
+				ent = CreateEntityByName("upgrade_ammo_explosive");
+		}
+		
+		if(ent <= MaxClients)
+			return Plugin_Continue;
+		
+		DispatchKeyValue(ent, "spawnflags", "2");
+		DispatchKeyValue(ent, "count", "4");
+		DispatchSpawn(ent);
+		TeleportEntity(ent, pos, NULL_VECTOR, NULL_VECTOR);
+	}
+	else
+	{
+		return Plugin_Continue;
+	}
+	
+	RemovePlayerItem(client, weapon);
 	return Plugin_Continue;
 }
 
@@ -16878,13 +17076,13 @@ void RebuildEquipStr(EquipData_t data)
 		case 6:
 			strcopy(data.sEffect, sizeof(data.sEffect), "暴击时追加伤害上限+200");
 		case 7:
-			strcopy(data.sEffect, sizeof(data.sEffect), "「霸气」伤害上限+300,附加回血功能");
+			strcopy(data.sEffect, sizeof(data.sEffect), "「霸气」伤害+100");
 		case 8:
 			strcopy(data.sEffect, sizeof(data.sEffect), "暴击率+5");
 		case 9:
 			strcopy(data.sEffect, sizeof(data.sEffect), "「无敌」激活时附加无限子弹");
 		case 10:
-			strcopy(data.sEffect, sizeof(data.sEffect), "死亡时反伤杀害者3000伤害");
+			strcopy(data.sEffect, sizeof(data.sEffect), "死亡时反伤杀害者1000伤害");
 		case 11:
 			strcopy(data.sEffect, sizeof(data.sEffect), "近战击中坦克时冰冻坦克1秒");
 		case 12:
@@ -16906,7 +17104,7 @@ void RebuildEquipStr(EquipData_t data)
 		case 20:
 			strcopy(data.sEffect, sizeof(data.sEffect), "「顽强」自动触发时处死控制者");
 		case 21:
-			strcopy(data.sEffect, sizeof(data.sEffect), "土雷引怪持续时间加倍");
+			strcopy(data.sEffect, sizeof(data.sEffect), "土雷引怪持续时间+10");
 		case 22:
 			strcopy(data.sEffect, sizeof(data.sEffect), "避免失衡效果(不包括被撞飞/拍飞)");
 		case 23:
@@ -16997,6 +17195,16 @@ void RebuildEquipStr(EquipData_t data)
 			strcopy(data.sEffect, sizeof(data.sEffect), "枪托(推)用时间增加0.1秒");
 		case 66:
 			strcopy(data.sEffect, sizeof(data.sEffect), "枪托(推)伤害+15");
+		case 67:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「再生」包含止痛药");
+		case 68:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「再生」包含肾上腺素");
+		case 69:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「再生」包含医疗包");
+		case 70:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「再生」包含电击器");
+		case 71:
+			strcopy(data.sEffect, sizeof(data.sEffect), "胆汁引怪持续时间+10");
 		default:
 			strcopy(data.sEffect, sizeof(data.sEffect), "");
 	}

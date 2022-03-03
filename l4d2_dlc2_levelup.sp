@@ -1952,6 +1952,12 @@ public void OutputHook_OnButtonUnPressed(const char[] output, int caller, int ac
 	}
 }
 
+public Action L4D2_CGasCan_ShouldStartAction(int client, int gascan)
+{
+	OutputHook_OnPourUseStarted("ShouldStartAction", -1, client, 0.0);
+	return Plugin_Continue;
+}
+
 public void OutputHook_OnPourUseStarted(const char[] output, int caller, int activator, float delay)
 {
 	if(IsValidAliveClient(activator) && (g_clSkill_1[activator] & SKL_1_Button))
@@ -4037,7 +4043,7 @@ void StatusSelectMenuFuncA(int client, int page = -1)
 	FORMAT_MENU_ITEM_1(SKL_1_Button,"开机关时间减少2/3");
 	FORMAT_MENU_ITEM_1(SKL_1_GettingUP,"起身/失衡时免疫伤害");
 	FORMAT_MENU_ITEM_1(SKL_1_NightVision,"双击F切换夜视仪");
-	FORMAT_MENU_ITEM_1(SKL_1_QuickUse,"双击可快速吃药扔雷");
+	FORMAT_MENU_ITEM_1(SKL_1_QuickUse,"双击可快速吃药和扔雷(效果减半)");
 	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
@@ -4146,7 +4152,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	FORMAT_MENU_ITEM_3(SKL_3_Accurate,"第一枪/最后一枪总是暴击");
 	FORMAT_MENU_ITEM_3(SKL_3_Cure,"「清醒」打针有1/2几率治疗濒死状态");
 	FORMAT_MENU_ITEM_3(SKL_3_Minigun,"鼠标中键部署固定机枪");
-	FORMAT_MENU_ITEM_3(SKL_3_HandGrenade,"持手枪时按鼠标中键发射榴弹");
+	FORMAT_MENU_ITEM_3(SKL_3_HandGrenade,"持手枪时按鼠标中键发射石头");
 	FORMAT_MENU_ITEM_3(SKL_3_DamageScale,"枪械伤害不会减少");
 	
 	menu.ExitButton = true;
@@ -13751,7 +13757,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				GetAngleVectors(velo, velo, NULL_VECTOR, NULL_VECTOR);
 				ScaleVector(velo, player_throwforce.FloatValue);
 				
-				L4D2_GrenadeLauncherPrj(client, pos, velo);
+				// L4D2_GrenadeLauncherPrj(client, pos, velo);
+				L4D_TankRockPrj(client, pos, velo);
 				
 				g_fNextHandGrenade[client] = time + 20.0;
 			}
@@ -14636,14 +14643,14 @@ void QuickUse(int client)
 	float time = GetGameTime();
 	SetEntPropFloat(client, Prop_Send, "m_flNextAttack", time);
 	SetEntPropFloat(weapon, Prop_Send, "m_flNextPrimaryAttack", time);
-	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", 3.0);
 	SetEntProp(client, Prop_Data, "m_afButtonForced", IN_ATTACK);
+	SetWeaponSpeed2(weapon, 3.0);
 	CreateTimer(0.1, Timer_EndQuickUse, weapon);
 }
 
 public Action Timer_EndQuickUse(Handle timer, any weapon)
 {
-	if(weapon == INVALID_ENT_REFERENCE || !IsValidEdict(weapon))
+	if(!IsValidEdict(weapon))
 		return Plugin_Continue;
 	
 	SetEntPropFloat(weapon, Prop_Send, "m_flPlaybackRate", 1.0);
@@ -14663,7 +14670,7 @@ public Action Timer_EndQuickUse(Handle timer, any weapon)
 		if(pain_pills_health_value == null)
 			pain_pills_health_value = FindConVar("pain_pills_health_value");
 		
-		AddHealth(client, pain_pills_health_value.IntValue);
+		AddHealth(client, pain_pills_health_value.IntValue / 2);
 		
 		Event event = CreateEvent("pills_used");
 		event.SetInt("userid", GetClientUserId(client));
@@ -14680,8 +14687,8 @@ public Action Timer_EndQuickUse(Handle timer, any weapon)
 			adrenaline_duration = FindConVar("adrenaline_duration");
 		}
 		
-		AddHealth(client, adrenaline_health_buffer.IntValue);
-		L4D2_UseAdrenaline(client, adrenaline_duration.FloatValue, false);
+		AddHealth(client, adrenaline_health_buffer.IntValue / 2);
+		L4D2_UseAdrenaline(client, adrenaline_duration.FloatValue / 2, false);
 		
 		Event event = CreateEvent("adrenaline_used");
 		event.SetInt("userid", GetClientUserId(client));
@@ -14698,7 +14705,7 @@ public Action Timer_EndQuickUse(Handle timer, any weapon)
 		GetClientEyePosition(client, pos);
 		GetClientEyeAngles(client, dir);
 		GetAngleVectors(dir, dir, NULL_VECTOR, NULL_VECTOR);
-		ScaleVector(dir, player_throwforce.FloatValue);
+		ScaleVector(dir, player_throwforce.FloatValue / 2);
 		
 		int ent = -1;
 		switch(classname[7])
@@ -14714,6 +14721,7 @@ public Action Timer_EndQuickUse(Handle timer, any weapon)
 		if(ent <= MaxClients)
 			return Plugin_Continue;
 	}
+	/*
 	else if(!strcmp(classname, "weapon_upgradepack_incendiary") || !strcmp(classname, "weapon_upgradepack_explosive"))
 	{
 		float pos[3];
@@ -14736,6 +14744,7 @@ public Action Timer_EndQuickUse(Handle timer, any weapon)
 		DispatchSpawn(ent);
 		TeleportEntity(ent, pos, NULL_VECTOR, NULL_VECTOR);
 	}
+	*/
 	else
 	{
 		return Plugin_Continue;

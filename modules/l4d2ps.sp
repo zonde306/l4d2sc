@@ -105,7 +105,7 @@ stock void InitPlugin(const char[] prefix)
 		gamemode.AddChangeHook(ConVarHooked_psOnGameModeUpdate);
 }
 
-stock char tr(const char[] text, any ...)
+stock char[] tr(const char[] text, any ...)
 {
 	char buffer[255];
 	VFormat(buffer, 255, text, 2);

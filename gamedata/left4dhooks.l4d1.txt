@@ -98,12 +98,42 @@
 				}
 			}
 
+			"L4DD::CTerrorPlayer::OnKnockedDown"
+			{
+				"signature"		"CTerrorPlayer::OnKnockedDown"
+				"callconv"		"thiscall"
+				"return"		"void"
+				"this"			"entity"
+				"arguments"
+				{
+					"something"
+					{
+						"type"		"int"
+					}
+				}
+			}
+
 			"L4DD::CTerrorPlayer::OnFalling"
 			{
 				"signature"		"CTerrorPlayer::OnFalling"
 				"callconv"		"thiscall"
 				"return"		"void"
 				"this"			"entity"
+			}
+
+			"L4DD::Witch::SetHarasser"
+			{
+				"signature"		"Witch::SetHarasser"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+				"arguments"
+				{
+					"victim"
+					{
+						"type"		"cbaseentity"
+					}
+				}
 			}
 
 			"L4DD::Tank::EnterStasis"
@@ -643,6 +673,14 @@
 				}
 			}
 
+			"L4DD::CTerrorWeapon::OnSwingStart"
+			{
+				"signature"		"CTerrorWeapon::OnSwingStart"
+				"callconv"		"thiscall"
+				"return"		"int"
+				"this"			"entity"
+			}
+
 			"L4DD::CTerrorPlayer::OnShovedBySurvivor"
 			{
 				"signature"		"CTerrorPlayer::OnShovedBySurvivor"
@@ -686,7 +724,7 @@
 					}
 				}
 			}
-			
+
 			"L4DD::CTerrorWeapon::OnHit"
 			{
 				"signature"		"CTerrorWeapon::OnHit"
@@ -1643,6 +1681,42 @@
 			}
 
 			/*
+			*  TerrorNavMesh::GetInitialCheckpoint(TerrorNavMesh *this)
+			*/
+			"TerrorNavMesh::GetInitialCheckpoint"
+			{
+				"library"	"server"
+				"linux"		"@_ZNK13TerrorNavMesh20GetInitialCheckpointEv"
+				"windows"	"\x83\x2A\x2A\x57\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x89\x2A\x2A\x2A\xE8\x2A\x2A\x2A\x2A\x84\x2A\x75"
+				/* 83 ? ? 57 8B ? 8B ? ? ? ? ? 89 ? ? ? E8 ? ? ? ? 84 ? 75 */
+				/* Search "Checkpoint bounds: %f %f %f --> %f %f %f and has %d weapon spawns\n" first call near top is target function */
+			}
+
+			/*
+			*  Checkpoint::ContainsArea(TerrorNavArea *)const
+			*/
+			"Checkpoint::ContainsArea"
+			{
+				"library"	"server"
+				"linux"		"@_ZNK10Checkpoint12ContainsAreaEP13TerrorNavArea"
+				"windows"	"\x8B\x2A\x2A\x33\x2A\x85\x2A\x56\x7E\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x39\x2A\x74"
+				/* 8B ? ? 33 ? 85 ? 56 7E ? 8B ? 8B ? ? ? 39 ? 74  */
+				/* Search "Haven't left the initial checkpoint yet" compare with Linux to find function call */
+			}
+
+			/*
+			*  TerrorNavMesh::GetLastCheckpoint(TerrorNavMesh *this)
+			*/
+			"TerrorNavMesh::GetLastCheckpoint"
+			{
+				"library"	"server"
+				"linux"		"@_ZNK13TerrorNavMesh17GetLastCheckpointEv"
+				"windows"	"\x8B\x2A\x2A\x2A\x2A\x2A\x56\x33\x2A\x85\x2A\x57\x7E\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x8B\x2A\x8B\x2A\x80"
+				/* 8B ? ? ? ? ? 56 33 ? 85 ? 57 7E ? 8B ? ? ? ? ? 8B ? 8B ? 80 */
+				/* Search "No finale radio could be found.\n" - target is first sub call in this function */
+			}
+
+			/*
 			*  Director::IsAnySurvivorInExitCheckpoint(void)const
 			*/
 			"CDirector::IsAnySurvivorInExitCheckpoint"
@@ -1770,6 +1844,18 @@
 			}
 
 			/**
+			 *  Witch::SetHarasser(Witch *this, CBaseEntity *)
+			 **/
+			"Witch::SetHarasser"
+			{
+				"library"	"server"
+				"linux"		"@_ZN5Witch11SetHarasserEP11CBaseEntity"
+				"windows"	"\x53\x56\x8B\x2A\x2A\x2A\x85\x2A\x8B\x2A\x74\x2A\x8B"
+				/* 53 56 8B ? ? ? 85 ? 8B ? 74 ? 8B */
+				/* Search: "witchid" and compare to linux, one with strings only related to the event and without other random strings */
+			}
+
+			/**
 			 * Thanks to "Psyk0tik" from: https://github.com/Psykotikism/L4D1-2_Signatures
 			 * CTerrorPlayer::OnFalling()
 			 *
@@ -1783,6 +1869,16 @@
 				"linux"		"@_ZN13CTerrorPlayer9OnFallingEv"
 				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x83\x2A\x2A\x0F\x85\x2A\x2A\x2A\x2A\x8D"
 						/* ? ? ? ? ? ? 57 8B ? E8 ? ? ? ? 83 ? ? 0F 85 ? ? ? ? 8D */
+			}
+
+			/* CTerrorPlayer::EstimateFallingDamage(CTerrorPlayer *this) */
+			"CTerrorPlayer::EstimateFallingDamage"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorPlayer21EstimateFallingDamageEv"
+				"windows"	"\x81\x2A\xC8\x00\x00\x00\x57\x8B\x2A\x8B\x2A\x8B"
+				/* 81 ? C8 00 00 00 57 8B ? 8B ? 8B */
+				/* Search "Too many traces, %f damage, %d iterations\n" */
 			}
 
 			/**
@@ -2226,7 +2322,19 @@
 				"library"	"server"
 				"linux"		"@_ZN13CTerrorPlayer11OnStaggeredEP11CBaseEntityPK6Vector.part.712"
 			}
-			
+
+			/*
+			 *  CTerrorWeapon::OnSwingStart(CTerrorWeapon *this)
+			 */
+			"CTerrorWeapon::OnSwingStart"
+			{
+				"library"	"server"
+				"linux"		"@_ZN13CTerrorWeapon12OnSwingStartEv"
+				"windows"	"\x2A\x2A\x2A\x2A\x2A\x2A\x56\x57\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x8B\x2A\x85\x2A\x0F\x84\x2A\x2A\x2A\x2A\x8B\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x8B\x2A\x2A\x2A\x84\x2A\x0F\x84\x2A\x2A\x2A\x2A\x53"
+				/* ? ? ? ? ? ? 56 57 8B ? E8 ? ? ? ? 8B ? 85 ? 0F 84 ? ? ? ? 8B ? 8B ? ? ? ? ? 8B ? ? ? 84 ? 0F 84 ? ? ? ? 53 */
+				/* Search: "Weapon.Swing" */
+			}
+
 			/*
 			 * CTerrorPlayer::OnShovedBySurvivor(CTerrorPlayer*, Vector const&)
 			 */
@@ -2246,7 +2354,7 @@
 				"library"	"server"
 				"linux" 	"@_ZN13CTerrorPlayer18OnShovedBySurvivorEPS_RK6Vector.part.824.constprop.1109"
 			}
-			
+
 			/*
 			* CTerrorWeapon::OnHit(CGameTrace &, Vector const&, bool)
 			*/
@@ -2561,6 +2669,18 @@
 			}
 
 			/*
+			*	CTerrorPlayer::OnKnockedDown(CBasePlayer *a1, int a2)
+			*	Search: "Survivor was lunged while %sfacing the hunter and %sbashing\n". This function contains a sub calling with the param (1).
+			*/
+			"CTerrorPlayer::OnKnockedDown"
+			{
+				"library"		"server"
+				"linux"			"@_ZN13CTerrorPlayer13OnKnockedDownENS_19KnockdownReasonTypeE"
+				"windows"		"\x2A\x2A\x2A\x2A\x2A\x2A\x8D\x2A\x2A\x2A\x2A\x2A\x8B\x2A\xE8\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x7B\x2A\x8B\x2A\x2A\x8B\x2A\x8D\x2A\x2A\x57\x2A\x2A\xD9\x2A\x2A\x2A\xD9\x2A\x8B\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x2A\x74\x2A\x80"
+				/* ? ? ? ? ? ? 8D ? ? ? ? ? 8B ? E8 ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 7B ? 8B ? ? 8B ? 8D ? ? 57 ? ? D9 ? ? ? D9 ? 8B ? ? ? ? ? ? ? ? ? ? ? ? ? ? ? 74 ? 80 */
+			}
+
+			/*
 			 * CTerrorPlayer::CancelStagger(void) - used by the game to stop Survivor Staggering as something else happens
 			 */
 			"CTerrorPlayer::CancelStagger"
@@ -2731,7 +2851,7 @@
 			/*
 			 * CBaseServer::SetReservationCookie(uint64_t, char*, va_list)
 			 */
-			"CBaseServer::SetReservationCookie" 
+			"CBaseServer::SetReservationCookie"
 			{
 				"library"	"engine"
 				"linux"		"@_ZN11CBaseServer20SetReservationCookieEyPKcz"

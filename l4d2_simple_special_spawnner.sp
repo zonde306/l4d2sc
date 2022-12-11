@@ -181,6 +181,18 @@ public Action L4D_OnFirstSurvivorLeftSafeArea(int client)
 	return Plugin_Continue;
 }
 
+public void L4D_OnServerHibernationUpdate(bool hibernating)
+{
+	if(hibernating)
+	{
+		Event_RoundEnd(null, "ServerHibernation", true);
+	}
+	else if(L4D_HasAnySurvivorLeftSafeArea())
+	{
+		TryActiveSpawnQueue();
+	}
+}
+
 /*
 ******************************************
 *	Starter

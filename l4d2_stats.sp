@@ -213,7 +213,7 @@ public Event_PlayerJump(Handle:event, const String:name[], bool:dontBroadcast)
 public Action:Timer_GroundedCheck(Handle:timer, any:userid)
 {
 	new client = GetClientOfUserId(userid);
-	if (client <= 0 || !IsClientInGame(client) || !IsPlayerAlive(client) || IsGrounded(client))
+	if (client <= 0 || !IsClientInGame(client) || !IsPlayerAlive(client) || IsGrounded(client) || GetEntityMoveType(client) == MOVETYPE_LADDER)
 	{
 		g_bIsPouncing[client] = false;
 		g_hPounceTimer[client] = null;
@@ -336,7 +336,8 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 		else */
 		if ((zombieclass == ZC_HUNTER || zombieclass == ZC_JOCKEY) && IsPouncing(victim))
 		{ // Skeet!
-			decl assisters[g_iSurvivorLimit][2];
+			// decl assisters[g_iSurvivorLimit][2];
+			int[][] assisters = new int[g_iSurvivorLimit][2];
 			new assister_count, i;
 			new damage = g_iDamageDealt[victim][attacker];
 			new shots = g_iShotsDealt[victim][attacker];
@@ -452,6 +453,8 @@ public Event_PlayerDeath(Handle:event, const String:name[], bool:dontBroadcast)
 						assisters[i][1]
 					);
 				}
+				
+				// delete assisters;
 			}
 			else if(type & (DMG_BULLET|DMG_BUCKSHOT))
 			{

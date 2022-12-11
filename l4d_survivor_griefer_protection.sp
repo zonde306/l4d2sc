@@ -391,7 +391,7 @@ stock bool IsBadGay(int client)
 	if(number == null)
 	{
 		number = CompileRegex("^\\d+$", PCRE_UTF8);
-		best = CompileRegex("^\\w+$", PCRE_UTF8);
+		best = CompileRegex("^[\\w\\u4e00-\\u9fcc]+$", PCRE_UTF8);
 	}
 	
 	if(number.MatchAll(name) > 0 || best.MatchAll(name) < 1)

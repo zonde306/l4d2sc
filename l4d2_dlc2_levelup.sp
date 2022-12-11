@@ -14,7 +14,7 @@
 // #tryinclude <l4d_info_editor>
 #tryinclude <infected_ability_touch_hook>
 
-public Plugin:myinfo =
+public Plugin myinfo =
 {
 	name = "娱乐插件",
 	author = "zonde306",
@@ -50,7 +50,7 @@ public Plugin:myinfo =
 #define SOUND_CROW					"ambient/animal/crow_2.wav"
 #define SOUND_EXPLOSIVE				"weapons/hegrenade/explode5.wav"
 #define SOUND_GIFT					"ui/gift_drop.wav"
-#define SOUND_BILE_BGM				"music/terror/pukricide.wav"
+// #define SOUND_BILE_BGM				"music/terror/pukricide.wav"
 
 #define g_flSoH_rate 0.4
 #define ZC_SMOKER			1
@@ -222,6 +222,7 @@ const int SKL_5_Lethal = (1 << 14);
 const int SKL_5_Machine = (1 << 15);
 const int SKL_5_Robot = (1 << 16);
 const int SKL_5_ThrowMelee = (1 << 17);
+const int SKL_5_DamageDelay = (1 << 18);
 
 new g_ttTankKilled		= 0;
 new g_iNextPAttO		= -1;
@@ -290,6 +291,17 @@ float g_fNightVision[MAXPLAYERS+1];
 bool g_bFirstLoaded[MAXPLAYERS+1];
 bool g_bHasGuilty[MAXPLAYERS+1];
 float g_fQuickUse[MAXPLAYERS+1];
+
+enum struct DelayedDamageInfo_t {
+	float time;
+	int attacker;
+	int inflictor;
+	float damage;
+	int damagetype;
+	int weapon;
+}
+
+ArrayList g_DelayDamage[MAXPLAYERS+1];
 
 enum struct TDInfo_t {
 	int dmg;
@@ -467,7 +479,7 @@ int g_iActiveEffects[MAXPLAYERS+1];
 // new SelectEqm[MAXPLAYERS+1];		//选择的装备
 new bool:g_csHasGodMode[MAXPLAYERS+1] = { false, ...};			//无敌天赋无限子弹判断
 Handle g_timerRespawn[MAXPLAYERS+1] = {null, ...};
-const int g_iMaxEqmEffects = 71;	// 上限 255
+const int g_iMaxEqmEffects = 72;
 // bool g_bIgnorePreventStagger[MAXPLAYERS+1];
 
 //玩家基本资料
@@ -491,6 +503,8 @@ new bool:g_bIsAngryCritActive = false;
 new bool:g_bIsAngryLastStandActive = false;
 new bool:g_bIsAngryBloodthirstyActive = false;
 new bool:g_bIsAngryActive = false;
+
+
 
 #define STAR_1_MDL		"models/editor/air_node_hint.mdl"
 #define STAR_2_MDL		"models/editor/air_node.mdl"
@@ -584,6 +598,9 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	
 	// int LV_GetPower(int client)
 	CreateNative("LV_GetPower", Native_GetPower);
+	
+	// int LV_GetAvgPower(int team, bool avg, bool aliveOnly, bool hunamOnly)
+	CreateNative("LV_GetAvgPower", Native_GetAvgPower);
 	
 	// void LV_GetAttrs(int client, int& damage, int& health, int& speed, int& gravity, int& crit, bool withSkill)
 	CreateNative("LV_GetAttrs", Native_GetAttrs);
@@ -1307,30 +1324,26 @@ public void ConVarChaged_Concept(ConVar cvar, const char[] oldValue, const char[
 		int state = StringToInt(buffer[1]);
 		if(cvar == g_pCvarInCombat)
 		{
-			/*
-			if(g_iIsInCombat[client] != state && g_pCvarAllow.BoolValue)
+			if(g_iIsInCombat[client] != state && (g_clSkill_3[client] & SKL_3_Accurate))
 			{
 				if(state)
 					PrintCenterText(client, "***进入战斗状态***");
 				else
 					PrintCenterText(client, "***离开战斗状态***");
 			}
-			*/
 			
 			g_iIsInCombat[client] = state;
 			// PrintToServer("client %N state incombat is %d", client, state);
 		}
 		else if(cvar == g_pCvarSneaking)
 		{
-			/*
-			if(g_iIsSneaking[client] != state && g_pCvarAllow.BoolValue)
+			if(g_iIsSneaking[client] != state && (g_clSkill_5[client] & SKL_5_Sneak))
 			{
 				if(state)
 					PrintCenterText(client, "***进入潜行状态***");
 				else
 					PrintCenterText(client, "***离开潜行状态***");
 			}
-			*/
 			
 			g_iIsSneaking[client] = state;
 			// PrintToServer("client %N state sneaking is %d", client, state);
@@ -1413,7 +1426,7 @@ public void OnMapStart()
 	GetConVarString(g_CvarSoundLevel, g_soundLevel, sizeof(g_soundLevel));
 	PrecacheSound(g_soundLevel);
 	PrecacheSound(SOUND_GIFT);
-	PrecacheSound(SOUND_BILE_BGM);
+	// PrecacheSound(SOUND_BILE_BGM);
 	
 	for(int i = 0; i < sizeof(g_sndShoveInfected); ++i)
 		PrecacheSound(g_sndShoveInfected[i], true);
@@ -1633,6 +1646,8 @@ public void Event_RoundEnd(Event event, const char[] event_name, bool dontBroadc
 			g_fFreezeTime[i] = 0.0;
 		if(g_hTimerMinigun[i] != null)
 			delete g_hTimerMinigun[i];
+		if(g_DelayDamage[i] != null)
+			delete g_DelayDamage[i];
 		
 		if(!stats)
 		{
@@ -1668,7 +1683,7 @@ public void Event_FinaleWin(Event event, const char[] event_name, bool dontBroad
 	g_iRoundEvent = 0;
 	g_bIsGamePlaying = false;
 	// PrintToChatAll("\x03[\x05提示\x03]\x04最终关卡胜利所有生还者硬币增加\x033\x04枚!");
-
+	
 	/*
 	for(new i = 1; i <= MaxClients; i++)
 	{
@@ -1679,7 +1694,7 @@ public void Event_FinaleWin(Event event, const char[] event_name, bool dontBroad
 		}
 	}
 	*/
-
+	
 	RestoreConVar();
 }
 
@@ -1952,10 +1967,15 @@ public void OutputHook_OnButtonUnPressed(const char[] output, int caller, int ac
 	}
 }
 
-public Action L4D2_CGasCan_ShouldStartAction(int client, int gascan)
+public Action L4D2_CGasCan_ShouldStartAction(int client, int gascan, int nozzle)
 {
-	OutputHook_OnPourUseStarted("ShouldStartAction", -1, client, 0.0);
+	OutputHook_OnPourUseStarted("ShouldStartAction", nozzle, client, 0.0);
 	return Plugin_Continue;
+}
+
+public void L4D2_CGasCan_ShouldStartAction_Post(int client, int gascan, int nozzle)
+{
+	OutputHook_OnPourUseCanceled("ShouldStartAction_Post", nozzle, client, 0.0);
 }
 
 public void OutputHook_OnPourUseStarted(const char[] output, int caller, int activator, float delay)
@@ -2406,6 +2426,7 @@ void Initialization(int client, bool invalid = false)
 	// g_bIgnorePreventStagger[client] = false;
 	// Handle toDelete2 = g_hClearCacheMessage[client];
 	// g_hClearCacheMessage[client] = null;
+	g_DelayDamage[client] = CreateArray(sizeof(DelayedDamageInfo_t));
 	
 	/*
 	for(int i = 0; i < MAX_CACHED_MESSAGES; ++i)
@@ -4152,7 +4173,7 @@ void StatusSelectMenuFuncC(int client, int page = -1)
 	FORMAT_MENU_ITEM_3(SKL_3_Accurate,"第一枪/最后一枪总是暴击");
 	FORMAT_MENU_ITEM_3(SKL_3_Cure,"「清醒」打针有1/2几率治疗濒死状态");
 	FORMAT_MENU_ITEM_3(SKL_3_Minigun,"鼠标中键部署固定机枪");
-	FORMAT_MENU_ITEM_3(SKL_3_HandGrenade,"持手枪时按鼠标中键发射石头");
+	FORMAT_MENU_ITEM_3(SKL_3_HandGrenade,"持手枪时按鼠标中键发射榴弹");
 	FORMAT_MENU_ITEM_3(SKL_3_DamageScale,"枪械伤害不会减少");
 	
 	menu.ExitButton = true;
@@ -4272,6 +4293,8 @@ void StatusSelectMenuFuncE(int client, int page = -1)
 		FORMAT_MENU_ITEM_5(SKL_5_ThrowMelee,"近战武器可以投掷(中键)");
 	}
 	
+	FORMAT_MENU_ITEM_5(SKL_5_DamageDelay,"「庇护」受到伤害延迟2秒结算");
+	
 	menu.ExitButton = true;
 	menu.ExitBackButton = true;
 	
@@ -4351,7 +4374,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
 				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
-				m.AddItem(info, "确定");
+				m.AddItem(info, "确定(硬币不退)");
 				m.AddItem(info, "取消");
 				
 				m.ExitButton = true;
@@ -4384,7 +4407,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
 				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
-				m.AddItem(info, "确定");
+				m.AddItem(info, "确定(硬币不退)");
 				m.AddItem(info, "取消");
 				
 				m.ExitButton = true;
@@ -4417,7 +4440,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
 				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
-				m.AddItem(info, "确定");
+				m.AddItem(info, "确定(硬币不退)");
 				m.AddItem(info, "取消");
 
 				m.ExitButton = true;
@@ -4450,7 +4473,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
 				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
-				m.AddItem(info, "确定");
+				m.AddItem(info, "确定(硬币不退)");
 				m.AddItem(info, "取消");
 
 				m.ExitButton = true;
@@ -4483,7 +4506,7 @@ public int MenuHandler_Skill(Menu menu, MenuAction action, int client, int selec
 
 				Menu m = CreateMenu(MenuHandler_CancelSkill);
 				m.SetTitle("【放弃技能】\n你确定放弃技能：\n%s", display);
-				m.AddItem(info, "确定");
+				m.AddItem(info, "确定(硬币不退)");
 				m.AddItem(info, "取消");
 
 				m.ExitButton = true;
@@ -4789,6 +4812,21 @@ int CalcEquipPower(EquipData_t data)
 	power += data.crit * 4;
 	
 	return power;
+}
+
+int CalcTeamPower(int team, bool avg, bool aliveOnly, bool hunamOnly)
+{
+	int total = 0, players = 0;
+	
+	for(int i = 1; i <= MaxClients; ++i)
+		if(IsValidClient(i) && (!aliveOnly || IsPlayerAlive(i)) && (!hunamOnly && !IsFakeClient(i)) && (team == 5 || GetClientTeam(i) == team))
+			++players, total += CalcPlayerPower(i);
+	
+	if(players <= 0)
+		return 0;
+	if(avg)
+		return total / players;
+	return total;
 }
 
 void StatusEqmFuncD(int client)
@@ -5819,6 +5857,36 @@ public void OnGameFrame()
 		}
 	}
 	
+	{
+		// 延迟结算
+		for(int i = 1; i <= MaxClients; ++i)
+		{
+			if(!IsValidAliveClient(i) || g_DelayDamage[i].Length <= 0)
+				continue;
+			
+			while(g_DelayDamage[i].Length > 0)
+			{
+				DelayedDamageInfo_t ddi;
+				g_DelayDamage[i].GetArray(0, ddi, sizeof(ddi));
+				if(ddi.time > GetGameTime())
+					break;
+				
+				g_DelayDamage[i].Erase(0);
+				
+				ddi.attacker = EntRefToEntIndex(ddi.attacker);
+				ddi.inflictor = EntRefToEntIndex(ddi.inflictor);
+				ddi.weapon = EntRefToEntIndex(ddi.weapon);
+				
+				if(ddi.inflictor == -1)
+					ddi.inflictor = 0;
+				if(ddi.attacker == -1)
+					ddi.attacker = 0;
+				
+				SDKHooks_TakeDamage(i, ddi.inflictor, ddi.attacker, ddi.damage, ddi.damagetype | DMG_DIRECT, ddi.weapon);
+			}
+		}
+	}
+	
 	static float nextSecond;
 	float curTime = GetEngineTime();
 	if(nextSecond <= curTime)
@@ -6669,9 +6737,9 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 					{
 						if(tempHealth >= damage)
 						{
-							tempHealth -= RoundToCeil(damage);
+							tempHealth -= RoundToCeil(damage - 1.0);
 							// health += RoundToCeil(damage);
-							damage = 0.0;
+							damage = 1.0;
 							// SetEntPropFloat(victim, Prop_Send, "m_healthBuffer", tempHealth);
 							// SetEntPropFloat(victim, Prop_Send, "m_healthBufferTime", GetGameTime());
 							L4D_SetTempHealth(victim, tempHealth);
@@ -6710,6 +6778,21 @@ bool HandleTakeDamage(int victim, int& attacker, int &inflictor, float &damage, 
 					attacker = inflictor = 0;
 				}
 			}
+		}
+		
+		// 忽略真实伤害
+		if((g_clSkill_5[victim] & SKL_5_DamageDelay) && damage > 0 && !(damagetype & DMG_DIRECT))
+		{
+			DelayedDamageInfo_t ddi;
+			ddi.time = GetGameTime() + 2 + GetPlayerEffect(victim, 72);
+			ddi.attacker = IsValidEdict(attacker) ? EntIndexToEntRef(attacker) : INVALID_ENT_REFERENCE;
+			ddi.inflictor = IsValidEdict(inflictor) ? EntIndexToEntRef(inflictor) : INVALID_ENT_REFERENCE;
+			ddi.damage = damage;
+			ddi.damagetype = damagetype;
+			ddi.weapon = IsValidEdict(weapon) ? EntIndexToEntRef(weapon) : INVALID_ENT_REFERENCE;
+			
+			g_DelayDamage[victim].PushArray(ddi, sizeof(ddi));
+			damage = 0.0;
 		}
 	}
 	
@@ -7486,9 +7569,9 @@ public void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 				if (!g_bHasRetarding[victim])
 				{
 					g_bHasRetarding[victim] = true;
-					new Float:vec[3];
-					GetClientEyePosition(victim, vec);
-					EmitAmbientSound(SOUND_FREEZE, vec, victim, SNDLEVEL_RAIDSIREN);
+					// float vec[3];
+					// GetClientEyePosition(victim, vec);
+					// EmitAmbientSound(SOUND_FREEZE, vec, victim, SNDLEVEL_RAIDSIREN);
 					g_fOldMovement[victim] = GetEntPropFloat(victim, Prop_Send, "m_flLaggedMovementValue");
 					SetEntPropFloat(victim, Prop_Send, "m_flLaggedMovementValue", g_fOldMovement[victim] * 0.55);
 					CreateTimer(1.0, Timer_StopRetard, GetClientUserId(victim), TIMER_FLAG_NO_MAPCHANGE);
@@ -11046,6 +11129,11 @@ public void Event_EntityShoved(Event event, const char[] eventName, bool dontBro
 	if(!IsValidAliveClient(attacker) || victim < 1 || !IsValidEdict(victim))
 		return;
 	
+	// 仅限玩家/感染者/可以打的铁
+	if(victim > MaxClients && !HasEntProp(victim, Prop_Send, "m_bIsBurning") &&
+		(!HasEntProp(victim, Prop_Send, "m_hasTankGlow") || !GetEntProp(victim, Prop_Send, "m_hasTankGlow")))
+		return;
+	
 	if(HasEntProp(victim, Prop_Send, "m_iTeamNum") && GetEntProp(victim, Prop_Send, "m_iTeamNum") == GetClientTeam(attacker))
 		return;
 	
@@ -11059,6 +11147,12 @@ public void Event_EntityShoved(Event event, const char[] eventName, bool dontBro
 	{
 		damage += 50.0;
 		Kickback(attacker, victim);
+	}
+	
+	if(g_clSkill_4[attacker] & SKL_4_Shove)
+	{
+		// 将物体推飞
+		Kickback(attacker, victim, _, 0.0);
 	}
 	
 	if(damage > 0.0)
@@ -11349,7 +11443,8 @@ void UpdateVomitDuration(any client)
 		L4D2_RunScript(buffer);
 	}
 	
-	EmitSoundToClient(client, SOUND_BILE_BGM, _, _, _, SND_STOP);
+	// EmitSoundToClient(client, SOUND_BILE_BGM, _, _, _, SND_STOP);
+	L4D_PlayMusic(client, "Event.VomitInTheFace", client, 0.0, false, false);
 	g_hChaseTimer[client] = CreateTimer(cv_bile_duration.FloatValue, Timer_UnVimit, GetClientUserId(client), TIMER_FLAG_NO_MAPCHANGE);
 	// L4D_OnITExpired(client);
 }
@@ -11364,6 +11459,7 @@ public Action Timer_UnVimit(Handle timer, any userid)
 	g_hChaseTimer[client] = null;
 	RemoveEntity(g_iChaseEntity[client]);
 	g_iChaseEntity[client] = INVALID_ENT_REFERENCE;
+	L4D_StopMusic(client, "Event.VomitInTheFace");
 	
 	Event event = CreateEvent("player_no_longer_it");
 	event.SetInt("userid", GetClientUserId(client));
@@ -11552,21 +11648,12 @@ void RegPlayerHook(int client, bool fullHealth = false)
 	float specialMul = g_pCvarSpecialHealth.FloatValue;
 	if((tankMul > 0.0 || specialMul > 0.0) && GetClientTeam(client) == 3)
 	{
-		int survivors = 0, powers = 0;
-		for(int i = 1; i <= MaxClients; ++i)
-		{
-			if(IsValidAliveClient(i) && GetClientTeam(i) == 2 && !IsFakeClient(i))
-			{
-				survivors += 1;
-				powers += CalcPlayerPower(i);
-			}
-		}
-		
+		int power = CalcTeamPower(2, true, true, false);
 		bool tank = GetEntProp(client, Prop_Send, "m_zombieClass") == ZC_TANK;
 		if(tankMul > 0.0 && tank)
-			health += RoundToZero(tankMul * powers / survivors);
+			health += RoundToZero(tankMul * power);
 		else if(specialMul > 0.0 && !tank)
-			health += RoundToZero(specialMul * powers / survivors);
+			health += RoundToZero(specialMul * power);
 	}
 	
 	{
@@ -13757,8 +13844,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				GetAngleVectors(velo, velo, NULL_VECTOR, NULL_VECTOR);
 				ScaleVector(velo, player_throwforce.FloatValue);
 				
-				// L4D2_GrenadeLauncherPrj(client, pos, velo);
-				L4D_TankRockPrj(client, pos, velo);
+				L4D2_GrenadeLauncherPrj(client, pos, velo);
+				// L4D_TankRockPrj(client, pos, velo);
 				
 				g_fNextHandGrenade[client] = time + 20.0;
 			}
@@ -14990,7 +15077,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 					
 					// 声音
 					EmitSoundToClient(client, g_sndShoveInfected[GetRandomInt(0, sizeof(g_sndShoveInfected)-1)], target,
-						SNDCHAN_BODY, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vLoc);
+						SNDCHAN_STATIC, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vLoc);
 					
 					// 事件
 					Event event = CreateEvent("player_shoved");
@@ -15012,7 +15099,8 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 				// GetEntPropVector(target, Prop_Data, "m_vecAbsOrigin", vLoc);
 				if( GetVectorDistance(vPos, vLoc, true) <= range )
 				{
-					SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_STUMBLE|DMG_MELEE, weapon, vDir, vLoc);
+					// SDKHooks_TakeDamage(target, (weapon ? weapon : client), client, 25.0, DMG_STUMBLE|DMG_MELEE, weapon, vDir, vLoc);
+					PushCommonInfected(client, target, vPos, 25.0, sTemp[1] == 'n');
 					
 					if(g_pfnResetEntityState != null)
 					{
@@ -15028,7 +15116,7 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 					
 					// 声音
 					EmitSoundToClient(client, g_sndShoveInfected[GetRandomInt(0, sizeof(g_sndShoveInfected)-1)], target,
-						SNDCHAN_BODY, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vLoc);
+						SNDCHAN_STATIC, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vLoc);
 					
 					// 事件
 					Event event = CreateEvent("entity_shoved");
@@ -15046,9 +15134,9 @@ stock void DoShoveSimulation(int client, int weapon = 0)
 	
 	if(!hit)
 	{
-		// 声音
+		// 推空声音
 		EmitSoundToClient(client, g_sndShoveMiss[GetRandomInt(0, sizeof(g_sndShoveMiss)-1)], client,
-			SNDCHAN_BODY, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vPos);
+			SNDCHAN_STATIC, SNDLEVEL_NORMAL, SND_NOFLAGS, SNDVOL_NORMAL, SNDPITCH_NORMAL, -1, vPos);
 	}
 }
 
@@ -15069,6 +15157,33 @@ public Action Timer_ShoveInfected(Handle timer, any pack)
 	SDKHooks_TakeDamage(infected, client, client, 0.000, DMG_BLAST, -1, NULL_VECTOR, vOrigin);
 	SDKHooks_TakeDamage(infected, client, client, 0.0001, DMG_BUCKSHOT, -1, NULL_VECTOR, vOrigin);
 	return Plugin_Continue;
+}
+
+stock void PushCommonInfected(int client, int infected, const float vPos[3], float damage, bool common = true)
+{
+	int hurt = CreateEntityByName("point_hurt");
+	if(hurt <= MaxClients)
+		return;
+	
+	DispatchKeyValue(hurt, "DamageTarget", "l4d2_dlc2_levelup_shove");
+	DispatchSpawn(hurt);
+	
+	if(common)
+		DispatchKeyValue(hurt, "DamageType", "33554432");	// DMG_AIRBOAT for Common L4D2
+	else
+		DispatchKeyValue(hurt, "DamageType", "64");			// DMG_BLAST for Witch
+	
+	static char sTemp[128];
+	
+	FloatToString(damage, sTemp, sizeof(sTemp));
+	DispatchKeyValue(hurt, "Damage", sTemp);
+	GetEntPropString(infected, Prop_Data, "m_iName", sTemp, sizeof(sTemp));
+	DispatchKeyValue(infected, "targetname", "l4d2_dlc2_levelup_shove");
+	TeleportEntity(hurt, vPos, NULL_VECTOR, NULL_VECTOR);
+	AcceptEntityInput(hurt, "Hurt", client, client);
+	DispatchKeyValue(infected, "targetname", sTemp);
+	
+	RemoveEntity(hurt);
 }
 
 stock bool IsChargerCharging(int client)
@@ -17214,6 +17329,8 @@ void RebuildEquipStr(EquipData_t data)
 			strcopy(data.sEffect, sizeof(data.sEffect), "「再生」包含电击器");
 		case 71:
 			strcopy(data.sEffect, sizeof(data.sEffect), "胆汁引怪持续时间+10");
+		case 72:
+			strcopy(data.sEffect, sizeof(data.sEffect), "「庇护」时间+1");
 		default:
 			strcopy(data.sEffect, sizeof(data.sEffect), "");
 	}
@@ -17775,6 +17892,18 @@ public int Native_GetPower(Handle plugin, int argc)
 		ThrowNativeError(SP_ERROR_PARAM, "invalid client");
 	
 	return CalcPlayerPower(client);
+}
+
+public int Native_GetAvgPower(Handle plugin, int argc)
+{
+	if(argc < 3)
+		ThrowNativeError(SP_ERROR_PARAM, "params mismatch");
+	
+	int team = GetNativeCell(1);
+	bool avg = view_as<bool>(GetNativeCell(2));
+	bool alive = view_as<bool>(GetNativeCell(3));
+	bool bot = view_as<bool>(GetNativeCell(4));
+	return CalcTeamPower(team, avg, alive, bot);
 }
 
 public int Native_GetAttrs(Handle plugin, int argc)

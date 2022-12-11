@@ -301,7 +301,7 @@ enum struct DelayedDamageInfo_t {
 	int weapon;
 }
 
-ArrayList g_DelayDamage[MAXPLAYERS+1];
+ArrayList g_DelayDamage[MAXPLAYERS+1] = { null, ... };
 
 enum struct TDInfo_t {
 	int dmg;
@@ -5861,7 +5861,7 @@ public void OnGameFrame()
 		// 延迟结算
 		for(int i = 1; i <= MaxClients; ++i)
 		{
-			if(!IsValidAliveClient(i) || g_DelayDamage[i].Length <= 0)
+			if(!IsValidAliveClient(i) || g_DelayDamage[i] == null || g_DelayDamage[i].Length <= 0)
 				continue;
 			
 			while(g_DelayDamage[i].Length > 0)
